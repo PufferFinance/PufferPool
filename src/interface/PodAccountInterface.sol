@@ -24,9 +24,20 @@ interface PodAccountInterface {
         address targetContract) 
         external payable returns(bool success);
 
-    // PodAccount can post data to the target contract
+    // PodAccount can post data to the target contract (e.g., stateroot to rollup bridge contract)
 	function postToRestakingService(
         address targetContract, 
-        bytes memory payload) 
+        bytes memory payload, 
+        bytes[] memory podSignatures) 
+        external;
+
+    function withdraw(
+        address targetContract,
+        address balanceReceiver) 
+        external;
+
+    function skim(
+        address targetContract,
+        address balanceReceiver) 
         external;
 }
