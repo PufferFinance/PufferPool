@@ -2,13 +2,13 @@
 pragma solidity ^0.8.13;
 
 interface RewardSplitterInterface {
-    function canSkim() external view;
+    function canSkim() external view returns (bool);
 
     function withdraw(
-        address balanceReceiver) 
-        external;
+        address payable _to) 
+        external returns(uint256);
 
     function skim(
-        address balanceReceiver) 
-        external;
+        address payable _to) 
+        external returns(uint256);
 }

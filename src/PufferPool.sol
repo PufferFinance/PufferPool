@@ -7,6 +7,15 @@ abstract contract PufferPoolBase is PufferPoolInterface {
     // Pool parameters
     bytes32 CREW_MRENCLAVE;
     uint256 remoteAttestationFreshnessThreshold;
+    uint256 crewSize;
+    uint256 crewThreshold;
+    uint256 crewKeyRotationInterval;
+
+    // Pool state
+    struct Pod {
+        address account;
+    }
+    mapping(bytes32 => mapping(address => Pod)) public pods;
 
     function extractEnclaveEthKeys(
         bytes[] memory payloads
