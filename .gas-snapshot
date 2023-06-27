@@ -1,1 +1,2 @@
-TestContract:testBar() (gas: 401)
+TestRewardSplitter:testFuzz_newSplitterWithBalance(uint256) (runs: 256, μ: 786381, ~: 786381)
+TestRewardSplitter:test_skim(uint256) (runs: 256, μ: 818174, ~: 825783)

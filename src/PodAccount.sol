@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
-import "src/interface/PodAccountInterface.sol";
-// import "@openzeppelin-contracts/finance/PaymentSplitter.sol";
+import { PodAccountInterface } from "puffer/interface/PodAccountInterface.sol";
 
 abstract contract PodAccountBase is PodAccountInterface {
     // Pod parameters

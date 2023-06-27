@@ -1,2 +1,11 @@
 [profile.ci.fuzz]
 runs = 10_000
+
+[profile.default]
+solc = "0.8.20"
+evm_version = "shanghai"
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = true
