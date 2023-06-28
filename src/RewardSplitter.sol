@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
-import "src/interface/RewardSplitterInterface.sol";
-import "openzeppelin-contracts/access/Ownable.sol";
-import "openzeppelin-contracts/utils/math/SignedMath.sol";
+import { RewardSplitterInterface } from "puffer/interface/RewardSplitterInterface.sol";
+import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
+import { console } from "forge-std/Test.sol";
 
 contract RewardSplitter is RewardSplitterInterface, Test {
     address public podAddr;
@@ -50,7 +50,7 @@ contract RewardSplitter is RewardSplitterInterface, Test {
             skimAmount = SignedMath.abs(SignedMath.max(int256(balance) - MAX_EFFECTIVE_BALANCE, 0));
         }
 
-        (bool sent, bytes memory data) = _to.call{value: skimAmount}("");
+        (bool sent, bytes memory data) = _to.call{ value: skimAmount }("");
         require(sent, "Failed to send Ether");
         return balance;
     }

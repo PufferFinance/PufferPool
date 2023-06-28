@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
-import "src/RewardSplitter.sol";
+import { Test } from "forge-std/Test.sol";
+import { console } from "forge-std/Test.sol";
+import { RewardSplitter } from "puffer/RewardSplitter.sol";
 
 contract TestRewardSplitter is Test {
     address podAddress = address(0);
@@ -10,11 +11,11 @@ contract TestRewardSplitter is Test {
     address recipient = address(2);
     uint256 skimThreshold = 2 ether;
 
-    function setUp() public {}
+    function setUp() public { }
 
     function newSplitterWithBalance(uint256 balance) public returns (address) {
         // Make sure msg.sender is the pod
-        vm.prank(podAddress);
+        vm.startPrank(podAddress);
         RewardSplitter s = new RewardSplitter(poolAddress, skimThreshold);
         address splitterAddr = address(s);
         require(s.podAddr() == podAddress, "bad podAddress");

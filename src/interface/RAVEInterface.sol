@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
 interface RAVeInterface {
-	function rave(
+    function rave(
         bytes memory _report,
         bytes memory _sig,
         bytes memory _leafX509Cert,
@@ -17,7 +17,7 @@ interface RAVeInterface {
         bytes memory _report,
         bytes memory _sig,
         bytes memory _signingMod,
-        bytes memory ,
+        bytes memory,
         bytes32 _mrenclave,
         bytes32 _mrsigner
     ) external view returns (bytes memory _payload);

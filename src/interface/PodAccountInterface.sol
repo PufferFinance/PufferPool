@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
 interface PodAccountInterface {
     // Meant to be called in constructor
-    function initialize(
-        bytes[] memory podEnclavePubKeys,
-        address[] memory podWallets,
-        bytes32 podType
-    ) external;
+    function initialize(bytes[] memory podEnclavePubKeys, address[] memory podWallets, bytes32 podType) external;
 
     // PodAccount posts a new validator key, required metadata, and their bond
     function registerValidatorKey(
@@ -20,16 +16,11 @@ interface PodAccountInterface {
     ) external payable returns (bytes32 withdrawalCredentials);
 
     // PodAccount can opt-in to restake at target contract
-    function restake(
-        address targetContract
-    ) external payable returns (bool success);
+    function restake(address targetContract) external payable returns (bool success);
 
     // PodAccount can post data to the target contract (e.g., stateroot to rollup bridge contract)
-    function postToRestakingService(
-        address targetContract,
-        bytes memory payload,
-        bytes[] memory podSignatures
-    ) external;
+    function postToRestakingService(address targetContract, bytes memory payload, bytes[] memory podSignatures)
+        external;
 
     function withdraw(address targetContract, address balanceReceiver) external;
 

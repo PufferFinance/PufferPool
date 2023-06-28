@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
 interface PufferPoolInterface {
     function registerPod(
@@ -16,9 +16,7 @@ interface PufferPoolInterface {
         bytes32 mrenclave
     ) external returns (bool success);
 
-    function upgradeCrew(
-        address newCrewAddress
-    ) external returns (bool success);
+    function upgradeCrew(address newCrewAddress) external returns (bool success);
 
     function registerValidatorKey(
         bytes memory pubKey,
@@ -38,14 +36,9 @@ interface PufferPoolInterface {
         bytes32 podType
     ) external returns (bool success);
 
-    function approveRestakeRequest(
-        address targetContract,
-        bytes32 podType
-    ) external payable returns (bool success);
+    function approveRestakeRequest(address targetContract, bytes32 podType) external payable returns (bool success);
 
-    function calcWithdrawalCredentials(
-        bytes memory pubKey
-    ) external pure returns (address withdrawalCredentials);
+    function calcWithdrawalCredentials(bytes memory pubKey) external pure returns (address withdrawalCredentials);
 
     function ejectPodForInactivity(
         address podAccount,

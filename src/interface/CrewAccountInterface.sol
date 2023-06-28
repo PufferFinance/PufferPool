@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
 interface CrewAccountInterface {
     // Meant to be called in constructor
-    function initialize(
-        bytes[] memory crewEnclavePubKeys,
-        address[] memory crewWallets
-    ) external;
+    function initialize(bytes[] memory crewEnclavePubKeys, address[] memory crewWallets) external;
 
     // CrewAccount provisions ETH to a validator
     function provisionPod(
