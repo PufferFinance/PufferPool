@@ -1,9 +1,4 @@
 /*
-	calls EigenPodManager.stake()
-	calls EigenPod.verifyAndProcessWithdrawal()
-	calls EigenPod.verifyWithdrawalCredentialsAndBalance()
-	calls Slasher.optIntoSlashing()
-	calls PufferAVSRegistry.register()
 	calls StrategyManager.queueWithdrawal()
 */
 
@@ -56,6 +51,51 @@ interface IEigenPodProxy {
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /**
+     * @notice Gives the `contractAddress` permission to slash the funds of the caller.
+     * @dev Typically, this function must be called prior to registering for a middleware.
+     */
+    function optIntoSlashing(address contractAddress) external;
+
+    /**
+     * @notice Register AVS with Puffer Registry
+     */
+    function register(bytes calldata registrationData) external;
+
+    /**
+     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
+     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
+     * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
+     * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
+     * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
+     * that the value per share reported by each strategy will remain consistent, and that the shares will continue
+     * to accrue gains during the enforced withdrawal waiting period.
+     * @param strategyIndexes is a list of the indices in `stakerStrategyList[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @param strategies The Strategies to withdraw from
+     * @param shares The amount of shares to withdraw from each of the respective Strategies in the `strategies` array
+     * @param withdrawer The address that can complete the withdrawal and will receive any withdrawn funds or shares upon completing the withdrawal
+     * @param undelegateIfPossible If this param is marked as 'true' *and the withdrawal will result in `msg.sender` having no shares in any Strategy,*
+     * then this function will also make an internal call to `undelegate(msg.sender)` to undelegate the `msg.sender`.
+     * @dev Strategies are removed from `stakerStrategyList` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `stakerStrategyList`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `stakerStrategyList` to lowest index
+     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
+     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
+     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
+     */
+    function queueWithdrawal(
+        uint256[] calldata strategyIndexes,
+        IStrategy[] calldata strategies,
+        uint256[] calldata shares,
+        address withdrawer,
+        bool undelegateIfPossible
+    )
+        external;
+
     /**
      * @notice Transfers `amountWei` in ether from this contract to the specified `recipient` address
      * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to the EigenPod's balance due to a withdrawal from the beacon chain.
