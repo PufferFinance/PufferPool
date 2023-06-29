@@ -10,10 +10,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
+import "eigenlayer/interfaces/IBeaconChainOracle.sol";
 
 interface IEigenPodProxy {
-	/*
 	enum VALIDATOR_STATUS {
         INACTIVE, // doesnt exist
         ACTIVE, // staked on ethpos and withdrawal credentials are pointed to the EigenPod
@@ -55,14 +56,12 @@ interface IEigenPodProxy {
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
-	*/
     /**
      * @notice Transfers `amountWei` in ether from this contract to the specified `recipient` address
      * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to the EigenPod's balance due to a withdrawal from the beacon chain.
      * @dev Called during withdrawal or slashing.
      * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
-     /*
     function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
 
     /// @notice The single EigenPodManager for EigenLayer
@@ -80,7 +79,7 @@ interface IEigenPodProxy {
 
     ///@notice mapping that tracks proven partial withdrawals
     function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
-*/
+    
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It also verifies the current (not effective) balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
@@ -91,14 +90,13 @@ interface IEigenPodProxy {
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-/*
     function verifyWithdrawalCredentialsAndBalance(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
     ) external;
-    */
+
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
@@ -111,7 +109,7 @@ interface IEigenPodProxy {
      *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-     *//*
+     */
     function verifyOvercommittedStake(
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
@@ -119,7 +117,7 @@ interface IEigenPodProxy {
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external;
-*/
+
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
      * @param withdrawalProofs is the information needed to check the veracity of the block number and withdrawal being proven
@@ -129,7 +127,6 @@ interface IEigenPodProxy {
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
-     /*
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
         bytes calldata validatorFieldsProof,
@@ -141,5 +138,4 @@ interface IEigenPodProxy {
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external;
-    */
 }
