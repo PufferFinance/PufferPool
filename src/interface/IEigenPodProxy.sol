@@ -19,22 +19,64 @@ interface IEigenPodProxy {
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
 
+    /// @notice The single EigenPodManager for EigenLayer
+    function eigenPodManager() external view returns (IEigenPodManager);
+
+    /// @notice The PufferPool will act as the PodManager via this EigenPodProxy
+    function podProxyManager() external view returns (address);
+
+    /// @notice A PodAccount will act as the PodOwner via this EigenPodProxy
+    function podProxyOwner() external view returns (address);
+
+    /// @notice The Eigenpod owned by this EigenPodProxy contract
+    function ownedEigenPod() external view returns (address);
+
+    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
+    function hasRestaked() external view returns (bool);
+
+    /// @notice block number of the most recent withdrawal
+    function mostRecentWithdrawalBlockNumber() external view returns (uint64);
+
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(address owner) external;
 
-    /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
-    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+    /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
+    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
-    /**
-     * @notice Gives the `contractAddress` permission to slash the funds of the caller.
-     * @dev Typically, this function must be called prior to registering for a middleware.
-     */
-    function optIntoSlashing(address contractAddress) external;
+    /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
+    function enableSlashing(address contractAddress) external;
 
     /**
      * @notice Register AVS with Puffer Registry
      */
-    function register(bytes calldata registrationData) external;
+    function registerToAVS(bytes calldata registrationData) external;
+
+    /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
+    function skim() external;
+
+    /**
+     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
+     *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
+     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
+     * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
+     *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
+     * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
+     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
+     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
+     * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
+     */
+    function verifyOvercommittedStake(
+        uint40 validatorIndex,
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
+        bytes32[] calldata validatorFields,
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleBlockNumber
+    ) external;
+
+    ///@notice mapping that tracks proven partial withdrawals
+    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
@@ -76,59 +118,14 @@ interface IEigenPodProxy {
      * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
     function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
-
-    /// @notice The single EigenPodManager for EigenLayer
-    function eigenPodManager() external view returns (IEigenPodManager);
-
-    /// @notice The owner of this EigenPod
-    function podOwner() external view returns (address);
-
-    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
-    function hasRestaked() external view returns (bool);
-
-    /// @notice block number of the most recent withdrawal
-    function mostRecentWithdrawalBlockNumber() external view returns (uint64);
-
-
-    ///@notice mapping that tracks proven partial withdrawals
-    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
     
-    /**
-     * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract. It also verifies the current (not effective) balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
-     * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
-     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proofs is the bytes that prove the ETH validator's balance and withdrawal credentials against a beacon chain state root
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
-     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-     */
-    function verifyWithdrawalCredentialsAndBalance(
+
+    /// @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
+    function enableRestaking(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
-    ) external;
-
-    /**
-     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
-     *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
-     * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
-     *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
-     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
-     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
-     * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-     */
-    function verifyOvercommittedStake(
-        uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
-        bytes32[] calldata validatorFields,
-        uint256 beaconChainETHStrategyIndex,
-        uint64 oracleBlockNumber
     ) external;
 
     /**
