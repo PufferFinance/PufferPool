@@ -1,39 +1,12 @@
-/*
-	calls StrategyManager.queueWithdrawal()
-*/
-
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
 import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
 import "eigenlayer/interfaces/IBeaconChainOracle.sol";
+import "eigenlayer/interfaces/IEigenPod.sol";
 
 interface IEigenPodProxy {
-	enum VALIDATOR_STATUS {
-        INACTIVE, // doesnt exist
-        ACTIVE, // staked on ethpos and withdrawal credentials are pointed to the EigenPod
-        OVERCOMMITTED, // proven to be overcommitted to EigenLayer
-        WITHDRAWN // withdrawn from the Beacon Chain
-    }
-
-    // this struct keeps track of PartialWithdrawalClaims
-    struct PartialWithdrawalClaim {
-        PARTIAL_WITHDRAWAL_CLAIM_STATUS status;
-        // block at which the PartialWithdrawalClaim was created
-        uint32 creationBlockNumber;
-        // last block (inclusive) in which the PartialWithdrawalClaim can be fraudproofed
-        uint32 fraudproofPeriodEndBlockNumber;
-        // amount of ETH -- in Gwei -- to be withdrawn until completion of this claim
-        uint64 partialWithdrawalAmountGwei;
-    }
-
-    enum PARTIAL_WITHDRAWAL_CLAIM_STATUS {
-        REDEEMED,
-        PENDING,
-        FAILED
-    }
-
     /// @notice The amount of eth, in gwei, that is restaked per validator
     function REQUIRED_BALANCE_GWEI() external view returns(uint64);
 
@@ -41,7 +14,7 @@ interface IEigenPodProxy {
     function REQUIRED_BALANCE_WEI() external view returns(uint256);
 
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
-    function validatorStatus(uint40 validatorIndex) external view returns(VALIDATOR_STATUS);
+    function validatorStatus(uint40 validatorIndex) external view returns(IEigenPod.VALIDATOR_STATUS);
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
