@@ -3,22 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
-import "eigenlayer/interfaces/IBeaconChainOracle.sol";
-import "eigenlayer/interfaces/IEigenPod.sol";
 
 interface IEigenPodProxy {
-    /// @notice The amount of eth, in gwei, that is restaked per validator
-    function REQUIRED_BALANCE_GWEI() external view returns(uint64);
-
-    /// @notice The amount of eth, in wei, that is restaked per validator
-    function REQUIRED_BALANCE_WEI() external view returns(uint256);
-
-    /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
-    function validatorStatus(uint40 validatorIndex) external view returns(IEigenPod.VALIDATOR_STATUS);
-
-    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
-    function restakedExecutionLayerGwei() external view returns(uint64);
-
     /// @notice The single EigenPodManager for EigenLayer
     function eigenPodManager() external view returns (IEigenPodManager);
 
@@ -31,14 +17,6 @@ interface IEigenPodProxy {
     /// @notice The Eigenpod owned by this EigenPodProxy contract
     function ownedEigenPod() external view returns (address);
 
-    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
-    function hasRestaked() external view returns (bool);
-
-    /// @notice block number of the most recent withdrawal
-    function mostRecentWithdrawalBlockNumber() external view returns (uint64);
-
-    /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(address owner) external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
@@ -53,30 +31,6 @@ interface IEigenPodProxy {
 
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
     function skim() external;
-
-    /**
-     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
-     *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
-     * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
-     *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
-     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
-     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
-     * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-     */
-    function verifyOvercommittedStake(
-        uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
-        bytes32[] calldata validatorFields,
-        uint256 beaconChainETHStrategyIndex,
-        uint64 oracleBlockNumber
-    ) external;
-
-    ///@notice mapping that tracks proven partial withdrawals
-    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
@@ -102,7 +56,7 @@ interface IEigenPodProxy {
      * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
      * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
-    function queueWithdrawal(
+    function initiateWithdrawal(
         uint256[] calldata strategyIndexes,
         IStrategy[] calldata strategies,
         uint256[] calldata shares,
@@ -110,14 +64,6 @@ interface IEigenPodProxy {
         bool undelegateIfPossible
     )
         external;
-
-    /**
-     * @notice Transfers `amountWei` in ether from this contract to the specified `recipient` address
-     * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to the EigenPod's balance due to a withdrawal from the beacon chain.
-     * @dev Called during withdrawal or slashing.
-     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
-     */
-    function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
     
 
     /// @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
@@ -137,7 +83,7 @@ interface IEigenPodProxy {
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
-    function verifyAndProcessWithdrawal(
+    function verifyAndWithdraw(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
         bytes calldata validatorFieldsProof,
         bytes32[] calldata validatorFields,
@@ -145,7 +91,4 @@ interface IEigenPodProxy {
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external;
-
-    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
-    function withdrawBeforeRestaking() external;
 }
