@@ -17,7 +17,6 @@ interface IEigenPodProxy {
     /// @notice The Eigenpod owned by this EigenPodProxy contract
     function ownedEigenPod() external view returns (address);
 
-
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
@@ -38,31 +37,13 @@ interface IEigenPodProxy {
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced withdrawal waiting period.
-     * @param strategyIndexes is a list of the indices in `stakerStrategyList[msg.sender]` that correspond to the strategies
-     * for which `msg.sender` is withdrawing 100% of their shares
-     * @param strategies The Strategies to withdraw from
      * @param shares The amount of shares to withdraw from each of the respective Strategies in the `strategies` array
-     * @param withdrawer The address that can complete the withdrawal and will receive any withdrawn funds or shares upon completing the withdrawal
-     * @param undelegateIfPossible If this param is marked as 'true' *and the withdrawal will result in `msg.sender` having no shares in any Strategy,*
-     * then this function will also make an internal call to `undelegate(msg.sender)` to undelegate the `msg.sender`.
-     * @dev Strategies are removed from `stakerStrategyList` by swapping the last entry with the entry to be removed, then
-     * popping off the last entry in `stakerStrategyList`. The simplest way to calculate the correct `strategyIndexes` to input
-     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
-     * `stakerStrategyList` to lowest index
      * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
      * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
      * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
      * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
-    function initiateWithdrawal(
-        uint256[] calldata strategyIndexes,
-        IStrategy[] calldata strategies,
-        uint256[] calldata shares,
-        address withdrawer,
-        bool undelegateIfPossible
-    )
-        external;
-    
+    function initiateWithdrawal(uint256[] calldata shares) external;
 
     /// @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
     function enableRestaking(
