@@ -24,9 +24,7 @@ interface IEigenPodProxy {
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;
 
-    /**
-     * @notice Register AVS with Puffer Registry
-     */
+    /// @notice Register AVS with Puffer Registry
     function registerToAVS(bytes calldata registrationData) external;
 
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
