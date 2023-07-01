@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPoolInterface } from "puffer/interface/PufferPoolInterface.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 
-abstract contract PufferPoolBase is PufferPoolInterface {
+abstract contract PufferPoolBase is IPufferPool {
     // Pool parameters
     bytes32 CREW_MRENCLAVE;
     uint256 remoteAttestationFreshnessThreshold;

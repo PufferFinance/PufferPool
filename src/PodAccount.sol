@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PodAccountInterface } from "puffer/interface/PodAccountInterface.sol";
+import { IPodAccount } from "puffer/interface/IPodAccount.sol";
 
-abstract contract PodAccountBase is PodAccountInterface {
+abstract contract PodAccountBase is IPodAccount {
     // Pod parameters
     bytes32 POD_MRENCLAVE;
     uint256 remoteAttestationFreshnessThreshold;

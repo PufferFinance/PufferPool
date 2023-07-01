@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-interface PodAccountInterface {
+interface IPodAccount {
     // Meant to be called in constructor
     function initialize(bytes[] memory podEnclavePubKeys, address[] memory podWallets, bytes32 podType) external;
 
