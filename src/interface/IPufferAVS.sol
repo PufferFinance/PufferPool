@@ -7,7 +7,7 @@ interface IPufferAVS {
 
 	function recordInitialStakeUpdate(address operator, uint32 serveUntil) external;
 
-	function recordFinalStakeUpdateRevokeSlashing(address operator, uint33 serveUntil) external;
+	function recordFinalStakeUpdateRevokeSlashing(address operator, uint32 serveUntil) external;
 
 	function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external;
 }
