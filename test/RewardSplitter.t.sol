@@ -32,7 +32,7 @@ contract TestRewardSplitter is Test {
         assertEq(balance, splitterAddr.balance);
     }
 
-    function test_skim(uint256 balance) public {
+    function test_skim(uint64 balance) public {
         // uint256 balance = 6 ether;
         address splitterAddr = newSplitterWithBalance(balance);
         RewardSplitter s = RewardSplitter(splitterAddr);
