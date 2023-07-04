@@ -17,6 +17,8 @@ interface IEigenPodProxy {
     /// @notice The Eigenpod owned by this EigenPodProxy contract
     function ownedEigenPod() external view returns (address);
 
+    function createEmptyPod() external;
+
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
