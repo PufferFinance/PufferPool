@@ -22,4 +22,15 @@ contract PufferAVSRegistry is RegistryBase, IPufferAVSRegistry {
     function operatorActive(address operator) external view returns (bool) {
     	return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
     }
+
+    function register(address operator, uint8 operatorType, bytes32 pubkeyHash) external {
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
+        _addRegistrant(operator, pubkeyHash, _operatorStake);
+    }
+
+    function deregister(address operator, uint32 index) external {
+        _deregistrationCheck(operator, index);
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        _removeOperator(operator, pubkeyHash, index);
+    }
 }
