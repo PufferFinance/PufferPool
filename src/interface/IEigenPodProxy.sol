@@ -17,10 +17,14 @@ interface IEigenPodProxy {
     /// @notice The Eigenpod owned by this EigenPodProxy contract
     function ownedEigenPod() external view returns (address);
 
+    /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /// @notice Withdraws full EigenPod balance if they've never restaked
+    function earlyWithdraw() external;
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;
