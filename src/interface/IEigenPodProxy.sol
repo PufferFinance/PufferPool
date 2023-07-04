@@ -35,6 +35,9 @@ interface IEigenPodProxy {
     /// @notice Register to Puffer AVS. Callable by anyone
     function registerToPufferAVS(bytes calldata registrationData) external;
 
+    /// @notice Deregisters this EigenPodProxy from an AVS
+    function deregisterFromAVS() external;
+
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
     function skim() external;
 
