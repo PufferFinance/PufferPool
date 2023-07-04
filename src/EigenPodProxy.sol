@@ -15,7 +15,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
      */
     error Unauthorized();
 
-    // TODO: getters, OZ ownable?
+    // TODO: getters, OZ ownable and/or access control
     address internal _owner;
     address internal _manager;
     address public ownedEigenPod;
@@ -69,7 +69,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     }
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
-    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable { }
+    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
+        require(msg.sender == podProxyManager, "Only podProxyManager allowed");
+        eigenPodManager.stake{value : 32 ether}(pubkey, signature, depositDataRoot);
+    }
 
     /// @notice Withdraws full EigenPod balance if they've never restaked
     function earlyWithdraw() external { }
