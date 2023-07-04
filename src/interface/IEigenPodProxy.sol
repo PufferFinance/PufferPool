@@ -5,18 +5,6 @@ import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
 
 interface IEigenPodProxy {
-    /// @notice The single EigenPodManager for EigenLayer
-    function eigenPodManager() external view returns (IEigenPodManager);
-
-    /// @notice The PufferPool will act as the PodManager via this EigenPodProxy
-    function podProxyManager() external view returns (address);
-
-    /// @notice A PodAccount will act as the PodOwner via this EigenPodProxy
-    function podProxyOwner() external view returns (address);
-
-    /// @notice The Eigenpod owned by this EigenPodProxy contract
-    function ownedEigenPod() external view returns (address);
-
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external;
 
