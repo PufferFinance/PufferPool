@@ -85,4 +85,7 @@ interface IEigenPodProxy {
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external;
+
+    /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
+    function completeWithdrawal() external;
 }
