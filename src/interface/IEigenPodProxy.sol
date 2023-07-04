@@ -12,7 +12,7 @@ interface IEigenPodProxy {
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /// @notice Withdraws full EigenPod balance if they've never restaked
-    function earlyWithdraw() external;
+    function earlyWithdraw() external payable;
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;

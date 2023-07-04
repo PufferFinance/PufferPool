@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import "./interface/IEigenPodProxy.sol";
+import "eigenlayer/interfaces/IEigenPod.sol";
 
 /**
  * @title EingenPodProxy
@@ -18,9 +19,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // TODO: getters, OZ ownable and/or access control
     address internal _owner;
     address internal _manager;
-    address public ownedEigenPod;
     address public podProxyOwner;
     address public podProxyManager;
+
+    IEigenPod public ownedEigenPod;
     IEigenPodManager public eigenPodManager;
 
     constructor(address _podProxyOwner, address _podProxyManager, address _eigenPodManager) {
@@ -60,22 +62,25 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external {
         require(tx.origin == podProxyOwner, "Only PodProxyOwner allowed");
-        require(ownedEigenPod == address(0), "Must not have instantiated EigenPod");
+        require(address(ownedEigenPod) == address(0), "Must not have instantiated EigenPod");
 
         eigenPodManager.createPod();
 
         // This contract is the owner of the created eigenPod
-        ownedEigenPod = address(eigenPodManager.ownerToPod(address(this)));
+        ownedEigenPod = eigenPodManager.ownerToPod(address(this));
     }
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         require(msg.sender == podProxyManager, "Only podProxyManager allowed");
-        eigenPodManager.stake{value : 32 ether}(pubkey, signature, depositDataRoot);
+        eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
     }
 
     /// @notice Withdraws full EigenPod balance if they've never restaked
-    function earlyWithdraw() external { }
+    function earlyWithdraw() external payable {
+        require(msg.sender == podProxyOwner, "Only podProxyOwner allowed");
+        ownedEigenPod.withdrawBeforeRestaking();
+    }
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external { }
