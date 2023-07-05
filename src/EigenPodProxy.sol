@@ -31,6 +31,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     IEigenPodManager public eigenPodManager;
     // EigenLayer's Slasher contract
     ISlasher public slasher;
+    // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
+    IEigenPod.VALIDATOR_STATUS previousStatus;
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
@@ -68,6 +70,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         podAVSCommission = _podAVSCommission;
         consensusRewardsSplit = _consensusRewardsSplit;
         executionRewardsSplit = _executionRewardsSplit;
+
+        previousStatus = IEigenPod.VALIDATOR_STATUS.INACTIVE;
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
@@ -212,7 +216,11 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
-    ) external { }
+    ) external {
+        ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
+        // Keep track of ValidatorStatus state changes
+        previousStatus = IEigenPod.VALIDATOR_STATUS.ACTIVE;
+    }
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
