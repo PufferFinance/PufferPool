@@ -49,6 +49,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     //Number of shares out of one billion to split execution rewards with the pool
     uint256 executionRewardsSplit;
 
+    // Keeps track of how much eth was withdrawn from the EigenPod
+    uint256 withdrawnETH;
+
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
 
@@ -80,6 +83,34 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             AVSRewards += msg.value;
         } else if (msg.sender != address(ownedEigenPod)) {
             executionRewards += msg.value;
+        } else {
+            // TODO: Use the public key mapping to get the status of the corresponding validator
+            IEigenPod.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
+            if (
+                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPod.VALIDATOR_STATUS.ACTIVE
+            ) {
+                // Eth owned to podProxyOwner
+                uint256 skimmable = Math.max(msg.value - 1 ether, 0);
+                uint256 podsCut = consensusRewardsSplit;
+                uint256 podRewards = podsCut
+                    + (address(this).balance - skimmable - executionRewards - AVSRewards) * consensusRewardsSplit
+                    + (executionRewards * executionRewardsSplit) + (AVSRewards * podAVSCommission);
+                _sendETH(podProxyOwner, podRewards);
+
+                // ETH to be returned later (not taxed by treasury)
+                withdrawnETH = msg.value - skimmable;
+
+                // ETH owed to pool
+                uint256 poolCut = address(this).balance - withdrawnETH;
+                _sendETH(podProxyManager, poolCut);
+
+                // Update previous status to this current status
+                previousStatus = currentStatus;
+                // Reset execution and AVS rewards after distribution
+                executionRewards = 0;
+                AVSRewards = 0;
+            }
         }
     }
 
