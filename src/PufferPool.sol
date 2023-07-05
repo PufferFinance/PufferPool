@@ -123,7 +123,7 @@ contract PufferPool is
             threshold: _getThreshold(podWallets.length)
         });
 
-        // TODO: maybe Minimal clones for this?
+        // TODO: maybe Minimal clones for this or beacon proxy?
         EigenPodProxy eigenPodProxy = new EigenPodProxy(address(account), address(this));
 
         emit PodAccountCreated(mrenclave, address(account));
