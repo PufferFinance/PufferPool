@@ -4,8 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import {Script} from "forge-std/Script.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import { WETH9 } from "test/mocks/Weth9.sol";
 
 /**
  * @title DeployPufferPool script
@@ -13,7 +11,7 @@ import { WETH9 } from "test/mocks/Weth9.sol";
  * @notice Deploys UUPS upgradeable `PufferPool`.
  */
 contract DeployPufferPool is Script {
-    function run() external returns (PufferPool, WETH9) {
+    function run() external returns (PufferPool) {
         bool pkSet = vm.envOr("PRIVATE_KEY", false);
 
         if (pkSet) {
@@ -29,10 +27,8 @@ contract DeployPufferPool is Script {
         ERC1967Proxy proxy = new ERC1967Proxy(address(poolImpl), "");
         // Casts Proxy to PufferPool
         PufferPool pool = PufferPool(address(proxy));
-        // Deploys WETH mock
-        WETH9 weth = new WETH9();
         // Initializes the Pool
-        pool.initialize(IERC20Upgradeable(address(weth)));
+        pool.initialize();
 
         if (!pkSet) {
             // For test environment transfer ownership to Test contract
@@ -41,7 +37,7 @@ contract DeployPufferPool is Script {
 
         vm.stopBroadcast();
 
-        // Returns pool & WETH
-        return (pool, weth);
+        // Returns pool
+        return (pool);
     }
 }

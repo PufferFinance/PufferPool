@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 /**
  * @title EingenPodProxy
  * @author Puffer finance
- * @notice TODO:
+ * @notice TODO: interacts with EigenLayer
  */
 contract EigenPodProxy {
     /**
@@ -33,5 +33,13 @@ contract EigenPodProxy {
             revert Unauthorized();
         }
         _;
+    }
+
+    function skim() external {
+        // TODO:
+    }
+
+    function eigenStake() external onlyManager {
+        // TODO:
     }
 }

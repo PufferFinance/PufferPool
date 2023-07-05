@@ -3,48 +3,32 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferPoolMockUpgrade } from "test/mocks/PufferPoolMockUpgrade.sol";
-import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { Multicall3 } from "test/mocks/Multicall3.sol";
-import { WETH9 } from "test/mocks/Weth9.sol";
-import { ETHDepositor } from "puffer/ETHDepositor.sol";
-import { IWETH9 } from "puffer/interface/IWETH9.sol";
 
 contract PufferPoolTest is Test {
     PufferPool pool;
-    WETH9 weth;
-    address depositor = makeAddr("depositor");
-
-    ETHDepositor ethDepositor;
-    Multicall3 multicall;
-
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
 
     function setUp() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool, weth) = new DeployPufferPool().run();
-
-        // Two ways of depositing ETH
-        // 1. Simple ETHDepositor smart contract
-        ethDepositor = new ETHDepositor(IWETH9(address(weth)), pool);
-        // 2. MakerDAO's Multicall3
-        multicall = new Multicall3();
+        (pool) = new DeployPufferPool().run();
     }
 
     // Test setup
     function testSetup() public {
         assertEq(pool.name(), "Puffer ETH");
         assertEq(pool.symbol(), "pufETH");
-        assertEq(address(weth), pool.asset(), "underlying token");
+        assertEq(pool.paused(), false, "paused");
         assertEq(address(this), pool.owner(), "owner");
 
         vm.expectRevert("Initializable: contract is already initialized");
-        pool.initialize(IERC20Upgradeable(address(weth)));
+        pool.initialize();
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -57,6 +41,21 @@ contract PufferPoolTest is Test {
 
         result = PufferPoolMockUpgrade(address(pool)).returnSomething();
         assertEq(result, 1337);
+    }
+
+    // Pause
+    function testPause() public {
+        assertEq(pool.paused(), false, "!paused");
+        pool.pause();
+        assertEq(pool.paused(), true, "paused");
+    }
+
+    // Resume
+    function testResume() public {
+        pool.pause();
+        assertEq(pool.paused(), true, "paused");
+        pool.resume();
+        assertEq(pool.paused(), false, "resunmed");
     }
 
     // Create guardian account
@@ -103,57 +102,21 @@ contract PufferPoolTest is Test {
         assertEq(safe.getThreshold(), 1, "threshold");
     }
 
-    // Deposit via MakerDao's Multicall3 smart contract
-    function testDepositETHViaMulticall3() public {
-        uint256 amount = 1 ether;
+    // Fuzz test for depositing ETH to PufferPool
+    function testDeposit(address pufETHRecipient, uint256 depositAmount) public {
+        vm.assume(pufETHRecipient != address(0));
+        depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
 
-        // Wrap ETH -> WETH
-        Multicall3.Call3Value memory call0 = Multicall3.Call3Value({
-            target: address(weth),
-            callData: abi.encodeCall(weth.deposit, ()),
-            value: amount,
-            allowFailure: false
-        });
+        assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
 
-        // Approve WETH -> PufferPool
-        Multicall3.Call3Value memory call1 = Multicall3.Call3Value({
-            target: address(weth),
-            callData: abi.encodeCall(weth.approve, (address(pool), amount)),
-            value: 0,
-            allowFailure: false
-        });
+        pool.deposit{ value: depositAmount }(pufETHRecipient);
 
-        // Deposit to PufferPool for `depositor`
-        Multicall3.Call3Value memory call2 = Multicall3.Call3Value({
-            target: address(pool),
-            callData: abi.encodeCall(pool.deposit, (amount, address(depositor))),
-            value: 0,
-            allowFailure: false
-        });
-
-        Multicall3.Call3Value[] memory calldatas = new Multicall3.Call3Value[](3);
-
-        calldatas[0] = call0;
-        calldatas[1] = call1;
-        calldatas[2] = call2;
-
-        // Depositor should start with zero shares
-        assertEq(pool.balanceOf(depositor), 0, "should have zero shares");
-
-        multicall.aggregate3Value{ value: amount }(calldatas);
-
-        // Depositor should more than zero shares
-        assertGt(pool.balanceOf(depositor), 0, "no shares received");
+        assertEq(pool.balanceOf(pufETHRecipient), depositAmount, "recipient pufETH amount");
     }
 
-    // Deposit via ETHDepositor smart contract
-    function testDepositViaEthDepositor() public {
-        // Depositor should start with zero shares
-        assertEq(pool.balanceOf(depositor), 0, "should have zero shares");
-
-        ethDepositor.deposit{ value: 1 ether }(depositor);
-
-        // Depositor should more than zero shares
-        assertGt(pool.balanceOf(depositor), 0, "no shares received");
+    // Deposit should revert when trying to deposit too small amount
+    function testDepositRevertsForTooSmallAmount() public {
+        vm.expectRevert(IPufferPool.AmountTooSmall.selector);
+        pool.deposit{ value: 0.005 ether }(makeAddr("recipient"));
     }
 }

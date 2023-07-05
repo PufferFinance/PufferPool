@@ -10,6 +10,26 @@ import { Safe } from "safe-contracts/Safe.sol";
  */
 interface IPufferPool {
     /**
+     * @notice Thrown when the user tries to deposit a small amount of ETH
+     */
+    error AmountTooSmall();
+
+    /**
+     * @notice Emitted when ETH is deposited to PufferPool
+     * @param pufETHRecipient is the recipient address
+     * @param pufETHAmount is the pufETH amount received in return
+     */
+    event Deposited(address pufETHRecipient, uint256 pufETHAmount);
+
+    /**
+     * @notice Emitted when pufETH is burned
+     * @param from is the address that burned pufETH
+     * @param pufETHAmount is the pufETH amount received in return
+     * @param recipient is the recipient address
+     */
+    event Burned(address from, uint256 pufETHAmount, address recipient);
+
+    /**
      * @notice Emitted when Guardians create an account
      * @param mrenclave Unique enclave identifier
      * @param account {Safe} account address
@@ -22,6 +42,26 @@ interface IPufferPool {
      * @param account {Safe} account address
      */
     event PodAccountCreated(bytes32 mrenclave, address account);
+
+    /**
+     * @notice Deposits ETH and `recipient` receives pufETH in return
+     */
+    function deposit(address recipient) external payable;
+
+    /**
+     * @notice Burns `pufETHAmount` from the transaction sender and sends ETH to the `recipient` address
+     */
+    function redeem(address recipient, uint256 pufETHAmount) external;
+
+    /**
+     * Pauses the smart contract
+     */
+    function pause() external;
+
+    /**
+     * Unpauses the smart contract
+     */
+    function resume() external;
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet
@@ -95,18 +135,6 @@ interface IPufferPool {
     //     bytes memory validatorPubKey,
     //     bytes[] memory crewSignatures
     // ) external;
-
-    // // LST related
-    // function mint(address recipient) external payable;
-
-    // function redeem(address recipient) external payable;
-
-    // // Contract maintanence
-    // function pause() external;
-
-    // function resume() external;
-
-    // function upgrade(address newContractAddr) external;
 
     // // Setters to set parameters
     // function setParamX() external;
