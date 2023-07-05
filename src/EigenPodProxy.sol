@@ -149,10 +149,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
         if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
-                _sendETH(podProxyOwner, 2 + ((contractBalance - 30) * podAVSCommission) / 10 ** 9);
+                _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * podAVSCommission) / 10 ** 9);
                 _sendETH(podProxyManager, address(this).balance);
             } else {
-                _sendETH(podProxyOwner, Math.max(contractBalance - 30, 0));
+                _sendETH(podProxyOwner, Math.max(contractBalance - 30 ether, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
             // Reset execution rewards because we just withdrew all ETH
