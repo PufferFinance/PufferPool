@@ -148,7 +148,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
 
         if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
-            if (contractBalance >= 32) {
+            if (contractBalance >= 32 ether) {
                 _sendETH(podProxyOwner, 2 + ((contractBalance - 30) * podAVSCommission) / 10 ** 9);
                 _sendETH(podProxyManager, address(this).balance);
             } else {
@@ -160,33 +160,18 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         }
         // TODO: How to determine the rewards which come from an AVS from consensus rewards?
         else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
-            if (contractBalance >= 32) {
-                _sendETH(
-                    podProxyOwner,
-                    2
-                        + (
-                            (contractBalance - 30 - executionRewards) * consensusRewardsSplit
-                                + executionRewards * executionRewardsSplit
-                        ) / 10 ** 9
-                );
-                _sendETH(podProxyManager, address(this).balance);
-            } else {
-                _sendETH(
-                    podProxyOwner,
-                    (
-                        (contractBalance - executionRewards) * consensusRewardsSplit
-                            + executionRewards * executionRewardsSplit
-                    ) / 10 ** 9
-                );
-                _sendETH(podProxyManager, address(this).balance);
-            }
+            _sendETH(
+                podProxyOwner,
+                (
+                    (contractBalance - executionRewards) * consensusRewardsSplit
+                        + executionRewards * executionRewardsSplit
+                ) / 10 ** 9
+            );
+            _sendETH(podProxyManager, address(this).balance);
             // Reset execution rewards after skimming
             executionRewards = 0;
         }
     }
-
-    /// @notice Special case of skim to handle funds distribution after full withdraw from EigenPod
-    function skimAfterFullWithdraw() external { }
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
