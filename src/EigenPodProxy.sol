@@ -26,18 +26,28 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     address payable public podProxyManager;
 
     IEigenPod public ownedEigenPod;
+    // EigenLayer's Singular EigenPodManager contract
     IEigenPodManager public eigenPodManager;
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
     // Number of shares out of one billion to split AVS rewards with the pool
     uint256 podAVSCommission;
+    // If ETH hits this contract, and not from the ownedEigenPod contract, consider it execution rewards
+    uint256 executionRewards;
 
     constructor(address payable _podProxyOwner, address payable _podProxyManager, address _eigenPodManager) {
         // _manager = manager;
         podProxyOwner = _podProxyOwner;
         podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
+    }
+
+    /// @notice Fallback function used to differentiate execution rewards from consensus rewards
+    fallback() external payable {
+        if (msg.sender != address(ownedEigenPod)) {
+            executionRewards += msg.value;
+        }
     }
 
     /// @notice Helper function to get the withdrawal credentials corresponding to the owned eigenPod
@@ -127,6 +137,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 _sendETH(podProxyOwner, Math.max(contractBalance - 30, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
+            // Reset execution rewards because we just withdrew all ETH
+            executionRewards = 0;
         }
     }
 

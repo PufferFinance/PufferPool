@@ -193,7 +193,7 @@ contract PufferPool is
         new BeaconProxy(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (address(account), address(this))));
 
         // TODO: other logic, remove this assert
-        assert(EigenPodProxy(address(eigenPodProxy)).getManager() == address(this));
+        assert(EigenPodProxy(payable(address(eigenPodProxy))).getManager() == address(this));
 
         emit PodAccountCreated(mrenclave, address(account));
     }
