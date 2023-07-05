@@ -68,7 +68,7 @@ contract PufferPool is
         __UUPSUpgradeable_init();
         __ERC20_init("Puffer ETH", "pufETH");
         __Pausable_init();
-        __Ownable_init(msg.sender);
+        __Ownable_init();
     }
 
     modifier onlyPod() {
