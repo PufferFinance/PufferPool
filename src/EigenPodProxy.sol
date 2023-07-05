@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
+import "openzeppelin/utils/math/Math.sol";
 import "./interface/IEigenPodProxy.sol";
 import "eigenlayer/interfaces/IEigenPod.sol";
 
@@ -19,17 +20,29 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // TODO: getters, OZ ownable and/or access control
     address internal _owner;
     address internal _manager;
-    address public podProxyOwner;
-    address public podProxyManager;
+    // PodAccount
+    address payable public podProxyOwner;
+    // PufferPool
+    address payable public podProxyManager;
 
     IEigenPod public ownedEigenPod;
     IEigenPodManager public eigenPodManager;
 
-    constructor(address _podProxyOwner, address _podProxyManager, address _eigenPodManager) {
+    // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
+    uint256 public owedToPodOwner;
+    // Number of shares out of one billion to split AVS rewards with the pool
+    uint256 podAVSCommission;
+
+    constructor(address payable _podProxyOwner, address payable _podProxyManager, address _eigenPodManager) {
         // _manager = manager;
         podProxyOwner = _podProxyOwner;
         podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
+    }
+
+    /// @notice Helper function to get the withdrawal credentials corresponding to the owned eigenPod
+    function _getPodWithdrawalCredentials() internal view returns (bytes memory) {
+        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(ownedEigenPod));
     }
 
     function getManager() external view returns (address) {
@@ -95,7 +108,27 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     function deregisterFromAVS() external { }
 
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
-    function skim() external { }
+    function skim() external {
+        // TODO: Get the index of the validator corresponding to this eigenpod, so we can fetch the appropriate validator status
+        IEigenPod.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
+        uint256 contractBalance = address(this).balance;
+
+        require(
+            status != IEigenPod.VALIDATOR_STATUS.WITHDRAWN && status != IEigenPod.VALIDATOR_STATUS.OVERCOMMITTED,
+            "Can't be withdrawn or overcommitted"
+        );
+        require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
+
+        if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
+            if (contractBalance >= 32) {
+                _sendETH(podProxyOwner, 2 + ((contractBalance - 30) * podAVSCommission) / 10 ** 9);
+                _sendETH(podProxyManager, address(this).balance);
+            } else {
+                _sendETH(podProxyOwner, Math.max(contractBalance - 30, 0));
+                _sendETH(podProxyManager, address(this).balance);
+            }
+        }
+    }
 
     /// @notice Special case of skim to handle funds distribution after full withdraw from EigenPod
     function skimAfterFullWithdraw() external { }
@@ -144,4 +177,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
     function completeWithdrawal() external { }
+
+    function _sendETH(address payable to, uint256 amount) internal {
+        (bool sent, bytes memory data) = to.call{ value: amount }("");
+        require(sent, "Failed to send Ether");
+    }
 }
