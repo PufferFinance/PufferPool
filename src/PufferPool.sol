@@ -134,6 +134,16 @@ contract PufferPool is
     }
 
     /**
+     * Returns the remainder of the PodProxyOwner's bond back to pool
+     */
+    function returnBond(address payable podProxyOwner, uint256 amount) external { }
+
+    /**
+     * Returns the ETH to the pool, not taxed by the Treasury
+     */
+    function returnETH(uint256 amount) external { }
+
+    /**
      * @inheritdoc IPufferPool
      */
     function createGuardianAccount(

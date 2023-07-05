@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import "openzeppelin/utils/math/Math.sol";
 import "./interface/IEigenPodProxy.sol";
+import "./interface/IPufferPool.sol";
 import "eigenlayer/interfaces/IEigenPod.sol";
 import "eigenlayer/interfaces/ISlasher.sol";
 
@@ -29,8 +30,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     IEigenPod public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
     IEigenPodManager public eigenPodManager;
-    // EigenLayer's Slasher contract
+    // EigenLayer's Singular Slasher contract
     ISlasher public slasher;
+    // The Singular PufferPool contract
+    IPufferPool public pufferPool;
     // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
     IEigenPod.VALIDATOR_STATUS previousStatus;
 
@@ -58,6 +61,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     constructor(
         address payable _podProxyOwner,
         address payable _podProxyManager,
+        address payable _pufferPool,
         address _slasher,
         address _eigenPodManager,
         uint256 _podAVSCommission,
@@ -69,6 +73,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
         slasher = ISlasher(_slasher);
+        pufferPool = IPufferPool(_pufferPool);
 
         podAVSCommission = _podAVSCommission;
         consensusRewardsSplit = _consensusRewardsSplit;
@@ -107,6 +112,37 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
                 // Update previous status to this current status
                 previousStatus = currentStatus;
+                // Reset execution and AVS rewards after distribution
+                executionRewards = 0;
+                AVSRewards = 0;
+            } else if (
+                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                    && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
+            ) {
+                withdrawnETH += msg.value;
+                int256 debt = int256(30 ether - withdrawnETH);
+
+                // Handle any rewards
+                uint256 skimmable = address(this).balance - withdrawnETH;
+
+                if (debt <= 0) {
+                    // ETH owed to podProxyOwner
+                    uint256 podRewards = Math.max(skimmable - executionRewards - AVSRewards, 0) * consensusRewardsSplit
+                        + executionRewards * executionRewardsSplit + AVSRewards * podAVSCommission;
+                    _sendETH(podProxyOwner, podRewards);
+
+                    // ETH owed to pool
+                    uint256 poolRewards = skimmable - podRewards;
+                    _sendETH(podProxyManager, poolRewards);
+
+                    // Return up to 2 ETH bond back to pool
+                    pufferPool.returnBond(podProxyOwner, Math.max(withdrawnETH - 30, 0));
+                }
+
+                // Return remained to the pool (not taxed by treasury)
+                pufferPool.returnETH(address(this).balance);
+
                 // Reset execution and AVS rewards after distribution
                 executionRewards = 0;
                 AVSRewards = 0;
