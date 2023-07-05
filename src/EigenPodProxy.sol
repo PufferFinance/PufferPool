@@ -5,6 +5,7 @@ import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import "openzeppelin/utils/math/Math.sol";
 import "./interface/IEigenPodProxy.sol";
 import "eigenlayer/interfaces/IEigenPod.sol";
+import "eigenlayer/interfaces/ISlasher.sol";
 
 /**
  * @title EingenPodProxy
@@ -28,6 +29,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     IEigenPod public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
     IEigenPodManager public eigenPodManager;
+    // EigenLayer's Slasher contract
+    ISlasher public slasher;
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
@@ -50,6 +53,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     constructor(
         address payable _podProxyOwner,
         address payable _podProxyManager,
+        address _slasher,
         address _eigenPodManager,
         uint256 _podAVSCommission,
         uint256 _consensusRewardsSplit,
@@ -59,6 +63,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         podProxyOwner = _podProxyOwner;
         podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
+        slasher = ISlasher(_slasher);
 
         podAVSCommission = _podAVSCommission;
         consensusRewardsSplit = _consensusRewardsSplit;
@@ -134,6 +139,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     function enableSlashing(address contractAddress) external {
         // Note this contract address as potential payment address
         AVSPaymentAddresses[contractAddress] = true;
+        slasher.optIntoSlashing(contractAddress);
     }
 
     /// @notice Register to generic AVS. Only callable by pod owner
@@ -169,9 +175,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             // Reset execution rewards and AVS rewards because we just withdrew all ETH
             executionRewards = 0;
             AVSRewards = 0;
-        }
-        // TODO: How to determine the rewards which come from an AVS from consensus rewards?
-        else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+        } else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
             _sendETH(
                 podProxyOwner,
                 (
@@ -183,7 +187,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             // Reset execution and AVS rewards after skimming
             executionRewards = 0;
             AVSRewards = 0;
-        }
+        } else if (status == IEigenPod.VALIDATOR_STATUS.WITHDRAWN) { }
     }
 
     /**
