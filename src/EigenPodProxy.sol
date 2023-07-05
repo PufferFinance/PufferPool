@@ -31,7 +31,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
-    // If ETH hits this contract, and not from the ownedEigenPod contract, consider it execution rewards
+    // Keeps track of AVS rewards received
+    uint256 public AVSRewards;
+    // If ETH hits this contract, and not from the ownedEigenPod contract, or AVS, consider it execution rewards
     uint256 public executionRewards;
 
     // TODO: Should these be defined elsewhere so that all eigenPods can (more conveniently) have consistent behavior?
@@ -41,6 +43,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     uint256 consensusRewardsSplit;
     //Number of shares out of one billion to split execution rewards with the pool
     uint256 executionRewardsSplit;
+
+    // Keeps track of addresses which AVS payments can be expected to come from
+    mapping(address => bool) public AVSPaymentAddresses;
 
     constructor(
         address payable _podProxyOwner,
@@ -62,7 +67,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
-        if (msg.sender != address(ownedEigenPod)) {
+        if (AVSPaymentAddresses[msg.sender]) {
+            AVSRewards += msg.value;
+        } else if (msg.sender != address(ownedEigenPod)) {
             executionRewards += msg.value;
         }
     }
@@ -124,7 +131,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     }
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
-    function enableSlashing(address contractAddress) external { }
+    function enableSlashing(address contractAddress) external {
+        // Note this contract address as potential payment address
+        AVSPaymentAddresses[contractAddress] = true;
+    }
 
     /// @notice Register to generic AVS. Only callable by pod owner
     function registerToAVS(bytes calldata registrationData) external { }
@@ -137,7 +147,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
     function skim() external {
-        // TODO: Get the index of the validator corresponding to this eigenpod, so we can fetch the appropriate validator status
+        // TODO: Use the public key mapping to get the status of the corresponding validator
         IEigenPod.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
         uint256 contractBalance = address(this).balance;
 
@@ -147,6 +157,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         );
         require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
 
+        // TODO: Revisit the inactive case later
         if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
                 _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * podAVSCommission) / 10 ** 9);
@@ -155,21 +166,23 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 _sendETH(podProxyOwner, Math.max(contractBalance - 30 ether, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
-            // Reset execution rewards because we just withdrew all ETH
+            // Reset execution rewards and AVS rewards because we just withdrew all ETH
             executionRewards = 0;
+            AVSRewards = 0;
         }
         // TODO: How to determine the rewards which come from an AVS from consensus rewards?
         else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
             _sendETH(
                 podProxyOwner,
                 (
-                    (contractBalance - executionRewards) * consensusRewardsSplit
-                        + executionRewards * executionRewardsSplit
+                    (contractBalance - executionRewards - AVSRewards) * consensusRewardsSplit
+                        + executionRewards * executionRewardsSplit + AVSRewards * podAVSCommission
                 ) / 10 ** 9
             );
             _sendETH(podProxyManager, address(this).balance);
-            // Reset execution rewards after skimming
+            // Reset execution and AVS rewards after skimming
             executionRewards = 0;
+            AVSRewards = 0;
         }
     }
 
