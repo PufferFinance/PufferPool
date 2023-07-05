@@ -38,17 +38,17 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // Number of shares out of one billion to split AVS rewards with the pool
     uint256 podAVSCommission;
     //Number of shares out of one billion to split consensus rewards with the pool
-    uint256 podConsensusRewardsCommission;
+    uint256 consensusRewardsSplit;
     //Number of shares out of one billion to split execution rewards with the pool
-    uint256 podExecutionRewardsCommission;
+    uint256 executionRewardsSplit;
 
     constructor(
         address payable _podProxyOwner,
         address payable _podProxyManager,
         address _eigenPodManager,
         uint256 _podAVSCommission,
-        uint256 _podConsensusRewardsCommission,
-        uint256 _podExecutionRewardsCommission
+        uint256 _consensusRewardsSplit,
+        uint256 _executionRewardsSplit
     ) {
         // _manager = manager;
         podProxyOwner = _podProxyOwner;
@@ -56,8 +56,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         eigenPodManager = IEigenPodManager(_eigenPodManager);
 
         podAVSCommission = _podAVSCommission;
-        podConsensusRewardsCommission = _podConsensusRewardsCommission;
-        podExecutionRewardsCommission = _podExecutionRewardsCommission;
+        consensusRewardsSplit = _consensusRewardsSplit;
+        executionRewardsSplit = _executionRewardsSplit;
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
@@ -164,8 +164,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                     podProxyOwner,
                     2
                         + (
-                            (contractBalance - 30 - executionRewards) * podConsensusRewardsCommission
-                                + executionRewards * podExecutionRewardsCommission
+                            (contractBalance - 30 - executionRewards) * consensusRewardsSplit
+                                + executionRewards * executionRewardsSplit
                         ) / 10 ** 9
                 );
                 _sendETH(podProxyManager, address(this).balance);
@@ -173,12 +173,14 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 _sendETH(
                     podProxyOwner,
                     (
-                        (contractBalance - executionRewards) * podConsensusRewardsCommission
-                            + executionRewards * podExecutionRewardsCommission
+                        (contractBalance - executionRewards) * consensusRewardsSplit
+                            + executionRewards * executionRewardsSplit
                     ) / 10 ** 9
                 );
                 _sendETH(podProxyManager, address(this).balance);
             }
+            // Reset execution rewards after skimming
+            executionRewards = 0;
         }
     }
 
