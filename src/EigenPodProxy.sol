@@ -113,6 +113,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         require(msg.sender == podProxyManager, "Only podProxyManager allowed");
+        require(msg.value == 32 ether, "Must be called with 32 ETH");
         eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
     }
 
