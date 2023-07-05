@@ -31,16 +31,33 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
+    // If ETH hits this contract, and not from the ownedEigenPod contract, consider it execution rewards
+    uint256 public executionRewards;
+
+    // TODO: Should these be defined elsewhere so that all eigenPods can (more conveniently) have consistent behavior?
     // Number of shares out of one billion to split AVS rewards with the pool
     uint256 podAVSCommission;
-    // If ETH hits this contract, and not from the ownedEigenPod contract, consider it execution rewards
-    uint256 executionRewards;
+    //Number of shares out of one billion to split consensus rewards with the pool
+    uint256 podConsensusRewardsCommission;
+    //Number of shares out of one billion to split execution rewards with the pool
+    uint256 podExecutionRewardsCommission;
 
-    constructor(address payable _podProxyOwner, address payable _podProxyManager, address _eigenPodManager) {
+    constructor(
+        address payable _podProxyOwner,
+        address payable _podProxyManager,
+        address _eigenPodManager,
+        uint256 _podAVSCommission,
+        uint256 _podConsensusRewardsCommission,
+        uint256 _podExecutionRewardsCommission
+    ) {
         // _manager = manager;
         podProxyOwner = _podProxyOwner;
         podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
+
+        podAVSCommission = _podAVSCommission;
+        podConsensusRewardsCommission = _podConsensusRewardsCommission;
+        podExecutionRewardsCommission = _podExecutionRewardsCommission;
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
@@ -139,6 +156,29 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             }
             // Reset execution rewards because we just withdrew all ETH
             executionRewards = 0;
+        }
+        // TODO: How to determine the rewards which come from an AVS from consensus rewards?
+        else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+            if (contractBalance >= 32) {
+                _sendETH(
+                    podProxyOwner,
+                    2
+                        + (
+                            (contractBalance - 30 - executionRewards) * podConsensusRewardsCommission
+                                + executionRewards * podExecutionRewardsCommission
+                        ) / 10 ** 9
+                );
+                _sendETH(podProxyManager, address(this).balance);
+            } else {
+                _sendETH(
+                    podProxyOwner,
+                    (
+                        (contractBalance - executionRewards) * podConsensusRewardsCommission
+                            + executionRewards * podExecutionRewardsCommission
+                    ) / 10 ** 9
+                );
+                _sendETH(podProxyManager, address(this).balance);
+            }
         }
     }
 
