@@ -39,10 +39,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
-    // Keeps track of AVS rewards received
-    uint256 public AVSRewards;
-    // If ETH hits this contract, and not from the ownedEigenPod contract, or AVS, consider it execution rewards
-    uint256 public executionRewards;
 
     // TODO: Should these be defined elsewhere so that all eigenPods can (more conveniently) have consistent behavior?
     // Number of shares out of one billion to split AVS rewards with the pool
@@ -85,9 +81,11 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
         if (AVSPaymentAddresses[msg.sender]) {
-            AVSRewards += msg.value;
+            _sendETH(podProxyOwner, (msg.value * podAVSCommission) / 10 ** 9);
+            _sendETH(podProxyManager, address(this).balance);
         } else if (msg.sender != address(ownedEigenPod)) {
-            executionRewards += msg.value;
+            _sendETH(podProxyOwner, (msg.value * executionRewardsSplit) / 10 ** 9);
+            _sendETH(podProxyManager, address(this).balance);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPod.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
@@ -97,10 +95,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             ) {
                 // Eth owned to podProxyOwner
                 uint256 skimmable = Math.max(msg.value - 1 ether, 0);
-                uint256 podsCut = consensusRewardsSplit;
-                uint256 podRewards = podsCut
-                    + (address(this).balance - skimmable - executionRewards - AVSRewards) * consensusRewardsSplit
-                    + (executionRewards * executionRewardsSplit) + (AVSRewards * podAVSCommission);
+                uint256 podsCut = skimmable * consensusRewardsSplit;
+                uint256 podRewards = podsCut + (address(this).balance - skimmable) * consensusRewardsSplit;
                 _sendETH(podProxyOwner, podRewards);
 
                 // ETH to be returned later (not taxed by treasury)
@@ -112,9 +108,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
                 // Update previous status to this current status
                 previousStatus = currentStatus;
-                // Reset execution and AVS rewards after distribution
-                executionRewards = 0;
-                AVSRewards = 0;
             } else if (
                 msg.sender == address(ownedEigenPod) && currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
                     && previousStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
@@ -128,8 +121,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
                 if (debt <= 0) {
                     // ETH owed to podProxyOwner
-                    uint256 podRewards = Math.max(skimmable - executionRewards - AVSRewards, 0) * consensusRewardsSplit
-                        + executionRewards * executionRewardsSplit + AVSRewards * podAVSCommission;
+                    uint256 podRewards = Math.max(skimmable, 0) * consensusRewardsSplit;
                     _sendETH(podProxyOwner, podRewards);
 
                     // ETH owed to pool
@@ -142,10 +134,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
                 // Return remained to the pool (not taxed by treasury)
                 pufferPool.returnETH(address(this).balance);
-
-                // Reset execution and AVS rewards after distribution
-                executionRewards = 0;
-                AVSRewards = 0;
             }
         }
     }
@@ -237,28 +225,16 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         // TODO: Revisit the inactive case later
         if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
-                _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * podAVSCommission) / 10 ** 9);
+                _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9);
                 _sendETH(podProxyManager, address(this).balance);
             } else {
                 _sendETH(podProxyOwner, Math.max(contractBalance - 30 ether, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
-            // Reset execution rewards and AVS rewards because we just withdrew all ETH
-            executionRewards = 0;
-            AVSRewards = 0;
         } else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
-            _sendETH(
-                podProxyOwner,
-                (
-                    (contractBalance - executionRewards - AVSRewards) * consensusRewardsSplit
-                        + executionRewards * executionRewardsSplit + AVSRewards * podAVSCommission
-                ) / 10 ** 9
-            );
+            _sendETH(podProxyOwner, (contractBalance * consensusRewardsSplit) / 10 ** 9);
             _sendETH(podProxyManager, address(this).balance);
-            // Reset execution and AVS rewards after skimming
-            executionRewards = 0;
-            AVSRewards = 0;
-        } else if (status == IEigenPod.VALIDATOR_STATUS.WITHDRAWN) { }
+        }
     }
 
     /**
