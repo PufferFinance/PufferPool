@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-interface PufferPoolInterface {
+interface IPufferPool {
     function registerPod(
         bytes[] memory raEvidences,
         bytes[] memory ethPks,
