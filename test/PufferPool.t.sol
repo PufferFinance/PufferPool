@@ -75,6 +75,7 @@ contract PufferPoolTest is Test {
             safeImplementation: address(safeImplementation),
             mrenclave: mrenclave,
             guardiansWallets: owners,
+            emptyData: "",
             guardiansEnclavePubKeys: new bytes[](0)
         });
 
@@ -100,6 +101,7 @@ contract PufferPoolTest is Test {
             safeImplementation: address(safeImplementation),
             mrenclave: mrenclave,
             podWallets: owners,
+            emptyData: "",
             podEnclavePubKeys: new bytes[](0)
         });
 

@@ -141,18 +141,22 @@ contract PufferPool is
         address safeImplementation,
         bytes[] calldata guardiansEnclavePubKeys,
         address[] calldata guardiansWallets,
-        bytes32 mrenclave
+        bytes32 mrenclave,
+        bytes calldata emptyData
     ) external returns (Safe account) {
         if (address(_guardiansMultisig) != address(0)) {
             revert();
         }
         // TODO: validations, other logic
 
+        require(emptyData.length == 0);
+
         account = _deploySafe({
             safeProxyFactory: address(safeProxyFactory),
             safeSingleton: address(safeImplementation),
             saltNonce: uint256(mrenclave),
             owners: guardiansWallets,
+            emptyData: emptyData,
             threshold: _getThreshold(guardiansWallets.length)
         });
 
@@ -169,15 +173,19 @@ contract PufferPool is
         address safeImplementation,
         bytes[] calldata podEnclavePubKeys,
         address[] calldata podWallets,
-        bytes32 mrenclave
+        bytes32 mrenclave,
+        bytes calldata emptyData
     ) external returns (Safe account) {
         // TODO: validations, other logic
+
+        require(emptyData.length == 0);
 
         account = _deploySafe({
             safeProxyFactory: address(safeProxyFactory),
             safeSingleton: address(safeImplementation),
             saltNonce: uint256(mrenclave),
             owners: podWallets,
+            emptyData: emptyData,
             threshold: _getThreshold(podWallets.length)
         });
 

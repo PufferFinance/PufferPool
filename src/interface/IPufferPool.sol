@@ -121,7 +121,8 @@ interface IPufferPool {
         address safeImplementation,
         bytes[] calldata podEnclavePubKeys,
         address[] calldata podWallets,
-        bytes32 mrenclave
+        bytes32 mrenclave,
+        bytes calldata emptyData
     ) external returns (Safe account);
 
     /**
@@ -137,7 +138,8 @@ interface IPufferPool {
         address safeImplementation,
         bytes[] calldata guardiansEnclavePubKeys,
         address[] calldata guardiansWallets,
-        bytes32 mrenclave
+        bytes32 mrenclave,
+        bytes calldata emptyData
     ) external returns (Safe account);
 
     // function provisionPod(
