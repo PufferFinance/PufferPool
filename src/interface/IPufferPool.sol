@@ -15,19 +15,36 @@ interface IPufferPool {
     error AmountTooSmall();
 
     /**
+     * @notice Thrown when the user is not authorized
+     */
+    error Unauthorized();
+
+    /**
+     * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
+     * @param eigenPodProxy is the address of the EigenPod proxy contract
+     * @param validatorIdx is the index of the Validator
+     * @param timestamp is the unix timestmap in seconds
+     */
+    event ETHProvisioned(address eigenPodProxy, uint256 validatorIdx, uint256 timestamp);
+
+    /**
      * @notice Emitted when ETH is deposited to PufferPool
+     * @param depositor is the depositor address
      * @param pufETHRecipient is the recipient address
+     * @param pufETHRecipient is the recipient address
+     * @param ethAmountDeposited is the ETH amount deposited
      * @param pufETHAmount is the pufETH amount received in return
      */
-    event Deposited(address pufETHRecipient, uint256 pufETHAmount);
+    event Deposited(address depositor, address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
     /**
      * @notice Emitted when pufETH is burned
-     * @param from is the address that burned pufETH
-     * @param pufETHAmount is the pufETH amount received in return
-     * @param recipient is the recipient address
+     * @param withdrawer is the address that burned pufETH
+     * @param ETHRecipient is the address received ETH
+     * @param pufETHAmount is the pufETH amount burned
+     * @param ETHAmount is the ETH amount received
      */
-    event Burned(address from, uint256 pufETHAmount, address recipient);
+    event Withdrawn(address withdrawer, address ETHRecipient, uint256 pufETHAmount, uint256 ETHAmount);
 
     /**
      * @notice Emitted when Guardians create an account
@@ -49,9 +66,10 @@ interface IPufferPool {
     function deposit(address recipient) external payable;
 
     /**
-     * @notice Burns `pufETHAmount` from the transaction sender and sends ETH to the `recipient` address
+     *
+     * @notice Burns `pufETHAmount` from the transaction sender and sends ETH to the `ethRecipient`
      */
-    function redeem(address recipient, uint256 pufETHAmount) external;
+    function withdraw(address ethRecipient, uint256 pufETHAmount) external;
 
     /**
      * Pauses the smart contract
@@ -62,6 +80,33 @@ interface IPufferPool {
      * Unpauses the smart contract
      */
     function resume() external;
+
+    /**
+     * @notice Calculates ETH -> pufETH `amount` based on the ETH:pufETH exchange rate
+     * @return pufETH amount
+     */
+    function calculateETHToPufETHAmount(uint256 amount) external view returns (uint256);
+
+    /**
+     * @notice Calculates pufETH -> ETH `pufETHAmount` based on the ETH:pufETH exchange rate
+     * @return ETH amount
+     */
+    function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
+
+    /**
+     * Returns the amount of ETH locked in Validators
+     */
+    function getLockedETHAmount() external view returns (uint256);
+
+    /**
+     * Returns the ETH rewards amount from the last update
+     */
+    function getNewRewardsETHAmount() external view returns (uint256);
+
+    /**
+     * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
+     */
+    function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet

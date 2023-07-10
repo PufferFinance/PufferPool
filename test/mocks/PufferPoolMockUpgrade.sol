@@ -8,6 +8,8 @@ contract PufferPoolMockUpgrade is PufferPool {
         return 1337;
     }
 
+    constructor() PufferPool(address(0)) { }
+
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
