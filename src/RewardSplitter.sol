@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IRewardSplitter} from "puffer/interface/IRewardSplitter.sol";
+import { IRewardSplitter } from "puffer/interface/IRewardSplitter.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 
 import { Test } from "forge-std/Test.sol";
