@@ -4,7 +4,7 @@ runs = 10_000
 [profile.default]
 optimizer = false
 optimizer_runs = 10_000
-solc = "0.8.20"
+solc = "0.8.12"
 evm_version = "shanghai"
 
 [fmt]
