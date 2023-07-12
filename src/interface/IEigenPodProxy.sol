@@ -45,7 +45,7 @@ interface IEigenPodProxy {
      * to accrue gains during the enforced withdrawal waiting period.
      * @param shares The amount of shares to withdraw from each of the respective Strategies in the `strategies` array
      * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
-     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed
      * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
      * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
@@ -65,11 +65,11 @@ interface IEigenPodProxy {
      * @param validatorFieldsProof is the proof of the validator's fields in the validator tree
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
-     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to
      *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndWithdraw(
-        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
+        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs,
         bytes calldata validatorFieldsProof,
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
