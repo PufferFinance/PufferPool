@@ -259,6 +259,7 @@ contract PufferPoolTest is Test {
 
     function testCreatePodAndThenRegisterValidatorKey(address owner, bytes calldata pubKey) public {
         vm.assume(owner != address(0)); // address(0) can't be used
+        vm.assume(owner != address(1)); // address(1) can't be used as it is special address in {Safe}
 
         address[] memory owners = new address[](1);
         owners[0] = owner;
