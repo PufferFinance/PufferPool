@@ -11,6 +11,7 @@ import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
 contract PufferPoolTest is Test {
     PufferPool pool;
@@ -18,10 +19,12 @@ contract PufferPoolTest is Test {
     Safe safeImplementation;
     UpgradeableBeacon beacon;
 
+    uint256 VALIDATOR_BOND = 2 ether;
+
     function setUp() public {
         (, beacon) = new DeployBeacon().run();
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon));
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
     }
 
@@ -31,9 +34,12 @@ contract PufferPoolTest is Test {
         assertEq(pool.symbol(), "pufETH");
         assertEq(pool.paused(), false, "paused");
         assertEq(address(this), pool.owner(), "owner");
+        assertEq(pool.getEigenPodValidatorLimit(), 1, "validator limit");
+        assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
+        assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
 
         vm.expectRevert("Initializable: contract is already initialized");
-        pool.initialize();
+        pool.initialize({ safeProxyFactory: address(proxyFactory), safeImplementation: address(safeImplementation) });
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -71,20 +77,43 @@ contract PufferPoolTest is Test {
         owners[0] = address(this);
 
         Safe safe = pool.createGuardianAccount({
-            safeProxyFactory: address(proxyFactory),
-            safeImplementation: address(safeImplementation),
             mrenclave: mrenclave,
             guardiansWallets: owners,
-            emptyData: "",
+            threshold: owners.length,
             guardiansEnclavePubKeys: new bytes[](0)
         });
-
         assertTrue(safe.isOwner(address(this)), "bad owner");
         assertEq(safe.getThreshold(), 1, "threshold");
+
+        vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
+        pool.createGuardianAccount({
+            mrenclave: mrenclave,
+            guardiansWallets: owners,
+            threshold: owners.length,
+            guardiansEnclavePubKeys: new bytes[](0)
+        });
     }
 
-    // Fuzz test for creating Pod account
-    function testCreatePodAccount(bytes32 mrenclave, address owner1, address owner2) public {
+    // Test creating pod account
+    function testCreatePodAccount(address owner1) public {
+        vm.assume(owner1 != address(0)); // address(0) can't be used
+        vm.assume(owner1 != address(1)); // address(1) can't be used as it is special address in {Safe}
+
+        address[] memory owners = new address[](1);
+        owners[0] = owner1;
+
+        (Safe safe, IEigenPodProxy eigenPodProxy) =
+            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+
+        assertTrue(safe.isOwner(address(owner1)), "bad owner");
+        assertEq(safe.getThreshold(), 1, "safe threshold");
+        assertEq(eigenPodProxy.podProxyOwner(), address(safe), "eigen pod proxy owner");
+    }
+
+    // Fuzz test for creating Pod account and registering one validator key
+    function testCreatePodAccountAndRegisterValidatorKey(address owner1, address owner2, bytes calldata pubKey)
+        public
+    {
         vm.assume(owner1 != address(0)); // address(0) can't be used
         vm.assume(owner2 != address(0));
         vm.assume(owner1 != address(1));
@@ -96,18 +125,26 @@ contract PufferPoolTest is Test {
         owners[0] = owner1;
         owners[1] = owner2;
 
-        Safe safe = pool.createPodAccount({
-            safeProxyFactory: address(proxyFactory),
-            safeImplementation: address(safeImplementation),
-            mrenclave: mrenclave,
-            podWallets: owners,
-            emptyData: "",
-            podEnclavePubKeys: new bytes[](0)
+        bytes[] memory pubKeys = new bytes[](1);
+        pubKeys[0] = pubKey;
+
+        // Revert if value is not VALIDATOR_BOND
+        vm.expectRevert(IPufferPool.InsufficientETH.selector);
+        pool.createPodAccountAndRegisterValidatorKeys{ value: 1 ether }({
+            podAccountOwners: owners,
+            threshold: owners.length,
+            pubKeys: pubKeys
         });
+
+        // It should work now
+        (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccountAndRegisterValidatorKeys{
+            value: VALIDATOR_BOND
+        }({ podAccountOwners: owners, threshold: owners.length, pubKeys: pubKeys });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertTrue(safe.isOwner(address(owner2)), "bad owner2");
-        assertEq(safe.getThreshold(), 1, "threshold");
+        assertEq(safe.getThreshold(), 2, "safe threshold");
+        assertEq(eigenPodProxy.podProxyOwner(), address(safe), "eigen pod proxy owner");
     }
 
     // Fuzz test for depositing ETH to PufferPool
@@ -117,7 +154,7 @@ contract PufferPoolTest is Test {
 
         assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
 
-        pool.deposit{ value: depositAmount }(pufETHRecipient);
+        pool.depositETH{ value: depositAmount }(pufETHRecipient);
 
         assertEq(pool.balanceOf(pufETHRecipient), depositAmount, "recipient pufETH amount");
     }
@@ -130,14 +167,14 @@ contract PufferPoolTest is Test {
 
         assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
 
-        pool.deposit{ value: depositAmount }(pufETHRecipient);
+        pool.depositETH{ value: depositAmount }(pufETHRecipient);
 
         uint256 pufETHRecipientBalance = pool.balanceOf(pufETHRecipient);
 
         vm.startPrank(pufETHRecipient);
         pool.approve(address(pool), pufETHRecipientBalance);
 
-        pool.withdraw(pufETHRecipient, pufETHRecipientBalance);
+        pool.withdrawETH(pufETHRecipient, pufETHRecipientBalance);
 
         assertEq(depositAmount, pufETHRecipient.balance, "amounts don't match");
     }
@@ -148,7 +185,7 @@ contract PufferPoolTest is Test {
         address bob = makeAddr("bob");
 
         uint256 aliceAmount = 100 ether;
-        pool.deposit{ value: aliceAmount }(alice);
+        pool.depositETH{ value: aliceAmount }(alice);
 
         uint256 alicePufETHBalance = pool.balanceOf(alice);
         assertEq(alicePufETHBalance, aliceAmount); // first depositor got 1:1 conversion rate because totalSupply of pufETH is 0
@@ -163,7 +200,7 @@ contract PufferPoolTest is Test {
         // Pool before deposit has 125 ETH and 100 pufETH total supply
         // conversion rate is 1.25
         uint256 bobAmount = 100 ether;
-        pool.deposit{ value: bobAmount }(bob);
+        pool.depositETH{ value: bobAmount }(bob);
 
         // Pool now has 225 ETH (fake rewards + alice deposit + bob deposit)
         assertEq(225 ether, address(pool).balance, "pool eth amount first check");
@@ -184,7 +221,7 @@ contract PufferPoolTest is Test {
 
         // Alice withdraws 70 pufETH for 105 ETH
         vm.prank(alice);
-        pool.withdraw(alice, 70 ether);
+        pool.withdrawETH(alice, 70 ether);
 
         assertEq(105 ether, alice.balance, "alice amount");
 
@@ -200,7 +237,7 @@ contract PufferPoolTest is Test {
         assertEq(pool.getPufETHtoETHExchangeRate(), 0.90909090909090909 ether, "conversion rate after fake slashing"); // ~0.9
 
         vm.prank(bob);
-        pool.withdraw(bob, 10 ether); // withdraw 10pufETH -> ETH
+        pool.withdrawETH(bob, 10 ether); // withdraw 10pufETH -> ETH
 
         // Bob should get ~9 ETH
         assertEq(9.0909090909090909 ether, bob.balance, "bob amount");
@@ -211,18 +248,96 @@ contract PufferPoolTest is Test {
 
         // Withdraw the remaining pufETH, zeroing out ETH and pufETH total supply
         vm.prank(alice);
-        pool.withdraw(alice, 30 ether);
+        pool.withdrawETH(alice, 30 ether);
 
         vm.prank(bob);
-        pool.withdraw(bob, 70 ether);
+        pool.withdrawETH(bob, 70 ether);
 
         assertEq(0, address(pool).balance, "pool eth amount");
         assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
     }
 
+    function testCreatePodAndThenRegisterValidatorKey(address owner, bytes calldata pubKey) public {
+        vm.assume(owner != address(0)); // address(0) can't be used
+
+        address[] memory owners = new address[](1);
+        owners[0] = owner;
+
+        // Create pod account in one transaction
+        (Safe safe, IEigenPodProxy eigenPodProxy) =
+            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+
+        bytes[] memory pubKeys = new bytes[](1);
+        pubKeys[0] = pubKey;
+
+        // Register validator keys for that EigenPodProxy
+        pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND }(address(eigenPodProxy), pubKeys);
+    }
+
+    // Test trying to register more validator keys than the limit
+    function testRegisterValidatorKeyError() public {
+        bytes[] memory newSetOfPubKeys = new bytes[](3);
+        newSetOfPubKeys[0] = bytes("key1");
+        newSetOfPubKeys[1] = bytes("key2");
+        newSetOfPubKeys[2] = bytes("key3");
+
+        // We can use mock address because validators for this are performed at a later stage
+        address eigenPodProxyMock = makeAddr("podMock");
+        vm.expectRevert(IPufferPool.MaximumNumberOfValidatorsReached.selector);
+        pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND * 3 }(eigenPodProxyMock, newSetOfPubKeys);
+    }
+
+    // Test trying to register a validator key for invalid Eigen pod proxy
+    function testRegisterKeyForInvalidEigenPod() public {
+        bytes[] memory newSetOfPubKeys = new bytes[](1);
+        newSetOfPubKeys[0] = bytes("key1");
+
+        // Use invalid pod address
+        address eigenPodProxyMock = makeAddr("podMock");
+        vm.expectRevert(IPufferPool.InvalidEigenPodProxy.selector);
+        pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND }(eigenPodProxyMock, newSetOfPubKeys);
+    }
+
+    // Test trying to register a duplicate validator key
+    function testRegisterDuplicateValidatorKeyError() public {
+        address[] memory owners = new address[](1);
+        owners[0] = makeAddr("owner");
+
+        // Create pod account in one transaction
+        (Safe safe, IEigenPodProxy eigenPodProxy) =
+            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+
+        bytes[] memory newSetOfPubKeys = new bytes[](2);
+        newSetOfPubKeys[0] = bytes("key1");
+        newSetOfPubKeys[1] = bytes("key1");
+
+        // Increase validator limit before we try to register
+        pool.changeEigenPodValidatorLimit(5);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferPool.DuplicateValidatorKey.selector, newSetOfPubKeys[0]));
+        pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND * 2 }(address(eigenPodProxy), newSetOfPubKeys);
+    }
+
     // Deposit should revert when trying to deposit too small amount
     function testDepositRevertsForTooSmallAmount() public {
-        vm.expectRevert(IPufferPool.AmountTooSmall.selector);
-        pool.deposit{ value: 0.005 ether }(makeAddr("recipient"));
+        vm.expectRevert(IPufferPool.InsufficientETH.selector);
+        pool.depositETH{ value: 0.005 ether }(makeAddr("recipient"));
+    }
+
+    // Setter for {Safe} implementation
+    function testChangeSafeImplementation(address mockSafeImplementation) public {
+        pool.changeSafeImplementation(mockSafeImplementation);
+        assertEq(pool.getSafeImplementation(), mockSafeImplementation);
+    }
+
+    // Setter for {Safe} proxy factory
+    function testChangeSafeProxyFactory(address mockProxyFactory) public {
+        pool.changeSafeProxyFactory(mockProxyFactory);
+        assertEq(pool.getSafeProxyFactory(), mockProxyFactory);
+    }
+
+    function testChangeEigenPodValidatorLimit(uint8 newLimit) public {
+        pool.changeEigenPodValidatorLimit(newLimit);
+        assertEq(pool.getEigenPodValidatorLimit(), newLimit, "setter failed");
     }
 }

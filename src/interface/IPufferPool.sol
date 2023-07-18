@@ -2,6 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
+import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
 /**
  * @title IPufferPool
@@ -10,14 +12,60 @@ import { Safe } from "safe-contracts/Safe.sol";
  */
 interface IPufferPool {
     /**
+     * TODO: figure out what we need here
+     */
+    struct EigenPodProxyInformation {
+        address creator;
+        bytes32 mrenclave;
+        EnumerableSet.Bytes32Set validatorPubKeyHashes;
+    }
+
+    /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
      */
-    error AmountTooSmall();
+    error InsufficientETH();
 
     /**
      * @notice Thrown when the user is not authorized
      */
     error Unauthorized();
+
+    /**
+     * @notice Thrown if the user tries to register the same Validator key on the same EigenPodProxy multiple times
+     */
+    error DuplicateValidatorKey(bytes pubKey);
+
+    /**
+     * @notice Thrown if the maximum number of validators is reached for that Eigen Pod Proxy
+     */
+    error MaximumNumberOfValidatorsReached();
+
+    /**
+     * @notice Thrown if the Guardians {Safe} wallet already exists
+     */
+    error GuardiansAlreadyExist();
+
+    /**
+     * @notice Thrown if the Eigen Pod Proxy address is not valid
+     */
+    error InvalidEigenPodProxy();
+
+    event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
+
+    /**
+     * @param safeProxyFactory is the address of the new {Safe} proxy factory
+     */
+    event SafeProxyFactoryChanged(address safeProxyFactory);
+
+    /**
+     * @param safeImplementation is the address of the new {Safe} implementation contract
+     */
+    event SafeImplementationChanged(address safeImplementation);
+
+    /**
+     * @param newLimit is the new Eigen Pod Validator Limit
+     */
+    event EigenPodValidatorLimitChanged(uint256 newLimit);
 
     /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
@@ -55,31 +103,22 @@ interface IPufferPool {
 
     /**
      * @notice Emitted when Pod owners create an account
-     * @param mrenclave Unique enclave identifier
+     * @param creator Creator address
      * @param account {Safe} account address
+     * @param eigenPodProxy Eigen pod proxy contract
      */
-    event PodAccountCreated(bytes32 mrenclave, address account);
+    event PodAccountCreated(address creator, address account, address eigenPodProxy);
 
     /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
      */
-    function deposit(address recipient) external payable;
+    function depositETH(address recipient) external payable;
 
     /**
      *
      * @notice Burns `pufETHAmount` from the transaction sender and sends ETH to the `ethRecipient`
      */
-    function withdraw(address ethRecipient, uint256 pufETHAmount) external;
-
-    /**
-     * Pauses the smart contract
-     */
-    function pause() external;
-
-    /**
-     * Unpauses the smart contract
-     */
-    function resume() external;
+    function withdrawETH(address ethRecipient, uint256 pufETHAmount) external;
 
     /**
      * @notice Calculates ETH -> pufETH `amount` based on the ETH:pufETH exchange rate
@@ -104,43 +143,124 @@ interface IPufferPool {
     function getNewRewardsETHAmount() external view returns (uint256);
 
     /**
+     * @notice Returns {Safe} implementation address
+     */
+    function getSafeImplementation() external view returns (address);
+
+    /**
+     * @notice Returns {Safe} proxy factory address
+     */
+    function getSafeProxyFactory() external view returns (address);
+
+    /**
+     * @notice Returns the Validator limit per Eigen pod proxy
+     */
+    function getEigenPodValidatorLimit() external view returns (uint256);
+
+    /**
      * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet
-     * @param safeProxyFactory Address of the {Safe} proxy factory
-     * @param safeImplementation Address of the {Safe} implementation contract
-     * @param podEnclavePubKeys Pod's encalve public keys
-     * @param podWallets Pod's wallet addresses
-     * @param mrenclave Unique enclave identifier
+     * @param podAccountOwners is a Pod's wallet owner addresses
+     * @param threshold is a number of required confirmations for a {Safe} transaction
      */
-    function createPodAccount(
-        address safeProxyFactory,
-        address safeImplementation,
-        bytes[] calldata podEnclavePubKeys,
-        address[] calldata podWallets,
-        bytes32 mrenclave,
-        bytes calldata emptyData
-    ) external returns (Safe account);
+    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold)
+        external
+        returns (Safe, IEigenPodProxy);
+
+    /**
+     * @param podAccountOwners Pod's wallet owner addresses
+     * @param threshold Number of required confirmations for a {Safe} transaction
+     * @param pubKeys is a list of Validator public keys
+     * @return Safe is a newly created {Safe} multisig instance
+     * @return IEigenPodProxy an address of a newly created Eigen Pod Proxy
+     */
+    function createPodAccountAndRegisterValidatorKeys(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        bytes[] calldata pubKeys
+    ) external payable returns (Safe, IEigenPodProxy);
+
+    /**
+     * @notice Sender is expected to send ETH amount for number of pubKeys * bond amount
+     * @param eigenPodProxy is the address of the Eigen Pod Proxy
+     * @param pubKeys is an array of Validator pubKeys
+     */
+    function registerValidatorEnclaveKeys(address eigenPodProxy, bytes[] calldata pubKeys) external payable;
 
     /**
      * @notice Creates a guardian {Safe} multisig wallet
-     * @param safeProxyFactory Address of the {Safe} proxy factory
-     * @param safeImplementation Address of the {Safe} implementation contract
      * @param guardiansEnclavePubKeys Guardian's encalve public keys
      * @param guardiansWallets Guardian's wallet addresses
+     * @param threshold Number of required confirmations for a {Safe} transaction
      * @param mrenclave Unique enclave identifier
      */
     function createGuardianAccount(
-        address safeProxyFactory,
-        address safeImplementation,
         bytes[] calldata guardiansEnclavePubKeys,
         address[] calldata guardiansWallets,
-        bytes32 mrenclave,
-        bytes calldata emptyData
+        uint256 threshold,
+        bytes32 mrenclave
     ) external returns (Safe account);
+
+    // /**
+    //  * @notice Returns the Eigen pod proxy information
+    //  * @param eigenPodProxy Eigen pod proxy address
+    //  */
+    // function getEigenPodProxyInfo(address eigenPodProxy) external view returns (EigenPodProxyInformation memory);
+
+    // ==== Only Guardians ====
+
+    /**
+     * @notice Verifies the deposit of the Validator, provides the remaining 30 ETH and starts the staking via EigenLayer
+     */
+    function provisionPodETH(
+        address eigenPodProxy,
+        bytes calldata pubkey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) external;
+
+    /**
+     * @notice Ejects the Validator
+     */
+    function ejectValidator() external;
+
+    function updateETHBackingAmount(uint256 amount) external;
+
+    // ==== Only Guardians end ====
+
+    // ==== Only Owner ====
+
+    /**
+     * Changes the {Safe} implementation address to `newSafeImplementation`
+     */
+    function changeSafeImplementation(address newSafeImplementation) external;
+
+    /**
+     * Changes the {Safe} proxy factory address to `newSafeFactory`
+     */
+    function changeSafeProxyFactory(address newSafeFactory) external;
+
+    /**
+     * Changes the Eigen Pod Validator limit to `newLimit`
+     * @dev `newLimit` is a uint8 and can be a value (1-255]
+     */
+    function changeEigenPodValidatorLimit(uint256 newLimit) external;
+
+    /**
+     * Pauses the smart contract
+     */
+    function pause() external;
+
+    /**
+     * Unpauses the smart contract
+     */
+    function resume() external;
+
+    // ==== Only Owner end ====
 
     // function provisionPod(
     //     bytes memory pubKey,

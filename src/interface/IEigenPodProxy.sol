@@ -6,7 +6,7 @@ import "eigenlayer/interfaces/IEigenPodManager.sol";
 
 interface IEigenPodProxy {
     /// @notice The single EigenPodManager for EigenLayer
-    function eigenPodManager() external view returns (IEigenPodManager);
+    function getEigenPodManager() external view returns (IEigenPodManager);
 
     /// @notice The PufferPool will act as the PodManager via this EigenPodProxy
     function podProxyManager() external view returns (address);
@@ -18,7 +18,7 @@ interface IEigenPodProxy {
     function ownedEigenPod() external view returns (address);
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
-    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;
