@@ -11,3 +11,6 @@
 [submodule "lib/safe-contracts.git"]
 	path = lib/safe-contracts.git
 	url = https://github.com/safe-global/safe-contracts.git
+[submodule "lib/eigenlayer-contracts"]
+	path = lib/eigenlayer-contracts
+	url = https://github.com/Layr-Labs/eigenlayer-contracts
