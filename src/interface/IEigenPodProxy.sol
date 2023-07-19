@@ -5,20 +5,14 @@ import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
 
 interface IEigenPodProxy {
-    /// @notice The single EigenPodManager for EigenLayer
-    function getEigenPodManager() external view returns (IEigenPodManager);
-
-    /// @notice The PufferPool will act as the PodManager via this EigenPodProxy
-    function podProxyManager() external view returns (address);
-
-    /// @notice A PodAccount will act as the PodOwner via this EigenPodProxy
-    function podProxyOwner() external view returns (address);
-
-    /// @notice The Eigenpod owned by this EigenPodProxy contract
-    function ownedEigenPod() external view returns (address);
+    /// @notice Creates an EigenPod without depositiing ETH
+    function createEmptyPod() external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /// @notice Withdraws full EigenPod balance if they've never restaked
+    function earlyWithdraw() external payable;
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;
@@ -29,11 +23,11 @@ interface IEigenPodProxy {
     /// @notice Register to Puffer AVS. Callable by anyone
     function registerToPufferAVS(bytes calldata registrationData) external;
 
+    /// @notice Deregisters this EigenPodProxy from an AVS
+    function deregisterFromAVS() external;
+
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
     function skim() external;
-
-    /// @notice Special case of skim to handle funds distribution after full withdraw from EigenPod
-    function skimAfterFullWithdraw() external;
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
@@ -76,4 +70,9 @@ interface IEigenPodProxy {
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external;
+
+    /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
+    function completeWithdrawal() external;
+
+    function podProxyOwner() external view returns (address);
 }

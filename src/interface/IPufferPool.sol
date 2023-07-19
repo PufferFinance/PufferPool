@@ -17,7 +17,6 @@ interface IPufferPool {
     struct EigenPodProxyInformation {
         address creator;
         bytes32 mrenclave;
-        EnumerableSet.Bytes32Set validatorPubKeyHashes;
     }
 
     /**
@@ -63,11 +62,6 @@ interface IPufferPool {
     event SafeImplementationChanged(address safeImplementation);
 
     /**
-     * @param newLimit is the new Eigen Pod Validator Limit
-     */
-    event EigenPodValidatorLimitChanged(uint256 newLimit);
-
-    /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
      * @param eigenPodProxy is the address of the EigenPod proxy contract
      * @param validatorIdx is the index of the Validator
@@ -96,10 +90,9 @@ interface IPufferPool {
 
     /**
      * @notice Emitted when Guardians create an account
-     * @param mrenclave Unique enclave identifier
      * @param account {Safe} account address
      */
-    event GuardianAccountCreated(bytes32 mrenclave, address account);
+    event GuardianAccountCreated(address account);
 
     /**
      * @notice Emitted when Pod owners create an account
@@ -153,14 +146,15 @@ interface IPufferPool {
     function getSafeProxyFactory() external view returns (address);
 
     /**
-     * @notice Returns the Validator limit per Eigen pod proxy
-     */
-    function getEigenPodValidatorLimit() external view returns (uint256);
-
-    /**
      * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
+
+    function getPodAVSComission() external view returns (uint256);
+
+    function getConsensusRewardsSplit() external view returns (uint256);
+
+    function getExecutionRewardsSplit() external view returns (uint256);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet
@@ -186,24 +180,19 @@ interface IPufferPool {
 
     /**
      * @notice Sender is expected to send ETH amount for number of pubKeys * bond amount
-     * @param eigenPodProxy is the address of the Eigen Pod Proxy
+     * @param podAccount is the address of the Eigen Pod Account
      * @param pubKeys is an array of Validator pubKeys
      */
-    function registerValidatorEnclaveKeys(address eigenPodProxy, bytes[] calldata pubKeys) external payable;
+    function registerValidatorEnclaveKeys(address podAccount, bytes[] calldata pubKeys) external payable;
 
     /**
      * @notice Creates a guardian {Safe} multisig wallet
-     * @param guardiansEnclavePubKeys Guardian's encalve public keys
      * @param guardiansWallets Guardian's wallet addresses
      * @param threshold Number of required confirmations for a {Safe} transaction
-     * @param mrenclave Unique enclave identifier
      */
-    function createGuardianAccount(
-        bytes[] calldata guardiansEnclavePubKeys,
-        address[] calldata guardiansWallets,
-        uint256 threshold,
-        bytes32 mrenclave
-    ) external returns (Safe account);
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+        external
+        returns (Safe account);
 
     // /**
     //  * @notice Returns the Eigen pod proxy information
@@ -223,11 +212,6 @@ interface IPufferPool {
         bytes32 depositDataRoot
     ) external;
 
-    /**
-     * @notice Ejects the Validator
-     */
-    function ejectValidator() external;
-
     function updateETHBackingAmount(uint256 amount) external;
 
     // ==== Only Guardians end ====
@@ -243,12 +227,6 @@ interface IPufferPool {
      * Changes the {Safe} proxy factory address to `newSafeFactory`
      */
     function changeSafeProxyFactory(address newSafeFactory) external;
-
-    /**
-     * Changes the Eigen Pod Validator limit to `newLimit`
-     * @dev `newLimit` is a uint8 and can be a value (1-255]
-     */
-    function changeEigenPodValidatorLimit(uint256 newLimit) external;
 
     /**
      * Pauses the smart contract

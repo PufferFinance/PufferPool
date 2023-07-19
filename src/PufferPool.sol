@@ -6,6 +6,7 @@ import { ReentrancyGuardUpgradeable } from "openzeppelin-upgradeable/security/Re
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
+import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableUpgradeable.sol";
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
@@ -29,17 +30,18 @@ contract PufferPool is
     ERC20PermitUpgradeable,
     SafeDeployer
 {
-    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
+    // using EnumerableSet for EnumerableSet.Bytes32Set;
 
     /**
      * @notice Validator bond in Puffer Finance is 2 ETH
      */
-    uint256 internal constant _VALIDATOR_BOND = 2 ether;
+    uint256 internal constant _SGX_VALIDATOR_BOND = 2 ether;
 
     /**
-     * @notice ETH Amount That Puffer is supplying to Validator
+     * @notice ETH Amount Required for staking
      */
-    uint256 internal constant _THIRTY_ETHER = 30 ether;
+    uint256 internal constant _32_ETHER = 32 ether;
 
     /**
      * @notice Exchange rate 1 is represented as 10 ** 18
@@ -77,6 +79,16 @@ contract PufferPool is
     mapping(address eigenPodProxy => EigenPodProxyInformation info) internal _eigenPodProxies;
 
     /**
+     * @dev Mapping between Public Key Hash and an address of the corresponding Eigen Pod Proxy as uint256
+     */
+    EnumerableMap.Bytes32ToUintMap internal _pubKeyHashesToEigenPodProxy;
+
+    // /**
+    //  * @dev Pod account -> Information
+    //  */
+    // mapping(address podAccount => Info) internal _podAccountInfo;
+
+    /**
      * @dev Address of the {Safe} proxy factory
      */
     address internal _safeProxyFactory;
@@ -91,8 +103,25 @@ contract PufferPool is
      */
     uint8 internal _eigenPodValidatorLimit;
 
-    modifier onlyPod() {
-        // TODO logic:
+    /**
+     * @dev Number of shares out of one billion to split AVS rewards with the pool
+     */
+    uint256 internal _podAVSCommission;
+
+    /**
+     * Number of shares out of one billion to split consensus rewards with the pool
+     */
+    uint256 internal _consensusRewardsSplit;
+
+    /**
+     * Number of shares out of one billion to split execution rewards with the pool
+     */
+    uint256 internal _executionRewardsSplit;
+
+    modifier onlyPodAccountOwner(address podAccount) {
+        if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
+            revert Unauthorized();
+        }
         _;
     }
 
@@ -118,15 +147,9 @@ contract PufferPool is
         __Ownable_init();
         _setSafeProxyFactory(safeProxyFactory);
         _setSafeImplementation(safeImplementation);
-        _setEigenPodValidatorLimit(1);
     }
 
     // Guardians only
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function ejectValidator() external onlyGuardians { }
 
     function updateETHBackingAmount(uint256 amount) external onlyGuardians { }
 
@@ -176,17 +199,17 @@ contract PufferPool is
 
         // Validate pubKey matches
 
-        if (validatorInfo.validatorPubKeyHashes.contains(keccak256(pubKey))) {
-            revert();
+        if (_pubKeyHashesToEigenPodProxy.contains(keccak256(pubKey))) {
+            revert("no key");
         }
 
         uint256 validatorIdx;
 
         // Update locked ETH Amount
-        _lockedETHAmount += _THIRTY_ETHER;
+        _lockedETHAmount += _32_ETHER;
 
         // TODO: params
-        EigenPodProxy(payable(eigenPodProxy)).callStake{ value: _THIRTY_ETHER }({
+        EigenPodProxy(payable(eigenPodProxy)).callStake{ value: _32_ETHER }({
             pubKey: pubKey,
             signature: signature,
             depositDataRoot: depositDataRoot
@@ -198,12 +221,10 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createGuardianAccount(
-        bytes[] calldata guardiansEnclavePubKeys,
-        address[] calldata guardiansWallets,
-        uint256 threshold,
-        bytes32 mrenclave
-    ) external returns (Safe account) {
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+        external
+        returns (Safe account)
+    {
         if (address(_guardiansMultisig) != address(0)) {
             revert GuardiansAlreadyExist();
         }
@@ -211,14 +232,14 @@ contract PufferPool is
         account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
-            saltNonce: uint256(mrenclave),
+            saltNonce: uint256(keccak256(abi.encode(guardiansWallets))),
             owners: guardiansWallets,
             threshold: threshold
         });
 
         _guardiansMultisig = account;
 
-        emit GuardianAccountCreated(mrenclave, address(account));
+        emit GuardianAccountCreated(address(account));
     }
 
     /**
@@ -240,15 +261,29 @@ contract PufferPool is
         bytes[] calldata pubKeys
     ) external payable returns (Safe, IEigenPodProxy) {
         (Safe account, IEigenPodProxy eigenPodProxy) = _createPodAccount(podAccountOwners, threshold);
-        _registerValidatorEnclaveKeys(address(eigenPodProxy), pubKeys);
+        _registerValidatorEnclaveKeys(address(account), pubKeys);
         return (account, eigenPodProxy);
     }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function registerValidatorEnclaveKeys(address eigenPodProxy, bytes[] calldata pubKeys) external payable {
-        _registerValidatorEnclaveKeys(eigenPodProxy, pubKeys);
+    function registerValidatorEnclaveKeys(address podAccount, bytes[] calldata pubKeys)
+        external
+        payable
+        onlyPodAccountOwner(podAccount)
+    {
+        _registerValidatorEnclaveKeys(podAccount, pubKeys);
+    }
+
+    function _createEigenPodProxy(address payable account) internal returns (IEigenPodProxy) {
+        BeaconProxy eigenPodProxy =
+            new BeaconProxy(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (account, this)));
+
+        // // Save EigenPodProxy Information
+        _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
+
+        return IEigenPodProxy(address(eigenPodProxy));
     }
 
     function _createPodAccount(address[] calldata podAccountOwners, uint256 threshold)
@@ -263,56 +298,35 @@ contract PufferPool is
             threshold: threshold
         });
 
-        // Forward bond amount to newly deployed Eigen Pod Proxy
-        // It will sit there untill Guardians alocate the rest
-        BeaconProxy eigenPodProxy =
-        new BeaconProxy(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (address(account), address(this))));
-
-        // Save information
-        _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
+        IEigenPodProxy eigenPodProxy = _createEigenPodProxy(payable(address(account)));
 
         emit PodAccountCreated(msg.sender, address(account), address(eigenPodProxy));
 
-        return (account, IEigenPodProxy(address(eigenPodProxy)));
+        return (account, eigenPodProxy);
     }
 
-    function _registerValidatorEnclaveKeys(address eigenPodProxy, bytes[] calldata pubKeys) internal {
-        if (msg.value != pubKeys.length * _VALIDATOR_BOND) {
+    function _registerValidatorEnclaveKeys(address podAccount, bytes[] calldata pubKeys) internal {
+        if (msg.value != pubKeys.length * _SGX_VALIDATOR_BOND) {
             revert InsufficientETH();
         }
 
-        // TODO: this will allow anybody to register a validator pubKey to a certain eigenPodProxy as long as it pays the bond
-        // This might not be the behaviour we want
-        // what other checks do we want here? only allow EigenPodOwners to do that?
-
-        EigenPodProxyInformation storage info = _eigenPodProxies[eigenPodProxy];
-
-        if ((info.validatorPubKeyHashes.length() + pubKeys.length) > _eigenPodValidatorLimit) {
-            revert MaximumNumberOfValidatorsReached();
-        }
-
-        // If the EigenPodProxy doesn't have a creator, that means that it is not a valid address
-        if (info.creator == address(0)) {
-            revert InvalidEigenPodProxy();
-        }
-
         for (uint256 i; i < pubKeys.length;) {
-            bool keyAdded = info.validatorPubKeyHashes.add(keccak256(pubKeys[i]));
+            IEigenPodProxy eigenPodProxy = _createEigenPodProxy(payable(address(podAccount)));
+
+            bool keyAdded =
+                _pubKeyHashesToEigenPodProxy.set(keccak256(pubKeys[i]), uint256(uint160(address(eigenPodProxy))));
 
             if (!keyAdded) {
                 // TODO: should we check that the 1 validator key must be registered to 1 pod?
                 revert DuplicateValidatorKey(pubKeys[i]);
             }
 
-            emit ValidatorKeyRegistered(eigenPodProxy, pubKeys[i]);
+            emit ValidatorKeyRegistered(address(eigenPodProxy), pubKeys[i]);
 
             unchecked {
                 ++i;
             }
         }
-
-        // Transfer ETH to EigenPodProxy
-        _safeTransferETH(eigenPodProxy, msg.value);
     }
 
     function setNewRewardsETHAmount(uint256 amount) external {
@@ -350,13 +364,6 @@ contract PufferPool is
         _setSafeProxyFactory(newSafeFactory);
     }
 
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function changeEigenPodValidatorLimit(uint256 newLimit) external onlyOwner {
-        _setEigenPodValidatorLimit(newLimit);
-    }
-
     // ==== Only Owner end ====
 
     /**
@@ -387,11 +394,16 @@ contract PufferPool is
         return _newETHRewardsAmount;
     }
 
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getEigenPodValidatorLimit() external view returns (uint256) {
-        return _eigenPodValidatorLimit;
+    function getExecutionRewardsSplit() external view returns (uint256) {
+        return _executionRewardsSplit;
+    }
+
+    function getConsensusRewardsSplit() external view returns (uint256) {
+        return _consensusRewardsSplit;
+    }
+
+    function getPodAVSComission() external view returns (uint256) {
+        return _podAVSCommission;
     }
 
     // /**
@@ -462,11 +474,6 @@ contract PufferPool is
     function _setSafeImplementation(address safeImplementation) internal {
         _safeImplementation = safeImplementation;
         emit SafeImplementationChanged(safeImplementation);
-    }
-
-    function _setEigenPodValidatorLimit(uint256 newLimit) internal {
-        _eigenPodValidatorLimit = uint8(newLimit);
-        emit EigenPodValidatorLimitChanged(newLimit);
     }
 
     /**
