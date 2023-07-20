@@ -72,6 +72,11 @@ interface IPufferPool {
     function withdraw(address ethRecipient, uint256 pufETHAmount) external;
 
     /**
+     * Called from the EigenPodProxy contract to burn the pufETH bond upon full withdrawal
+     */
+    function burnAndNoWithdraw() external;
+
+    /**
      * Pauses the smart contract
      */
     function pause() external;

@@ -119,6 +119,11 @@ contract PufferPool is
         emit Withdrawn(msg.sender, ethRecipient, pufETHAmount, ethAmount);
     }
 
+    /**
+     * Called from the EigenPodProxy contract to burn the pufETH bond upon full withdrawal
+     */
+    function burnAndNoWithdraw() external { }
+
     function provideRemainingETH() external onlyGuardians {
         // TODO: validations
 

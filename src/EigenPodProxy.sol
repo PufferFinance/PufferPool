@@ -128,8 +128,9 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                     uint256 poolRewards = skimmable - podRewards;
                     _sendETH(podProxyManager, poolRewards);
 
-                    // Return up to 2 ETH bond back to pool
-                    pufferPool.returnBond(podProxyOwner, Math.max(withdrawnETH - 30, 0));
+                    // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
+                    _sendETH(podProxyOwner, Math.max(withdrawnETH - 30, 0));
+                    pufferPool.burnAndNoWithdraw();
                 }
 
                 // Return remained to the pool (not taxed by treasury)
