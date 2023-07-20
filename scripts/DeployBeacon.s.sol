@@ -14,7 +14,7 @@ contract DeployBeacon is Script {
     function run() external returns (EigenPodProxy, UpgradeableBeacon) {
         vm.startBroadcast();
 
-        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(payable(address(0)), payable(address(0)), payable(address(0)), payable(address(0)), address(0), address(0), address(0), 0, 0, 0);
+        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(payable(address(0)), payable(address(0)), payable(address(0)), payable(address(0)), address(0), address(0), address(0), 0, 0, 0, 0);
 
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
 

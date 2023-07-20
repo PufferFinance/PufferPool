@@ -43,6 +43,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
     IEigenPodWrapper.VALIDATOR_STATUS previousStatus;
 
+    // Bond amount
+    uint8 bond;
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
 
@@ -73,7 +75,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         address _eigenPodManager,
         uint256 _podAVSCommission,
         uint256 _consensusRewardsSplit,
-        uint256 _executionRewardsSplit
+        uint256 _executionRewardsSplit,
+        uint8 _bond
     ) {
         // _manager = manager;
         podProxyOwner = _podProxyOwner;
@@ -88,6 +91,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         podAVSCommission = _podAVSCommission;
         consensusRewardsSplit = _consensusRewardsSplit;
         executionRewardsSplit = _executionRewardsSplit;
+
+        bond = _bond;
 
         previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
     }
@@ -261,9 +266,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         // TODO: Revisit the inactive case later
         if (status == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
-                _sendETH(
-                    podRewardsRecipient, 2 ether + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9
-                );
+                _sendETH(podRewardsRecipient, bond + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9);
                 _sendETH(podProxyManager, address(this).balance);
             } else {
                 _sendETH(podRewardsRecipient, Math.max(contractBalance - 30 ether, 0));
