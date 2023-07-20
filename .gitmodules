@@ -15,3 +15,6 @@
 	branch = v1.4.1
 [submodule "lib/openzeppelin-contracts-upgradeable/"]
 	branch = v4.9.2
+[submodule "lib/eigenlayer-contracts"]
+	path = lib/eigenlayer-contracts
+	url = https://github.com/Layr-Labs/eigenlayer-contracts
