@@ -100,11 +100,13 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
         if (AVSPaymentAddresses[msg.sender]) {
-            _sendETH(podRewardsRecipient, (msg.value * podAVSCommission) / 10 ** 9);
-            _sendETH(podProxyManager, address(this).balance);
+            uint256 toPod = (msg.value * podAVSCommission) / 10 ** 9;
+            _sendETH(podRewardsRecipient, toPod);
+            _sendETH(podProxyManager, msg.value - toPod);
         } else if (msg.sender != address(ownedEigenPod)) {
-            _sendETH(podRewardsRecipient, (msg.value * executionRewardsSplit) / 10 ** 9);
-            _sendETH(podProxyManager, address(this).balance);
+            uint256 toPod = (msg.value * executionRewardsSplit) / 10 ** 9;
+            _sendETH(podRewardsRecipient, toPod);
+            _sendETH(podProxyManager, msg.value - toPod);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
