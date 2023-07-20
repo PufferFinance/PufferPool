@@ -133,7 +133,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
                 withdrawnETH += msg.value;
-                int256 debt = int256(30 ether - withdrawnETH);
+                int256 debt = int256(32 ether - bond - withdrawnETH);
 
                 // Handle any rewards
                 uint256 skimmable = address(this).balance - withdrawnETH;
@@ -148,7 +148,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                     _sendETH(podProxyManager, poolRewards);
 
                     // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
-                    _sendETH(podRewardsRecipient, Math.max(withdrawnETH - 30, 0));
+                    _sendETH(podRewardsRecipient, Math.max(withdrawnETH - (32 ether - bond), 0));
                     pufferPool.burnAndNoWithdraw();
                 }
 
@@ -266,10 +266,13 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         // TODO: Revisit the inactive case later
         if (status == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
-                _sendETH(podRewardsRecipient, bond + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9);
+                _sendETH(
+                    podRewardsRecipient,
+                    bond + ((contractBalance - (32 ether - bond)) * consensusRewardsSplit) / 10 ** 9
+                );
                 _sendETH(podProxyManager, address(this).balance);
             } else {
-                _sendETH(podRewardsRecipient, Math.max(contractBalance - 30 ether, 0));
+                _sendETH(podRewardsRecipient, Math.max(contractBalance - (32 ether - bond), 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
         } else if (status == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
