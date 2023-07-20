@@ -61,6 +61,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     mapping(address => bool) public AVSPaymentAddresses;
 
     bool public bondWithdrawn;
+    bool public staked;
 
     constructor(
         address payable _podProxyOwner,
@@ -212,6 +213,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         require(msg.sender == podProxyManager, "Only podProxyManager allowed");
         require(msg.value == 32 ether, "Must be called with 32 ETH");
         eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
+        staked = true;
     }
 
     /// @notice Withdraws full EigenPod balance if they've never restaked
@@ -222,6 +224,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
     function stopRegistraion() external onlyPodProxyOwner {
+        require(!staked, "pufETH bond is locked, because pod is already staking");
         bondWithdrawn = true;
         pufETH.transfer(podRewardsRecipient, pufETH.balanceOf(address(this)));
     }
