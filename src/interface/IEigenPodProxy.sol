@@ -14,6 +14,9 @@ interface IEigenPodProxy {
     /// @notice Withdraws full EigenPod balance if they've never restaked
     function earlyWithdraw() external payable;
 
+    /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
+    function stopRegistraion() external;
+
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external;
 
