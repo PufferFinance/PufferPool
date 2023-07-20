@@ -26,6 +26,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     address payable public podProxyOwner;
     // PufferPool
     address payable public podProxyManager;
+    // The designated address to send pod rewards. Can be changed by podProxyOwner
+    address payable public podRewardsRecipient;
 
     IEigenPod public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
@@ -58,6 +60,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         address payable _podProxyOwner,
         address payable _podProxyManager,
         address payable _pufferPool,
+        address payable _podRewardsRecipient,
         address _slasher,
         address _eigenPodManager,
         uint256 _podAVSCommission,
@@ -71,6 +74,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         slasher = ISlasher(_slasher);
         pufferPool = IPufferPool(_pufferPool);
 
+        podRewardsRecipient = _podRewardsRecipient;
+
         podAVSCommission = _podAVSCommission;
         consensusRewardsSplit = _consensusRewardsSplit;
         executionRewardsSplit = _executionRewardsSplit;
@@ -81,10 +86,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
         if (AVSPaymentAddresses[msg.sender]) {
-            _sendETH(podProxyOwner, (msg.value * podAVSCommission) / 10 ** 9);
+            _sendETH(podRewardsRecipient, (msg.value * podAVSCommission) / 10 ** 9);
             _sendETH(podProxyManager, address(this).balance);
         } else if (msg.sender != address(ownedEigenPod)) {
-            _sendETH(podProxyOwner, (msg.value * executionRewardsSplit) / 10 ** 9);
+            _sendETH(podRewardsRecipient, (msg.value * executionRewardsSplit) / 10 ** 9);
             _sendETH(podProxyManager, address(this).balance);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
@@ -97,7 +102,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 uint256 skimmable = Math.max(msg.value - 1 ether, 0);
                 uint256 podsCut = skimmable * consensusRewardsSplit;
                 uint256 podRewards = podsCut + (address(this).balance - skimmable) * consensusRewardsSplit;
-                _sendETH(podProxyOwner, podRewards);
+                _sendETH(podRewardsRecipient, podRewards);
 
                 // ETH to be returned later (not taxed by treasury)
                 withdrawnETH = msg.value - skimmable;
@@ -122,14 +127,14 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 if (debt <= 0) {
                     // ETH owed to podProxyOwner
                     uint256 podRewards = Math.max(skimmable, 0) * consensusRewardsSplit;
-                    _sendETH(podProxyOwner, podRewards);
+                    _sendETH(podRewardsRecipient, podRewards);
 
                     // ETH owed to pool
                     uint256 poolRewards = skimmable - podRewards;
                     _sendETH(podProxyManager, poolRewards);
 
                     // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
-                    _sendETH(podProxyOwner, Math.max(withdrawnETH - 30, 0));
+                    _sendETH(podRewardsRecipient, Math.max(withdrawnETH - 30, 0));
                     pufferPool.burnAndNoWithdraw();
                 }
 
@@ -165,6 +170,17 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             revert Unauthorized();
         }
         _;
+    }
+
+    modifier onlyPodProxyOwner() {
+        if (msg.sender != podProxyOwner) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    function updatePodRewardsRecipient(address payable _podRewardsRecipient) external onlyPodProxyOwner {
+        podRewardsRecipient = _podRewardsRecipient;
     }
 
     function eigenStake() external onlyManager {
@@ -226,14 +242,16 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         // TODO: Revisit the inactive case later
         if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
-                _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9);
+                _sendETH(
+                    podRewardsRecipient, 2 ether + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9
+                );
                 _sendETH(podProxyManager, address(this).balance);
             } else {
-                _sendETH(podProxyOwner, Math.max(contractBalance - 30 ether, 0));
+                _sendETH(podRewardsRecipient, Math.max(contractBalance - 30 ether, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
         } else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
-            _sendETH(podProxyOwner, (contractBalance * consensusRewardsSplit) / 10 ** 9);
+            _sendETH(podRewardsRecipient, (contractBalance * consensusRewardsSplit) / 10 ** 9);
             _sendETH(podProxyManager, address(this).balance);
         }
     }
