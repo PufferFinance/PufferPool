@@ -5,7 +5,8 @@ import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import "openzeppelin/utils/math/Math.sol";
 import "./interface/IEigenPodProxy.sol";
 import "./interface/IPufferPool.sol";
-import "eigenlayer/interfaces/IEigenPod.sol";
+// Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
+import "./interface/IEigenPodWrapper.sol";
 import "eigenlayer/interfaces/ISlasher.sol";
 
 /**
@@ -29,7 +30,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // The designated address to send pod rewards. Can be changed by podProxyOwner
     address payable public podRewardsRecipient;
 
-    IEigenPod public ownedEigenPod;
+    IEigenPodWrapper public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
     IEigenPodManager public eigenPodManager;
     // EigenLayer's Singular Slasher contract
@@ -37,7 +38,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // The Singular PufferPool contract
     IPufferPool public pufferPool;
     // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
-    IEigenPod.VALIDATOR_STATUS previousStatus;
+    IEigenPodWrapper.VALIDATOR_STATUS previousStatus;
 
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
@@ -80,7 +81,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         consensusRewardsSplit = _consensusRewardsSplit;
         executionRewardsSplit = _executionRewardsSplit;
 
-        previousStatus = IEigenPod.VALIDATOR_STATUS.INACTIVE;
+        previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
@@ -93,10 +94,10 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
             _sendETH(podProxyManager, address(this).balance);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
-            IEigenPod.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
+            IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
             if (
-                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
-                    && previousStatus == IEigenPod.VALIDATOR_STATUS.ACTIVE
+                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
             ) {
                 // Eth owned to podProxyOwner
                 uint256 skimmable = Math.max(msg.value - 1 ether, 0);
@@ -114,8 +115,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 // Update previous status to this current status
                 previousStatus = currentStatus;
             } else if (
-                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
-                    && previousStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
                 withdrawnETH += msg.value;
@@ -195,7 +196,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         eigenPodManager.createPod();
 
         // This contract is the owner of the created eigenPod
-        ownedEigenPod = eigenPodManager.ownerToPod(address(this));
+        ownedEigenPod = IEigenPodWrapper(address(eigenPodManager.ownerToPod(address(this))));
     }
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
@@ -230,17 +231,18 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
     function skim() external {
         // TODO: Use the public key mapping to get the status of the corresponding validator
-        IEigenPod.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
+        IEigenPodWrapper.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
         uint256 contractBalance = address(this).balance;
 
         require(
-            status != IEigenPod.VALIDATOR_STATUS.WITHDRAWN && status != IEigenPod.VALIDATOR_STATUS.OVERCOMMITTED,
+            status != IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                && status != IEigenPodWrapper.VALIDATOR_STATUS.OVERCOMMITTED,
             "Can't be withdrawn or overcommitted"
         );
         require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
 
         // TODO: Revisit the inactive case later
-        if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
+        if (status == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
             if (contractBalance >= 32 ether) {
                 _sendETH(
                     podRewardsRecipient, 2 ether + ((contractBalance - 30 ether) * consensusRewardsSplit) / 10 ** 9
@@ -250,7 +252,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 _sendETH(podRewardsRecipient, Math.max(contractBalance - 30 ether, 0));
                 _sendETH(podProxyManager, address(this).balance);
             }
-        } else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+        } else if (status == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
             _sendETH(podRewardsRecipient, (contractBalance * consensusRewardsSplit) / 10 ** 9);
             _sendETH(podProxyManager, address(this).balance);
         }
@@ -281,7 +283,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     ) external {
         ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
         // Keep track of ValidatorStatus state changes
-        previousStatus = IEigenPod.VALIDATOR_STATUS.ACTIVE;
+        previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE;
     }
 
     /**
