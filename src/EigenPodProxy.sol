@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
+import "openzeppelin/token/ERC20/IERC20.sol";
 import "openzeppelin/utils/math/Math.sol";
 import "./interface/IEigenPodProxy.sol";
 import "./interface/IPufferPool.sol";
@@ -30,6 +31,8 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // The designated address to send pod rewards. Can be changed by podProxyOwner
     address payable public podRewardsRecipient;
 
+    IERC20 pufETH;
+
     IEigenPodWrapper public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
     IEigenPodManager public eigenPodManager;
@@ -57,12 +60,15 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
 
+    bool public bondWithdrawn;
+
     constructor(
         address payable _podProxyOwner,
         address payable _podProxyManager,
         address payable _pufferPool,
         address payable _podRewardsRecipient,
         address _slasher,
+        address _pufETH,
         address _eigenPodManager,
         uint256 _podAVSCommission,
         uint256 _consensusRewardsSplit,
@@ -74,6 +80,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         eigenPodManager = IEigenPodManager(_eigenPodManager);
         slasher = ISlasher(_slasher);
         pufferPool = IPufferPool(_pufferPool);
+        pufETH = IERC20(_pufETH);
 
         podRewardsRecipient = _podRewardsRecipient;
 
@@ -201,6 +208,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
+        require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
         require(msg.sender == podProxyManager, "Only podProxyManager allowed");
         require(msg.value == 32 ether, "Must be called with 32 ETH");
         eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
@@ -210,6 +218,12 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
     function earlyWithdraw() external payable {
         require(msg.sender == podProxyOwner, "Only podProxyOwner allowed");
         ownedEigenPod.withdrawBeforeRestaking();
+    }
+
+    /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
+    function stopRegistraion() external onlyPodProxyOwner {
+        bondWithdrawn = true;
+        pufETH.transfer(podRewardsRecipient, pufETH.balanceOf(address(this)));
     }
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
