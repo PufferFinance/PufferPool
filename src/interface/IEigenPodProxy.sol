@@ -1,10 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/libraries/BeaconChainProofs.sol";
-import "eigenlayer/interfaces/IEigenPodManager.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 
+/**
+ * @title IEigenPodProxy
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ * @notice IEigenPodProxy TODO:
+ */
 interface IEigenPodProxy {
+    /**
+     * @dev Thrown if the msg.sender is unauthorized.
+     */
+    error Unauthorized();
+
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external;
 

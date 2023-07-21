@@ -14,13 +14,13 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
 contract MockPodOwned {
-    function isOwner(address owner) external returns (bool) {
+    function isOwner(address) external pure returns (bool) {
         return true;
     }
 }
 
 contract MockPodNotOwned {
-    function isOwner(address owner) external returns (bool) {
+    function isOwner(address) external pure returns (bool) {
         return false;
     }
 }
@@ -256,6 +256,7 @@ contract PufferPoolTest is Test {
         assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
     }
 
+    // Create eigen pod an register a validator key
     function testCreatePodAndThenRegisterValidatorKey(bytes calldata pubKey) public {
         address[] memory owners = new address[](1);
         owners[0] = address(this);
@@ -317,15 +318,19 @@ contract PufferPoolTest is Test {
         assertEq(pool.getSafeProxyFactory(), mockProxyFactory);
     }
 
+    // Setter for execution rewards
     function testSetExecutionRewardsSplit(uint256 newValue) public {
         pool.setExecutionRewardsSplit(newValue);
         assertEq(pool.getExecutionRewardsSplit(), newValue);
     }
+    // Setter for consensus rewards
 
     function testSetConsensusRewardsSplit(uint256 newValue) public {
         pool.setConsensusRewardsSplit(newValue);
         assertEq(pool.getConsensusRewardsSplit(), newValue);
     }
+
+    // Setter for pod avs comission
     function testSetPodAVSComission(uint256 newValue) public {
         pool.setPodAVSCommission(newValue);
         assertEq(pool.getPodAVSComission(), newValue);

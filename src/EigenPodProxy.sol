@@ -6,21 +6,17 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import "openzeppelin/utils/math/Math.sol";
-import "./interface/IEigenPodProxy.sol";
-import "eigenlayer/interfaces/IEigenPod.sol";
+import { Math } from "openzeppelin/utils/math/Math.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 /**
  * @title EingenPodProxy
  * @author Puffer finance
+ * @custom:security-contact security@puffer.fi
  * @notice TODO: interacts with EigenLayer
  */
 contract EigenPodProxy is IEigenPodProxy, Initializable {
-    /**
-     * @dev Thrown if the msg.sender is unauthorized.
-     */
-    error Unauthorized();
-
     // TODO: getters, OZ ownable and/or access control
     address payable internal _owner;
 
@@ -169,7 +165,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         payable
         onlyManager
     {
-        require(msg.value == 32 ether, "Must be called with 32 ETH");
         _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
