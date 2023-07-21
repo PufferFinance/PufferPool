@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
+
 import "eigenlayer/libraries/BeaconChainProofs.sol";
 
 interface CrewAccountInterface {
@@ -26,9 +27,5 @@ interface CrewAccountInterface {
         uint64 oracleBlockNumber
     ) external;
 
-    function ejectPodForTheft(
-        address pufferServiceManager,
-        address eigenPodProxy,
-        uint40 validatorIndex
-    ) external;
+    function ejectPodForTheft(address pufferServiceManager, address eigenPodProxy, uint40 validatorIndex) external;
 }

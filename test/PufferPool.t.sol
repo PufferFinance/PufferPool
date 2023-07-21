@@ -103,12 +103,10 @@ contract PufferPoolTest is Test {
         address[] memory owners = new address[](1);
         owners[0] = owner1;
 
-        (Safe safe, IEigenPodProxy eigenPodProxy) =
-            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+        Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertEq(safe.getThreshold(), 1, "safe threshold");
-        assertEq(eigenPodProxy.podProxyOwner(), address(safe), "eigen pod proxy owner");
     }
 
     // Fuzz test for creating Pod account and registering one validator key
@@ -138,14 +136,14 @@ contract PufferPoolTest is Test {
         });
 
         // It should work now
-        (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccountAndRegisterValidatorKeys{
+        (Safe safe, IEigenPodProxy[] memory proxies) = pool.createPodAccountAndRegisterValidatorKeys{
             value: VALIDATOR_BOND
         }({ podAccountOwners: owners, threshold: owners.length, pubKeys: pubKeys });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertTrue(safe.isOwner(address(owner2)), "bad owner2");
         assertEq(safe.getThreshold(), 2, "safe threshold");
-        assertEq(eigenPodProxy.podProxyOwner(), address(safe), "eigen pod proxy owner");
+        assertEq(proxies[0].podProxyOwner(), address(safe), "eigen pod proxy owner");
     }
 
     // Fuzz test for depositing ETH to PufferPool
@@ -263,8 +261,7 @@ contract PufferPoolTest is Test {
         owners[0] = address(this);
 
         // Create pod account in one transaction
-        (Safe safe, IEigenPodProxy eigenPodProxy) =
-            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+        Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
 
         bytes[] memory pubKeys = new bytes[](1);
         pubKeys[0] = pubKey;
@@ -291,8 +288,7 @@ contract PufferPoolTest is Test {
         owners[0] = address(this);
 
         // Create pod account in one transaction
-        (Safe safe, IEigenPodProxy eigenPodProxy) =
-            pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+        Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
 
         bytes[] memory newSetOfPubKeys = new bytes[](2);
         newSetOfPubKeys[0] = bytes("key1");
@@ -319,5 +315,19 @@ contract PufferPoolTest is Test {
     function testChangeSafeProxyFactory(address mockProxyFactory) public {
         pool.changeSafeProxyFactory(mockProxyFactory);
         assertEq(pool.getSafeProxyFactory(), mockProxyFactory);
+    }
+
+    function testSetExecutionRewardsSplit(uint256 newValue) public {
+        pool.setExecutionRewardsSplit(newValue);
+        assertEq(pool.getExecutionRewardsSplit(), newValue);
+    }
+
+    function testSetConsensusRewardsSplit(uint256 newValue) public {
+        pool.setConsensusRewardsSplit(newValue);
+        assertEq(pool.getConsensusRewardsSplit(), newValue);
+    }
+    function testSetPodAVSComission(uint256 newValue) public {
+        pool.setPodAVSCommission(newValue);
+        assertEq(pool.getPodAVSComission(), newValue);
     }
 }

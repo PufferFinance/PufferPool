@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
-import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
 /**
@@ -16,6 +15,7 @@ interface IPufferPool {
      */
     struct EigenPodProxyInformation {
         address creator;
+        bytes32 pubKeyHash;
         bytes32 mrenclave;
     }
 
@@ -28,6 +28,11 @@ interface IPufferPool {
      * @notice Thrown when the user is not authorized
      */
     error Unauthorized();
+
+    /**
+     * @notice Thrown when the invalid validator public key is supplied
+     */
+    error InvalidPubKey();
 
     /**
      * @notice Thrown if the user tries to register the same Validator key on the same EigenPodProxy multiple times
@@ -98,9 +103,23 @@ interface IPufferPool {
      * @notice Emitted when Pod owners create an account
      * @param creator Creator address
      * @param account {Safe} account address
-     * @param eigenPodProxy Eigen pod proxy contract
      */
-    event PodAccountCreated(address creator, address account, address eigenPodProxy);
+    event PodAccountCreated(address creator, address account);
+
+    /**
+     * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
+     */
+    event ExecutionRewardsSplitChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the Consensus rewards split rate in changed from `oldValue` to `newValue`
+     */
+    event ConsensusRewardsSplitChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the POD AVS comission is changed from `oldValue` to `newValue`
+     */
+    event PodAVSComissionChanged(uint256 oldValue, uint256 newValue);
 
     /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
@@ -161,29 +180,31 @@ interface IPufferPool {
      * @param podAccountOwners is a Pod's wallet owner addresses
      * @param threshold is a number of required confirmations for a {Safe} transaction
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold)
-        external
-        returns (Safe, IEigenPodProxy);
+    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold) external returns (Safe);
 
     /**
      * @param podAccountOwners Pod's wallet owner addresses
      * @param threshold Number of required confirmations for a {Safe} transaction
      * @param pubKeys is a list of Validator public keys
      * @return Safe is a newly created {Safe} multisig instance
-     * @return IEigenPodProxy an address of a newly created Eigen Pod Proxy
+     * @return IEigenPodProxy[] an array of addresses of a newly created Eigen Pod Proxies
      */
     function createPodAccountAndRegisterValidatorKeys(
         address[] calldata podAccountOwners,
         uint256 threshold,
         bytes[] calldata pubKeys
-    ) external payable returns (Safe, IEigenPodProxy);
+    ) external payable returns (Safe, IEigenPodProxy[] memory);
 
     /**
      * @notice Sender is expected to send ETH amount for number of pubKeys * bond amount
      * @param podAccount is the address of the Eigen Pod Account
      * @param pubKeys is an array of Validator pubKeys
+     * @return IEigenPodProxy[] an array of addresses of a newly created Eigen Pod Proxies
      */
-    function registerValidatorEnclaveKeys(address podAccount, bytes[] calldata pubKeys) external payable;
+    function registerValidatorEnclaveKeys(address podAccount, bytes[] calldata pubKeys)
+        external
+        payable
+        returns (IEigenPodProxy[] memory);
 
     /**
      * @notice Creates a guardian {Safe} multisig wallet
@@ -215,30 +236,6 @@ interface IPufferPool {
     function updateETHBackingAmount(uint256 amount) external;
 
     // ==== Only Guardians end ====
-
-    // ==== Only Owner ====
-
-    /**
-     * Changes the {Safe} implementation address to `newSafeImplementation`
-     */
-    function changeSafeImplementation(address newSafeImplementation) external;
-
-    /**
-     * Changes the {Safe} proxy factory address to `newSafeFactory`
-     */
-    function changeSafeProxyFactory(address newSafeFactory) external;
-
-    /**
-     * Pauses the smart contract
-     */
-    function pause() external;
-
-    /**
-     * Unpauses the smart contract
-     */
-    function resume() external;
-
-    // ==== Only Owner end ====
 
     // function provisionPod(
     //     bytes memory pubKey,
