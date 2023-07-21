@@ -14,7 +14,7 @@ import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
  * @title EingenPodProxy
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
- * @notice TODO: interacts with EigenLayer
+ * @notice Eigen Pod Proxy is a contract that owns EigenPod and is responsible with interacting with it
  */
 contract EigenPodProxy is IEigenPodProxy, Initializable {
     // TODO: getters, OZ ownable and/or access control
