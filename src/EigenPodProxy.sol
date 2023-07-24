@@ -203,10 +203,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         podRewardsRecipient = _podRewardsRecipient;
     }
 
-    function eigenStake() external onlyManager {
-        // TODO:
-    }
-
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external {
         require(tx.origin == podProxyOwner, "Only PodProxyOwner allowed");
