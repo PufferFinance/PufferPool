@@ -1,15 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/libraries/BeaconChainProofs.sol";
-import "eigenlayer/interfaces/IEigenPodManager.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 
+/**
+ * @title IEigenPodProxy
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ * @notice IEigenPodProxy TODO:
+ */
 interface IEigenPodProxy {
+    /**
+     * @dev Thrown if the msg.sender is unauthorized.
+     */
+    error Unauthorized();
+
+    /**
+     * @notice Initializes the proxy contract with `owner` and `manager`
+     */
+    function initialize(address payable owner, IPufferPool manager) external;
+
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
-    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
     function stopRegistraion() external;
@@ -70,4 +87,10 @@ interface IEigenPodProxy {
 
     /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
     function completeWithdrawal() external;
+
+    function podProxyOwner() external returns (address payable);
+
+    function podProxyManager() external returns (address payable);
+
+    function getProxyManager() external view returns (address);
 }

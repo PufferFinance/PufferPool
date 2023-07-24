@@ -26,7 +26,6 @@ abstract contract SafeDeployer {
         address safeSingleton,
         uint256 saltNonce,
         address[] calldata owners,
-        bytes calldata emptyData,
         uint256 threshold
     ) internal returns (Safe) {
         address zeroAddress = address(0);
@@ -34,7 +33,7 @@ abstract contract SafeDeployer {
         SafeProxy proxy = SafeProxyFactory(safeProxyFactory).createProxyWithNonce({
             _singleton: safeSingleton,
             initializer: abi.encodeCall(
-                Safe.setup, (owners, threshold, zeroAddress, emptyData, zeroAddress, zeroAddress, 0, payable(zeroAddress))
+                Safe.setup, (owners, threshold, zeroAddress, "", zeroAddress, zeroAddress, 0, payable(zeroAddress))
                 ),
             saltNonce: saltNonce
         });

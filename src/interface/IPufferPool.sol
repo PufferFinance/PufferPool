@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
 /**
  * @title IPufferPool
@@ -10,14 +11,98 @@ import { Safe } from "safe-contracts/Safe.sol";
  */
 interface IPufferPool {
     /**
+     * TODO: figure out what we need here
+     */
+    struct EigenPodProxyInformation {
+        address creator;
+        bytes32 pubKeyHash;
+        bytes32 mrenclave;
+    }
+
+    /**
+     * Validator Key data struct
+     */
+    struct ValidatorKeyData {
+        bytes blsPubKey;
+        bytes signature;
+        bytes32 depositDataRoot;
+        bytes[] blsEncPrivKeyShares;
+        bytes[] blsPubKeyShares;
+        uint256 blockNumber;
+        bytes raveEvidence;
+    }
+
+    /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
      */
-    error AmountTooSmall();
+    error InsufficientETH();
+
+    /**
+     * @notice Thrown when the Validators deposits wrong ETH amount
+     */
+    error InvalidAmount();
+
+    /**
+     * @notice Thrown when creation of Eigen Pod Proxy fails
+     */
+    error Create2Failed();
+
+    /**
+     * @notice Thrown when the BLS public key is not valid
+     */
+    error InvalidBLSPubKey();
+
+    /**
+     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
+     */
+    error InvalidBLSPrivateKeyShares();
+
+    /**
+     * @notice Thrown when the number of BLS public key shares doesn't match guardians number
+     */
+    error InvalidBLSPublicKeyShares();
 
     /**
      * @notice Thrown when the user is not authorized
      */
     error Unauthorized();
+
+    /**
+     * @notice Thrown when the invalid validator public key is supplied
+     */
+    error InvalidPubKey();
+
+    /**
+     * @notice Thrown if the user tries to register the same Validator key on the same EigenPodProxy multiple times
+     */
+    error DuplicateValidatorKey(bytes pubKey);
+
+    /**
+     * @notice Thrown if the maximum number of validators is reached for that Eigen Pod Proxy
+     */
+    error MaximumNumberOfValidatorsReached();
+
+    /**
+     * @notice Thrown if the Guardians {Safe} wallet already exists
+     */
+    error GuardiansAlreadyExist();
+
+    /**
+     * @notice Thrown if the Eigen Pod Proxy address is not valid
+     */
+    error InvalidEigenPodProxy();
+
+    event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
+
+    /**
+     * @param safeProxyFactory is the address of the new {Safe} proxy factory
+     */
+    event SafeProxyFactoryChanged(address safeProxyFactory);
+
+    /**
+     * @param safeImplementation is the address of the new {Safe} implementation contract
+     */
+    event SafeImplementationChanged(address safeImplementation);
 
     /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
@@ -48,43 +133,57 @@ interface IPufferPool {
 
     /**
      * @notice Emitted when Guardians create an account
-     * @param mrenclave Unique enclave identifier
      * @param account {Safe} account address
      */
-    event GuardianAccountCreated(bytes32 mrenclave, address account);
+    event GuardianAccountCreated(address account);
 
     /**
      * @notice Emitted when Pod owners create an account
-     * @param mrenclave Unique enclave identifier
+     * @param creator Creator address
      * @param account {Safe} account address
      */
-    event PodAccountCreated(bytes32 mrenclave, address account);
+    event PodAccountCreated(address creator, address account);
+
+    /**
+     * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
+     */
+    event ExecutionCommissionChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the Consensus rewards split rate in changed from `oldValue` to `newValue`
+     */
+    event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the POD AVS commission is changed from `oldValue` to `newValue`
+     */
+    event AvsCommissionChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the non custodial bond requirement is changed from `oldValue` to `newValue`
+     */
+    event NonCustodialBondRequirementChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the non enclave bond requirement is changed from `oldValue` to `newValue`
+     */
+    event NonEnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the enclave bond requirement is changed from `oldValue` to `newValue`
+     */
+    event EnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
     /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
      */
-    function deposit(address recipient) external payable;
+    function depositETH(address recipient) external payable;
 
     /**
      *
      * @notice Burns `pufETHAmount` from the transaction sender and sends ETH to the `ethRecipient`
      */
-    function withdraw(address ethRecipient, uint256 pufETHAmount) external;
-
-    /**
-     * Called from the EigenPodProxy contract to burn the pufETH bond upon full withdrawal
-     */
-    function burnAndNoWithdraw() external;
-
-    /**
-     * Pauses the smart contract
-     */
-    function pause() external;
-
-    /**
-     * Unpauses the smart contract
-     */
-    function resume() external;
+    function withdrawETH(address ethRecipient, uint256 pufETHAmount) external;
 
     /**
      * @notice Calculates ETH -> pufETH `amount` based on the ETH:pufETH exchange rate
@@ -109,98 +208,107 @@ interface IPufferPool {
     function getNewRewardsETHAmount() external view returns (uint256);
 
     /**
+     * @notice Returns {Safe} implementation address
+     */
+    function getSafeImplementation() external view returns (address);
+
+    /**
+     * @notice Returns {Safe} proxy factory address
+     */
+    function getSafeProxyFactory() external view returns (address);
+
+    /**
      * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
-     * Returns the remainder of the PodProxyOwner's bond back to pool
+     * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
      */
-    function returnBond(address payable podProxyOwner, uint256 amount) external;
+    function withdrawFromProtocol(
+        uint256 pufETHAmount,
+        uint256 skimmedPodRewards,
+        uint256 poolRewards,
+        address podRewardsRecipient,
+        uint8 bondAmount
+    ) external payable;
 
     /**
-     * Returns the ETH to the pool, not taxed by the Treasury
+     * Returns AVS Commission
      */
-    function returnETH(uint256 amount) external;
+    function getAvsCommission() external view returns (uint256);
+
+    /**
+     * Returns Consensus Commission
+     */
+    function getConsensusCommission() external view returns (uint256);
+
+    /**
+     * Returns Execution Commission
+     */
+    function getExecutionCommission() external view returns (uint256);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet
-     * @param safeProxyFactory Address of the {Safe} proxy factory
-     * @param safeImplementation Address of the {Safe} implementation contract
-     * @param podEnclavePubKeys Pod's encalve public keys
-     * @param podWallets Pod's wallet addresses
-     * @param mrenclave Unique enclave identifier
+     * @param podAccountOwners is a Pod's wallet owner addresses
+     * @param threshold is a number of required confirmations for a {Safe} transaction
      */
-    function createPodAccount(
-        address safeProxyFactory,
-        address safeImplementation,
-        bytes[] calldata podEnclavePubKeys,
-        address[] calldata podWallets,
-        bytes32 mrenclave,
-        bytes calldata emptyData
-    ) external returns (Safe account);
+    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold) external returns (Safe);
+
+    /**
+     * @notice Creates a Pod and registers a validator key
+     * @param podAccountOwners Pod's wallet owner addresses
+     * @param podAccountThreshold Number of required confirmations for a {Safe} transaction
+     * @param data is a validator key data
+     * @return Safe is a newly created {Safe} multisig instance
+     * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
+     */
+    function createPodAccountAndRegisterValidatorKey(
+        address[] calldata podAccountOwners,
+        uint256 podAccountThreshold,
+        ValidatorKeyData calldata data
+    ) external payable returns (Safe, IEigenPodProxy);
+
+    /**
+     * @notice Registers a validator key for a `podAccount`
+     * @dev Sender is expected to send the correct ETH amount
+     * @param podAccount is the address of the Eigen Pod Account
+     * @param data is a validator key data
+     * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
+     */
+    function registerValidatorKey(address podAccount, ValidatorKeyData calldata data)
+        external
+        payable
+        returns (IEigenPodProxy);
 
     /**
      * @notice Creates a guardian {Safe} multisig wallet
-     * @param safeProxyFactory Address of the {Safe} proxy factory
-     * @param safeImplementation Address of the {Safe} implementation contract
-     * @param guardiansEnclavePubKeys Guardian's encalve public keys
      * @param guardiansWallets Guardian's wallet addresses
-     * @param mrenclave Unique enclave identifier
+     * @param threshold Number of required confirmations for a {Safe} transaction
      */
-    function createGuardianAccount(
-        address safeProxyFactory,
-        address safeImplementation,
-        bytes[] calldata guardiansEnclavePubKeys,
-        address[] calldata guardiansWallets,
-        bytes32 mrenclave,
-        bytes calldata emptyData
-    ) external returns (Safe account);
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+        external
+        returns (Safe account);
 
-    // function provisionPod(
-    //     bytes memory pubKey,
-    //     bytes memory depositDataRoot,
-    //     bytes memory depositSignature,
-    //     bytes[] memory crewSignatures,
-    //     bytes32 podType
-    // ) external returns (bool success);
+    // /**
+    //  * @notice Returns the Eigen pod proxy information
+    //  * @param eigenPodProxy Eigen pod proxy address
+    //  */
+    // function getEigenPodProxyInfo(address eigenPodProxy) external view returns (EigenPodProxyInformation memory);
 
-    // function upgradeCrew(address newCrewAddress) external returns (bool success);
+    // ==== Only Guardians ====
 
-    // function registerValidatorKey(
-    //     bytes memory pubKey,
-    //     bytes[] memory pubKeyShares,
-    //     bytes[] memory encKeyShares,
-    //     bytes memory depositDataRoot,
-    //     bytes memory depositSignature,
-    //     bytes[] memory podSignatures,
-    //     bytes32 podType
-    // ) external payable returns (bytes32 withdrawalCredentials);
+    /**
+     * @notice Verifies the deposit of the Validator, provides the remaining 30 ETH and starts the staking via EigenLayer
+     */
+    function provisionPodETH(
+        address eigenPodProxy,
+        bytes calldata pubkey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) external;
 
-    // function approveRestakeRequest(address targetContract, bytes32 podType) external payable returns (bool success);
+    function updateETHBackingAmount(uint256 amount) external;
 
-    // function calcWithdrawalCredentials(bytes memory pubKey) external pure returns (address withdrawalCredentials);
-
-    // function ejectPodForInactivity(
-    //     address podAccount,
-    //     bytes32 podType,
-    //     bytes32 beaconStateRoot,
-    //     uint256 validatorIndex,
-    //     bytes[] memory crewSignatures
-    // ) external;
-
-    // function ejectPodForTheft(
-    //     address podAccount,
-    //     bytes32 podType,
-    //     bytes32 beaconStateRoot,
-    //     uint256 validatorIndex,
-    //     bytes memory validatorPubKey,
-    //     bytes[] memory crewSignatures
-    // ) external;
-
-    // // Setters to set parameters
-    // function setParamX() external;
-
-    // // Getters to get parameters
-    // function getParamX() external returns (uint256 X);
+    // ==== Only Guardians end ====
 }
