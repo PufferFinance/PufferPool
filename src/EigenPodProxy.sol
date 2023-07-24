@@ -99,6 +99,11 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
+        // If bond is already withdrawn, send any incoming money directly to pool
+        if (bondWithdrawn) {
+            _sendETH(podProxyManager, msg.value);
+            return;
+        }
         if (AVSPaymentAddresses[msg.sender]) {
             uint256 toPod = (msg.value * avsCommission) / commissionDenominator;
             _sendETH(podRewardsRecipient, toPod);
@@ -161,6 +166,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                 // Return remained to the pool (not taxed by treasury)
                 // TODO:
                 //pufferPool.withdrawFromProtocol(address(this).balance);
+                bondWithdrawn = true;
             }
         }
     }
