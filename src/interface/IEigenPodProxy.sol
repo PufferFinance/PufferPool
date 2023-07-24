@@ -29,9 +29,6 @@ interface IEigenPodProxy {
     /// @notice Deregisters this EigenPodProxy from an AVS
     function deregisterFromAVS() external;
 
-    /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
-    function skim() external;
-
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.

@@ -110,14 +110,18 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
-            if (
-                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+            if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
+                uint256 toPod = (msg.value * consensusRewardsSplit) / 10 ** 9;
+                _sendETH(podRewardsRecipient, toPod);
+                _sendETH(podProxyManager, msg.value - toPod);
+            } else if (
+                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
             ) {
                 // Eth owned to podProxyOwner
                 uint256 skimmable = Math.max(msg.value - 1 ether, 0);
-                uint256 podsCut = skimmable * consensusRewardsSplit;
-                uint256 podRewards = podsCut + (address(this).balance - skimmable) * consensusRewardsSplit;
+                uint256 podsCut = (skimmable * consensusRewardsSplit) / 10 ** 9;
+                uint256 podRewards = podsCut + ((address(this).balance - skimmable) * consensusRewardsSplit) / 10 ** 9;
                 _sendETH(podRewardsRecipient, podRewards);
 
                 // ETH to be returned later (not taxed by treasury)
@@ -130,7 +134,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
                 // Update previous status to this current status
                 previousStatus = currentStatus;
             } else if (
-                msg.sender == address(ownedEigenPod) && currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
@@ -142,7 +146,7 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
                 if (debt <= 0) {
                     // ETH owed to podProxyOwner
-                    uint256 podRewards = Math.max(skimmable, 0) * consensusRewardsSplit;
+                    uint256 podRewards = (Math.max(skimmable, 0) * consensusRewardsSplit) / 10 ** 9;
                     _sendETH(podRewardsRecipient, podRewards);
 
                     // ETH owed to pool
@@ -251,37 +255,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Deregisters this EigenPodProxy from an AVS
     function deregisterFromAVS() external { }
-
-    /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
-    function skim() external {
-        // TODO: Use the public key mapping to get the status of the corresponding validator
-        IEigenPodWrapper.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
-        uint256 contractBalance = address(this).balance;
-
-        require(
-            status != IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
-                && status != IEigenPodWrapper.VALIDATOR_STATUS.OVERCOMMITTED,
-            "Can't be withdrawn or overcommitted"
-        );
-        require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
-
-        // TODO: Revisit the inactive case later
-        if (status == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
-            if (contractBalance >= 32 ether) {
-                _sendETH(
-                    podRewardsRecipient,
-                    bond + ((contractBalance - (32 ether - bond)) * consensusRewardsSplit) / 10 ** 9
-                );
-                _sendETH(podProxyManager, address(this).balance);
-            } else {
-                _sendETH(podRewardsRecipient, Math.max(contractBalance - (32 ether - bond), 0));
-                _sendETH(podProxyManager, address(this).balance);
-            }
-        } else if (status == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
-            _sendETH(podRewardsRecipient, (contractBalance * consensusRewardsSplit) / 10 ** 9);
-            _sendETH(podProxyManager, address(this).balance);
-        }
-    }
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
