@@ -10,7 +10,6 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { Math } from "openzeppelin/utils/math/Math.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
@@ -46,7 +45,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     IEigenPodWrapper.VALIDATOR_STATUS previousStatus;
 
     // Bond amount
-    uint8 bond;
+    uint128 bond;
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
 
@@ -75,7 +74,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         address _slasher,
         address _pufETH,
         address _eigenPodManager,
-        uint8 _bond
+        uint128 _bond
     ) {
         podProxyOwner = _podProxyOwner;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
@@ -146,14 +145,15 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
                 withdrawnETH += msg.value;
-                int256 debt = int256(32 ether - bond - withdrawnETH);
+                int256 debt = int256(32 ether - int256(uint256(bond))) - int256(withdrawnETH);
 
                 // Handle any rewards
-                uint256 skimmable = address(this).balance - withdrawnETH;
+                uint256 skimmable =
+                    SignedMath.abs(SignedMath.max(int256(address(this).balance) - int256(withdrawnETH), 0));
 
                 if (debt <= 0) {
                     // ETH owed to podProxyOwner
-                    uint256 podRewards = (Math.max(skimmable, 0) * consensusCommission) / commissionDenominator;
+                    uint256 podRewards = (skimmable * consensusCommission) / commissionDenominator;
                     _sendETH(podRewardsRecipient, podRewards);
 
                     // ETH owed to pool
