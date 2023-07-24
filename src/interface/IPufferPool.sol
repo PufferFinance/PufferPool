@@ -231,13 +231,9 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
      */
-    function withdrawFromProtocol(
-        uint256 pufETHAmount,
-        uint256 skimmedPodRewards,
-        uint256 withdrawnETH,
-        address podRewardsRecipient,
-        uint256 bondAmount
-    ) external payable;
+    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient, uint256 bondAmount)
+        external
+        payable;
 
     /**
      * Returns AVS Commission

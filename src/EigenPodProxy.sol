@@ -59,9 +59,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
 
-    // Keeps track of how much eth was withdrawn from the EigenPod
-    uint256 withdrawnETH;
-
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
 
@@ -94,7 +91,12 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
-            if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
+            if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
+                _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
+                    _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
+                );
+                bondWithdrawn = true;
+            } else if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
                 uint256 toPod = (msg.value * _podProxyManager.getConsensusCommission())
                     / _podProxyManager.getCommissionDenominator();
                 _sendETH(_podRewardsRecipient, toPod);
@@ -104,19 +106,14 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
             ) {
                 // Eth owned to podProxyOwner
+                // Up to 1 ETH will remain on this contract until fullWithdrawal
                 uint256 skimmable = SignedMath.abs(SignedMath.max(int256(msg.value - 1 ether), 0));
                 uint256 podsCut = (skimmable * _podProxyManager.getConsensusCommission())
                     / _podProxyManager.getCommissionDenominator();
-                uint256 podRewards = podsCut
-                    + ((address(this).balance - skimmable) * _podProxyManager.getConsensusCommission())
-                        / _podProxyManager.getCommissionDenominator();
-                _sendETH(_podRewardsRecipient, podRewards);
-
-                // ETH to be returned later (not taxed by treasury)
-                withdrawnETH = msg.value - skimmable;
+                _sendETH(_podRewardsRecipient, podsCut);
 
                 // ETH owed to pool
-                uint256 poolCut = address(this).balance - withdrawnETH;
+                uint256 poolCut = skimmable - podsCut;
                 _sendETH(getPodProxyManager(), poolCut);
 
                 // Update previous status to this current status
@@ -126,15 +123,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
-                withdrawnETH += msg.value;
-
-                // Handle any rewards
-                uint256 skimmable =
-                    SignedMath.abs(SignedMath.max(int256(address(this).balance) - int256(withdrawnETH), 0));
-
                 // Distribute all ETH upon full withdraw to Pool, podRewardsRecipient, and Treasury, burning pufETH
                 _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
-                    _podProxyManager.balanceOf(address(this)), skimmable, withdrawnETH, _podRewardsRecipient, _bond
+                    _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
                 );
                 bondWithdrawn = true;
             }

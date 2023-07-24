@@ -75,13 +75,6 @@ contract PufferPool is
      */
     address internal _safeProxyFactory;
 
-    // TODO: Getters and Setters
-    /**
-     *
-     * @dev Address of the treasury pool
-     */
-    address internal _treasury;
-
     /**
      * @dev Address of the {Safe} implementation contract
      */
@@ -101,12 +94,6 @@ contract PufferPool is
      * Number of shares out of one billion to split execution rewards with the pool
      */
     uint256 internal _executionCommission;
-
-    /**
-     *
-     * Number of shares out of one billion to split pool rewards with the treasury
-     */
-    uint256 internal _treasuryCommission;
 
     /**
      * The denomination of shares represented by each commission value (e.g. one billion)
@@ -226,38 +213,27 @@ contract PufferPool is
     /**
      * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
      */
-    function withdrawFromProtocol(
-        uint256 pufETHAmount,
-        uint256 skimmable,
-        uint256 withdrawnETH,
-        address podRewardsRecipient,
-        uint256 bondAmount
-    ) external payable onlyPodProxy {
+    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient, uint256 bondAmount)
+        external
+        payable
+        onlyPodProxy
+    {
         // Burn all pufETH on the sender's account
         _burn(msg.sender, pufETHAmount);
 
-        // BondFinal should be the value of the bond, taking into account the exchange rate of pufETH and ETH
-        uint256 bondFinal = calculatePufETHtoETHAmount(pufETHAmount);
-        int256 debt = int256(32 ether - int256(bondFinal)) - int256(withdrawnETH);
+        // depositPlusRewards should be the value of the bond, taking into account the exchange rate of pufETH and ETH
+        uint256 depositPlusRewards = calculatePufETHtoETHAmount(pufETHAmount);
+        // How much pufETH has accrued in value since initial deposit
+        uint256 bondRewards = depositPlusRewards - bondAmount;
+        // How much ETH we have left of the original deposited bond
+        int256 bondFinal = int256(msg.value) - int256(32 ether - bondAmount);
 
-        if (debt <= 0) {
-            // ETH owed to podProxyOwner
-            uint256 podRewards = (skimmable * _consensusCommission) / _commissionDenominator;
-
-            // Distribute pool rewards to the treasury
-            uint256 poolRewards = skimmable - podRewards;
-            _safeTransferETH(_treasury, (poolRewards * _treasuryCommission) / _commissionDenominator);
-
-            // Return up to 2 ETH bond and rewards back to podRewardsRecipient
-            _safeTransferETH(
-                podRewardsRecipient,
-                SignedMath.abs(
-                    SignedMath.max(
-                        (int256(withdrawnETH) - int256(32 ether - int256(bondFinal))) + int256(podRewards), 0
-                    )
-                )
-            );
+        if (bondFinal >= 0) {
+            // Return bond and any rewards back to podRewardsRecipient
+            _safeTransferETH(podRewardsRecipient, bondRewards + uint256(bondFinal));
         }
+
+        // TODO: Split msg.value - (bondRewards + uint256(bondFinal)) into deposit and withdrawal pools - ensure signedness is good by also using above positive case
     }
 
     /**
