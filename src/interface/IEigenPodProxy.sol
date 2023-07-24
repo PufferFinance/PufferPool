@@ -2,6 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 
 /**
  * @title IEigenPodProxy
@@ -14,6 +16,11 @@ interface IEigenPodProxy {
      * @dev Thrown if the msg.sender is unauthorized.
      */
     error Unauthorized();
+
+    /**
+     * @notice Initializes the proxy contract with `owner` and `manager`
+     */
+    function initialize(address payable owner, IPufferPool manager) external;
 
     /// @notice Creates an EigenPod without depositiing ETH
     function createEmptyPod() external;
@@ -85,4 +92,8 @@ interface IEigenPodProxy {
     function completeWithdrawal() external;
 
     function podProxyOwner() external view returns (address);
+
+    function getProxyManager() external view returns (address);
+
+    function getEigenPodManager() external view returns (IEigenPodManager);
 }

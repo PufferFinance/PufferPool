@@ -38,7 +38,7 @@ contract EigenPodProxyTest is Test {
 
     function testSetup() public {
         address eigenPodProxy = address(
-            new BeaconProxy{value: 30 ether}(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
         );
 
         assertEq(EigenPodProxy(payable(eigenPodProxy)).podProxyOwner(), alice, "owner");
@@ -52,7 +52,7 @@ contract EigenPodProxyTest is Test {
     // Tests the upgrade of two eigen pod proxies
     function testUpgradeBeaconProxy() public {
         address eigenPodProxy = address(
-            new BeaconProxy{value: 30 ether}(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
         );
 
         assertEq(EigenPodProxy(payable(eigenPodProxy)).podProxyOwner(), alice, "alice owner");
@@ -70,7 +70,7 @@ contract EigenPodProxyTest is Test {
         assertEq(returndata.length, 0);
 
         address eigenPodProxyTwo = address(
-            new BeaconProxy{value: 30 ether}(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (bob, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (bob, IPufferPool(address(this)))))
         );
 
         // // Both Eigen pod proxies should return empty data

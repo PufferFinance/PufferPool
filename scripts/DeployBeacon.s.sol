@@ -5,6 +5,8 @@ import { Script } from "forge-std/Script.sol";
 import {UpgradeableBeacon} from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import {EigenPodManagerMock} from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
+
 
 /**
  * @title DeployBeacon script
@@ -22,9 +24,18 @@ contract DeployBeacon is Script {
             vm.startBroadcast();
         }
 
-        // TODO: deploy mock?
-        IEigenPodManager eigenPodManager = IEigenPodManager(vm.envOr("EIGEN_POD_MANAGER", address(5555)));
+        IEigenPodManager eigenPodManager;
 
+        // If we have manager in .env use that address
+        bool managerSet = vm.envOr("EIGEN_POD_MANAGER", false);
+        if (!managerSet) {
+            // If not, deploy mock
+            eigenPodManager = new EigenPodManagerMock();
+        } else {
+            eigenPodManager = IEigenPodManager(vm.envAddress("EIGEN_POD_MANAGER"));
+
+        }
+        
         EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(eigenPodManager);
 
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));

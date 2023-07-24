@@ -54,16 +54,14 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     receive() external payable { }
 
-    function getManager() external view returns (address) {
+    function getProxyManager() external view returns (address) {
         return address(_manager);
     }
 
-    function initialize(address payable owner, IPufferPool manager) external payable initializer {
+    function initialize(address payable owner, IPufferPool manager) external initializer {
         _owner = owner;
         _manager = manager;
-        // TODO: do we want to deploy pod in initializer so the Validator pays for it?
-        // Or we create it when we call stake so the Guraidnas pay for it?
-        // eigenPodManager.deployPod()
+        _eigenPodManager.createPod();
     }
 
     modifier onlyOwner() {
