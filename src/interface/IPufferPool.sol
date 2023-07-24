@@ -234,9 +234,9 @@ interface IPufferPool is IERC20Upgradeable {
     function withdrawFromProtocol(
         uint256 pufETHAmount,
         uint256 skimmedPodRewards,
-        uint256 poolRewards,
+        uint256 withdrawnETH,
         address podRewardsRecipient,
-        uint8 bondAmount
+        uint256 bondAmount
     ) external payable;
 
     /**

@@ -5,6 +5,7 @@ import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/ext
 import { ReentrancyGuardUpgradeable } from "openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
+import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableUpgradeable.sol";
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
@@ -74,6 +75,13 @@ contract PufferPool is
      */
     address internal _safeProxyFactory;
 
+    // TODO: Getters and Setters
+    /**
+     *
+     * @dev Address of the treasury pool
+     */
+    address internal _treasury;
+
     /**
      * @dev Address of the {Safe} implementation contract
      */
@@ -93,6 +101,12 @@ contract PufferPool is
      * Number of shares out of one billion to split execution rewards with the pool
      */
     uint256 internal _executionCommission;
+
+    /**
+     *
+     * Number of shares out of one billion to split pool rewards with the treasury
+     */
+    uint256 internal _treasuryCommission;
 
     /**
      * The denomination of shares represented by each commission value (e.g. one billion)
@@ -123,6 +137,14 @@ contract PufferPool is
 
     modifier onlyGuardians() {
         if (msg.sender != address(_guardiansMultisig)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    modifier onlyPodProxy() {
+        // Ensure caller corresponds to an instantiated PodPoxy contract
+        if (_eigenPodProxies[msg.sender].creator == address(0)) {
             revert Unauthorized();
         }
         _;
@@ -206,11 +228,37 @@ contract PufferPool is
      */
     function withdrawFromProtocol(
         uint256 pufETHAmount,
-        uint256 skimmedPodRewards,
-        uint256 poolRewards,
+        uint256 skimmable,
+        uint256 withdrawnETH,
         address podRewardsRecipient,
-        uint8 bondAmount
-    ) external payable { }
+        uint256 bondAmount
+    ) external payable onlyPodProxy {
+        // Burn all pufETH on the sender's account
+        _burn(msg.sender, pufETHAmount);
+
+        // BondFinal should be the value of the bond, taking into account the exchange rate of pufETH and ETH
+        uint256 bondFinal = calculatePufETHtoETHAmount(pufETHAmount);
+        int256 debt = int256(32 ether - int256(bondFinal)) - int256(withdrawnETH);
+
+        if (debt <= 0) {
+            // ETH owed to podProxyOwner
+            uint256 podRewards = (skimmable * _consensusCommission) / _commissionDenominator;
+
+            // Distribute pool rewards to the treasury
+            uint256 poolRewards = skimmable - podRewards;
+            _safeTransferETH(_treasury, (poolRewards * _treasuryCommission) / _commissionDenominator);
+
+            // Return up to 2 ETH bond and rewards back to podRewardsRecipient
+            _safeTransferETH(
+                podRewardsRecipient,
+                SignedMath.abs(
+                    SignedMath.max(
+                        (int256(withdrawnETH) - int256(32 ether - int256(bondFinal))) + int256(podRewards), 0
+                    )
+                )
+            );
+        }
+    }
 
     /**
      * @inheritdoc IPufferPool

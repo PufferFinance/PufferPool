@@ -127,34 +127,15 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
                 withdrawnETH += msg.value;
-                int256 debt = int256(32 ether - int256(uint256(_bond))) - int256(withdrawnETH);
 
                 // Handle any rewards
                 uint256 skimmable =
                     SignedMath.abs(SignedMath.max(int256(address(this).balance) - int256(withdrawnETH), 0));
 
-                if (debt <= 0) {
-                    // ETH owed to podProxyOwner
-                    uint256 podRewards = (skimmable * _podProxyManager.getConsensusCommission())
-                        / _podProxyManager.getCommissionDenominator();
-                    _sendETH(_podRewardsRecipient, podRewards);
-
-                    // ETH owed to pool
-                    uint256 poolRewards = skimmable - podRewards;
-                    _sendETH(getPodProxyManager(), poolRewards);
-
-                    // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
-                    _sendETH(
-                        _podRewardsRecipient,
-                        SignedMath.abs(
-                            SignedMath.max(int256(withdrawnETH) - int256(32 ether - int256(uint256(_bond))), 0)
-                        )
-                    );
-                }
-
-                // Return remained to the pool (not taxed by treasury)
-                // TODO:
-                //pufferPool.withdrawFromProtocol(address(this).balance);
+                // Distribute all ETH upon full withdraw to Pool, podRewardsRecipient, and Treasury, burning pufETH
+                _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
+                    _podProxyManager.balanceOf(address(this)), skimmable, withdrawnETH, _podRewardsRecipient, _bond
+                );
                 bondWithdrawn = true;
             }
         }
