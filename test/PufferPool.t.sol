@@ -154,8 +154,8 @@ contract PufferPoolTest is Test {
         assertTrue(safe.isOwner(address(this)), "bad owner2");
         assertEq(safe.getThreshold(), 2, "safe threshold");
 
-        assertEq(proxy.podProxyOwner(), address(safe), "eigen pod proxy owner");
-        assertEq(proxy.getProxyManager(), address(pool), "eigen pod proxy manager");
+        assertEq(proxy.getPodProxyOwner(), address(safe), "eigen pod proxy owner");
+        assertEq(proxy.getPodProxyManager(), address(pool), "eigen pod proxy manager");
     }
 
     // Fuzz test for depositing ETH to PufferPool

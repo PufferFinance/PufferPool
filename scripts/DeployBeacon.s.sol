@@ -6,7 +6,7 @@ import {UpgradeableBeacon} from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import {EigenPodManagerMock} from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
-
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 
 /**
  * @title DeployBeacon script
@@ -33,10 +33,9 @@ contract DeployBeacon is Script {
             eigenPodManager = new EigenPodManagerMock();
         } else {
             eigenPodManager = IEigenPodManager(vm.envAddress("EIGEN_POD_MANAGER"));
-
         }
         
-        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(payable(address(0)), payable(address(0)), payable(address(0)), address(0), address(0), address(0), 0);
+        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(eigenPodManager, ISlasher(address(0)));
 
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
 

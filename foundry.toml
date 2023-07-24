@@ -2,6 +2,11 @@
 runs = 10_000
 
 [profile.default]
+# Skip gas tests on CI
+# Run them in development manually by commenting `no_match_path` line and running "forge test --mc ETHTransferTest -vvvv"
+# don't forget to turn on the optimizer :)
+no_match_path = "test/gas-tests/*.sol"
+
 optimizer = false
 optimizer_runs = 10_000
 solc = "0.8.20"
