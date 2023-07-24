@@ -160,6 +160,11 @@ interface IPufferPool {
     event AvsCommissionChanged(uint256 oldValue, uint256 newValue);
 
     /**
+     * @notice Emitted when the Commission Denominator is changed from `oldValue` to `newValue`
+     */
+    event CommissionDenominatorChanged(uint256 oldValue, uint256 newValue);
+
+    /**
      * @notice Emitted when the non custodial bond requirement is changed from `oldValue` to `newValue`
      */
     event NonCustodialBondRequirementChanged(uint256 oldValue, uint256 newValue);
@@ -247,6 +252,11 @@ interface IPufferPool {
      * Returns Execution Commission
      */
     function getExecutionCommission() external view returns (uint256);
+
+    /**
+     * Returns Commission Denominator
+     */
+    function getCommissionDenominator() external view returns (uint256);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet

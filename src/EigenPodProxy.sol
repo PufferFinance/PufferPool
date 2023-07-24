@@ -55,6 +55,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     uint256 consensusCommission;
     //Number of shares out of one billion to split execution rewards with the pool
     uint256 executionCommission;
+    // The denomination of shares represented by each commission value (e.g. one billion)
+    uint256 commissionDenominator;
 
     // Keeps track of how much eth was withdrawn from the EigenPod
     uint256 withdrawnETH;
@@ -86,6 +88,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         avsCommission = pufferPool.getAvsCommission();
         consensusCommission = pufferPool.getConsensusCommission();
         executionCommission = pufferPool.getExecutionCommission();
+        commissionDenominator = pufferPool.getCommissionDenominator();
 
         bond = _bond;
 
@@ -97,18 +100,18 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
         if (AVSPaymentAddresses[msg.sender]) {
-            uint256 toPod = (msg.value * avsCommission) / 10 ** 9;
+            uint256 toPod = (msg.value * avsCommission) / commissionDenominator;
             _sendETH(podRewardsRecipient, toPod);
             _sendETH(podProxyManager, msg.value - toPod);
         } else if (msg.sender != address(ownedEigenPod)) {
-            uint256 toPod = (msg.value * executionCommission) / 10 ** 9;
+            uint256 toPod = (msg.value * executionCommission) / commissionDenominator;
             _sendETH(podRewardsRecipient, toPod);
             _sendETH(podProxyManager, msg.value - toPod);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
             if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
-                uint256 toPod = (msg.value * consensusCommission) / 10 ** 9;
+                uint256 toPod = (msg.value * consensusCommission) / commissionDenominator;
                 _sendETH(podRewardsRecipient, toPod);
                 _sendETH(podProxyManager, msg.value - toPod);
             } else if (
@@ -117,8 +120,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             ) {
                 // Eth owned to podProxyOwner
                 uint256 skimmable = Math.max(msg.value - 1 ether, 0);
-                uint256 podsCut = (skimmable * consensusCommission) / 10 ** 9;
-                uint256 podRewards = podsCut + ((address(this).balance - skimmable) * consensusCommission) / 10 ** 9;
+                uint256 podsCut = (skimmable * consensusCommission) / commissionDenominator;
+                uint256 podRewards =
+                    podsCut + ((address(this).balance - skimmable) * consensusCommission) / commissionDenominator;
                 _sendETH(podRewardsRecipient, podRewards);
 
                 // ETH to be returned later (not taxed by treasury)
@@ -143,7 +147,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
                 if (debt <= 0) {
                     // ETH owed to podProxyOwner
-                    uint256 podRewards = (Math.max(skimmable, 0) * consensusCommission) / 10 ** 9;
+                    uint256 podRewards = (Math.max(skimmable, 0) * consensusCommission) / commissionDenominator;
                     _sendETH(podRewardsRecipient, podRewards);
 
                     // ETH owed to pool

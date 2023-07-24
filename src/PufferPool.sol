@@ -95,6 +95,11 @@ contract PufferPool is
     uint256 internal _executionCommission;
 
     /**
+     * The denomination of shares represented by each commission value (e.g. one billion)
+     */
+    uint256 internal _commissionDenominator;
+
+    /**
      * @notice Validator bond for non custodial node runners
      */
     uint256 internal _nonCustodialBondRequirement;
@@ -429,6 +434,13 @@ contract PufferPool is
         _setAvsCommission(newValue);
     }
 
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setCommissionDenominator(uint256 newValue) external onlyOwner {
+        _setCommissionDenominator(newValue);
+    }
+
     // TODO: do we really need this? use constants?
     function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
         _setNonCustodialBondRequirement(newValue);
@@ -491,6 +503,13 @@ contract PufferPool is
      */
     function getAvsCommission() external view returns (uint256) {
         return _avsCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getCommissionDenominator() external view returns (uint256) {
+        return _commissionDenominator;
     }
 
     // /**
@@ -579,6 +598,12 @@ contract PufferPool is
         uint256 oldValue = _avsCommission;
         _avsCommission = newValue;
         emit AvsCommissionChanged(oldValue, newValue);
+    }
+
+    function _setCommissionDenominator(uint256 newValue) internal {
+        uint256 oldValue = _commissionDenominator;
+        _commissionDenominator = newValue;
+        emit CommissionDenominatorChanged(oldValue, newValue);
     }
 
     function _setNonCustodialBondRequirement(uint256 newValue) internal {
