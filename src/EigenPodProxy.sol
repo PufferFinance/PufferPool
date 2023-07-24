@@ -227,12 +227,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         staked = true;
     }
 
-    /// @notice Withdraws full EigenPod balance if they've never restaked
-    function earlyWithdraw() external payable {
-        require(msg.sender == podProxyOwner, "Only podProxyOwner allowed");
-        ownedEigenPod.withdrawBeforeRestaking();
-    }
-
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
     function stopRegistraion() external onlyPodProxyOwner {
         require(!staked, "pufETH bond is locked, because pod is already staking");

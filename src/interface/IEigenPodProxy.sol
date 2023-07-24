@@ -11,9 +11,6 @@ interface IEigenPodProxy {
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
-    /// @notice Withdraws full EigenPod balance if they've never restaked
-    function earlyWithdraw() external payable;
-
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
     function stopRegistraion() external;
 
