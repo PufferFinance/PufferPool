@@ -302,6 +302,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function completeWithdrawal() external { }
 
     function _sendETH(address payable to, uint256 amount) internal {
+        if (amount == 0) {
+            return;
+        }
         (bool sent, bytes memory data) = to.call{ value: amount }("");
         require(sent, "Failed to send Ether");
     }
