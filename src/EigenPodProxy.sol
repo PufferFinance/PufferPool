@@ -11,6 +11,7 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Math } from "openzeppelin/utils/math/Math.sol";
+import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
@@ -124,7 +125,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
             ) {
                 // Eth owned to podProxyOwner
-                uint256 skimmable = Math.max(msg.value - 1 ether, 0);
+                uint256 skimmable = SignedMath.abs(SignedMath.max(int256(msg.value - 1 ether), 0));
                 uint256 podsCut = (skimmable * consensusCommission) / commissionDenominator;
                 uint256 podRewards =
                     podsCut + ((address(this).balance - skimmable) * consensusCommission) / commissionDenominator;
@@ -160,7 +161,12 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                     _sendETH(podProxyManager, poolRewards);
 
                     // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
-                    _sendETH(podRewardsRecipient, Math.max(withdrawnETH - (32 ether - bond), 0));
+                    _sendETH(
+                        podRewardsRecipient,
+                        SignedMath.abs(
+                            SignedMath.max(int256(withdrawnETH) - int256(32 ether - int256(uint256(bond))), 0)
+                        )
+                    );
                 }
 
                 // Return remained to the pool (not taxed by treasury)
