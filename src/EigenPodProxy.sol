@@ -79,15 +79,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             return;
         }
         if (AVSPaymentAddresses[msg.sender]) {
-            uint256 toPod =
-                (msg.value * _podProxyManager.getAvsCommission()) / _podProxyManager.getCommissionDenominator();
-            _sendETH(_podRewardsRecipient, toPod);
-            _sendETH(getPodProxyManager(), msg.value - toPod);
+            _distributeAvsRewards(msg.value);
         } else if (msg.sender != address(ownedEigenPod)) {
-            uint256 toPod =
-                (msg.value * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator();
-            _sendETH(_podRewardsRecipient, toPod);
-            _sendETH(getPodProxyManager(), msg.value - toPod);
+            _distributeExecutionRewards(msg.value);
         } else {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
@@ -99,8 +93,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             } else if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
                 uint256 toPod = (msg.value * _podProxyManager.getConsensusCommission())
                     / _podProxyManager.getCommissionDenominator();
-                _sendETH(_podRewardsRecipient, toPod);
-                _sendETH(getPodProxyManager(), msg.value - toPod);
+                _distributeFunds(msg.value, toPod);
             } else if (
                 currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
@@ -166,6 +159,23 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             revert Unauthorized();
         }
         _;
+    }
+
+    function _distributeFunds(uint256 total, uint256 toPod) internal {
+        _sendETH(_podRewardsRecipient, toPod);
+        _sendETH(getPodProxyManager(), total - toPod);
+    }
+
+    function _distributeAvsRewards(uint256 amount) internal {
+        uint256 toPod =
+            (amount * _podProxyManager.getAvsCommission()) / _podProxyManager.getCommissionDenominator();
+        _distributeFunds(amount, toPod);
+    }
+
+    function _distributeExecutionRewards(uint256 amount) internal {
+        uint256 toPod =
+            (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator();
+        _distributeFunds(amount, toPod);
     }
 
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {
