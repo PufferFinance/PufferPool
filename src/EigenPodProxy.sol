@@ -2,68 +2,162 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-import "openzeppelin/utils/math/Math.sol";
-import "./interface/IEigenPodProxy.sol";
-import "eigenlayer/interfaces/IEigenPod.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+// Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
+import { IEigenPodWrapper } from "./interface/IEigenPodWrapper.sol";
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { Math } from "openzeppelin/utils/math/Math.sol";
+import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 /**
  * @title EingenPodProxy
  * @author Puffer finance
- * @notice TODO: interacts with EigenLayer
+ * @custom:security-contact security@puffer.fi
+ * @notice Eigen Pod Proxy is a contract that owns EigenPod and is responsible with interacting with it
  */
-contract EigenPodProxy is Initializable, IEigenPodProxy {
-    /**
-     * @dev Thrown if the msg.sender is unauthorized.
-     */
-    error Unauthorized();
-
+contract EigenPodProxy is IEigenPodProxy, Initializable {
     // TODO: getters, OZ ownable and/or access control
-    address internal _owner;
-    address internal _manager;
+    address payable internal _owner;
+    IPufferPool internal _manager;
     // PodAccount
     address payable public podProxyOwner;
     // PufferPool
     address payable public podProxyManager;
+    // The designated address to send pod rewards. Can be changed by podProxyOwner
+    address payable public podRewardsRecipient;
 
-    IEigenPod public ownedEigenPod;
+    IERC20 pufETH;
+
+    // PodAccount
+    IEigenPodWrapper public ownedEigenPod;
     // EigenLayer's Singular EigenPodManager contract
-    IEigenPodManager public eigenPodManager;
+    IEigenPodManager public immutable eigenPodManager;
+    // EigenLayer's Singular Slasher contract
+    ISlasher public slasher;
+    // The Singular PufferPool contract
+    IPufferPool public pufferPool;
+    // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
+    IEigenPodWrapper.VALIDATOR_STATUS previousStatus;
 
+    // Bond amount
+    uint8 bond;
     // Keeps track of any ETH owed to podOwner, but has not been paid due to slow withdrawal
     uint256 public owedToPodOwner;
-    // If ETH hits this contract, and not from the ownedEigenPod contract, consider it execution rewards
-    uint256 public executionRewards;
 
-    // TODO: Should these be defined elsewhere so that all eigenPods can (more conveniently) have consistent behavior?
     // Number of shares out of one billion to split AVS rewards with the pool
-    uint256 podAVSCommission;
+    uint256 avsCommission;
     //Number of shares out of one billion to split consensus rewards with the pool
-    uint256 consensusRewardsSplit;
+    uint256 consensusCommission;
     //Number of shares out of one billion to split execution rewards with the pool
-    uint256 executionRewardsSplit;
+    uint256 executionCommission;
+
+    // Keeps track of how much eth was withdrawn from the EigenPod
+    uint256 withdrawnETH;
+
+    // Keeps track of addresses which AVS payments can be expected to come from
+    mapping(address => bool) public AVSPaymentAddresses;
+
+    bool public bondWithdrawn;
+    bool public staked;
 
     constructor(
         address payable _podProxyOwner,
-        address payable _podProxyManager,
+        address payable _pufferPool,
+        address payable _podRewardsRecipient,
+        address _slasher,
+        address _pufETH,
         address _eigenPodManager,
-        uint256 _podAVSCommission,
-        uint256 _consensusRewardsSplit,
-        uint256 _executionRewardsSplit
+        uint8 _bond
     ) {
-        // _manager = manager;
         podProxyOwner = _podProxyOwner;
-        podProxyManager = _podProxyManager;
         eigenPodManager = IEigenPodManager(_eigenPodManager);
+        slasher = ISlasher(_slasher);
+        pufferPool = IPufferPool(_pufferPool);
+        podProxyManager = _pufferPool;
+        pufETH = IERC20(_pufETH);
 
-        podAVSCommission = _podAVSCommission;
-        consensusRewardsSplit = _consensusRewardsSplit;
-        executionRewardsSplit = _executionRewardsSplit;
+        podRewardsRecipient = _podRewardsRecipient;
+
+        avsCommission = pufferPool.getAvsCommission();
+        consensusCommission = pufferPool.getConsensusCommission();
+        executionCommission = pufferPool.getExecutionCommission();
+
+        bond = _bond;
+
+        previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+
+        _disableInitializers();
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
-        if (msg.sender != address(ownedEigenPod)) {
-            executionRewards += msg.value;
+        if (AVSPaymentAddresses[msg.sender]) {
+            uint256 toPod = (msg.value * avsCommission) / 10 ** 9;
+            _sendETH(podRewardsRecipient, toPod);
+            _sendETH(podProxyManager, msg.value - toPod);
+        } else if (msg.sender != address(ownedEigenPod)) {
+            uint256 toPod = (msg.value * executionCommission) / 10 ** 9;
+            _sendETH(podRewardsRecipient, toPod);
+            _sendETH(podProxyManager, msg.value - toPod);
+        } else {
+            // TODO: Use the public key mapping to get the status of the corresponding validator
+            IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
+            if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
+                uint256 toPod = (msg.value * consensusCommission) / 10 ** 9;
+                _sendETH(podRewardsRecipient, toPod);
+                _sendETH(podProxyManager, msg.value - toPod);
+            } else if (
+                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
+            ) {
+                // Eth owned to podProxyOwner
+                uint256 skimmable = Math.max(msg.value - 1 ether, 0);
+                uint256 podsCut = (skimmable * consensusCommission) / 10 ** 9;
+                uint256 podRewards = podsCut + ((address(this).balance - skimmable) * consensusCommission) / 10 ** 9;
+                _sendETH(podRewardsRecipient, podRewards);
+
+                // ETH to be returned later (not taxed by treasury)
+                withdrawnETH = msg.value - skimmable;
+
+                // ETH owed to pool
+                uint256 poolCut = address(this).balance - withdrawnETH;
+                _sendETH(podProxyManager, poolCut);
+
+                // Update previous status to this current status
+                previousStatus = currentStatus;
+            } else if (
+                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                    && previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                    && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
+            ) {
+                withdrawnETH += msg.value;
+                int256 debt = int256(32 ether - bond - withdrawnETH);
+
+                // Handle any rewards
+                uint256 skimmable = address(this).balance - withdrawnETH;
+
+                if (debt <= 0) {
+                    // ETH owed to podProxyOwner
+                    uint256 podRewards = (Math.max(skimmable, 0) * consensusCommission) / 10 ** 9;
+                    _sendETH(podRewardsRecipient, podRewards);
+
+                    // ETH owed to pool
+                    uint256 poolRewards = skimmable - podRewards;
+                    _sendETH(podProxyManager, poolRewards);
+
+                    // Return up to 2 ETH bond back to PodProxyOwner and burn this contract's pufEth
+                    _sendETH(podRewardsRecipient, Math.max(withdrawnETH - (32 ether - bond), 0));
+                }
+
+                // Return remained to the pool (not taxed by treasury)
+                // TODO:
+                //pufferPool.withdrawFromProtocol(address(this).balance);
+            }
         }
     }
 
@@ -72,59 +166,66 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(ownedEigenPod));
     }
 
-    function getManager() external view returns (address) {
-        return _manager;
+    receive() external payable { }
+
+    function getProxyManager() external view returns (address) {
+        return address(_manager);
     }
 
-    function initialize(address owner, address manager) external initializer {
+    function initialize(address payable owner, IPufferPool manager) external initializer {
         _owner = owner;
         _manager = manager;
+        eigenPodManager.createPod();
     }
 
-    modifier onlyOwner() {
-        if (msg.sender != _owner) {
+    modifier onlyPodProxyOwner() {
+        if (msg.sender != podProxyOwner) {
             revert Unauthorized();
         }
         _;
     }
 
-    modifier onlyManager() {
-        if (msg.sender != _manager) {
+    modifier onlyPodProxyManager() {
+        if (msg.sender != podProxyManager) {
             revert Unauthorized();
         }
         _;
     }
 
-    function eigenStake() external onlyManager {
-        // TODO:
+    function updatePodRewardsRecipient(address payable _podRewardsRecipient) external onlyPodProxyOwner {
+        podRewardsRecipient = _podRewardsRecipient;
     }
 
     /// @notice Creates an EigenPod without depositiing ETH
-    function createEmptyPod() external {
-        require(tx.origin == podProxyOwner, "Only PodProxyOwner allowed");
+    function createEmptyPod() external onlyPodProxyManager {
         require(address(ownedEigenPod) == address(0), "Must not have instantiated EigenPod");
-
         eigenPodManager.createPod();
-
         // This contract is the owner of the created eigenPod
-        ownedEigenPod = eigenPodManager.ownerToPod(address(this));
+        ownedEigenPod = IEigenPodWrapper(address(eigenPodManager.ownerToPod(address(this))));
     }
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
+        require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
         require(msg.sender == podProxyManager, "Only podProxyManager allowed");
         require(msg.value == 32 ether, "Must be called with 32 ETH");
         eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
+        staked = true;
     }
 
-    /// @notice Withdraws full EigenPod balance if they've never restaked
-    function earlyWithdraw() external payable {
-        require(msg.sender == podProxyOwner, "Only podProxyOwner allowed");
-        ownedEigenPod.withdrawBeforeRestaking();
+    /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
+    function stopRegistraion() external onlyPodProxyOwner {
+        require(!staked, "pufETH bond is locked, because pod is already staking");
+        bondWithdrawn = true;
+        pufETH.transfer(podRewardsRecipient, pufETH.balanceOf(address(this)));
     }
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
-    function enableSlashing(address contractAddress) external { }
+    function enableSlashing(address contractAddress) external {
+        // Note this contract address as potential payment address
+        AVSPaymentAddresses[contractAddress] = true;
+        slasher.optIntoSlashing(contractAddress);
+    }
 
     /// @notice Register to generic AVS. Only callable by pod owner
     function registerToAVS(bytes calldata registrationData) external { }
@@ -134,44 +235,6 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
 
     /// @notice Deregisters this EigenPodProxy from an AVS
     function deregisterFromAVS() external { }
-
-    /// @notice Called by PufferPool and PodAccount to distribute ETH funds among PufferPool, PodAccount and Puffer Treasury
-    function skim() external {
-        // TODO: Get the index of the validator corresponding to this eigenpod, so we can fetch the appropriate validator status
-        IEigenPod.VALIDATOR_STATUS status = ownedEigenPod.validatorStatus(0);
-        uint256 contractBalance = address(this).balance;
-
-        require(
-            status != IEigenPod.VALIDATOR_STATUS.WITHDRAWN && status != IEigenPod.VALIDATOR_STATUS.OVERCOMMITTED,
-            "Can't be withdrawn or overcommitted"
-        );
-        require(contractBalance > 0 || owedToPodOwner > 0, "No ETH to skim");
-
-        if (status == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
-            if (contractBalance >= 32 ether) {
-                _sendETH(podProxyOwner, 2 ether + ((contractBalance - 30 ether) * podAVSCommission) / 10 ** 9);
-                _sendETH(podProxyManager, address(this).balance);
-            } else {
-                _sendETH(podProxyOwner, Math.max(contractBalance - 30 ether, 0));
-                _sendETH(podProxyManager, address(this).balance);
-            }
-            // Reset execution rewards because we just withdrew all ETH
-            executionRewards = 0;
-        }
-        // TODO: How to determine the rewards which come from an AVS from consensus rewards?
-        else if (status == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
-            _sendETH(
-                podProxyOwner,
-                (
-                    (contractBalance - executionRewards) * consensusRewardsSplit
-                        + executionRewards * executionRewardsSplit
-                ) / 10 ** 9
-            );
-            _sendETH(podProxyManager, address(this).balance);
-            // Reset execution rewards after skimming
-            executionRewards = 0;
-        }
-    }
 
     /**
      * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
@@ -195,7 +258,11 @@ contract EigenPodProxy is Initializable, IEigenPodProxy {
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
-    ) external { }
+    ) external {
+        ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
+        // Keep track of ValidatorStatus state changes
+        previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE;
+    }
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod

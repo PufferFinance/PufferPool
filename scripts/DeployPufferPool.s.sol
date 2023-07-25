@@ -11,7 +11,7 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
  * @notice Deploys UUPS upgradeable `PufferPool`.
  */
 contract DeployPufferPool is Script {
-    function run(address beacon) external returns (PufferPool) {
+    function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool) {
         bool pkSet = vm.envOr("PRIVATE_KEY", false);
 
         if (pkSet) {
@@ -28,7 +28,7 @@ contract DeployPufferPool is Script {
         // Casts Proxy to PufferPool
         PufferPool pool = PufferPool(payable(address(proxy)));
         // Initializes the Pool
-        pool.initialize();
+        pool.initialize(safeProxyFactory, safeImplementation);
 
         if (!pkSet) {
             // For test environment transfer ownership to Test contract

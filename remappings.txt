@@ -6,6 +6,7 @@ openzeppelin/=lib/openzeppelin-contracts/contracts/
 openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable/contracts
 @openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable
 eigenlayer/=lib/eigenlayer-contracts/src/contracts
+eigenlayer-test/=lib/eigenlayer-contracts/src/test
 openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 puffer/=src/
 scripts/=scripts/
