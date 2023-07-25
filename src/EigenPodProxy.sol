@@ -12,7 +12,6 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
-
 /**
  * @title EingenPodProxy
  * @author Puffer finance

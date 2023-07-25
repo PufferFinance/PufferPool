@@ -107,9 +107,11 @@ contract EigenPodProxyTest is Test {
     }
 
     function testChangePodRewardsRecipient() public {
-        address payable eigenPodProxyAddress = payable(address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
-        ));
+        address payable eigenPodProxyAddress = payable(
+            address(
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
+            )
+        );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
         vm.prank(alice);
         eigenPodProxy.updatePodRewardsRecipient(payable(address(bob)));
@@ -119,16 +121,17 @@ contract EigenPodProxyTest is Test {
     }
 
     // TODO: Needs to change when we make dictionary for AVS info and payments
-    function testAvsRewardsProxy() public {        
+    function testAvsRewardsProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
-        address payable eigenPodProxyAddress = payable(address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
-        ));
+        address payable eigenPodProxyAddress = payable(
+            address(
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
+            )
+        );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
-
         eigenPodProxy.enableSlashing(address(bob));
 
         uint256 aliceBalanceBefore = alice.balance;
@@ -141,12 +144,13 @@ contract EigenPodProxyTest is Test {
         // After sending 1 eth AVS rewards, both alice and the pool should receive funds
         assert(alice.balance > aliceBalanceBefore);
         assert(address(pool).balance > poolBalanceBefore);
+
         // Total funds received should add up to total funds sent to fallback
         assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 1 ether);
+
         // Alice shold get 5% of 1 eth, pool gets the rest
         assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
-        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16); 
-
+        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
     }
 
     function testExecutionRewardsProxy() public {
@@ -154,19 +158,21 @@ contract EigenPodProxyTest is Test {
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
-        address payable eigenPodProxyAddress = payable(address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
-        ));
+        address payable eigenPodProxyAddress = payable(
+            address(
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
+            )
+        );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
         uint256 aliceBalanceBefore = alice.balance;
         uint256 poolBalanceBefore = address(pool).balance;
-        
+
         vm.prank(address(1));
         vm.deal(address(1), 2 ether);
         assertEq(address(1).balance, 2 ether);
-        
-        payable(address(eigenPodProxy)).call{ value: 1 ether}("");
-        
+
+        payable(address(eigenPodProxy)).call{ value: 1 ether }("");
+
         // After sending 1 eth AVS rewards, both alice and the pool should receive funds
         assert(alice.balance > aliceBalanceBefore);
         assert(address(pool).balance > poolBalanceBefore);
@@ -176,24 +182,20 @@ contract EigenPodProxyTest is Test {
 
         // Alice shold get 5% of 1 eth, pool gets the rest
         assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
-        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16); 
+        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
     }
 
     function testConsensusRewardsActiveProxy() public {
-        address payable eigenPodProxyAddress = payable(address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
-        ));
+        address payable eigenPodProxyAddress = payable(
+            address(
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
+            )
+        );
     }
 
-    function testQuickWithdrawProxy() public {
+    function testQuickWithdrawProxy() public { }
 
-    }
+    function testCompleteSlowWithdrawProxy() public { }
 
-    function testCompleteSlowWithdrawProxy() public {
-
-    }
-
-    function testRewardsAfterBondWithdrawnProxy() public {
-
-    }
+    function testRewardsAfterBondWithdrawnProxy() public { }
 }
