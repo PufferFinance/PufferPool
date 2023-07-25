@@ -18,12 +18,14 @@ interface IEigenPodProxy {
     error Unauthorized();
 
     /**
-     * @notice Initializes the proxy contract with `owner` and `manager`
+     * @notice Initializes the proxy contract
+     * @param owner is the Owner of Eigen Pod Proxy {Safe} multisig (Pod Account)
+     * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
+     * @param podRewardsRecipient is the rewards recipient
+     * @param bond is the bond amount
      */
-    function initialize(address payable owner, IPufferPool manager) external;
-
-    /// @notice Creates an EigenPod without depositiing ETH
-    function createEmptyPod() external;
+    function initialize(address payable owner, IPufferPool manager, address payable podRewardsRecipient, uint256 bond)
+        external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
@@ -88,9 +90,7 @@ interface IEigenPodProxy {
     /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
     function completeWithdrawal() external;
 
-    function podProxyOwner() external returns (address payable);
+    function getPodProxyOwner() external returns (address payable);
 
-    function podProxyManager() external returns (address payable);
-
-    function getProxyManager() external view returns (address);
+    function getPodProxyManager() external returns (address payable);
 }
