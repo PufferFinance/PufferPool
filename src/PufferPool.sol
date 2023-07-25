@@ -155,6 +155,10 @@ contract PufferPool is
         _setNonCustodialBondRequirement(16 ether);
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
+        _avsCommission = 5 * 10 ** 7;
+        _executionCommission = 5 * 10 ** 7;
+        _consensusCommission = 5 * 10 ** 7;
+        _commissionDenominator = 10 ** 9;
     }
 
     // Guardians only

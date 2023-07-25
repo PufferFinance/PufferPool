@@ -7,6 +7,9 @@ import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import {EigenPodManagerMock} from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { SlasherMock } from "test/mocks/SlasherMock.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 
 /**
  * @title DeployBeacon script
@@ -35,7 +38,8 @@ contract DeployBeacon is Script {
             eigenPodManager = IEigenPodManager(vm.envAddress("EIGEN_POD_MANAGER"));
         }
         
-        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(eigenPodManager, ISlasher(address(0)));
+        ISlasher slasher = new SlasherMock(IStrategyManager(address(0)), IDelegationManager(address(0)));
+        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(eigenPodManager, slasher);
 
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
 

@@ -12,6 +12,7 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 
+
 /**
  * @title EingenPodProxy
  * @author Puffer finance
@@ -136,8 +137,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function _getPodWithdrawalCredentials() internal view returns (bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(ownedEigenPod));
     }
-
-    receive() external payable { }
 
     function getProxyManager() external view returns (address) {
         return address(_podProxyManager);
