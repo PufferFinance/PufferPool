@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 // Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
-import { IEigenPodWrapper } from "./interface/IEigenPodWrapper.sol";
+import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
@@ -86,31 +86,14 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             // TODO: Use the public key mapping to get the status of the corresponding validator
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
             if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
-                _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
-                    _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
-                );
-                bondWithdrawn = true;
+                _handleInactiveSkim();
             } else if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
-                uint256 toPod = (msg.value * _podProxyManager.getConsensusCommission())
-                    / _podProxyManager.getCommissionDenominator();
-                _distributeFunds(msg.value, toPod);
+                _distributeConsensusRewards(msg.value);
             } else if (
                 currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
             ) {
-                // Eth owned to podProxyOwner
-                // Up to 1 ETH will remain on this contract until fullWithdrawal
-                uint256 skimmable = SignedMath.abs(SignedMath.max(int256(msg.value - 1 ether), 0));
-                uint256 podsCut = (skimmable * _podProxyManager.getConsensusCommission())
-                    / _podProxyManager.getCommissionDenominator();
-                _sendETH(_podRewardsRecipient, podsCut);
-
-                // ETH owed to pool
-                uint256 poolCut = skimmable - podsCut;
-                _sendETH(getPodProxyManager(), poolCut);
-
-                // Update previous status to this current status
-                _previousStatus = currentStatus;
+                _handleQuickWithdraw(msg.value);
             } else if (
                 currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
                     && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
@@ -167,8 +150,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     function _distributeAvsRewards(uint256 amount) internal {
-        uint256 toPod =
-            (amount * _podProxyManager.getAvsCommission()) / _podProxyManager.getCommissionDenominator();
+        uint256 toPod = (amount * _podProxyManager.getAvsCommission()) / _podProxyManager.getCommissionDenominator();
         _distributeFunds(amount, toPod);
     }
 
@@ -176,6 +158,35 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         uint256 toPod =
             (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator();
         _distributeFunds(amount, toPod);
+    }
+
+    function _distributeConsensusRewards(uint256 amount) internal {
+        uint256 toPod =
+            (amount * _podProxyManager.getConsensusCommission()) / _podProxyManager.getCommissionDenominator();
+        _distributeFunds(amount, toPod);
+    }
+
+    function _handleInactiveSkim() internal {
+        _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
+            _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
+        );
+        bondWithdrawn = true;
+    }
+
+    function _handleQuickWithdraw(uint256 amount) internal {
+        // Eth owned to podProxyOwner
+        // Up to 1 ETH will remain on this contract until fullWithdrawal
+        uint256 skimmable = SignedMath.abs(SignedMath.max(int256(amount - 1 ether), 0));
+        uint256 podsCut =
+            (skimmable * _podProxyManager.getConsensusCommission()) / _podProxyManager.getCommissionDenominator();
+        _sendETH(_podRewardsRecipient, podsCut);
+
+        // ETH owed to pool
+        uint256 poolCut = skimmable - podsCut;
+        _sendETH(getPodProxyManager(), poolCut);
+
+        // Update previous status to withdrawn
+        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN;
     }
 
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {

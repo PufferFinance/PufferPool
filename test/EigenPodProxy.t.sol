@@ -16,9 +16,11 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { SlasherMock } from "test/mocks/SlasherMock.sol";
+import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
+import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 import "forge-std/console.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
@@ -28,6 +30,41 @@ contract EigenPodProxyV2Mock is EigenPodProxy {
 
     function getSomething() external pure returns (uint256 number) {
         return 225883;
+    }
+}
+
+contract EigenPodProxyV3Mock is EigenPodProxy {
+    IEigenPodManager eigenPodManager = new EigenPodManagerMock();
+    ISlasher slasher = new SlasherMock(IStrategyManager(address(0)), IDelegationManager(address(0)));
+
+    constructor() EigenPodProxy(IEigenPodManager(eigenPodManager), slasher) { }
+
+    function init(address payable owner, IPufferPool manager, address payable podRewardsRecipient, uint256 bond)
+        public
+    {
+        _podRewardsRecipient = podRewardsRecipient;
+        _bond = bond;
+        _podProxyOwner = owner;
+        _podProxyManager = manager;
+        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+        _eigenPodManager.createPod();
+        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
+    }
+
+    function handleInactiveSkim() public {
+        return _handleInactiveSkim();
+    }
+
+    function distributeConsensusRewards(uint256 amount) public {
+        return _distributeConsensusRewards(amount);
+    }
+
+    function handleQuickWithdraw(uint256 amount) public {
+        return _handleQuickWithdraw(amount);
+    }
+
+    function getPreviousStatus() public returns (IEigenPodWrapper.VALIDATOR_STATUS) {
+        return _previousStatus;
     }
 }
 
@@ -186,14 +223,62 @@ contract EigenPodProxyTest is Test {
     }
 
     function testConsensusRewardsActiveProxy() public {
-        address payable eigenPodProxyAddress = payable(
-            address(
-                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
-            )
-        );
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.label(address(pool), "PufferPool");
+
+        EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
+        eigenPodProxy.init(alice, IPufferPool(address(pool)), alice, 2 ether);
+
+        uint256 aliceBalanceBefore = alice.balance;
+        uint256 poolBalanceBefore = address(pool).balance;
+
+        vm.deal(address(eigenPodProxy), 5 ether);
+
+        eigenPodProxy.distributeConsensusRewards(2 ether);
+
+        assert(alice.balance > aliceBalanceBefore);
+        assert(address(pool).balance > poolBalanceBefore);
+
+        // Total funds received should add up to total funds sent to fallback
+        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 2 ether);
+
+        // Alice shold get 5% of 1 eth, pool gets the rest
+        assertEq(alice.balance - aliceBalanceBefore, 10 * 10 ** 16);
+        assertEq(address(pool).balance - poolBalanceBefore, 190 * 10 ** 16);
     }
 
-    function testQuickWithdrawProxy() public { }
+    function testQuickWithdrawProxy() public {
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.label(address(pool), "PufferPool");
+
+        EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
+        eigenPodProxy.init(alice, IPufferPool(address(pool)), alice, 2 ether);
+
+        vm.deal(address(eigenPodProxy), 2 ether);
+
+        uint256 aliceBalanceBefore = alice.balance;
+        uint256 poolBalanceBefore = address(pool).balance;
+        // Status is not withdrawn to start
+        assert(IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN != eigenPodProxy.getPreviousStatus());
+
+        eigenPodProxy.handleQuickWithdraw(2 ether);
+
+        // Status changes to withdrawn
+        assert(IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN == eigenPodProxy.getPreviousStatus());
+        assert(alice.balance > aliceBalanceBefore);
+        assert(address(pool).balance > poolBalanceBefore);
+        assertEq(
+            (alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore)
+                + address(eigenPodProxy).balance,
+            2 ether
+        );
+        // 1 eth will remain on the contract
+        assertEq(address(eigenPodProxy).balance, 1 ether);
+        assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
+        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
+    }
 
     function testCompleteSlowWithdrawProxy() public { }
 

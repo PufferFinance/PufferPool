@@ -14,7 +14,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 /**
  * @title DeployBeacon script
  * @author Puffer finance
- * @notice Dep;loyment of Beacon for EigenPodProxy
+ * @notice Deployment of Beacon for EigenPodProxy
  */
 contract DeployBeacon is Script {
     function run() external returns (EigenPodProxy, UpgradeableBeacon) {
