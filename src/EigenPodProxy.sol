@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 // Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
 import { IEigenPodWrapper } from "./interface/IEigenPodWrapper.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
@@ -12,7 +11,6 @@ import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Math } from "openzeppelin/utils/math/Math.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
-import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 /**
  * @title EingenPodProxy
@@ -202,9 +200,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function stopRegistraion() external onlyPodProxyOwner {
         require(!staked, "pufETH bond is locked, because pod is already staking");
         bondWithdrawn = true;
-        IERC20(getPodProxyManager()).transfer(
-            _podRewardsRecipient, IERC20(getPodProxyManager()).balanceOf(address(this))
-        );
+        _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
     }
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
