@@ -77,8 +77,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         if (bondWithdrawn) {
             _sendETH(payable(address(_podProxyManager)), msg.value);
             return;
-        }
-        if (AVSPaymentAddresses[msg.sender]) {
+        } else if (AVSPaymentAddresses[msg.sender]) {
             _distributeAvsRewards(msg.value);
         } else if (msg.sender != address(ownedEigenPod)) {
             _distributeExecutionRewards(msg.value);

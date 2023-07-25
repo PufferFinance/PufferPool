@@ -66,6 +66,10 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
     function getPreviousStatus() public returns (IEigenPodWrapper.VALIDATOR_STATUS) {
         return _previousStatus;
     }
+
+    function setBondWithdrawn(bool _bondWithdrawn) public {
+        bondWithdrawn = _bondWithdrawn;
+    }
 }
 
 contract EigenPodProxyTest is Test {
@@ -280,7 +284,36 @@ contract EigenPodProxyTest is Test {
         assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
     }
 
-    function testCompleteSlowWithdrawProxy() public { }
+    function testCompleteSlowWithdrawProxy() public {
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.label(address(pool), "PufferPool");
 
-    function testRewardsAfterBondWithdrawnProxy() public { }
+        EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
+        eigenPodProxy.init(alice, IPufferPool(address(pool)), alice, 2 ether);
+
+        // TODO: This should basically just check the pool's withdrawFromProtocol function
+    }
+
+    function testRewardsAfterBondWithdrawnProxy() public {
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.label(address(pool), "PufferPool");
+
+        EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
+        eigenPodProxy.init(alice, IPufferPool(address(pool)), alice, 2 ether);
+
+        eigenPodProxy.setBondWithdrawn(true);
+
+        uint256 aliceBalanceBefore = alice.balance;
+        uint256 poolBalanceBefore = address(pool).balance;
+
+        vm.prank(bob);
+        vm.deal(bob, 2 ether);
+        payable(address(eigenPodProxy)).call{ value: 1 ether }("");
+
+        // Alice should get no funds, and pool should receive everything
+        assertEq(alice.balance, aliceBalanceBefore);
+        assertEq(address(pool).balance, poolBalanceBefore + 1 ether);
+    }
 }
