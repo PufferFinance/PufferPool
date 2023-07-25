@@ -293,7 +293,10 @@ contract PufferPool is
     {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
-            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (payable(account), this)))
+            abi.encode(
+                EIGEN_POD_PROXY_BEACON,
+                abi.encodeCall(EigenPodProxy.initialize, (payable(account), this, payable(account), 2 ether))
+            )
         );
 
         // solhint-disable-next-line no-inline-assembly

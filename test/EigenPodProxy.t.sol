@@ -9,20 +9,11 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import "forge-std/console.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
-    constructor()
-        EigenPodProxy(
-            payable(address(IEigenPodManager(address(0)))),
-            payable(address(0)),
-            payable(address(0)),
-            address(0),
-            address(0),
-            address(0),
-            0
-        )
-    {
+    constructor() EigenPodProxy(IEigenPodManager(address(0)), ISlasher(address(0))) {
         // do nothing
     }
 
@@ -48,12 +39,12 @@ contract EigenPodProxyTest is Test {
 
     function testSetup() public {
         address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
         );
 
-        assertEq(EigenPodProxy(payable(eigenPodProxy)).podProxyOwner(), alice, "owner");
+        assertEq(EigenPodProxy(payable(eigenPodProxy)).getPodProxyOwner(), alice, "owner");
         assertEq(
-            EigenPodProxy(payable(eigenPodProxy)).podProxyManager(),
+            EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
             address(this),
             "In production PufferPool will be the manager"
         );
@@ -62,12 +53,12 @@ contract EigenPodProxyTest is Test {
     // Tests the upgrade of two eigen pod proxies
     function testUpgradeBeaconProxy() public {
         address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
         );
 
-        assertEq(EigenPodProxy(payable(eigenPodProxy)).podProxyOwner(), alice, "alice owner");
+        assertEq(EigenPodProxy(payable(eigenPodProxy)).getPodProxyOwner(), alice, "alice owner");
         assertEq(
-            EigenPodProxy(payable(eigenPodProxy)).podProxyManager(),
+            EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
             address(this),
             "In production PufferPool will be the manager"
         );
@@ -80,16 +71,16 @@ contract EigenPodProxyTest is Test {
         assertEq(returndata.length, 0);
 
         address eigenPodProxyTwo = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (bob, IPufferPool(address(this)))))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (bob, IPufferPool(address(this)), bob, 2 ether)))
         );
 
         // // Both Eigen pod proxies should return empty data
         (success, returndata) = address(eigenPodProxyTwo).call(abi.encodeCall(EigenPodProxyV2Mock.getSomething, ()));
         assertEq(returndata.length, 0);
 
-        assertEq(EigenPodProxy(payable(eigenPodProxyTwo)).podProxyOwner(), bob, "bob owner");
+        assertEq(EigenPodProxy(payable(eigenPodProxyTwo)).getPodProxyOwner(), bob, "bob owner");
         assertEq(
-            EigenPodProxy(payable(eigenPodProxyTwo)).podProxyManager(),
+            EigenPodProxy(payable(eigenPodProxyTwo)).getPodProxyManager(),
             address(this),
             "In production PufferPool will be the manager"
         );

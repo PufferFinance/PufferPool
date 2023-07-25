@@ -3,13 +3,14 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
 /**
  * @title IPufferPool
  * @author Puffer Finance
  * @notice IPufferPool TODO:
  */
-interface IPufferPool {
+interface IPufferPool is IERC20Upgradeable {
     /**
      * TODO: figure out what we need here
      */
