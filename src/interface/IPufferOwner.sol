@@ -25,22 +25,27 @@ interface IPufferOwner {
     function setAvsCommission(uint256 newValue) external;
 
     /**
-     * Changes the {Safe} implementation address to `newSafeImplementation`
+     * @notice Changes the {Safe} implementation address to `newSafeImplementation`
      */
     function changeSafeImplementation(address newSafeImplementation) external;
 
     /**
-     * Changes the {Safe} proxy factory address to `newSafeFactory`
+     * @notice Changes the {Safe} proxy factory address to `newSafeFactory`
      */
     function changeSafeProxyFactory(address newSafeFactory) external;
 
     /**
-     * Pauses the smart contract
+     * @notice Changes the treasury address to `treasury`
+     */
+    function changeTreasury(address treasury) external;
+
+    /**
+     * @notice Pauses the smart contract
      */
     function pause() external;
 
     /**
-     * Unpauses the smart contract
+     * @notice Unpauses the smart contract
      */
     function resume() external;
 

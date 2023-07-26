@@ -183,6 +183,11 @@ interface IPufferPool is IERC20Upgradeable {
     event EnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
     /**
+     * @notice Emitted when the treasury address changes from `oldTreasury` to `newTreasury`
+     */
+    event TreasuryChanged(address oldTreasury, address newTreasury);
+
+    /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
      */
     function depositETH(address recipient) external payable;
@@ -209,6 +214,11 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Returns the amount of ETH locked in Validators
      */
     function getLockedETHAmount() external view returns (uint256);
+
+    /**
+     * @notice Returns the treasury address
+     */
+    function getTreasury() external view returns (address);
 
     /**
      * @notice Returns the ETH rewards amount from the last update

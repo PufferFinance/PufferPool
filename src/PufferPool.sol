@@ -186,7 +186,7 @@ contract PufferPool is
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
 
-        _treasury = address(
+        address treasury = address(
             _deploySafe({
                 safeProxyFactory: _safeProxyFactory,
                 safeSingleton: _safeImplementation,
@@ -195,6 +195,8 @@ contract PufferPool is
                 threshold: treasuryOwners.length
             })
         );
+
+        _setTreasury(treasury);
     }
 
     // Guardians only
@@ -399,6 +401,13 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferOwner
      */
+    function changeTreasury(address treasury) external onlyOwner {
+        _setTreasury(treasury);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
     function setConsensusCommission(uint256 newValue) external onlyOwner {
         _setConsensusCommission(newValue);
     }
@@ -444,6 +453,13 @@ contract PufferPool is
      */
     function getLockedETHAmount() public view returns (uint256) {
         return _lockedETHAmount;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getTreasury() public view returns (address) {
+        return _treasury;
     }
 
     /**
@@ -688,6 +704,12 @@ contract PufferPool is
         uint256 oldValue = _avsCommission;
         _enclaveBondRequirement = newValue;
         emit EnclaveBondRequirementChanged(oldValue, newValue);
+    }
+
+    function _setTreasury(address treasury) internal {
+        address oldTreasury = _treasury;
+        _treasury = treasury;
+        emit TreasuryChanged(oldTreasury, treasury);
     }
 
     function _getValidatorBondRequirement(bytes calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)

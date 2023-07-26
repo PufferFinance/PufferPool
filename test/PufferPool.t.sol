@@ -112,6 +112,12 @@ contract PufferPoolTest is Test {
         assertEq(pool.paused(), false, "resunmed");
     }
 
+    // Change treasury
+    function testChangeTreasury(address newTreasury) public {
+        pool.changeTreasury(newTreasury);
+        assertEq(pool.getTreasury(), newTreasury, "treasury didnt change");
+    }
+
     // Create guardian account
     function testCreateGuardianAccount() public {
         address[] memory owners = new address[](1);
@@ -293,6 +299,15 @@ contract PufferPoolTest is Test {
         // Use invalid pod address
         address eigenPodProxyMock = address(new MockPodNotOwned());
         vm.expectRevert(IPufferPool.Unauthorized.selector);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
+    }
+
+    // Test trying to register a duplicate vaidator key
+    function testRegisterDuplicateKey() public {
+        // Use invalid pod address
+        address eigenPodProxyMock = address(new MockPodOwned());
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
+        vm.expectRevert(IPufferPool.Create2Failed.selector);
         pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
     }
 
