@@ -48,13 +48,11 @@ contract SecondVersion {
 }
 
 contract ETHTransferTest is Test {
-
     FirstVersion firstVersion;
     SecondVersion secondVersion;
     Safe multisig;
 
     function setUp() public {
-
         (SafeProxyFactory proxyFactory, Safe safeImplementation) = new DeploySafe().run();
 
         address zeroAddress = address(0);
@@ -70,7 +68,7 @@ contract ETHTransferTest is Test {
         });
 
         multisig = Safe(payable(address(proxy)));
-        
+
         firstVersion = new FirstVersion(address(multisig));
         secondVersion = new SecondVersion(address(multisig));
     }
@@ -79,13 +77,13 @@ contract ETHTransferTest is Test {
 
     // In this version we do the accounting in the smart contract and we update state variables
     function testFirstVersion() public {
-        address(firstVersion).call{value: 1 ether}("");
-        address(firstVersion).call{value: 1 ether}("");
+        address(firstVersion).call{ value: 1 ether }("");
+        address(firstVersion).call{ value: 1 ether }("");
     }
 
     // In this version we transfer ETH to hardcoded {Safe}
     function testSecondVersion() public {
-        address(secondVersion).call{value: 1 ether}("");
-        address(secondVersion).call{value: 1 ether}("");
+        address(secondVersion).call{ value: 1 ether }("");
+        address(secondVersion).call{ value: 1 ether }("");
     }
 }

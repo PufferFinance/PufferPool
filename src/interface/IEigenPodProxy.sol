@@ -18,6 +18,11 @@ interface IEigenPodProxy {
     error Unauthorized();
 
     /**
+     * @dev Thrown if the Eigenlayer AVS is not supported by Puffer Finance
+     */
+    error AVSNotSupported();
+
+    /**
      * @notice Initializes the proxy contract
      * @param owner is the Owner of Eigen Pod Proxy {Safe} multisig (Pod Account)
      * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
