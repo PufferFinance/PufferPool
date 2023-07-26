@@ -28,7 +28,10 @@ contract DeployPufferPool is Script {
         // Casts Proxy to PufferPool
         PufferPool pool = PufferPool(payable(address(proxy)));
         // Initializes the Pool
-        pool.initialize(safeProxyFactory, safeImplementation);
+        address[] memory treasuryOwners = new address[](1);
+        treasuryOwners[0] = 0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C; // Benjamin dev
+
+        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners);
 
         if (!pkSet) {
             // For test environment transfer ownership to Test contract

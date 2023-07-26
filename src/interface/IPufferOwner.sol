@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+
 /**
  * @title IPufferOwner
  * @author Puffer Finance
@@ -41,4 +43,9 @@ interface IPufferOwner {
      * Unpauses the smart contract
      */
     function resume() external;
+
+    /**
+     * @notice Changes the `avs` configuration to `configuration`
+     */
+    function changeAVSConfiguration(address avs, IPufferPool.AVSParams memory configuration) external;
 }
