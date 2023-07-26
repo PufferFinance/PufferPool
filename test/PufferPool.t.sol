@@ -30,6 +30,7 @@ contract PufferPoolTest is Test {
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
     UpgradeableBeacon beacon;
+    address treasuryOwnerMock = makeAddr("treasuryOwnerMock");
 
     uint256 VALIDATOR_BOND = 2 ether;
 
@@ -74,7 +75,7 @@ contract PufferPoolTest is Test {
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
 
         address[] memory treasuryOwners = new address[](1);
-        treasuryOwners[0] = 0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C; // Benjamin dev
+        treasuryOwners[0] = treasuryOwnerMock;
 
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({

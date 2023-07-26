@@ -29,7 +29,7 @@ contract DeployPufferPool is Script {
         PufferPool pool = PufferPool(payable(address(proxy)));
         // Initializes the Pool
         address[] memory treasuryOwners = new address[](1);
-        treasuryOwners[0] = 0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C; // Benjamin dev
+        treasuryOwners[0] = address(1234); // mock owner
 
         pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners);
 
