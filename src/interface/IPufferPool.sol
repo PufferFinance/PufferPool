@@ -306,10 +306,11 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Registers a validator key for a `podAccount`
      * @dev Sender is expected to send the correct ETH amount
      * @param podAccount is the address of the Eigen Pod Account
+     * @param rewardsRecipient is the address of the Rewards recipient
      * @param data is a validator key data
      * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
      */
-    function registerValidatorKey(address podAccount, ValidatorKeyData calldata data)
+    function registerValidatorKey(address podAccount, address rewardsRecipient, ValidatorKeyData calldata data)
         external
         payable
         returns (IEigenPodProxy);
@@ -342,6 +343,13 @@ interface IPufferPool is IERC20Upgradeable {
     ) external;
 
     function updateETHBackingAmount(uint256 amount) external;
+
+    /**
+     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `blsPubKey`
+     * @return EigenPodProxy address (Puffer Finance)
+     * @return Eigen Pod Address (Eigen Layer)
+     */
+    function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) external view returns (address, address);
 
     // ==== Only Guardians end ====
 }
