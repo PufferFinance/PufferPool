@@ -302,10 +302,11 @@ contract PufferPool is
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
-        ValidatorKeyData calldata data
+        ValidatorKeyData calldata data,
+        address podRewardsRecipient
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
         Safe account = _createPodAccount(podAccountOwners, podAccountThreshold);
-        IEigenPodProxy proxy = registerValidatorKey(address(account), address(account), data); // TODO: make rewards recipient a parameter
+        IEigenPodProxy proxy = registerValidatorKey(address(account), podRewardsRecipient, data); // TODO: make rewards recipient a parameter
         return (account, proxy);
     }
 
@@ -331,23 +332,30 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function registerValidatorKey(address podAccount, address rewardsRecipient, ValidatorKeyData calldata data)
+    function registerValidatorKey(address podAccount, address podRewardsRecipient, ValidatorKeyData calldata data)
         public
         payable
         onlyPodAccountOwner(podAccount)
         whenNotPaused
         returns (IEigenPodProxy)
     {
-        return this.callregisterValidatorKeyOnlyThis{ value: msg.value }(podAccount, rewardsRecipient, data);
+        return this.callregisterValidatorKeyOnlyThis{ value: msg.value }(podAccount, podRewardsRecipient, data);
     }
 
-    // This is an external function, but it is meant to be called only from PufferPool.sol contract
+    /**
+     * @dev This is an external function, but it is meant to be called only from PufferPool.sol contract.
+     *      We are doing this because create2 uses `msg.sender` for address computation, and we want to be able to predict addresses of
+     *      EigenPodProxy -> EigenPod
+     *
+     *      By using an external function, and calling it from this contract with `this.callregisterValidatorKeyOnlyThis()`, we are making sure that the `msg.sender` is address(this)
+     *       predict the EigenPodProxy address
+     */
     function callregisterValidatorKeyOnlyThis(
         address podAccount,
         address rewardsRecipient,
         ValidatorKeyData calldata data
     ) external payable returns (IEigenPodProxy) {
-        // Inline onlyThis modifieror di
+        // Inline `onlyThis` modifier
         require(msg.sender == address(this));
 
         // Sanity check on blsPubKey

@@ -192,11 +192,17 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         _;
     }
 
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
     function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
         external
         onlyPodProxyManager
     {
-        // TODO: make it nice
+        // Revert if the pod is already initialized
+        if (_podProxyOwner != address(0)) {
+            revert();
+        }
         _podProxyOwner = podProxyowner;
         _podRewardsRecipient = podRewardsRecipient;
     }

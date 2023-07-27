@@ -34,6 +34,13 @@ interface IEigenPodProxy {
      */
     function getEigenPodManager() external view returns (IEigenPodManager);
 
+    /**
+     * @notice Sets the `podProxyowner` and `podRewardsRecipient`
+     * @dev This can be consireder a 'second' initializer
+     *      Only PufferPool is calling this once after the initialization.
+     *      The reason for that is that we need to be able to predict EigenPodProxy's address, and upon BeaconProxy's creation in the constructor
+     *      we are passing in the initializer data, because of that we want to get rid of the dynamic data from the initializer
+     */
     function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
         external;
 

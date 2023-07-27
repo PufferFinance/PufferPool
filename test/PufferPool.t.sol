@@ -162,9 +162,11 @@ contract PufferPoolTest is Test {
         bytes memory badPubKey = new bytes(45);
         validatorData.blsPubKey = badPubKey;
 
+        address rewardsRecipient = makeAddr("rewardsRecipient");
+
         // Registering key from unauthorized msg.sender should fail
         vm.expectRevert(IPufferPool.InvalidBLSPubKey.selector);
-        pool.createPodAccountAndRegisterValidatorKey(owners, 2, validatorData);
+        pool.createPodAccountAndRegisterValidatorKey(owners, 2, validatorData, rewardsRecipient);
 
         // set key to correct length
         validatorData.blsPubKey = new bytes(48);
@@ -172,10 +174,11 @@ contract PufferPoolTest is Test {
         // Invalid amount revert
         vm.expectRevert(IPufferPool.InvalidAmount.selector);
         (Safe safe, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 13 ether }(owners, 2, validatorData);
+            pool.createPodAccountAndRegisterValidatorKey{ value: 13 ether }(owners, 2, validatorData, rewardsRecipient);
 
         // Success
-        (safe, proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 2, validatorData);
+        (safe, proxy) =
+            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 2, validatorData, rewardsRecipient);
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertTrue(safe.isOwner(address(this)), "bad owner2");
