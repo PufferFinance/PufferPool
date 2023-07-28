@@ -320,16 +320,14 @@ contract PufferPool is
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
 
-        console.log(EIGEN_POD_PROXY_BEACON, "eigen pod proxy beacon");
-        console.log(msg.sender, "msg sender address in getter");
-        console.log(address(this), "pufferpool address");
-
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
 
         address eigenPodProxy = address(uint160(uint256(hash)));
 
         address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(eigenPodProxy));
+
+        console.log(eigenPodProxy, eigenPod, "<-- predicted addresses");
 
         return (eigenPodProxy, eigenPod);
     }
