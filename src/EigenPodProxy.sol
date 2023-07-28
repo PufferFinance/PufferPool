@@ -213,8 +213,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external {
-        if (contractAddress != _podProxyManager.getPufferAvsAddress())
+        if (contractAddress != _podProxyManager.getPufferAvsAddress()) {
             require(msg.sender == _podProxyOwner, "Only PodProxyOwner can register to non Puffer AVS");
+        }
 
         // Note this contract address as potential payment address
         AVSPaymentAddresses[contractAddress] = true;
