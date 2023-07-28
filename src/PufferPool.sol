@@ -322,6 +322,7 @@ contract PufferPool is
         );
 
         console.log(msg.sender, "msg sender address in getter");
+        console.log(address(this), "pufferpool address");
 
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
