@@ -30,6 +30,7 @@ contract PufferPoolTest is Test {
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
     UpgradeableBeacon beacon;
+    address treasuryOwnerMock = makeAddr("treasuryOwnerMock");
 
     uint256 VALIDATOR_BOND = 2 ether;
 
@@ -38,6 +39,30 @@ contract PufferPoolTest is Test {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
+    }
+
+    // Internal function for creating a Validator Data
+    function _getMockValidatorKeyData() internal pure returns (IPufferPool.ValidatorKeyData memory) {
+        bytes[] memory newSetOfPubKeys = new bytes[](1);
+        newSetOfPubKeys[0] = bytes("key1");
+
+        // bad pub key length, it needs to be 48
+        bytes memory badPubKey = new bytes(48);
+
+        bytes[] memory blsEncPrivKeyShares = new bytes[](0);
+        bytes[] memory blsPubKeyShares = new bytes[](0);
+
+        IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
+            blsPubKey: badPubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            blsEncPrivKeyShares: blsEncPrivKeyShares,
+            blsPubKeyShares: blsPubKeyShares,
+            blockNumber: 1,
+            raveEvidence: new bytes(0)
+        });
+
+        return validatorData;
     }
 
     // Test setup
@@ -49,8 +74,15 @@ contract PufferPoolTest is Test {
         assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
 
+        address[] memory treasuryOwners = new address[](1);
+        treasuryOwners[0] = treasuryOwnerMock;
+
         vm.expectRevert("Initializable: contract is already initialized");
-        pool.initialize({ safeProxyFactory: address(proxyFactory), safeImplementation: address(safeImplementation) });
+        pool.initialize({
+            safeProxyFactory: address(proxyFactory),
+            safeImplementation: address(safeImplementation),
+            treasuryOwners: treasuryOwners
+        });
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -79,6 +111,12 @@ contract PufferPoolTest is Test {
         assertEq(pool.paused(), true, "paused");
         pool.resume();
         assertEq(pool.paused(), false, "resunmed");
+    }
+
+    // Change treasury
+    function testChangeTreasury(address newTreasury) public {
+        pool.changeTreasury(newTreasury);
+        assertEq(pool.getTreasury(), newTreasury, "treasury didnt change");
     }
 
     // Create guardian account
@@ -119,21 +157,10 @@ contract PufferPoolTest is Test {
         owners[0] = owner1;
         owners[1] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
 
+        IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
         // bad pub key length, it needs to be 48
         bytes memory badPubKey = new bytes(45);
-
-        bytes[] memory blsEncPrivKeyShares = new bytes[](0);
-        bytes[] memory blsPubKeyShares = new bytes[](0);
-
-        IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
-            blsPubKey: badPubKey,
-            signature: new bytes(0),
-            depositDataRoot: bytes32(""),
-            blsEncPrivKeyShares: blsEncPrivKeyShares,
-            blsPubKeyShares: blsPubKeyShares,
-            blockNumber: 1,
-            raveEvidence: new bytes(0)
-        });
+        validatorData.blsPubKey = badPubKey;
 
         // Registering key from unauthorized msg.sender should fail
         vm.expectRevert(IPufferPool.InvalidBLSPubKey.selector);
@@ -268,48 +295,22 @@ contract PufferPoolTest is Test {
         assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
     }
 
-    // // Create eigen pod an register a validator key
-    // function testCreatePodAndThenRegisterValidatorKey(bytes calldata pubKey) public {
-    //     address[] memory owners = new address[](1);
-    //     owners[0] = address(this);
+    // Test trying to register a validator key for invalid Eigen pod proxy
+    function testRegisterKeyForInvalidEigenPod() public {
+        // Use invalid pod address
+        address eigenPodProxyMock = address(new MockPodNotOwned());
+        vm.expectRevert(IPufferPool.Unauthorized.selector);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
+    }
 
-    //     // Create pod account in one transaction
-    //     Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
-
-    //     bytes[] memory pubKeys = new bytes[](1);
-    //     pubKeys[0] = pubKey;
-
-    //     // Register validator keys for that EigenPodProxy
-    //     pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND }(address(safe), pubKeys);
-    // }
-
-    // // Test trying to register a validator key for invalid Eigen pod proxy
-    // function testRegisterKeyForInvalidEigenPod() public {
-    //     bytes[] memory newSetOfPubKeys = new bytes[](1);
-    //     newSetOfPubKeys[0] = bytes("key1");
-
-    //     // Use invalid pod address
-    //     address eigenPodProxyMock = address(new MockPodNotOwned());
-    //     vm.expectRevert(IPufferPool.Unauthorized.selector);
-    //     pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND }(eigenPodProxyMock, newSetOfPubKeys);
-    // }
-
-    // // Test trying to register a duplicate validator key
-    // function testRegisterDuplicateValidatorKeyError() public {
-    //     address[] memory owners = new address[](1);
-    //     owners[0] = address(this);
-
-    //     // Create pod account in one transaction
-    //     Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
-
-    //     bytes[] memory newSetOfPubKeys = new bytes[](2);
-    //     newSetOfPubKeys[0] = bytes("key1");
-    //     newSetOfPubKeys[1] = bytes("key1");
-
-    //     vm.expectRevert(abi.encodeWithSelector(IPufferPool.DuplicateValidatorKey.selector, newSetOfPubKeys[0]));
-    //     vm.prank(address(this));
-    //     pool.registerValidatorEnclaveKeys{ value: VALIDATOR_BOND * 2 }(address(safe), newSetOfPubKeys);
-    // }
+    // Test trying to register a duplicate vaidator key
+    function testRegisterDuplicateKey() public {
+        // Use invalid pod address
+        address eigenPodProxyMock = address(new MockPodOwned());
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
+        vm.expectRevert(IPufferPool.Create2Failed.selector);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
+    }
 
     // Deposit should revert when trying to deposit too small amount
     function testDepositRevertsForTooSmallAmount() public {
@@ -345,5 +346,23 @@ contract PufferPoolTest is Test {
     function testSetAvsCommision(uint256 newValue) public {
         pool.setAvsCommission(newValue);
         assertEq(pool.getAvsCommission(), newValue);
+    }
+
+    // Test configuring the AVS
+    function testConfigureAVS(address avs, bool enabled) public {
+        uint256 avsComission = 50e16;
+        uint8 minBondRequirement = uint8(2);
+
+        IPufferPool.AVSParams memory cfg = IPufferPool.AVSParams({
+            podAVSCommission: avsComission,
+            minReputationScore: 5,
+            minBondRequirement: minBondRequirement,
+            enabled: enabled
+        });
+
+        pool.changeAVSConfiguration(avs, cfg);
+        assertEq(pool.isAVSEnabled(avs), enabled);
+        assertEq(pool.getAVSComission(avs), avsComission);
+        assertEq(pool.getMinBondRequirement(avs), minBondRequirement);
     }
 }

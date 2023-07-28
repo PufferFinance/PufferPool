@@ -192,21 +192,31 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN;
     }
 
+    /**
+     * @dev Pod owner and PufferPool are allowed
+     */
+    modifier onlyOwnerAndManager() {
+        if (msg.sender != _podProxyOwner && msg.sender != address(_podProxyManager)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {
         _podRewardsRecipient = podRewardsRecipient;
         // todo: missing event
     }
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
-    function callStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot)
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
         payable
         onlyPodProxyManager
     {
         require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
         staked = true;
-        _eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
-        _pubKey = pubkey;
+        _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
+        _pubKey = pubKey;
     }
 
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
@@ -220,6 +230,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function enableSlashing(address contractAddress) external {
         if (contractAddress != _podProxyManager.getPufferAvsAddress()) {
             require(msg.sender == _podProxyOwner, "Only PodProxyOwner can register to non Puffer AVS");
+        }
+        if (!_podProxyManager.isAVSEnabled(contractAddress)) {
+            revert AVSNotSupported();
         }
 
         // Note this contract address as potential payment address

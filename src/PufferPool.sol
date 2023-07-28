@@ -31,32 +31,36 @@ contract PufferPool is
     SafeDeployer
 {
     /**
-     * @notice ETH Amount required for becoming a Validator
-     */
-    uint256 internal constant _32_ETHER = 32 ether;
-
-    /**
-     * @notice Exchange rate 1 is represented as 10 ** 18
-     */
-    uint256 internal constant _ONE = 10 ** 18;
-
-    /**
-     * @notice Minimum deposit amount in ETH
-     */
-    uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
-
-    /**
      * @notice Address of the Eigen pod proxy beacon
      */
     address public immutable EIGEN_POD_PROXY_BEACON;
 
     /**
-     * @notice Locked ETH amount
+     * @dev ETH Amount required for becoming a Validator
+     */
+    uint256 internal constant _32_ETHER = 32 ether;
+
+    /**
+     * @dev Exchange rate 1 is represented as 10 ** 18
+     */
+    uint256 internal constant _ONE = 10 ** 18;
+
+    /**
+     * @dev Minimum deposit amount in ETH
+     */
+    uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
+
+    /**
+     * @dev Locked ETH amount
      */
     uint256 internal _lockedETHAmount;
 
+    uint256 internal _depositPoolBalance;
+
+    uint256 internal _withdrawalPoolBalance;
+
     /**
-     * @notice New rewards amount
+     * @dev New rewards amount
      */
     uint256 internal _newETHRewardsAmount;
 
@@ -69,6 +73,11 @@ contract PufferPool is
      * @dev EigenPodProxy -> EigenPodProxyInformation
      */
     mapping(address eigenPodProxy => EigenPodProxyInformation info) internal _eigenPodProxies;
+
+    /**
+     * @dev Actively validated services (AVSs) configuration
+     */
+    mapping(address AVS => AVSParams parameters) internal _allowedAVSs;
 
     /**
      * @dev Address of the {Safe} proxy factory
@@ -91,12 +100,12 @@ contract PufferPool is
     uint256 internal _avsCommission;
 
     /**
-     * Number of shares out of one billion to split consensus rewards with the pool
+     * @dev Number of shares out of one billion to split consensus rewards with the pool
      */
     uint256 internal _consensusCommission;
 
     /**
-     * Number of shares out of one billion to split execution rewards with the pool
+     * @dev Number of shares out of one billion to split execution rewards with the pool
      */
     uint256 internal _executionCommission;
 
@@ -106,17 +115,32 @@ contract PufferPool is
     uint256 internal _commissionDenominator;
 
     /**
-     * @notice Validator bond for non custodial node runners
+     * @dev Protocol fee rate, can be updated by governance (1e18 = 100%, 1e16 = 1%)
+     */
+    uint256 internal _protocolFeeRate;
+
+    /**
+     * @dev Deposit rate, can be updated by governance (1e18 = 100%, 1e16 = 1%)
+     */
+    uint256 internal _depositRate;
+
+    /**
+     * @dev Puffer finance treasury
+     */
+    address internal _treasury;
+
+    /**
+     * @dev Validator bond for non custodial node runners
      */
     uint256 internal _nonCustodialBondRequirement;
 
     /**
-     * @notice Validator bond for non enclave node runners
+     * @dev Validator bond for non enclave node runners
      */
     uint256 internal _nonEnclaveBondRequirement;
 
     /**
-     * @notice Validator bond for Enclave node runners
+     * @dev Validator bond for Enclave node runners
      */
     uint256 internal _enclaveBondRequirement;
 
@@ -149,7 +173,27 @@ contract PufferPool is
 
     receive() external payable { }
 
-    function initialize(address safeProxyFactory, address safeImplementation) external initializer {
+    // PufferPool contract
+    fallback() external payable {
+        // Calculate the protocol fee and transfer to treasury
+        uint256 protocolFee = (msg.value * _ONE) / _protocolFeeRate;
+
+        _safeTransferETH(_treasury, protocolFee);
+
+        uint256 depositPoolAmount = _updateDepositPoolBalance(msg.value - protocolFee);
+
+        _withdrawalPoolBalance += msg.value - protocolFee - depositPoolAmount;
+    }
+
+    function _updateDepositPoolBalance(uint256 amount) internal returns (uint256 depositPoolAmount) {
+        depositPoolAmount = amount * _ONE / _depositRate;
+        _depositPoolBalance += depositPoolAmount;
+    }
+
+    function initialize(address safeProxyFactory, address safeImplementation, address[] calldata treasuryOwners)
+        external
+        initializer
+    {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
         __ERC20_init("Puffer ETH", "pufETH");
@@ -164,11 +208,48 @@ contract PufferPool is
         _executionCommission = 5 * 10 ** 7;
         _consensusCommission = 5 * 10 ** 7;
         _commissionDenominator = 10 ** 9;
+
+        address treasury = address(
+            _deploySafe({
+                safeProxyFactory: _safeProxyFactory,
+                safeSingleton: _safeImplementation,
+                saltNonce: uint256(keccak256("treasury")),
+                owners: treasuryOwners,
+                threshold: treasuryOwners.length
+            })
+        );
+
+        _setTreasury(treasury);
     }
 
     // Guardians only
 
     function updateETHBackingAmount(uint256 amount) external onlyGuardians { }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function provisionPodETH(
+        address eigenPodProxy,
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) external onlyGuardians whenNotPaused {
+        // TODO: logic for this
+
+        // Update locked ETH Amount
+        _lockedETHAmount += _32_ETHER;
+
+        // TODO: params
+        EigenPodProxy(payable(eigenPodProxy)).callStake{ value: _32_ETHER }({
+            pubKey: pubKey,
+            signature: signature,
+            depositDataRoot: depositDataRoot
+        });
+
+        // TODO: event update
+        emit ETHProvisioned(eigenPodProxy, 0, block.timestamp);
+    }
 
     /**
      * @inheritdoc IPufferPool
@@ -201,6 +282,7 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
+    /*
     function provisionPodETH(
         address eigenPodProxy,
         bytes calldata pubKey,
@@ -218,6 +300,7 @@ contract PufferPool is
         // TODO: event update
         emit ETHProvisioned(eigenPodProxy, 0, block.timestamp);
     }
+    */
 
     /**
      * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
@@ -283,7 +366,7 @@ contract PufferPool is
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data
-    ) external payable returns (Safe, IEigenPodProxy) {
+    ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
         Safe account = _createPodAccount(podAccountOwners, podAccountThreshold);
         IEigenPodProxy proxy = registerValidatorKey(address(account), data);
         return (account, proxy);
@@ -296,6 +379,7 @@ contract PufferPool is
         public
         payable
         onlyPodAccountOwner(podAccount)
+        whenNotPaused
         returns (IEigenPodProxy)
     {
         // Sanity check on blsPubKey
@@ -324,6 +408,227 @@ contract PufferPool is
 
         return eigenPodProxy;
     }
+
+    // ==== Only Owner ====
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function resume() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function changeAVSConfiguration(address avs, AVSParams memory configuration) external onlyOwner {
+        _allowedAVSs[avs] = configuration;
+        emit AVSConfigurationChanged(avs, configuration);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function changeSafeImplementation(address newSafeImplementation) external onlyOwner {
+        _setSafeImplementation(newSafeImplementation);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function changeSafeProxyFactory(address newSafeFactory) external onlyOwner {
+        _setSafeProxyFactory(newSafeFactory);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setExecutionCommission(uint256 newValue) external onlyOwner {
+        _setExecutionCommission(newValue);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function changeTreasury(address treasury) external onlyOwner {
+        _setTreasury(treasury);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setConsensusCommission(uint256 newValue) external onlyOwner {
+        _setConsensusCommission(newValue);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setAvsCommission(uint256 newValue) external onlyOwner {
+        _setAvsCommission(newValue);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setCommissionDenominator(uint256 newValue) external onlyOwner {
+        _setCommissionDenominator(newValue);
+    }
+
+    // TODO: do we really need this? use constants?
+    function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
+        _setNonCustodialBondRequirement(newValue);
+    }
+
+    function setNonEnclaveBondRequirement(uint256 newValue) external onlyOwner {
+        _setNonEnclaveBondRequirement(newValue);
+    }
+
+    function setEnclaveBondRequirement(uint256 newValue) external onlyOwner {
+        _setEnclaveBondRequirement(newValue);
+    }
+
+    // ==== Only Owner end ====
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
+        return amount * _ONE / _getPufETHtoETHExchangeRate(amount);
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function calculatePufETHtoETHAmount(uint256 pufETHAmount) public view returns (uint256) {
+        return pufETHAmount * getPufETHtoETHExchangeRate() / _ONE;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getLockedETHAmount() public view returns (uint256) {
+        return _lockedETHAmount;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getTreasury() public view returns (address) {
+        return _treasury;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getNewRewardsETHAmount() public view returns (uint256) {
+        return _newETHRewardsAmount;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getExecutionCommission() external view returns (uint256) {
+        return _executionCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getConsensusCommission() external view returns (uint256) {
+        return _consensusCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getCommissionDenominator() external view returns (uint256) {
+        return _commissionDenominator;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function isAVSEnabled(address avs) public view returns (bool) {
+        return _allowedAVSs[avs].enabled;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getAVSComission(address avs) public view returns (uint256) {
+        return _allowedAVSs[avs].podAVSCommission;
+    }
+
+    // TODO: Will remove and replace this with above function
+    function getAvsCommission() public view returns (uint256) {
+        return _avsCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getMinBondRequirement(address avs) external view returns (uint256) {
+        return uint256(_allowedAVSs[avs].minBondRequirement);
+    }
+
+    // /**
+    //  * @inheritdoc IPufferPool
+    //  */
+    // function getEigenPodProxyInfo(address eigenPodProxy) public view returns (EigenPodProxyInformation memory) {
+    //     return _eigenPodProxies[eigenPodProxy];
+    // }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getPufETHtoETHExchangeRate() public view returns (uint256) {
+        return _getPufETHtoETHExchangeRate(0);
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getSafeImplementation() external view returns (address) {
+        return _safeImplementation;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getSafeProxyFactory() external view returns (address) {
+        return _safeProxyFactory;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getPufferAvsAddress() external view returns (address) {
+        return _pufferAvsAddress;
+    }
+
+    function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
+        uint256 pufETHSupply = totalSupply();
+        if (pufETHSupply == 0) {
+            return _ONE;
+        }
+        // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
+        uint256 exchangeRate = (
+            getLockedETHAmount() + getNewRewardsETHAmount() + address(this).balance - ethDepositedAmount
+        ) * _ONE / pufETHSupply;
+
+        return exchangeRate;
+    }
+
+    // TODO: timelock on upgrade?
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 
     function _createEigenPodProxy(address account, bytes32 pubkeyHash)
         internal
@@ -414,191 +719,6 @@ contract PufferPool is
         // );
     }
 
-    function setNewRewardsETHAmount(uint256 amount) external {
-        // TODO: everything
-        _newETHRewardsAmount = amount;
-    }
-
-    // ==== Only Owner ====
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function resume() external onlyOwner {
-        _unpause();
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function changeSafeImplementation(address newSafeImplementation) external onlyOwner {
-        _setSafeImplementation(newSafeImplementation);
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function changeSafeProxyFactory(address newSafeFactory) external onlyOwner {
-        _setSafeProxyFactory(newSafeFactory);
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function setExecutionCommission(uint256 newValue) external onlyOwner {
-        _setExecutionCommission(newValue);
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function setConsensusCommission(uint256 newValue) external onlyOwner {
-        _setConsensusCommission(newValue);
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function setAvsCommission(uint256 newValue) external onlyOwner {
-        _setAvsCommission(newValue);
-    }
-
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function setCommissionDenominator(uint256 newValue) external onlyOwner {
-        _setCommissionDenominator(newValue);
-    }
-
-    // TODO: do we really need this? use constants?
-    function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
-        _setNonCustodialBondRequirement(newValue);
-    }
-
-    function setNonEnclaveBondRequirement(uint256 newValue) external onlyOwner {
-        _setNonEnclaveBondRequirement(newValue);
-    }
-
-    function setEnclaveBondRequirement(uint256 newValue) external onlyOwner {
-        _setEnclaveBondRequirement(newValue);
-    }
-
-    // ==== Only Owner end ====
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
-        return amount * _ONE / _getPufETHtoETHExchangeRate(amount);
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function calculatePufETHtoETHAmount(uint256 pufETHAmount) public view returns (uint256) {
-        return pufETHAmount * getPufETHtoETHExchangeRate() / _ONE;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getLockedETHAmount() public view returns (uint256) {
-        return _lockedETHAmount;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getNewRewardsETHAmount() public view returns (uint256) {
-        return _newETHRewardsAmount;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getExecutionCommission() external view returns (uint256) {
-        return _executionCommission;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getConsensusCommission() external view returns (uint256) {
-        return _consensusCommission;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getAvsCommission() external view returns (uint256) {
-        return _avsCommission;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getCommissionDenominator() external view returns (uint256) {
-        return _commissionDenominator;
-    }
-
-    // /**
-    //  * @inheritdoc IPufferPool
-    //  */
-    // function getEigenPodProxyInfo(address eigenPodProxy) public view returns (EigenPodProxyInformation memory) {
-    //     return _eigenPodProxies[eigenPodProxy];
-    // }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getPufETHtoETHExchangeRate() public view returns (uint256) {
-        return _getPufETHtoETHExchangeRate(0);
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getSafeImplementation() external view returns (address) {
-        return _safeImplementation;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getSafeProxyFactory() external view returns (address) {
-        return _safeProxyFactory;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getPufferAvsAddress() external view returns (address) {
-        return _pufferAvsAddress;
-    }
-
-    function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
-        uint256 pufETHSupply = totalSupply();
-        if (pufETHSupply == 0) {
-            return _ONE;
-        }
-        // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
-        uint256 exchangeRate = (
-            getLockedETHAmount() + getNewRewardsETHAmount() + address(this).balance - ethDepositedAmount
-        ) * _ONE / pufETHSupply;
-
-        return exchangeRate;
-    }
-
-    // TODO: timelock on upgrade?
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
-
     /**
      * @dev Helper function for transfering ETH
      * https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol
@@ -665,6 +785,12 @@ contract PufferPool is
         uint256 oldValue = _avsCommission;
         _enclaveBondRequirement = newValue;
         emit EnclaveBondRequirementChanged(oldValue, newValue);
+    }
+
+    function _setTreasury(address treasury) internal {
+        address oldTreasury = _treasury;
+        _treasury = treasury;
+        emit TreasuryChanged(oldTreasury, treasury);
     }
 
     function _getValidatorBondRequirement(bytes calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)

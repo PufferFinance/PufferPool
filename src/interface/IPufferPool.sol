@@ -21,7 +21,7 @@ interface IPufferPool is IERC20Upgradeable {
     }
 
     /**
-     * Validator Key data struct
+     * @dev Validator Key data struct
      */
     struct ValidatorKeyData {
         bytes blsPubKey;
@@ -31,6 +31,16 @@ interface IPufferPool is IERC20Upgradeable {
         bytes[] blsPubKeyShares;
         uint256 blockNumber;
         bytes raveEvidence;
+    }
+
+    /**
+     * @dev AVS Parameters
+     */
+    struct AVSParams {
+        uint256 podAVSCommission;
+        uint256 minReputationScore; // experimental... TODO: figure out
+        uint8 minBondRequirement;
+        bool enabled;
     }
 
     /**
@@ -69,21 +79,6 @@ interface IPufferPool is IERC20Upgradeable {
     error Unauthorized();
 
     /**
-     * @notice Thrown when the invalid validator public key is supplied
-     */
-    error InvalidPubKey();
-
-    /**
-     * @notice Thrown if the user tries to register the same Validator key on the same EigenPodProxy multiple times
-     */
-    error DuplicateValidatorKey(bytes pubKey);
-
-    /**
-     * @notice Thrown if the maximum number of validators is reached for that Eigen Pod Proxy
-     */
-    error MaximumNumberOfValidatorsReached();
-
-    /**
      * @notice Thrown if the Guardians {Safe} wallet already exists
      */
     error GuardiansAlreadyExist();
@@ -93,7 +88,19 @@ interface IPufferPool is IERC20Upgradeable {
      */
     error InvalidEigenPodProxy();
 
+    /**
+     * @notice Emitted when the Validator key is registered
+     * @param eigenPodProxy is the address of Eigen Pod Proxy
+     * @param pubKey is the validator public key
+     */
     event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
+
+    /**
+     * @notice Emitted when the EigenLayer AVS status is changed
+     * @param avs is the address of the Actively validated service on EigenLayer
+     * @param configuration is the new AVS configuration
+     */
+    event AVSConfigurationChanged(address avs, AVSParams configuration);
 
     /**
      * @param safeProxyFactory is the address of the new {Safe} proxy factory
@@ -181,6 +188,11 @@ interface IPufferPool is IERC20Upgradeable {
     event EnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
     /**
+     * @notice Emitted when the treasury address changes from `oldTreasury` to `newTreasury`
+     */
+    event TreasuryChanged(address oldTreasury, address newTreasury);
+
+    /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
      */
     function depositETH(address recipient) external payable;
@@ -204,12 +216,17 @@ interface IPufferPool is IERC20Upgradeable {
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
 
     /**
-     * Returns the amount of ETH locked in Validators
+     * @notice Returns the amount of ETH locked in Validators
      */
     function getLockedETHAmount() external view returns (uint256);
 
     /**
-     * Returns the ETH rewards amount from the last update
+     * @notice Returns the treasury address
+     */
+    function getTreasury() external view returns (address);
+
+    /**
+     * @notice Returns the ETH rewards amount from the last update
      */
     function getNewRewardsETHAmount() external view returns (uint256);
 
@@ -229,29 +246,44 @@ interface IPufferPool is IERC20Upgradeable {
     function getPufferAvsAddress() external view returns (address);
 
     /**
-     * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
+     * @notice Returns true if `avs` is enabled
+     */
+    function isAVSEnabled(address avs) external view returns (bool);
+
+    /**
+     * @notice Returns the pod avs comission for `avs`
+     */
+    function getAVSComission(address avs) external view returns (uint256);
+
+    /**
+     * @notice Returns the minimum bond requirement for `avs`
+     */
+    function getMinBondRequirement(address avs) external view returns (uint256);
+
+    /**
+     * @notice Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
-     * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
+     * @notice Distributes all ETH to the pool and PodProxyOwner upon protocol exit
      */
     function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient, uint256 bondAmount)
         external
         payable;
 
     /**
-     * Returns AVS Commission
+     * @notice Returns AVS Commission
      */
     function getAvsCommission() external view returns (uint256);
 
     /**
-     * Returns Consensus Commission
+     * @notice Returns Consensus Commission
      */
     function getConsensusCommission() external view returns (uint256);
 
     /**
-     * Returns Execution Commission
+     * @notice Returns Execution Commission
      */
     function getExecutionCommission() external view returns (uint256);
 

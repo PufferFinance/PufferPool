@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+
 /**
  * @title IPufferOwner
  * @author Puffer Finance
@@ -28,22 +30,32 @@ interface IPufferOwner {
     function setCommissionDenominator(uint256 newValue) external;
 
     /**
-     * Changes the {Safe} implementation address to `newSafeImplementation`
+     * @notice Changes the {Safe} implementation address to `newSafeImplementation`
      */
     function changeSafeImplementation(address newSafeImplementation) external;
 
     /**
-     * Changes the {Safe} proxy factory address to `newSafeFactory`
+     * @notice Changes the {Safe} proxy factory address to `newSafeFactory`
      */
     function changeSafeProxyFactory(address newSafeFactory) external;
 
     /**
-     * Pauses the smart contract
+     * @notice Changes the treasury address to `treasury`
+     */
+    function changeTreasury(address treasury) external;
+
+    /**
+     * @notice Pauses the smart contract
      */
     function pause() external;
 
     /**
-     * Unpauses the smart contract
+     * @notice Unpauses the smart contract
      */
     function resume() external;
+
+    /**
+     * @notice Changes the `avs` configuration to `configuration`
+     */
+    function changeAVSConfiguration(address avs, IPufferPool.AVSParams memory configuration) external;
 }
