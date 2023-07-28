@@ -304,10 +304,16 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     function _sendETH(address payable to, uint256 amount) internal {
-        if (amount == 0) {
+        if (amount == 0)
             return;
+        bool success;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
         }
-        (bool sent, bytes memory data) = to.call{ value: amount }("");
-        require(sent, "Failed to send Ether");
+
+        require(success);
     }
 }
