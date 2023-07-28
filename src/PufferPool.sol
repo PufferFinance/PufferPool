@@ -83,7 +83,7 @@ contract PufferPool is
     /**
      * @dev Address of the Puffer AVS contract
      */
-    address internal _pufferAvsAddress
+    address internal _pufferAvsAddress;
 
     /**
      * @dev Number of shares out of one billion to split AVS rewards with the pool

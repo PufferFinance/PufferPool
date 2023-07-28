@@ -173,6 +173,7 @@ contract EigenPodProxyTest is Test {
             )
         );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
+        vm.prank(alice);
         eigenPodProxy.enableSlashing(address(bob));
 
         uint256 aliceBalanceBefore = alice.balance;
