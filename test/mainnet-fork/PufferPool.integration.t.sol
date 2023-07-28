@@ -14,7 +14,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
     function testgetEigenPodProxy() public {
         // Sanity check
         address bob = makeAddr("bob"); // bob address is -> 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e
-        vm.startPrank(bob);
+
         console.log(bob, "bob addr");
         address bobPod = address(IEigenPodManager(pool.EIGEN_POD_MANAGER()).getPod(bob));
         // bob pod should be 0x0a71F48B3052008eFE486a9EeBF3ab44a62B7703
@@ -26,7 +26,6 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
             bytes(hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6381e");
 
         (address eigenPodProxy, address eigenPod) = pool.getEigenPodProxyAndEigenPod(pubKey);
-        vm.stopPrank();
 
         bytes[] memory blsEncPrivKeyShares = new bytes[](0);
         bytes[] memory blsPubKeyShares = new bytes[](0);
@@ -43,9 +42,9 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
 
         address mockPod = makeAddr("mocKpod");
         (address prx) = address(pool.registerValidatorKey{ value: 16 ether }(mockPod, mockPod, validatorData));
+        address createdPod = address(IEigenPodManager(pool.EIGEN_POD_MANAGER()).getPod(prx));
 
         assertEq(eigenPodProxy, prx, "eigen pod prxy mismatch");
-        assertEq(eigenPodProxy, 0x3b57120fD952f69Ce55a4381d716ba366D5d07c3, "eigen pod prxy mismatch2");
-        assertEq(eigenPod, 0x457417aFfEf55f4E6868ea86b9598Ee76e6FaFa8, "eigen pod mismatch");
+        assertEq(eigenPod, createdPod, "address compute failed");
     }
 }
