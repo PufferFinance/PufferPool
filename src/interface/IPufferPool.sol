@@ -224,6 +224,11 @@ interface IPufferPool is IERC20Upgradeable {
     function getSafeProxyFactory() external view returns (address);
 
     /**
+     * @notice Returns the Puffer Avs address
+     */
+    function getPufferAvsAddress() external view returns (address);
+
+    /**
      * Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);

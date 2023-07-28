@@ -81,6 +81,11 @@ contract PufferPool is
     address internal _safeImplementation;
 
     /**
+     * @dev Address of the Puffer AVS contract
+     */
+    address internal _pufferAvsAddress
+
+    /**
      * @dev Number of shares out of one billion to split AVS rewards with the pool
      */
     uint256 internal _avsCommission;
@@ -569,6 +574,13 @@ contract PufferPool is
      */
     function getSafeProxyFactory() external view returns (address) {
         return _safeProxyFactory;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getPufferAvsAddress() external view returns (address) {
+        return _pufferAvsAddress;
     }
 
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {

@@ -20,7 +20,7 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
  */
 contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
-     * @dev {Safe} EigenPod is the pod proxy owner
+     * @dev {Safe} PodAccount is the pod proxy owner
      */
     address payable internal _podProxyOwner;
 
@@ -213,6 +213,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
     function enableSlashing(address contractAddress) external {
+        if (contractAddress != _podProxyManager.getPufferAvsAddress())
+            require(msg.sender == _podProxyOwner, "Only PodProxyOwner can register to non Puffer AVS");
+
         // Note this contract address as potential payment address
         AVSPaymentAddresses[contractAddress] = true;
         _slasher.optIntoSlashing(contractAddress);
