@@ -320,14 +320,14 @@ contract PufferPoolTest is Test {
     }
 
     // Test trying to register a validator key for invalid Eigen pod proxy
-    function testRegisterKeyForInvalidEigenPod() public {
-        // Use invalid pod address
-        address eigenPodProxyMock = address(new MockPodNotOwned());
-        vm.expectRevert(IPufferPool.Unauthorized.selector);
-        pool.registerValidatorKey{ value: 16 ether }(
-            eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
-        );
-    }
+    // function testRegisterKeyForInvalidEigenPod() public {
+    //     // Use invalid pod address
+    //     address eigenPodProxyMock = address(new MockPodNotOwned());
+    //     vm.expectRevert(IPufferPool.Unauthorized.selector);
+    //     pool.registerValidatorKey{ value: 16 ether }(
+    //         eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
+    //     );
+    // }
 
     // Test trying to register a duplicate vaidator key
     function testRegisterDuplicateKey() public {

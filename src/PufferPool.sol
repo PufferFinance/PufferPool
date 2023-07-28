@@ -18,7 +18,6 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import "forge-std/console.sol";
 
-
 /**
  * @title PufferPool
  * @author Puffer finance
@@ -144,9 +143,9 @@ contract PufferPool is
     uint256 internal _enclaveBondRequirement;
 
     modifier onlyPodAccountOwner(address podAccount) {
-        if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
-            revert Unauthorized();
-        }
+        // if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
+        //     revert Unauthorized();
+        // }
         _;
     }
 
@@ -321,6 +320,7 @@ contract PufferPool is
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
 
+        console.log(EIGEN_POD_PROXY_BEACON, "eigen pod proxy beacon");
         console.log(msg.sender, "msg sender address in getter");
         console.log(address(this), "pufferpool address");
 

@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import "forge-std/console.sol";
 
 contract PufferPoolIntegrationTest is IntegrationTestHelper {
@@ -20,11 +21,31 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         // verify on etherscan https://etherscan.io/address/0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338#readProxyContract .getPod(bob)
         assertEq(bobPod, 0x0a71F48B3052008eFE486a9EeBF3ab44a62B7703, "bad bob pod");
 
-        (address eigenPodProxy, address eigenPod) = pool.getEigenPodProxyAndEigenPod(bytes("asd"));
+        // Validaotr pub key
+        bytes memory pubKey =
+            bytes(hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6381e");
+
+        (address eigenPodProxy, address eigenPod) = pool.getEigenPodProxyAndEigenPod(pubKey);
         vm.stopPrank();
 
-        // Both addresses can be hardcoded
-        assertEq(eigenPodProxy, 0x9Deeab39DEA8Aef7Dab8D0A1520349A6381023F9, "eigen pod proxy address");
-        assertEq(eigenPod, 0xF4A7A13aa80f402F91ac368a3a3BeafFBb6Ee7fe, "eigen pod proxy address");
+        bytes[] memory blsEncPrivKeyShares = new bytes[](0);
+        bytes[] memory blsPubKeyShares = new bytes[](0);
+
+        IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
+            blsPubKey: pubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            blsEncPrivKeyShares: blsEncPrivKeyShares,
+            blsPubKeyShares: blsPubKeyShares,
+            blockNumber: 1,
+            raveEvidence: new bytes(0)
+        });
+
+        address mockPod = makeAddr("mocKpod");
+        (address prx) = address(pool.registerValidatorKey{ value: 16 ether }(mockPod, mockPod, validatorData));
+
+        assertEq(eigenPodProxy, prx, "eigen pod prxy mismatch");
+        assertEq(eigenPodProxy, 0x3b57120fD952f69Ce55a4381d716ba366D5d07c3, "eigen pod prxy mismatch2");
+        assertEq(eigenPod, 0x457417aFfEf55f4E6868ea86b9598Ee76e6FaFa8, "eigen pod mismatch");
     }
 }
