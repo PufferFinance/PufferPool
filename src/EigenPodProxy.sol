@@ -275,7 +275,16 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
-    ) external { }
+    ) external {
+        ownedEigenPod.verifyAndProcessWithdrawal(
+            withdrawalProofs,
+            validatorFieldsProof,
+            validatorFields,
+            withdrawalFields,
+            beaconChainETHStrategyIndex,
+            oracleBlockNumber
+        );
+    }
 
     /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
     function completeWithdrawal() external { }
