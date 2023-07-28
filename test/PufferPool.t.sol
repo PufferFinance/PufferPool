@@ -35,7 +35,7 @@ contract PufferPoolTest is Test {
     uint256 VALIDATOR_BOND = 2 ether;
 
     function setUp() public {
-        (, beacon) = new DeployBeacon().run();
+        (, beacon) = new DeployBeacon().run(true);
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
