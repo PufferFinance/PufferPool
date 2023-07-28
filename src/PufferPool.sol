@@ -16,6 +16,8 @@ import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import "forge-std/console.sol";
+
 
 /**
  * @title PufferPool
@@ -318,6 +320,8 @@ contract PufferPool is
             type(BeaconProxy).creationCode,
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
+
+        console.log(msg.sender, "msg sender address in getter");
 
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
