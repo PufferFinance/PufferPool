@@ -65,7 +65,7 @@ interface IEigenPodProxy {
     function enableRestaking(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
+        bytes memory proofs,
         bytes32[] calldata validatorFields
     ) external;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.12;
 
 import "eigenlayer/libraries/BeaconChainProofs.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
@@ -23,7 +23,6 @@ interface IEigenPodWrapper {
     enum VALIDATOR_STATUS {
         INACTIVE, // doesnt exist
         ACTIVE, // staked on ethpos and withdrawal credentials are pointed to the EigenPod
-        OVERCOMMITTED, // proven to be overcommitted to EigenLayer
         WITHDRAWN // withdrawn from the Beacon Chain
     }
 
@@ -38,6 +37,15 @@ interface IEigenPodWrapper {
         uint64 partialWithdrawalAmountGwei;
     }
 
+    struct ValidatorInfo {
+        // index of the validator in the beacon chain
+        uint64 validatorIndex;
+        // amount of beacon chain ETH restaked on EigenLayer in gwei
+        uint64 restakedBalanceGwei;
+        // status of the validator
+        VALIDATOR_STATUS status;
+    }
+
     enum PARTIAL_WITHDRAWAL_CLAIM_STATUS {
         REDEEMED,
         PENDING,
@@ -49,12 +57,6 @@ interface IEigenPodWrapper {
 
     /// @notice The amount of eth, in wei, that is restaked per validator
     function REQUIRED_BALANCE_WEI() external view returns (uint256);
-
-    /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
-    function validatorStatus(uint40 validatorIndex) external view returns (VALIDATOR_STATUS);
-
-    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer),
-    function restakedExecutionLayerGwei() external view returns (uint64);
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer),
     function withdrawableRestakedExecutionLayerGwei() external view returns (uint64);
@@ -85,8 +87,14 @@ interface IEigenPodWrapper {
     /// @notice block number of the most recent withdrawal
     function mostRecentWithdrawalBlockNumber() external view returns (uint64);
 
+    /// @notice Returns the validatorInfo struct for the provided pubkeyHash
+    function validatorPubkeyHashToInfo(bytes32 validatorPubkeyHash) external view returns (ValidatorInfo memory);
+
     ///@notice mapping that tracks proven partial withdrawals
-    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
+    function provenWithdrawal(bytes32 validatorPubkeyHash, uint64 slot) external view returns (bool);
+
+    /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
+    function validatorStatus(bytes32 pubkeyHash) external view returns (VALIDATOR_STATUS);
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
@@ -101,7 +109,7 @@ interface IEigenPodWrapper {
     function verifyWithdrawalCredentialsAndBalance(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
+        bytes memory proofs,
         bytes32[] calldata validatorFields
     ) external;
 
@@ -118,7 +126,7 @@ interface IEigenPodWrapper {
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyOvercommittedStake(
+    function verifyBalanceUpdate(
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
         bytes32[] calldata validatorFields,
@@ -146,4 +154,12 @@ interface IEigenPodWrapper {
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external;
+
+    /// @notice called by the eigenPodManager to decrement the withdrawableRestakedExecutionLayerGwei
+    /// in the pod, to reflect a queued withdrawal from the beacon chain strategy
+    function decrementWithdrawableRestakedExecutionLayerGwei(uint256 amountWei) external;
+
+    /// @notice called by the eigenPodManager to increment the withdrawableRestakedExecutionLayerGwei
+    /// in the pod, to reflect a completetion of a queued withdrawal
+    function incrementWithdrawableRestakedExecutionLayerGwei(uint256 amountWei) external;
 }

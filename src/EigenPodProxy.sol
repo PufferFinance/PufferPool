@@ -49,6 +49,11 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      */
     ISlasher internal immutable _slasher;
 
+    /**
+     * @dev Public Key corresponding to validator. Used to fetch validator status
+     */
+    bytes internal _pubKey;
+
     // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
     IEigenPodWrapper.VALIDATOR_STATUS internal _previousStatus;
 
@@ -82,8 +87,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         } else if (msg.sender != address(ownedEigenPod)) {
             _distributeExecutionRewards(msg.value);
         } else {
-            // TODO: Use the public key mapping to get the status of the corresponding validator
-            IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(0);
+            IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(keccak256(_pubKey));
             if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
                 _handleInactiveSkim();
             } else if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
@@ -202,6 +206,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
         staked = true;
         _eigenPodManager.stake{ value: 32 ether }(pubkey, signature, depositDataRoot);
+        _pubKey = pubkey;
     }
 
     /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
@@ -251,7 +256,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function enableRestaking(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
+        bytes memory proofs,
         bytes32[] calldata validatorFields
     ) external {
         ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
@@ -304,8 +309,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     function _sendETH(address payable to, uint256 amount) internal {
-        if (amount == 0)
+        if (amount == 0) {
             return;
+        }
         bool success;
 
         /// @solidity memory-safe-assembly
