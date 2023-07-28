@@ -17,9 +17,9 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         // bob pod should be 0x0a71F48B3052008eFE486a9EeBF3ab44a62B7703
         // verify on etherscan https://etherscan.io/address/0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338#readProxyContract .getPod(bob)
         assertEq(bobPod, 0x0a71F48B3052008eFE486a9EeBF3ab44a62B7703, "bad bob pod");
-        vm.stopPrank();
 
         (address eigenPodProxy, address eigenPod) = pool.getEigenPodProxyAndEigenPod(bytes("asd"));
+        vm.stopPrank();
 
         // Both addresses can be hardcoded
         assertEq(eigenPodProxy, 0x9Deeab39DEA8Aef7Dab8D0A1520349A6381023F9, "eigen pod proxy address");
