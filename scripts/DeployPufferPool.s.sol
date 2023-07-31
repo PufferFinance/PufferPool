@@ -12,14 +12,7 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
  */
 contract DeployPufferPool is Script {
     function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool) {
-        bool pkSet = vm.envOr("PRIVATE_KEY", false);
-
-        if (pkSet) {
-            uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-            vm.startBroadcast(deployerPrivateKey);
-        } else {
-            vm.startBroadcast();
-        }
+        vm.startBroadcast();
 
         // Deploys Puffer Pool implementation
         PufferPool poolImpl = new PufferPool(beacon);
@@ -33,10 +26,8 @@ contract DeployPufferPool is Script {
 
         pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners);
 
-        if (!pkSet) {
-            // For test environment transfer ownership to Test contract
-            pool.transferOwnership(msg.sender);
-        }
+        // For test environment transfer ownership to Test contract
+        pool.transferOwnership(msg.sender);
 
         vm.stopBroadcast();
 

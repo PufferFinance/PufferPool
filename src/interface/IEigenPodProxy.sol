@@ -24,12 +24,24 @@ interface IEigenPodProxy {
 
     /**
      * @notice Initializes the proxy contract
-     * @param owner is the Owner of Eigen Pod Proxy {Safe} multisig (Pod Account)
      * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
-     * @param podRewardsRecipient is the rewards recipient
      * @param bond is the bond amount
      */
-    function initialize(address payable owner, IPufferPool manager, address payable podRewardsRecipient, uint256 bond)
+    function initialize(IPufferPool manager, uint256 bond) external;
+
+    /**
+     * @notice Returns the Eigen pod manager from EigenLayer
+     */
+    function getEigenPodManager() external view returns (IEigenPodManager);
+
+    /**
+     * @notice Sets the `podProxyowner` and `podRewardsRecipient`
+     * @dev This can be consireder a 'second' initializer
+     *      Only PufferPool is calling this once after the initialization.
+     *      The reason for that is that we need to be able to predict EigenPodProxy's address, and upon BeaconProxy's creation in the constructor
+     *      we are passing in the initializer data, because of that we want to get rid of the dynamic data from the initializer
+     */
+    function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
         external;
 
     /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
