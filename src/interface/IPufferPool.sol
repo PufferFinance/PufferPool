@@ -84,11 +84,6 @@ interface IPufferPool is IERC20Upgradeable {
     error GuardiansAlreadyExist();
 
     /**
-     * @notice Thrown if the Eigen Pod Proxy address is not valid
-     */
-    error InvalidEigenPodProxy();
-
-    /**
      * @notice Emitted when the Validator key is registered
      * @param eigenPodProxy is the address of Eigen Pod Proxy
      * @param pubKey is the validator public key

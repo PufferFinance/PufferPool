@@ -5,7 +5,6 @@ import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/ext
 import { ReentrancyGuardUpgradeable } from "openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
-import { Create2 } from "openzeppelin/utils/Create2.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableUpgradeable.sol";
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
@@ -16,7 +15,6 @@ import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import "forge-std/console.sol";
 
 /**
  * @title PufferPool
@@ -142,17 +140,21 @@ contract PufferPool is
      */
     uint256 internal _enclaveBondRequirement;
 
+    /**
+     * @dev This function is not requesting a msg.sender to be a {Safe} multisig.
+     *     Instead it will allow a call from one of the {Safe} Pod account owners to be authorized
+     *     So if Pod account is owned by 5 owners, any of them sending a request for that podAccount will be authorized
+     */
     modifier onlyPodAccountOwner(address podAccount) {
-        // if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
-        //     revert Unauthorized();
-        // }
+        _onlyPodAccountOwner(podAccount);
         _;
     }
 
+    /**
+     *
+     */
     modifier onlyGuardians() {
-        if (msg.sender != address(_guardiansMultisig)) {
-            revert Unauthorized();
-        }
+        _onlyGuardians();
         _;
     }
 
@@ -323,33 +325,9 @@ contract PufferPool is
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
 
-        // bytes32 bytecodeHash = keccak256(bytecode);
-        // bytes32 salt = keccak256(blsPubKey);
-
-        // address addr;
-
-        // assembly {
-        //     let ptr := mload(0x40) // Get free memory pointer
-        //     mstore(add(ptr, 0x40), bytecodeHash)
-        //     mstore(add(ptr, 0x20), salt)
-        //     mstore(ptr, address()) // Right-aligned with 12 preceding garbage bytes
-        //     let start := add(ptr, 0x0b) // The hashed data starts at the final garbage byte which we will set to 0xff
-        //     mstore8(start, 0xff)
-        //     addr := keccak256(start, 85)
-        // }
-        // console.log("predicted addr by oz for eigenPodProxy", addr);
-
-        console.log("pub key hash in getEigenPodProxyAndEigenPod");
-        console.logBytes32(keccak256(blsPubKey));
-
-        console.log("bytecode bytes in getEigenPodProxyAndEigenPod:");
-        console.logBytes(bytecode);
-
         address eigenPodProxy = address(uint160(uint256(hash)));
 
         address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(eigenPodProxy));
-
-        console.log(eigenPodProxy, eigenPod, "<-- predicted addresses");
 
         return (eigenPodProxy, eigenPod);
     }
@@ -640,11 +618,6 @@ contract PufferPool is
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
 
-        console.log("pub key hash in _createEigenpodProxy");
-        console.logBytes32(pubkeyHash);
-        console.log("deploymentData bytes:");
-        console.logBytes(deploymentData);
-
         // solhint-disable-next-line no-inline-assembly
         assembly {
             eigenPodProxy := create2(0x0, add(0x20, deploymentData), mload(deploymentData), pubkeyHash)
@@ -804,6 +777,21 @@ contract PufferPool is
         }
 
         return _enclaveBondRequirement;
+    }
+
+    function _onlyGuardians() internal view {
+        if (msg.sender != address(_guardiansMultisig)) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @param podAccount is the pod account address
+     */
+    function _onlyPodAccountOwner(address podAccount) internal view {
+        if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
+            revert Unauthorized();
+        }
     }
 
     /**
