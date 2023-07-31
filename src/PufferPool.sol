@@ -323,6 +323,28 @@ contract PufferPool is
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
 
+        // bytes32 bytecodeHash = keccak256(bytecode);
+        // bytes32 salt = keccak256(blsPubKey);
+
+        // address addr;
+
+        // assembly {
+        //     let ptr := mload(0x40) // Get free memory pointer
+        //     mstore(add(ptr, 0x40), bytecodeHash)
+        //     mstore(add(ptr, 0x20), salt)
+        //     mstore(ptr, address()) // Right-aligned with 12 preceding garbage bytes
+        //     let start := add(ptr, 0x0b) // The hashed data starts at the final garbage byte which we will set to 0xff
+        //     mstore8(start, 0xff)
+        //     addr := keccak256(start, 85)
+        // }
+        // console.log("predicted addr by oz for eigenPodProxy", addr);
+
+        console.log("pub key hash in getEigenPodProxyAndEigenPod");
+        console.logBytes32(keccak256(blsPubKey));
+
+        console.log("bytecode bytes in getEigenPodProxyAndEigenPod:");
+        console.logBytes(bytecode);
+
         address eigenPodProxy = address(uint160(uint256(hash)));
 
         address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(eigenPodProxy));
@@ -617,6 +639,11 @@ contract PufferPool is
             type(BeaconProxy).creationCode,
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
+
+        console.log("pub key hash in _createEigenpodProxy");
+        console.logBytes32(pubkeyHash);
+        console.log("deploymentData bytes:");
+        console.logBytes(deploymentData);
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
