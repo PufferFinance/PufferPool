@@ -4,6 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Safe } from "safe-contracts/Safe.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 /**
  * @title IPufferPool
@@ -283,9 +285,24 @@ interface IPufferPool is IERC20Upgradeable {
     function getExecutionCommission() external view returns (uint256);
 
     /**
-     * Returns Commission Denominator
+     * @notice Returns Commission Denominator
      */
     function getCommissionDenominator() external view returns (uint256);
+
+    /**
+     * @notice Returns the index of the Beacon Chain ETH Strategy
+     */
+    function getBeaconChainETHStrategyIndex() external view returns (uint256);
+
+    /**
+     * @notice Returns the Beacon ETH Strategy
+     */
+    function getBeaconChainETHStrategy() external view returns (IStrategy);
+
+    /**
+     * @notice Returns the Strategy Manager
+     */
+    function getStrategyManager() external view returns (IStrategyManager);
 
     /**
      * @notice Creates a pod's {Safe} multisig wallet

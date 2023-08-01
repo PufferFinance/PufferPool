@@ -8,6 +8,7 @@ import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
@@ -274,13 +275,24 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced withdrawal waiting period.
-     * @param shares The amount of shares to withdraw from each of the respective Strategies in the `strategies` array
      * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
      * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed
      * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
      * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
-    function initiateWithdrawal(uint256[] calldata shares) external { }
+    function initiateWithdrawal() external {
+        // Withdraw all available ETH
+        uint256[] memory shares;
+        shares[0] = uint256(ownedEigenPod.withdrawableRestakedExecutionLayerGwei());
+
+        // Hardcoded values
+        uint256[] memory strategyIndexes;
+        strategyIndexes[0] = _podProxyManager.getBeaconChainETHStrategyIndex();
+        IStrategy[] memory strategies;
+        strategies[0] = _podProxyManager.getBeaconChainETHStrategy();
+
+        _podProxyManager.getStrategyManager().queueWithdrawal(strategyIndexes, strategies, shares, address(this), true);
+    }
 
     /// @notice Withdraws full EigenPod balance if corresponding validator was slashed before restaking
     function withdrawSlashedEth() external { }

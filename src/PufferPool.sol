@@ -15,6 +15,8 @@ import { IPufferOwner } from "puffer/interface/IPufferOwner.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 
 /**
@@ -150,6 +152,21 @@ contract PufferPool is
      * @dev Validator bond for Enclave node runners
      */
     uint256 internal _enclaveBondRequirement;
+
+    /**
+     * @dev Index of the beacon ETH strategy
+     */
+    uint256 internal _beaconChainETHStrategyIndex;
+
+    /**
+     * @dev The Beacon ETH Strategy
+     */
+    IStrategy internal _beaconETHStrategy;
+
+    /**
+     * @dev EigenLayer's Strategy Manager
+     */
+    IStrategyManager internal _strategyManager;
 
     /**
      * @dev This function is not requesting a msg.sender to be a {Safe} multisig.
@@ -669,6 +686,27 @@ contract PufferPool is
      */
     function getPufferAvsAddress() external view returns (address) {
         return _pufferAvsAddress;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getBeaconChainETHStrategyIndex() external view returns (uint256) {
+        return _beaconChainETHStrategyIndex;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getBeaconChainETHStrategy() external view returns (IStrategy) {
+        return _beaconETHStrategy;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getStrategyManager() external view returns (IStrategyManager) {
+        return _strategyManager;
     }
 
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {

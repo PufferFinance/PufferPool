@@ -62,7 +62,7 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
         return _handleQuickWithdraw(amount);
     }
 
-    function getPreviousStatus() public returns (IEigenPodWrapper.VALIDATOR_STATUS) {
+    function getPreviousStatus() public view returns (IEigenPodWrapper.VALIDATOR_STATUS) {
         return _previousStatus;
     }
 
