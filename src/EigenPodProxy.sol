@@ -282,6 +282,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      */
     function initiateWithdrawal(uint256[] calldata shares) external { }
 
+    /// @notice Withdraws full EigenPod balance if corresponding validator was slashed before restaking
+    function withdrawSlashedEth() external { }
+
     /// @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
     function enableRestaking(
         uint64 oracleBlockNumber,
