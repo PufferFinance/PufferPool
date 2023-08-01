@@ -84,11 +84,6 @@ interface IPufferPool is IERC20Upgradeable {
     error GuardiansAlreadyExist();
 
     /**
-     * @notice Thrown if the Eigen Pod Proxy address is not valid
-     */
-    error InvalidEigenPodProxy();
-
-    /**
      * @notice Emitted when the Validator key is registered
      * @param eigenPodProxy is the address of Eigen Pod Proxy
      * @param pubKey is the validator public key
@@ -304,23 +299,26 @@ interface IPufferPool is IERC20Upgradeable {
      * @param podAccountOwners Pod's wallet owner addresses
      * @param podAccountThreshold Number of required confirmations for a {Safe} transaction
      * @param data is a validator key data
+     * @param podRewardsRecipient is the address of the Rewards recipient
      * @return Safe is a newly created {Safe} multisig instance
      * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
      */
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
-        ValidatorKeyData calldata data
+        ValidatorKeyData calldata data,
+        address podRewardsRecipient
     ) external payable returns (Safe, IEigenPodProxy);
 
     /**
      * @notice Registers a validator key for a `podAccount`
      * @dev Sender is expected to send the correct ETH amount
      * @param podAccount is the address of the Eigen Pod Account
+     * @param podRewardsRecipient is the address of the Rewards recipient
      * @param data is a validator key data
      * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
      */
-    function registerValidatorKey(address podAccount, ValidatorKeyData calldata data)
+    function registerValidatorKey(address podAccount, address podRewardsRecipient, ValidatorKeyData calldata data)
         external
         payable
         returns (IEigenPodProxy);
@@ -333,6 +331,17 @@ interface IPufferPool is IERC20Upgradeable {
     function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
         external
         returns (Safe account);
+
+    /**
+     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `blsPubKey`
+     * @dev Creation of EigenPodProxy and EigenPod is done via `create2` opcode.
+     *      For EigenPodProxy the salt is keccak256(blsPubKey), and for EigenPod it is the `msg.sender`.
+     *      In our case that will be EigenPodProxy.
+     *      If we know address of the EigenPodProxy, we can calculate address of the EigenPod
+     * @return EigenPodProxy address (Puffer Finance)
+     * @return Eigen Pod Address (Eigen Layer)
+     */
+    function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) external view returns (address, address);
 
     // /**
     //  * @notice Returns the Eigen pod proxy information

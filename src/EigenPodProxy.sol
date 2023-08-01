@@ -76,6 +76,13 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         _disableInitializers();
     }
 
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function getEigenPodManager() external view returns (IEigenPodManager) {
+        return _eigenPodManager;
+    }
+
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     fallback() external payable {
         // If bond is already withdrawn, send any incoming money directly to pool
@@ -120,13 +127,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         return address(_podProxyManager);
     }
 
-    function initialize(address payable owner, IPufferPool manager, address payable podRewardsRecipient, uint256 bond)
-        external
-        initializer
-    {
-        _podRewardsRecipient = podRewardsRecipient;
+    function initialize(IPufferPool manager, uint256 bond) external initializer {
         _bond = bond;
-        _podProxyOwner = owner;
         _podProxyManager = manager;
         _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
         _eigenPodManager.createPod();
@@ -200,6 +202,21 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             revert Unauthorized();
         }
         _;
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
+        external
+        onlyPodProxyManager
+    {
+        // Revert if the pod is already initialized
+        if (_podProxyOwner != address(0)) {
+            revert();
+        }
+        _podProxyOwner = podProxyowner;
+        _podRewardsRecipient = podRewardsRecipient;
     }
 
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {

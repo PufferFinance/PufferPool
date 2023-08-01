@@ -8,7 +8,7 @@ contract PufferPoolMockUpgrade is PufferPool {
         return 1337;
     }
 
-    constructor() PufferPool(address(0)) { }
+    constructor(address beacon) PufferPool(beacon) { }
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new

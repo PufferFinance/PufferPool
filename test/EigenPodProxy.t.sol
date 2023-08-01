@@ -19,7 +19,6 @@ import { SlasherMock } from "test/mocks/SlasherMock.sol";
 import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 import "forge-std/console.sol";
 
@@ -83,7 +82,7 @@ contract EigenPodProxyTest is Test {
     address beaconOwner = makeAddr("beaconOwner");
 
     function setUp() public {
-        (, beacon) = new DeployBeacon().run();
+        (, beacon) = new DeployBeacon().run(true);
 
         // Transfer ownership from 'default tx sender' in foundry to beaconOwner
         vm.prank(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38);
@@ -92,10 +91,9 @@ contract EigenPodProxyTest is Test {
 
     function testSetup() public {
         address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
         );
 
-        assertEq(EigenPodProxy(payable(eigenPodProxy)).getPodProxyOwner(), alice, "owner");
         assertEq(
             EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
             address(this),
@@ -106,10 +104,9 @@ contract EigenPodProxyTest is Test {
     // Tests the upgrade of two eigen pod proxies
     function testUpgradeBeaconProxy() public {
         address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
         );
 
-        assertEq(EigenPodProxy(payable(eigenPodProxy)).getPodProxyOwner(), alice, "alice owner");
         assertEq(
             EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
             address(this),
@@ -124,14 +121,13 @@ contract EigenPodProxyTest is Test {
         assertEq(returndata.length, 0);
 
         address eigenPodProxyTwo = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (bob, IPufferPool(address(this)), bob, 2 ether)))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
         );
 
         // // Both Eigen pod proxies should return empty data
         (success, returndata) = address(eigenPodProxyTwo).call(abi.encodeCall(EigenPodProxyV2Mock.getSomething, ()));
         assertEq(returndata.length, 0);
 
-        assertEq(EigenPodProxy(payable(eigenPodProxyTwo)).getPodProxyOwner(), bob, "bob owner");
         assertEq(
             EigenPodProxy(payable(eigenPodProxyTwo)).getPodProxyManager(),
             address(this),
@@ -150,10 +146,14 @@ contract EigenPodProxyTest is Test {
     function testChangePodRewardsRecipient() public {
         address payable eigenPodProxyAddress = payable(
             address(
-                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(this)), alice, 2 ether)))
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
             )
         );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
+
+        // Set Owner and Pod Rewards Recipient
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
+
         vm.prank(alice);
         eigenPodProxy.updatePodRewardsRecipient(payable(address(bob)));
         vm.prank(bob);
@@ -204,12 +204,16 @@ contract EigenPodProxyTest is Test {
 
         address payable eigenPodProxyAddress = payable(
             address(
-                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
+                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(pool)), 2 ether)))
             )
         );
         EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
         uint256 aliceBalanceBefore = alice.balance;
         uint256 poolBalanceBefore = address(pool).balance;
+
+        // Set Owner and Pod Rewards Recipient
+        vm.prank(address(pool));
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
 
         vm.prank(address(1));
         vm.deal(address(1), 2 ether);

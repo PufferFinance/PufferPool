@@ -14,6 +14,8 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferOwner } from "puffer/interface/IPufferOwner.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 
 /**
  * @title PufferPool
@@ -34,6 +36,11 @@ contract PufferPool is
      * @notice Address of the Eigen pod proxy beacon
      */
     address public immutable EIGEN_POD_PROXY_BEACON;
+
+    /**
+     * @notice Address of the Eigen Pod Manager
+     */
+    IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
     /**
      * @dev ETH Amount required for becoming a Validator
@@ -144,17 +151,21 @@ contract PufferPool is
      */
     uint256 internal _enclaveBondRequirement;
 
+    /**
+     * @dev This function is not requesting a msg.sender to be a {Safe} multisig.
+     *     Instead it will allow a call from one of the {Safe} Pod account owners to be authorized
+     *     So if Pod account is owned by 5 owners, any of them sending a request for that podAccount will be authorized
+     */
     modifier onlyPodAccountOwner(address podAccount) {
-        if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
-            revert Unauthorized();
-        }
+        _onlyPodAccountOwner(podAccount);
         _;
     }
 
+    /**
+     *
+     */
     modifier onlyGuardians() {
-        if (msg.sender != address(_guardiansMultisig)) {
-            revert Unauthorized();
-        }
+        _onlyGuardians();
         _;
     }
 
@@ -168,6 +179,7 @@ contract PufferPool is
 
     constructor(address beacon) {
         EIGEN_POD_PROXY_BEACON = beacon;
+        EIGEN_POD_MANAGER = IEigenPodProxy(UpgradeableBeacon((beacon)).implementation()).getEigenPodManager();
         _disableInitializers();
     }
 
@@ -365,23 +377,62 @@ contract PufferPool is
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
-        ValidatorKeyData calldata data
+        ValidatorKeyData calldata data,
+        address podRewardsRecipient
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
         Safe account = _createPodAccount(podAccountOwners, podAccountThreshold);
-        IEigenPodProxy proxy = registerValidatorKey(address(account), data);
+        IEigenPodProxy proxy = registerValidatorKey(address(account), podRewardsRecipient, data); // TODO: make rewards recipient a parameter
         return (account, proxy);
     }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function registerValidatorKey(address podAccount, ValidatorKeyData calldata data)
+    function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) public view returns (address, address) {
+        bytes memory bytecode = abi.encodePacked(
+            type(BeaconProxy).creationCode,
+            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
+        );
+
+        bytes32 hash =
+            keccak256(abi.encodePacked(bytes1(0xff), address(this), keccak256(blsPubKey), keccak256(bytecode)));
+
+        address eigenPodProxy = address(uint160(uint256(hash)));
+
+        address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(eigenPodProxy));
+
+        return (eigenPodProxy, eigenPod);
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function registerValidatorKey(address podAccount, address podRewardsRecipient, ValidatorKeyData calldata data)
         public
         payable
         onlyPodAccountOwner(podAccount)
         whenNotPaused
         returns (IEigenPodProxy)
     {
+        return this.callregisterValidatorKeyOnlyThis{ value: msg.value }(podAccount, podRewardsRecipient, data);
+    }
+
+    /**
+     * @dev This is an external function, but it is meant to be called only from PufferPool.sol contract.
+     *      We are doing this because create2 uses `msg.sender` for address computation, and we want to be able to predict addresses of
+     *      EigenPodProxy -> EigenPod
+     *
+     *      By using an external function, and calling it from this contract with `this.callregisterValidatorKeyOnlyThis()`, we are making sure that the `msg.sender` is address(this)
+     *       predict the EigenPodProxy address
+     */
+    function callregisterValidatorKeyOnlyThis(
+        address podAccount,
+        address rewardsRecipient,
+        ValidatorKeyData calldata data
+    ) external payable returns (IEigenPodProxy) {
+        // Inline `onlyThis` modifier
+        require(msg.sender == address(this));
+
         // Sanity check on blsPubKey
         if (data.blsPubKey.length != 48) {
             revert InvalidBLSPubKey();
@@ -396,7 +447,13 @@ contract PufferPool is
 
         // Creates Eigen Pod Proxy and Eigen Pod
         // Create2 with salt keccak256(data.blsPubKey) will revert on duplicate key registration
-        IEigenPodProxy eigenPodProxy = _createEigenPodProxy(podAccount, keccak256(data.blsPubKey));
+        IEigenPodProxy eigenPodProxy = _createEigenPodProxy(keccak256(data.blsPubKey));
+
+        // Set the proxy owner and rewards recipient after creation of eigen pod proxy
+        // We are doing this because we want to be able to predict address of Eigen pod proxy
+        // And by moving variable params from initializer to a setter, we are doing that
+        // This setter is called only once by the PufferPool
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(payable(podAccount), payable(rewardsRecipient));
 
         // Mint pufETH to validator and lock it there
         _mint(address(eigenPodProxy), calculateETHToPufETHAmount(msg.value));
@@ -630,16 +687,10 @@ contract PufferPool is
     // TODO: timelock on upgrade?
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 
-    function _createEigenPodProxy(address account, bytes32 pubkeyHash)
-        internal
-        returns (IEigenPodProxy eigenPodProxy)
-    {
+    function _createEigenPodProxy(bytes32 pubkeyHash) internal returns (IEigenPodProxy eigenPodProxy) {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
-            abi.encode(
-                EIGEN_POD_PROXY_BEACON,
-                abi.encodeCall(EigenPodProxy.initialize, (payable(account), this, payable(account), 2 ether))
-            )
+            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
         );
 
         // solhint-disable-next-line no-inline-assembly
@@ -662,7 +713,7 @@ contract PufferPool is
         Safe account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
-            saltNonce: block.timestamp, // TODO: change, two createPodAccounts will fail in the same block
+            saltNonce: block.timestamp,
             owners: podAccountOwners,
             threshold: threshold
         });
@@ -807,6 +858,21 @@ contract PufferPool is
         }
 
         return _enclaveBondRequirement;
+    }
+
+    function _onlyGuardians() internal view {
+        if (msg.sender != address(_guardiansMultisig)) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @param podAccount is the pod account address
+     */
+    function _onlyPodAccountOwner(address podAccount) internal view {
+        if (!Safe(payable(podAccount)).isOwner(msg.sender)) {
+            revert Unauthorized();
+        }
     }
 
     /**
