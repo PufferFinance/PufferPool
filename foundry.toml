@@ -6,15 +6,25 @@ runs = 10_000
 # Run them in development manually by commenting `no_match_path` line and running "forge test --mc ETHTransferTest -vvvv"
 # don't forget to turn on the optimizer :)
 no_match_path = "test/gas-tests/*.sol"
-
-optimizer = false
-optimizer_runs = 10_000
+fs_permissions = [{ access = "read-write", path = "./"}]
+gas_reports=[
+    "PufferPool",
+    "EigenPodProxy",
+    "PufferAVSRegistry"
+]
+auto_detect_solc = false
+cbor_metadata = false
+bytecode_hash = "none"
+optimizer = true
+optimizer_runs = 200
 solc = "0.8.20"
 evm_version = "shanghai"
 
 [fmt]
 line_length = 120
+int_types = "long"
 tab_width = 4
+quote_style = "double"
 bracket_spacing = true
 
 [rpc_endpoints]
