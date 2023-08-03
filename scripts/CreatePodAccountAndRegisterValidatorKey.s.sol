@@ -21,17 +21,6 @@ contract CreatePodRegisterKey is Script {
     	IPufferPool pool = IPufferPool(0x00cEfcd3125E6060A841308330329Be418F8356e);
     	vm.startBroadcast(0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7);
 
-    	/*
-    	PufferPool pool;
-	    SafeProxyFactory proxyFactory;
-	    Safe safeImplementation;
-	    UpgradeableBeacon beacon;
-
-    	(, beacon) = new DeployBeacon().run(true);
-        (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
-        */
-
     	// Set up arguments for function call
     	address[] memory podAccountOwners = new address[](1);
     	podAccountOwners[0] = address(0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7); //address(0x3c0437396BA3D9CCc8d41DEDe62Fe161a3dB8e4A);
@@ -42,20 +31,28 @@ contract CreatePodRegisterKey is Script {
     	data.signature = abi.encodePacked(hex"83b525dcf728d78aa121556790a3df2787c68931f579e94a38d7fa2378a6386187881e5555645f435bcf1a36b32ad628003815490038167110fd395dd8e43dd49c67caef4ba024b47ad2f66ae789f7f43724fe32b764410702faa7838db3149f");
     	data.depositDataRoot = bytes32(abi.encodePacked(hex"a6a6f7fc0456a60feb07a2510d977db39fea11ee1cc6d205eacc095730ce2872"));
     	bytes[] memory blsEncPrivKeyShares;
-    	//blsEncPrivKeyShares[0] = bytes("");
     	data.blsEncPrivKeyShares = blsEncPrivKeyShares;
     	bytes[] memory blsPubKeyShares = new bytes[](1);
     	blsPubKeyShares[0] = bytes("");
     	data.blsPubKeyShares = blsPubKeyShares;
     	data.blockNumber = 1;
+    	// Ignore raveEvidence for now
     	//data.raveEvidence = abi.encode("", "", "", "", "", abi.encodePacked(hex"4242424242424242424242424242424242424242424242424242424242424242"), abi.encodePacked(hex"4242424242424242424242424242424242424242424242424242424242424242"));
     	data.raveEvidence = bytes("");
-
-    	console.log("before function call: createPodAccountAndRegisterValidatorKey");
-
-    	//vm.deal(address(this), 32 ether);
     	pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(podAccountOwners, podAccountThreshold, data, podRewardsRecipient);
-
     	vm.stopBroadcast();
+    }
+
+    // Deploys pool contract instance locally and funds account, used when testing
+    function setup() external {
+    	PufferPool pool;
+	    SafeProxyFactory proxyFactory;
+	    Safe safeImplementation;
+	    UpgradeableBeacon beacon;
+
+    	(, beacon) = new DeployBeacon().run(true);
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.deal(address(this), 32 ether);
     }
 }
