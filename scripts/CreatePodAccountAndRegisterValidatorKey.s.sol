@@ -15,12 +15,77 @@ import { Test } from "forge-std/Test.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
 import "forge-std/console.sol";
+import "forge-std/StdJson.sol";
 
+using stdJson for string;
+
+// Commandline argument will give path to json file for params, and public key, needed in vm.startBroadcast()
+// Example script call: 
+// forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodRegisterKey ./scripts/params.json 0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7 --sig 'run(string, address)'
+// forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodRegisterKey ./scripts/params.json 0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7 --sig 'run(string, address)' --rpc-url 'https://otter.bordel.wtf/erigon' --private-key '7557bc2d4cb5fc4fcd1fe6962efc2e3ca1c840195891b72027520555f219323f' --broadcast
 contract CreatePodRegisterKey is Script {
-    function run() external {
-    	IPufferPool pool = IPufferPool(0x00cEfcd3125E6060A841308330329Be418F8356e);
-    	vm.startBroadcast(0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7);
+    function run(string calldata pathToJson, address publicKey) external {
 
+    	// Read in Json file
+    	string memory json = vm.readFile(pathToJson);
+    	console.log(json);
+
+    	// Parse out necessary fields
+    	address poolAddress;
+    	(poolAddress) = abi.decode(vm.parseJson(json, ".poolContract"), (address));
+    	IPufferPool pool = IPufferPool(poolAddress);
+
+    	address[] memory podAccountOwners;
+    	(podAccountOwners) = abi.decode(vm.parseJson(json, ".podAccountOwners"), (address[]));
+
+    	address podRewardsRecipient;
+    	(podRewardsRecipient) = abi.decode(vm.parseJson(json, ".podAccountRecipient"), (address));
+
+    	uint256 podAccountThreshold;
+    	podAccountThreshold = vm.parseJsonUint(json, ".podAccountThreshold");
+
+    	IPufferPool.ValidatorKeyData memory data;
+    	data.blsPubKey = vm.parseJsonBytes(json, ".blsPubKey");
+
+    	data.signature = vm.parseJsonBytes(json, ".signature");
+
+    	data.depositDataRoot = vm.parseJsonBytes32(json, ".depositDataRoot");
+
+    	// For now, don't read blsEncPrivKeyShares from Json, just hardcode empty array
+    	bytes[] memory blsEncPrivKeyShares;
+    	data.blsEncPrivKeyShares = blsEncPrivKeyShares;
+
+    	data.blsPubKeyShares = vm.parseJsonBytesArray(json, ".blsPubKeyShares");
+
+    	data.blockNumber = vm.parseJsonUint(json, ".blockNumber");
+
+    	// Ignore raveEvidence for now
+    	data.raveEvidence = bytes("");
+
+    	// Start broadcast as publicKey supplied in command line args
+    	vm.startBroadcast(publicKey);
+
+    	pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(podAccountOwners, podAccountThreshold, data, podRewardsRecipient);
+
+    	vm.stopBroadcast();
+    }
+
+    // Deploys pool contract instance locally and funds account, used when testing
+    function setup() external {
+    	PufferPool pool;
+	    SafeProxyFactory proxyFactory;
+	    Safe safeImplementation;
+	    UpgradeableBeacon beacon;
+
+    	(, beacon) = new DeployBeacon().run(true);
+        (proxyFactory, safeImplementation) = new DeploySafe().run();
+        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        vm.deal(address(this), 32 ether);
+    }
+
+    // Hardcoded arguments for testing
+    function testHardcodedArgs() external {
+    	/*
     	// Set up arguments for function call
     	address[] memory podAccountOwners = new address[](1);
     	podAccountOwners[0] = address(0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7); //address(0x3c0437396BA3D9CCc8d41DEDe62Fe161a3dB8e4A);
@@ -40,19 +105,6 @@ contract CreatePodRegisterKey is Script {
     	//data.raveEvidence = abi.encode("", "", "", "", "", abi.encodePacked(hex"4242424242424242424242424242424242424242424242424242424242424242"), abi.encodePacked(hex"4242424242424242424242424242424242424242424242424242424242424242"));
     	data.raveEvidence = bytes("");
     	pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(podAccountOwners, podAccountThreshold, data, podRewardsRecipient);
-    	vm.stopBroadcast();
-    }
-
-    // Deploys pool contract instance locally and funds account, used when testing
-    function setup() external {
-    	PufferPool pool;
-	    SafeProxyFactory proxyFactory;
-	    Safe safeImplementation;
-	    UpgradeableBeacon beacon;
-
-    	(, beacon) = new DeployBeacon().run(true);
-        (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
-        vm.deal(address(this), 32 ether);
+    	vm.stopBroadcast();*/
     }
 }
