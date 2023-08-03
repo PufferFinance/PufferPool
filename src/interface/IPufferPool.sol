@@ -121,11 +121,11 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
      * @param eigenPodProxy is the address of the EigenPod proxy contract
-     * @param validatorIdx is the index of the Validator
+     * @param blsPubKey is the public key of the Validator
      * @param timestamp is the unix timestmap in seconds
-     * @dev Signature "0x3211f33a"
+     * @dev Signature "0x38d719b1"
      */
-    event ETHProvisioned(address eigenPodProxy, uint256 validatorIdx, uint256 timestamp);
+    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool

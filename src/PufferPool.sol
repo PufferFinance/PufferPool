@@ -223,8 +223,13 @@ contract PufferPool is
         bytes calldata pubKey,
         bytes calldata signature,
         bytes32 depositDataRoot
-    ) external onlyGuardians whenNotPaused {
+    )
+        external
+        // onlyGuardians // TODO: make it onlyGuardians, for testnet we've commented out that modifier
+        whenNotPaused
+    {
         // TODO: logic for this
+        // What validations do we need here since it will be a onlyGuardians function?
 
         // Update locked ETH Amount
         _lockedETHAmount += _32_ETHER;
@@ -237,7 +242,7 @@ contract PufferPool is
         });
 
         // TODO: event update
-        emit ETHProvisioned(eigenPodProxy, 0, block.timestamp);
+        emit ETHProvisioned(eigenPodProxy, pubKey, block.timestamp);
     }
 
     /**

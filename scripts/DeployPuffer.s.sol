@@ -12,6 +12,7 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
+import { BaseScript } from "scripts/BaseScript.s.sol";
 
 
 contract CustomJSONBuilder {
@@ -35,19 +36,21 @@ contract CustomJSONBuilder {
  * @title DeployPuffer
  * @author Puffer finance
  * @notice Deploys PufferPool Contracts
+ * @dev    
+ * 
+ * 
+ *         NOTE: 
+ * 
+ *         If you ran the deployment script, but did not `--broadcast` the transaction, it will still update your local chainId-deployment.json file.
+ *         Other scripts wil fail because addresses will be updated in deployments file, but the deployment never happened.
+ * 
+ * 
+ *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
-contract DeployPuffer is Script {   
-
-    function run() public {
-        // Private key is extracted from variable env variable 'PK'
-        uint256 deployerPrivateKey = vm.envUint("PK");
-        vm.startBroadcast(deployerPrivateKey);
-
-        // Derive Wallet of the deployer
-        address broadcaster = vm.addr(deployerPrivateKey);
-
+contract DeployPuffer is BaseScript {   
+    function run() broadcast public {
         // If we don't have these ENV variables, deploy mocks
-        address eigenPodProxyBeaconOwner = broadcaster;
+        address eigenPodProxyBeaconOwner = _broadcaster;
         address eigenPodManager = vm.envOr("EIGEN_POD_MANAGER", address(new EigenPodManagerMock()));
         address eigenSlasher = vm.envOr("EIGEN_SLASHER", address(0));
         address safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
@@ -55,7 +58,7 @@ contract DeployPuffer is Script {
         
         // Treasury is a {Safe} multisig with 1/1 
         address[] memory treasuryOwners = new address[](1);
-        treasuryOwners[0] = broadcaster; // mock owner
+        treasuryOwners[0] = _broadcaster; // mock owner
 
         // EigenPodProxy is using Upgradeable Beacon pattern
         // To do that, we are deploying Implementation contract and upgradeable beacon
@@ -95,7 +98,5 @@ contract DeployPuffer is Script {
 
         // Write deployment to deployments/${chainid}-deployment.json
         vm.writeJson(json, string(abi.encodePacked("deployments/", Strings.toString(block.chainid), "-deployment.json")));
-
-        vm.stopBroadcast();
     }
 }
