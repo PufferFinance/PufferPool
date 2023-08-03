@@ -26,6 +26,8 @@ contract MockPodNotOwned {
 }
 
 contract PufferPoolTest is Test {
+    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
+
     PufferPool pool;
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
@@ -319,15 +321,37 @@ contract PufferPoolTest is Test {
         assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
     }
 
+    // Test provisioning pod ETH and starting the validation process
+    function testProvisionPodETH() public {
+        address[] memory owners = new address[](1);
+        owners[0] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
+
+        IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
+
+        (, IEigenPodProxy proxy) =
+            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
+
+        pool.depositETH{ value: 100 ether }(address(this));
+
+        vm.expectEmit(true, true, true, true);
+        emit ETHProvisioned(address(proxy), validatorData.blsPubKey, 1);
+        pool.provisionPodETH({
+            eigenPodProxy: address(proxy),
+            pubKey: validatorData.blsPubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32("")
+        });
+    }
+
     // Test trying to register a validator key for invalid Eigen pod proxy
-    // function testRegisterKeyForInvalidEigenPod() public {
-    //     // Use invalid pod address
-    //     address eigenPodProxyMock = address(new MockPodNotOwned());
-    //     vm.expectRevert(IPufferPool.Unauthorized.selector);
-    //     pool.registerValidatorKey{ value: 16 ether }(
-    //         eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
-    //     );
-    // }
+    function testRegisterKeyForInvalidEigenPod() public {
+        // Use invalid pod address
+        address eigenPodProxyMock = address(new MockPodNotOwned());
+        vm.expectRevert(IPufferPool.Unauthorized.selector);
+        pool.registerValidatorKey{ value: 16 ether }(
+            eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
+        );
+    }
 
     // Test trying to register a duplicate vaidator key
     function testRegisterDuplicateKey() public {
@@ -365,8 +389,8 @@ contract PufferPoolTest is Test {
         pool.setExecutionCommission(newValue);
         assertEq(pool.getExecutionCommission(), newValue);
     }
-    // Setter for consensus rewards
 
+    // Setter for consensus rewards
     function testSetConsensusCommission(uint256 newValue) public {
         pool.setConsensusCommission(newValue);
         assertEq(pool.getConsensusCommission(), newValue);

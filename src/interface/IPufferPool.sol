@@ -47,41 +47,49 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
+     * @dev Signature "0x6a12f104"
      */
     error InsufficientETH();
 
     /**
      * @notice Thrown when the Validators deposits wrong ETH amount
+     * @dev Signature "0x2c5211c6"
      */
     error InvalidAmount();
 
     /**
      * @notice Thrown when creation of Eigen Pod Proxy fails
+     * @dev Signature "0x04a5b3ee"
      */
     error Create2Failed();
 
     /**
      * @notice Thrown when the BLS public key is not valid
+     * @dev Signature "0x7eef7967"
      */
     error InvalidBLSPubKey();
 
     /**
      * @notice Thrown when the number of BLS private key shares doesn't match guardians number
+     * @dev Signature "0x2c8f9aa3"
      */
     error InvalidBLSPrivateKeyShares();
 
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
+     * @dev Signature "0x9a5bbd69"
      */
     error InvalidBLSPublicKeyShares();
 
     /**
      * @notice Thrown when the user is not authorized
+     * @dev Signature "0x82b42900"
      */
     error Unauthorized();
 
     /**
      * @notice Thrown if the Guardians {Safe} wallet already exists
+     * @dev Signature "0xb8c56ff1"
      */
     error GuardiansAlreadyExist();
 
@@ -89,6 +97,7 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Emitted when the Validator key is registered
      * @param eigenPodProxy is the address of Eigen Pod Proxy
      * @param pubKey is the validator public key
+     * @dev Signature "0x7f2d1d96"
      */
     event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
 
@@ -101,21 +110,24 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @param safeProxyFactory is the address of the new {Safe} proxy factory
+     * @dev Signature "0xc3e8c5c8"
      */
     event SafeProxyFactoryChanged(address safeProxyFactory);
 
     /**
      * @param safeImplementation is the address of the new {Safe} implementation contract
+     * @dev Signature "0x7deed74c"
      */
     event SafeImplementationChanged(address safeImplementation);
 
     /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
      * @param eigenPodProxy is the address of the EigenPod proxy contract
-     * @param validatorIdx is the index of the Validator
+     * @param blsPubKey is the public key of the Validator
      * @param timestamp is the unix timestmap in seconds
+     * @dev Signature "0x38d719b1"
      */
-    event ETHProvisioned(address eigenPodProxy, uint256 validatorIdx, uint256 timestamp);
+    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool
@@ -124,6 +136,7 @@ interface IPufferPool is IERC20Upgradeable {
      * @param pufETHRecipient is the recipient address
      * @param ethAmountDeposited is the ETH amount deposited
      * @param pufETHAmount is the pufETH amount received in return
+     * @dev Signature "0xf5681f9d"
      */
     event Deposited(address depositor, address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
@@ -133,24 +146,29 @@ interface IPufferPool is IERC20Upgradeable {
      * @param ETHRecipient is the address received ETH
      * @param pufETHAmount is the pufETH amount burned
      * @param ETHAmount is the ETH amount received
+     * @dev Signature "0x91fb9d98"
      */
     event Withdrawn(address withdrawer, address ETHRecipient, uint256 pufETHAmount, uint256 ETHAmount);
 
     /**
      * @notice Emitted when Guardians create an account
      * @param account {Safe} account address
+     * @dev Signature "0xffe8d6a6"
      */
     event GuardianAccountCreated(address account);
 
     /**
      * @notice Emitted when Pod owners create an account
+     * @dev Signature "0xbacf7df3"
      * @param creator Creator address
      * @param account {Safe} account address
+     * @dev Signature "0xbacf7df3"
      */
     event PodAccountCreated(address creator, address account);
 
     /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
+     * @dev Signature "0x27449eb3"
      */
     event ExecutionCommissionChanged(uint256 oldValue, uint256 newValue);
 
@@ -161,6 +179,7 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Emitted when the POD AVS commission is changed from `oldValue` to `newValue`
+     * @dev Signature "0x9066ee0e"
      */
     event AvsCommissionChanged(uint256 oldValue, uint256 newValue);
 
@@ -171,6 +190,7 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Emitted when the non custodial bond requirement is changed from `oldValue` to `newValue`
+     * @dev Signature "0x6f3499c1"
      */
     event NonCustodialBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
@@ -181,16 +201,19 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Emitted when the enclave bond requirement is changed from `oldValue` to `newValue`
+     * @dev Signature "0x50e3aad3"
      */
     event EnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
     /**
      * @notice Emitted when the treasury address changes from `oldTreasury` to `newTreasury`
+     * @dev Signature "0x8c3aa5f4"
      */
     event TreasuryChanged(address oldTreasury, address newTreasury);
 
     /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
+     * @dev Signature "0x2d2da806"
      */
     function depositETH(address recipient) external payable;
 
