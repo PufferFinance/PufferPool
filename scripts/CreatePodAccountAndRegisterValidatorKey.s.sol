@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Script } from "forge-std/Script.sol";
+import { BaseScript } from "scripts/BaseScript.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
@@ -14,6 +15,8 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { Test } from "forge-std/Test.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
+import { Strings } from "openzeppelin/utils/Strings.sol";
+import { CustomJSONBuilder } from "scripts/DeployPuffer.s.sol";
 import "forge-std/console.sol";
 import "forge-std/StdJson.sol";
 
@@ -22,29 +25,27 @@ using stdJson for string;
 // Commandline argument will give path to json file for params, and public key, needed in vm.startBroadcast()
 // Example script call: 
 // forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodRegisterKey ./scripts/params.json 0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7 --sig 'run(string, address)'
-// forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodRegisterKey ./scripts/params.json 0x4f9906092cF0aa2A9EafBEF46622A71288378Ca7 --sig 'run(string, address)' --rpc-url 'https://otter.bordel.wtf/erigon' --private-key '7557bc2d4cb5fc4fcd1fe6962efc2e3ca1c840195891b72027520555f219323f' --broadcast
-contract CreatePodRegisterKey is Script {
-    function run(string calldata pathToJson, address publicKey) external {
+// forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodAndRegisterKey ./simulation --sig 'run(string)' --rpc-url 'https://otter.bordel.wtf/erigon' --broadcast
+contract CreatePodAndRegisterKey is BaseScript {
+	function _parseRegistrationData(string memory json) internal returns (
+		IPufferPool pool, 
+		address[] memory podAccountOwners, 
+		address podRewardsRecipient, 
+		uint256 podAccountThreshold, 
+		IPufferPool.ValidatorKeyData memory data
+	)
+	{
+		// Parse out necessary fields
+    	(address poolAddress) = abi.decode(vm.parseJson(json, ".poolContract"), (address));
 
-    	// Read in Json file
-    	string memory json = vm.readFile(pathToJson);
-    	console.log(json);
+    	pool = IPufferPool(poolAddress);
 
-    	// Parse out necessary fields
-    	address poolAddress;
-    	(poolAddress) = abi.decode(vm.parseJson(json, ".poolContract"), (address));
-    	IPufferPool pool = IPufferPool(poolAddress);
-
-    	address[] memory podAccountOwners;
     	(podAccountOwners) = abi.decode(vm.parseJson(json, ".podAccountOwners"), (address[]));
 
-    	address podRewardsRecipient;
-    	(podRewardsRecipient) = abi.decode(vm.parseJson(json, ".podAccountRecipient"), (address));
+    	(podRewardsRecipient) = abi.decode(vm.parseJson(json, ".podRewardsRecipient"), (address));
 
-    	uint256 podAccountThreshold;
     	podAccountThreshold = vm.parseJsonUint(json, ".podAccountThreshold");
 
-    	IPufferPool.ValidatorKeyData memory data;
     	data.blsPubKey = vm.parseJsonBytes(json, ".blsPubKey");
 
     	data.signature = vm.parseJsonBytes(json, ".signature");
@@ -61,17 +62,45 @@ contract CreatePodRegisterKey is Script {
 
     	// Ignore raveEvidence for now
     	data.raveEvidence = bytes("");
+	}
 
-    	// Start broadcast as publicKey supplied in command line args
-    	vm.startBroadcast(publicKey);
+    function run(string calldata jsonDir) external broadcast {
 
-    	pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(podAccountOwners, podAccountThreshold, data, podRewardsRecipient);
+    	string memory pathToJson = string.concat(jsonDir, "/input.json");
+    	console.log("Here");
 
-    	vm.stopBroadcast();
+    	// Read in Json file
+    	string memory json = vm.readFile(pathToJson);
+
+    	console.log(json);
+
+    	(
+	    	IPufferPool pool, 
+			address[] memory podAccountOwners, 
+			address podRewardsRecipient, 
+			uint256 podAccountThreshold, 
+			IPufferPool.ValidatorKeyData memory data
+		) = _parseRegistrationData(json);
+
+        // TODO: Add logic to determine which bond amount to use based on above parsed parameters
+        // Hardcoded bond amount and podRewardsRecipient
+        //uint256 bondAmount = 16 ether;
+
+        Safe podAccount;
+        IEigenPodProxy eigenPodProxy;
+
+        console.log(address(pool));
+        console.log(podRewardsRecipient);
+
+    	(podAccount, eigenPodProxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }({podAccountOwners: podAccountOwners, podAccountThreshold: podAccountThreshold, data: data, podRewardsRecipient: podRewardsRecipient});
+
+        // Write deployment to simulation/deployments/${chainid}-deployment.json
+        vm.writeFile(string.concat(jsonDir, "/EigenPodProxy-address"), Strings.toHexString(address(eigenPodProxy)));
     }
 
     // Deploys pool contract instance locally and funds account, used when testing
-    function setup() external {
+    function init() external {
+    	/*
     	PufferPool pool;
 	    SafeProxyFactory proxyFactory;
 	    Safe safeImplementation;
@@ -81,6 +110,7 @@ contract CreatePodRegisterKey is Script {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.deal(address(this), 32 ether);
+     */
     }
 
     // Hardcoded arguments for testing
