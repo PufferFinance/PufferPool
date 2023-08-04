@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { NewBaseScript } from "scripts/NewBaseScript.s.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 
 /**
  * @title Deposit ETH script
@@ -15,7 +16,7 @@ contract PodProvisionETH is NewBaseScript {
     /**
      * @param eigenPodProxy Is the EigenPodProxy address
      */
-    function run(address eigenPodProxy, bytes calldata pubKey, bytes calldata signature, bytes32 depositRoot) external broadcast {
-        _pufferPool.provisionPodETH(eigenPodProxy, pubKey, signature, depositRoot);
+    function run(address pool, address eigenPodProxy, bytes calldata pubKey, bytes calldata signature, bytes32 depositRoot) external broadcast {
+        IPufferPool(pool).provisionPodETH(eigenPodProxy, pubKey, signature, depositRoot);
     }
 }
