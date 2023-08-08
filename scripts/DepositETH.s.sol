@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "scripts/BaseScript.s.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 
 /**
  * @title Deposit ETH script
@@ -15,7 +16,7 @@ contract DepositETH is BaseScript {
      * @param ethAmount Is the ETH amount to convert to pufETH
      * @param recipient is the recipient of pufETH
      */
-    function run(uint256 ethAmount, address recipient) external broadcast {
-        _pufferPool.depositETH{value: ethAmount}(recipient);
+    function run(address pool, uint256 ethAmount, address recipient) external broadcast {
+        IPufferPool(pool).depositETH{value: ethAmount}(recipient);
     }
 }
