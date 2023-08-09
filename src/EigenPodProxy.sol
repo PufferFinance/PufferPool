@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-// Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
+// TODO: Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
 import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
@@ -41,7 +41,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     IPufferPool internal _podProxyManager;
 
     /**
-     * @dev The designated address to send pod rewards. Can be changed by podProxyOwner
+     * @dev The designated address to send pod rewards. Can be changed by podProxyOwner(PodAccount)
      */
     address payable internal _podRewardsRecipient;
 
@@ -81,17 +81,42 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     bool public bondWithdrawn;
     bool public staked;
 
+    modifier onlyPodProxyOwner() {
+        if (msg.sender != _podProxyOwner) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    modifier onlyPodProxyManager() {
+        if (msg.sender != address(_podProxyManager)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    /**
+     * @dev Pod owner and PufferPool are allowed
+     */
+    modifier onlyOwnerAndManager() {
+        if (msg.sender != _podProxyOwner && msg.sender != address(_podProxyManager)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     constructor(IEigenPodManager eigenPodManager, ISlasher slasher) {
         _slasher = slasher;
         _eigenPodManager = eigenPodManager;
         _disableInitializers();
     }
 
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
-    function getEigenPodManager() external view returns (IEigenPodManager) {
-        return _eigenPodManager;
+    function initialize(IPufferPool manager, uint256 bond) external initializer {
+        _bond = bond;
+        _podProxyManager = manager;
+        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+        _eigenPodManager.createPod();
+        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
@@ -129,35 +154,176 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         }
     }
 
-    /// @notice Helper function to get the withdrawal credentials corresponding to the owned eigenPod
-    function _getPodWithdrawalCredentials() internal view returns (bytes memory) {
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(ownedEigenPod));
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function getProxyManager() external view returns (IPufferPool) {
+        return _podProxyManager;
     }
 
-    function getProxyManager() external view returns (address) {
-        return address(_podProxyManager);
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function getEigenPodManager() external view returns (IEigenPodManager) {
+        return _eigenPodManager;
     }
 
-    function initialize(IPufferPool manager, uint256 bond) external initializer {
-        _bond = bond;
-        _podProxyManager = manager;
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
-        _eigenPodManager.createPod();
-        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
-    }
-
-    modifier onlyPodProxyOwner() {
-        if (msg.sender != _podProxyOwner) {
-            revert Unauthorized();
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
+        external
+        onlyPodProxyManager
+    {
+        // Revert if the pod is already initialized
+        if (_podProxyOwner != address(0)) {
+            revert();
         }
-        _;
+        _podProxyOwner = podProxyowner;
+        _setPodRewardsRecipient(podRewardsRecipient);
     }
 
-    modifier onlyPodProxyManager() {
-        if (msg.sender != address(_podProxyManager)) {
-            revert Unauthorized();
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {
+        _setPodRewardsRecipient(podRewardsRecipient);
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
+        external
+        payable
+        onlyPodProxyManager
+    {
+        require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
+        staked = true;
+        _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
+        _pubKey = pubKey;
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function stopRegistraion() external onlyPodProxyOwner {
+        require(!staked, "pufETH bond is locked, because pod is already staking");
+        bondWithdrawn = true;
+        _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function enableSlashing(address contractAddress) external {
+        if (contractAddress != _podProxyManager.getPufferAvsAddress()) {
+            require(msg.sender == _podProxyOwner, "Only PodProxyOwner can register to non Puffer AVS");
         }
-        _;
+        if (!_podProxyManager.isAVSEnabled(contractAddress)) {
+            revert AVSNotSupported();
+        }
+
+        // Note this contract address as potential payment address
+        AVSPaymentAddresses[contractAddress] = true;
+        _slasher.optIntoSlashing(contractAddress);
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function registerToAVS(bytes calldata registrationData) external { }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function registerToPufferAVS(bytes calldata registrationData) external { }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function deregisterFromAVS() external { }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function initiateWithdrawal() external {
+        // Withdraw all available ETH
+        uint256[] memory shares;
+        shares[0] = uint256(ownedEigenPod.withdrawableRestakedExecutionLayerGwei());
+
+        // Hardcoded values
+        uint256[] memory strategyIndexes;
+        strategyIndexes[0] = _podProxyManager.getBeaconChainETHStrategyIndex();
+        IStrategy[] memory strategies;
+        strategies[0] = _podProxyManager.getBeaconChainETHStrategy();
+
+        _podProxyManager.getStrategyManager().queueWithdrawal(strategyIndexes, strategies, shares, address(this), true);
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function withdrawSlashedEth() external { }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function enableRestaking(
+        uint64 oracleBlockNumber,
+        uint40 validatorIndex,
+        bytes memory proofs,
+        bytes32[] calldata validatorFields
+    ) external {
+        ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
+        // Keep track of ValidatorStatus state changes
+        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE;
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function verifyAndWithdraw(
+        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs,
+        bytes calldata validatorFieldsProof,
+        bytes32[] calldata validatorFields,
+        bytes32[] calldata withdrawalFields,
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleBlockNumber
+    ) external {
+        ownedEigenPod.verifyAndProcessWithdrawal(
+            withdrawalProofs,
+            validatorFieldsProof,
+            validatorFields,
+            withdrawalFields,
+            beaconChainETHStrategyIndex,
+            oracleBlockNumber
+        );
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function completeWithdrawal() external { }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function getPodProxyManager() public view returns (address payable) {
+        return payable(address(_podProxyManager));
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function getPodProxyOwner() public view returns (address payable) {
+        return payable(_podProxyOwner);
+    }
+
+    function _setPodRewardsRecipient(address payable podRewardsRecipient) internal {
+        address oldRecipient = _podRewardsRecipient;
+        _podRewardsRecipient = podRewardsRecipient;
+        emit PodRewardsRecipientChanged(oldRecipient, podRewardsRecipient);
     }
 
     function _distributeFunds(uint256 total, uint256 toPod) internal {
@@ -200,164 +366,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
         // Update previous status to withdrawn
         _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN;
-    }
-
-    /**
-     * @dev Pod owner and PufferPool are allowed
-     */
-    modifier onlyOwnerAndManager() {
-        if (msg.sender != _podProxyOwner && msg.sender != address(_podProxyManager)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
-    function setPodProxyOwnerAndRewardsRecipient(address payable podProxyowner, address payable podRewardsRecipient)
-        external
-        onlyPodProxyManager
-    {
-        // Revert if the pod is already initialized
-        if (_podProxyOwner != address(0)) {
-            revert();
-        }
-        _podProxyOwner = podProxyowner;
-        _podRewardsRecipient = podRewardsRecipient;
-    }
-
-    function updatePodRewardsRecipient(address payable podRewardsRecipient) external onlyPodProxyOwner {
-        _podRewardsRecipient = podRewardsRecipient;
-        // todo: missing event
-    }
-
-    /// @notice Initiated by the PufferPool. Calls stake() on the EigenPodManager to deposit Beacon Chain ETH and create another ETH validator
-    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        external
-        payable
-        onlyPodProxyManager
-    {
-        require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
-        staked = true;
-        _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
-        _pubKey = pubKey;
-    }
-
-    /// @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
-    function stopRegistraion() external onlyPodProxyOwner {
-        require(!staked, "pufETH bond is locked, because pod is already staking");
-        bondWithdrawn = true;
-        _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
-    }
-
-    /// @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
-    function enableSlashing(address contractAddress) external {
-        if (contractAddress != _podProxyManager.getPufferAvsAddress()) {
-            require(msg.sender == _podProxyOwner, "Only PodProxyOwner can register to non Puffer AVS");
-        }
-        if (!_podProxyManager.isAVSEnabled(contractAddress)) {
-            revert AVSNotSupported();
-        }
-
-        // Note this contract address as potential payment address
-        AVSPaymentAddresses[contractAddress] = true;
-        _slasher.optIntoSlashing(contractAddress);
-    }
-
-    /// @notice Register to generic AVS. Only callable by pod owner
-    function registerToAVS(bytes calldata registrationData) external { }
-
-    /// @notice Register to Puffer AVS. Callable by anyone
-    function registerToPufferAVS(bytes calldata registrationData) external { }
-
-    /// @notice Deregisters this EigenPodProxy from an AVS
-    function deregisterFromAVS() external { }
-
-    /**
-     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
-     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
-     * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
-     * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
-     * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
-     * that the value per share reported by each strategy will remain consistent, and that the shares will continue
-     * to accrue gains during the enforced withdrawal waiting period.
-     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
-     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed
-     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
-     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
-     */
-    function initiateWithdrawal() external {
-        // Withdraw all available ETH
-        uint256[] memory shares;
-        shares[0] = uint256(ownedEigenPod.withdrawableRestakedExecutionLayerGwei());
-
-        // Hardcoded values
-        uint256[] memory strategyIndexes;
-        strategyIndexes[0] = _podProxyManager.getBeaconChainETHStrategyIndex();
-        IStrategy[] memory strategies;
-        strategies[0] = _podProxyManager.getBeaconChainETHStrategy();
-
-        _podProxyManager.getStrategyManager().queueWithdrawal(strategyIndexes, strategies, shares, address(this), true);
-    }
-
-    /// @notice Withdraws full EigenPod balance if corresponding validator was slashed before restaking
-    function withdrawSlashedEth() external { }
-
-    /// @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
-    function enableRestaking(
-        uint64 oracleBlockNumber,
-        uint40 validatorIndex,
-        bytes memory proofs,
-        bytes32[] calldata validatorFields
-    ) external {
-        ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
-        // Keep track of ValidatorStatus state changes
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE;
-    }
-
-    /**
-     * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param withdrawalProofs is the information needed to check the veracity of the block number and withdrawal being proven
-     * @param validatorFieldsProof is the proof of the validator's fields in the validator tree
-     * @param withdrawalFields are the fields of the withdrawal being proven
-     * @param validatorFields are the fields of the validator being proven
-     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to
-     *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
-     */
-    function verifyAndWithdraw(
-        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs,
-        bytes calldata validatorFieldsProof,
-        bytes32[] calldata validatorFields,
-        bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex,
-        uint64 oracleBlockNumber
-    ) external {
-        ownedEigenPod.verifyAndProcessWithdrawal(
-            withdrawalProofs,
-            validatorFieldsProof,
-            validatorFields,
-            withdrawalFields,
-            beaconChainETHStrategyIndex,
-            oracleBlockNumber
-        );
-    }
-
-    /// @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
-    function completeWithdrawal() external { }
-
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
-    function getPodProxyManager() public view returns (address payable) {
-        return payable(address(_podProxyManager));
-    }
-
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
-    function getPodProxyOwner() public view returns (address payable) {
-        return payable(_podProxyOwner);
     }
 
     function _sendETH(address payable to, uint256 amount) internal {
