@@ -5,11 +5,11 @@ import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/ext
 import { ReentrancyGuardUpgradeable } from "openzeppelin-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
-import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableUpgradeable.sol";
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
-import { Safe } from "safe-contracts/Safe.sol";
+import { GuardianModule } from "puffer/GuardianModule.sol";
+import { Safe, Enum, ModuleManager, OwnerManager } from "safe-contracts/Safe.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferOwner } from "puffer/interface/IPufferOwner.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
@@ -55,6 +55,11 @@ contract PufferPool is
     uint256 internal constant _ONE = 10 ** 18;
 
     /**
+     * @dev Constant representing 100%
+     */
+    uint256 internal constant _ONE_HUNDRED = 100 * _ONE;
+
+    /**
      * @dev Minimum deposit amount in ETH
      */
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
@@ -63,10 +68,6 @@ contract PufferPool is
      * @dev Locked ETH amount
      */
     uint256 internal _lockedETHAmount;
-
-    uint256 internal _depositPoolBalance;
-
-    uint256 internal _withdrawalPoolBalance;
 
     /**
      * @dev New rewards amount
@@ -154,6 +155,16 @@ contract PufferPool is
     uint256 internal _enclaveBondRequirement;
 
     /**
+     * @dev Withdrawal pool address
+     */
+    address internal _withdrawalPool;
+
+    /**
+     * @dev Guardian {Safe} Module
+     */
+    GuardianModule internal _guardianModule;
+
+    /**
      * @dev Index of the beacon ETH strategy
      */
     uint256 internal _beaconChainETHStrategyIndex;
@@ -179,7 +190,7 @@ contract PufferPool is
     }
 
     /**
-     *
+     * @dev Allow a call from guardians multisig
      */
     modifier onlyGuardians() {
         _onlyGuardians();
@@ -200,29 +211,30 @@ contract PufferPool is
         _disableInitializers();
     }
 
-    receive() external payable { }
+    receive() external payable {
+        _splitETH();
+    }
 
-    // PufferPool contract
-    fallback() external payable {
-        // Calculate the protocol fee and transfer to treasury
-        uint256 protocolFee = (msg.value * _ONE) / _protocolFeeRate;
-
+    function _splitETH() internal {
+        // Calculate and split between the treasury, deposit pool and the withdrawal pool
+        uint256 protocolFee = msg.value * _protocolFeeRate / _ONE_HUNDRED;
         _safeTransferETH(_treasury, protocolFee);
 
-        uint256 depositPoolAmount = _updateDepositPoolBalance(msg.value - protocolFee);
+        // PufferPool is the deposit pool, so we just leave this amount in this contract
+        uint256 depositPoolAmount = (msg.value - protocolFee) * _depositRate / _ONE_HUNDRED;
 
-        _withdrawalPoolBalance += msg.value - protocolFee - depositPoolAmount;
+        // We transfer this amount to Withdrawal Pool contract
+        uint256 withdrawalPoolAmount = msg.value - protocolFee - depositPoolAmount;
+        _safeTransferETH(_withdrawalPool, withdrawalPoolAmount);
     }
 
-    function _updateDepositPoolBalance(uint256 amount) internal returns (uint256 depositPoolAmount) {
-        depositPoolAmount = amount * _ONE / _depositRate;
-        _depositPoolBalance += depositPoolAmount;
-    }
-
-    function initialize(address safeProxyFactory, address safeImplementation, address[] calldata treasuryOwners)
-        external
-        initializer
-    {
+    function initialize(
+        address safeProxyFactory,
+        address safeImplementation,
+        address[] calldata treasuryOwners,
+        address withdrawalPool,
+        address guardianSafeModule
+    ) external initializer {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
         __ERC20_init("Puffer ETH", "pufETH");
@@ -244,11 +256,19 @@ contract PufferPool is
                 safeSingleton: _safeImplementation,
                 saltNonce: uint256(keccak256("treasury")),
                 owners: treasuryOwners,
-                threshold: treasuryOwners.length
+                threshold: treasuryOwners.length,
+                to: address(0),
+                data: bytes("")
             })
         );
 
+        _guardianModule = GuardianModule(guardianSafeModule);
         _setTreasury(treasury);
+        _setDepositRate(90 * _ONE);
+        _setProtocolFeeRate(5 * _ONE);
+
+        // TODO: use constants / immutables
+        _withdrawalPool = withdrawalPool;
     }
 
     // Guardians only
@@ -292,6 +312,7 @@ contract PufferPool is
         if (msg.value < _MINIMUM_DEPOSIT_AMOUNT) {
             revert InsufficientETH();
         }
+        // TODO: split this eth between deposit and withdrawal pool
 
         uint256 pufETHAmount = calculateETHToPufETHAmount(msg.value);
 
@@ -303,38 +324,9 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function withdrawETH(address ethRecipient, uint256 pufETHAmount) external whenNotPaused {
-        uint256 ethAmount = calculatePufETHtoETHAmount(pufETHAmount);
-
+    function burn(uint256 pufETHAmount) external whenNotPaused {
         _burn(msg.sender, pufETHAmount);
-
-        _safeTransferETH(ethRecipient, ethAmount);
-
-        emit Withdrawn(msg.sender, ethRecipient, pufETHAmount, ethAmount);
     }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    /*
-    function provisionPodETH(
-        address eigenPodProxy,
-        bytes calldata pubKey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
-    ) external onlyGuardians {
-        // TODO: logic for this
-
-        // Update locked ETH Amount
-        _lockedETHAmount += _32_ETHER;
-
-        // TODO: params
-        EigenPodProxy(payable(eigenPodProxy)).callStake{ value: _32_ETHER }(pubKey, signature, depositDataRoot);
-
-        // TODO: event update
-        emit ETHProvisioned(eigenPodProxy, 0, block.timestamp);
-    }
-    */
 
     /**
      * Distributes all ETH to the pool and PodProxyOwner upon protocol exit
@@ -373,13 +365,60 @@ contract PufferPool is
             revert GuardiansAlreadyExist();
         }
 
+        // Append PufferPool to owners
+        address[] memory owners = new address[](guardiansWallets.length + 1);
+        for (uint256 i = 0; i < guardiansWallets.length;) {
+            owners[i] = guardiansWallets[i];
+            unchecked {
+                ++i;
+            }
+        }
+        // Add PufferPool as guardian so that we can execute addModule
+        owners[guardiansWallets.length] = address(this);
+
+        // Deploy {Safe} with threshold 1
         account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
             saltNonce: uint256(keccak256(abi.encode(guardiansWallets))),
-            owners: guardiansWallets,
-            threshold: threshold
+            owners: owners,
+            threshold: 1,
+            to: address(0),
+            data: bytes("")
         });
+
+        // _guardianModule.initialize(address(account));
+
+        // Enable module on {Safe}
+        // Because PufferPool is the owner and threshold is 1, we can craft a valid signature
+        account.execTransaction({
+            to: address(account),
+            value: 0,
+            data: abi.encodeCall(ModuleManager.enableModule, address(_guardianModule)),
+            operation: Enum.Operation.Call,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: payable(address(0)),
+            signatures: _createSafeContractSignature()
+        });
+
+        // Change threshold to desired threshold if the threshold is not 1
+        if (threshold != 1) {
+            account.execTransaction({
+                to: address(account),
+                value: 0,
+                data: abi.encodeCall(OwnerManager.changeThreshold, threshold),
+                operation: Enum.Operation.Call,
+                safeTxGas: 0,
+                baseGas: 0,
+                gasPrice: 0,
+                gasToken: address(0),
+                refundReceiver: payable(address(0)),
+                signatures: _createSafeContractSignature()
+            });
+        }
 
         _guardiansMultisig = account;
 
@@ -488,6 +527,11 @@ contract PufferPool is
         return eigenPodProxy;
     }
 
+    function setNewRewardsETHAmount(uint256 amount) external {
+        // TODO: everything
+        _newETHRewardsAmount = amount;
+    }
+
     // ==== Only Owner ====
 
     /**
@@ -574,7 +618,25 @@ contract PufferPool is
         _setEnclaveBondRequirement(newValue);
     }
 
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setProtocolFeeRate(uint256 protocolFeeRate) external onlyOwner {
+        _setProtocolFeeRate(protocolFeeRate);
+    }
+
+    /**
+     * @inheritdoc IPufferOwner
+     */
+    function setDepositRate(uint256 depositRate) external onlyOwner {
+        _setDepositRate(depositRate);
+    }
+
     // ==== Only Owner end ====
+
+    function getGuardianModule() external view returns (GuardianModule) {
+        return _guardianModule;
+    }
 
     /**
      * @inheritdoc IPufferPool
@@ -625,6 +687,10 @@ contract PufferPool is
         return _consensusCommission;
     }
 
+    function getDepositRate() external view returns (uint256) {
+        return _depositRate;
+    }
+
     /**
      * @inheritdoc IPufferPool
      */
@@ -657,13 +723,6 @@ contract PufferPool is
     function getMinBondRequirement(address avs) external view returns (uint256) {
         return uint256(_allowedAVSs[avs].minBondRequirement);
     }
-
-    // /**
-    //  * @inheritdoc IPufferPool
-    //  */
-    // function getEigenPodProxyInfo(address eigenPodProxy) public view returns (EigenPodProxyInformation memory) {
-    //     return _eigenPodProxies[eigenPodProxy];
-    // }
 
     /**
      * @inheritdoc IPufferPool
@@ -721,7 +780,8 @@ contract PufferPool is
         }
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
         uint256 exchangeRate = (
-            getLockedETHAmount() + getNewRewardsETHAmount() + address(this).balance - ethDepositedAmount
+            getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
+                + (address(this).balance - ethDepositedAmount)
         ) * _ONE / pufETHSupply;
 
         return exchangeRate;
@@ -730,10 +790,27 @@ contract PufferPool is
     // TODO: timelock on upgrade?
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 
+    /**
+     * @dev Helper function for creating a valid {Safe} signature
+     *      It is expected that the {Safe} will have address(this) as the owner and threshold of 1
+     */
+    function _createSafeContractSignature() internal view returns (bytes memory) {
+        return abi.encodePacked(
+            bytes(hex"000000000000000000000000"),
+            address(this),
+            bytes(
+                hex"0000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
+    }
+
+    /**
+     * @dev Creates eigen pod proxy via create2
+     */
     function _createEigenPodProxy(bytes32 pubkeyHash) internal returns (IEigenPodProxy eigenPodProxy) {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
-            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether)))
+            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this, 2 ether))) // TODO: 2 ether is hardcoded, either use variable, or move it to
         );
 
         // solhint-disable-next-line no-inline-assembly
@@ -758,7 +835,9 @@ contract PufferPool is
             safeSingleton: _safeImplementation,
             saltNonce: block.timestamp,
             owners: podAccountOwners,
-            threshold: threshold
+            threshold: threshold,
+            to: address(0),
+            data: bytes("")
         });
 
         emit PodAccountCreated(msg.sender, address(account));
@@ -885,6 +964,18 @@ contract PufferPool is
         address oldTreasury = _treasury;
         _treasury = treasury;
         emit TreasuryChanged(oldTreasury, treasury);
+    }
+
+    function _setProtocolFeeRate(uint256 protocolFee) internal {
+        uint256 oldProtocolFee = _protocolFeeRate;
+        _protocolFeeRate = protocolFee;
+        emit ProtocolFeeRateChanged(oldProtocolFee, protocolFee);
+    }
+
+    function _setDepositRate(uint256 depositRate) internal {
+        uint256 oldDepositRate = _depositRate;
+        _depositRate = depositRate;
+        emit DepositRateChanged(oldDepositRate, depositRate);
     }
 
     function _getValidatorBondRequirement(bytes calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)

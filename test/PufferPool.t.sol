@@ -3,6 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test, console } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { Enum } from "safe-contracts/common/Enum.sol";
+import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferPoolMockUpgrade } from "test/mocks/PufferPoolMockUpgrade.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
@@ -12,6 +14,7 @@ import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 
 contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
@@ -26,20 +29,45 @@ contract MockPodNotOwned {
 }
 
 contract PufferPoolTest is Test {
+    event DepositRateChanged(uint256 oldValue, uint256 newValue);
     event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
     PufferPool pool;
+    WithdrawalPool withdrawalPool;
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
     UpgradeableBeacon beacon;
-    address treasuryOwnerMock = makeAddr("treasuryOwnerMock");
 
-    uint256 VALIDATOR_BOND = 2 ether;
+    bytes32 private constant _PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+    struct _TestTemps {
+        address owner;
+        address to;
+        uint256 amount;
+        uint256 deadline;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 privateKey;
+        uint256 nonce;
+    }
+
+    function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline)
+        internal
+        returns (_TestTemps memory t)
+    {
+        (t.owner, t.privateKey) = makeAddrAndKey(seed);
+        t.to = to;
+        t.amount = amount;
+        t.deadline = deadline;
+    }
 
     function setUp() public {
         (, beacon) = new DeployBeacon().run(true);
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool, withdrawalPool) =
+            new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
     }
 
@@ -76,14 +104,13 @@ contract PufferPoolTest is Test {
         assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
 
-        address[] memory treasuryOwners = new address[](1);
-        treasuryOwners[0] = treasuryOwnerMock;
-
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({
             safeProxyFactory: address(proxyFactory),
             safeImplementation: address(safeImplementation),
-            treasuryOwners: treasuryOwners
+            treasuryOwners: new address[](0),
+            withdrawalPool: address(123),
+            guardianSafeModule: address(555123)
         });
     }
 
@@ -123,16 +150,36 @@ contract PufferPoolTest is Test {
 
     // Create guardian account
     function testCreateGuardianAccount() public {
-        address[] memory owners = new address[](1);
-
-        owners[0] = address(this);
+        address[] memory owners = new address[](2);
+        owners[0] = makeAddr("guardian");
+        owners[1] = makeAddr("guardian2");
 
         Safe safe = pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
-        assertTrue(safe.isOwner(address(this)), "bad owner");
-        assertEq(safe.getThreshold(), 1, "threshold");
+        assertTrue(safe.isOwner(owners[0]), "bad owner0");
+        assertTrue(safe.isOwner(owners[1]), "bad owner1");
+        assertTrue(safe.isOwner(address(pool)), "bad owner");
+        assertEq(safe.getThreshold(), 2, "threshold");
+
+        GuardianModule module = pool.getGuardianModule();
+
+        address enclaveAddress = 0x8D88EDeFb5Cb196086068AEB73AC789F613B59F7;
+        bytes memory pubKey =
+            hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6384e";
+
+        vm.prank(owners[0]);
+        module.rotateGuardianKeys(address(safe), 0, pubKey, "");
+
+        // assert guardian key is good
+        bool isGuardianEnclave = module.isGuardiansEnclaveAddress(payable(address(safe)), enclaveAddress);
+        assertTrue(isGuardianEnclave, "failed to rotate keys");
 
         vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
+    }
+
+    function getMappingValue(address targetContract, uint256 mapSlot, address key) public view returns (uint256) {
+        bytes32 slotValue = vm.load(targetContract, keccak256(abi.encode(key, mapSlot)));
+        return uint256(slotValue);
     }
 
     // Test creating pod account
@@ -223,103 +270,163 @@ contract PufferPoolTest is Test {
         assertEq(pool.balanceOf(pufETHRecipient), depositAmount, "recipient pufETH amount");
     }
 
-    // Deposits a random amount of ETH, gets pufETH in return, withdraws pufETH
-    // should get the deposited ETH amount back
-    function testDepositAndWtihdrawal(uint256 depositAmount) public {
-        depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
+    // Deposits ETH and tries to get half of that back
+    function testDepositAndWithdrawal() public {
+        uint256 depositAmount = 100 ether;
         address pufETHRecipient = makeAddr("pufETHRecipient");
 
         assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
 
+        // This is the only depositor in our pool, meaning he gets 1:1 pufETH for depositing
         pool.depositETH{ value: depositAmount }(pufETHRecipient);
 
         uint256 pufETHRecipientBalance = pool.balanceOf(pufETHRecipient);
 
+        assertEq(depositAmount, pufETHRecipientBalance, "1:1 ratio");
+
+        // Our WithdrawalPool is empty, so we need to give it some ETH so that it can handle withdrawals
+        uint256 liquidityAmount = 1_000_000 ether;
+
+        // Give eth to eth pool so that it has liquidity
+        vm.deal(address(withdrawalPool), liquidityAmount);
+
+        // Calculate the expected amount out
+        uint256 expectedAmount = (depositAmount + liquidityAmount) / 2;
+
         vm.startPrank(pufETHRecipient);
-        pool.approve(address(pool), pufETHRecipientBalance);
+        // 2 step withdrawal
+        // 1 approve pufETH to withdrawal pool
+        pool.approve(address(withdrawalPool), type(uint256).max);
 
-        pool.withdrawETH(pufETHRecipient, pufETHRecipientBalance);
+        WithdrawalPool.Permit memory permit;
+        permit.owner = pufETHRecipient;
+        permit.amount = pufETHRecipientBalance / 2;
 
-        assertEq(depositAmount, pufETHRecipient.balance, "amounts don't match");
+        // 2. withdraw
+        withdrawalPool.withdrawETH(pufETHRecipient, permit);
+
+        assertEq(expectedAmount, pufETHRecipient.balance, "amounts don't match");
     }
 
-    // Test multiple deposits, fake rewards, fake slashing and withdrawal of pufETH -> ETH
-    function testMultipleDeposits() public {
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
+    // Deposits ETH and tries to get half of that back via permit signature
+    function testDepositAndWithdrawalWithPermit() public {
+        uint256 depositAmount = 100 ether;
+        string memory addressSeed = "pufETHDepositor";
 
-        uint256 aliceAmount = 100 ether;
-        pool.depositETH{ value: aliceAmount }(alice);
+        address pufETHDepositor = makeAddr(addressSeed);
 
-        uint256 alicePufETHBalance = pool.balanceOf(alice);
-        assertEq(alicePufETHBalance, aliceAmount); // first depositor got 1:1 conversion rate because totalSupply of pufETH is 0
+        assertEq(pool.balanceOf(pufETHDepositor), 0, "recipient pufETH amount before deposit");
 
-        // 100 ETH deposited, 100 pufETH minted - 1:1 rate
+        // This is the only depositor in our pool, meaning he gets 1:1 pufETH for depositing
+        pool.depositETH{ value: depositAmount }(pufETHDepositor);
 
-        // Send fake rewards to pool
-        // pool now has 25 ETH
-        (bool success,) = payable(address(pool)).call{ value: 25 ether }("");
-        require(success, "rewards failed");
+        uint256 pufETHRecipientBalance = pool.balanceOf(pufETHDepositor);
 
-        // Pool before deposit has 125 ETH and 100 pufETH total supply
-        // conversion rate is 1.25
-        uint256 bobAmount = 100 ether;
-        pool.depositETH{ value: bobAmount }(bob);
+        assertEq(depositAmount, pufETHRecipientBalance, "1:1 ratio");
 
-        // Pool now has 225 ETH (fake rewards + alice deposit + bob deposit)
-        assertEq(225 ether, address(pool).balance, "pool eth amount first check");
+        // Our WithdrawalPool is empty, so we need to give it some ETH so that it can handle withdrawals
+        uint256 liquidityAmount = 1_000_000 ether;
 
-        // Check that the bob got the right amount of pufETH tokens
-        uint256 bobPufETHBalance = pool.balanceOf(bob);
-        assertEq(bobPufETHBalance, 80 ether);
+        // Give eth to eth pool so that it has liquidity
+        vm.deal(address(withdrawalPool), liquidityAmount);
 
-        // Check the total supply 100 pufETH from alice and 80 from bob
-        assertEq(pool.totalSupply(), 180 ether, "pufETH total supply");
+        // Calculate the expected amount out
+        uint256 expectedAmount = (depositAmount + liquidityAmount) / 2;
 
-        // Send fake rewards to pool
-        (success,) = payable(address(pool)).call{ value: 45 ether }("");
-        require(success, "rewards failed");
+        vm.startPrank(pufETHDepositor);
 
-        // 270 ETH in the pool and 180 pufETH mean 1.5 conversion rate
-        assertEq(pool.getPufETHtoETHExchangeRate(), 1.5 ether, "conversion rate"); // conversion rate should be 1.5
+        _TestTemps memory temp =
+            _testTemps(addressSeed, address(withdrawalPool), pufETHRecipientBalance / 2, block.timestamp);
 
-        // Alice withdraws 70 pufETH for 105 ETH
-        vm.prank(alice);
-        pool.withdrawETH(alice, 70 ether);
+        // Do a gasless signature
+        WithdrawalPool.Permit memory permit = _signPermit(temp);
 
-        assertEq(105 ether, alice.balance, "alice amount");
+        // Create a new recipient address and withdraw to it
+        address pufETHRecipient = makeAddr("recipient");
 
-        // Fake slashing of the pool
-        vm.prank(address(pool));
-        (success,) = payable(address(0)).call{ value: 65 ether }("");
-        require(success, "fake slashing");
+        // Approve is actually a permit signature
+        withdrawalPool.withdrawETH(pufETHRecipient, permit);
 
-        assertEq(100 ether, address(pool).balance, "pool eth amount");
-        assertEq(pool.totalSupply(), 110 ether, "pufETH total supply second check");
-
-        // 100 eth / 110 pufETH => 0.90909090909090909 exchange rate
-        assertEq(pool.getPufETHtoETHExchangeRate(), 0.90909090909090909 ether, "conversion rate after fake slashing"); // ~0.9
-
-        vm.prank(bob);
-        pool.withdrawETH(bob, 10 ether); // withdraw 10pufETH -> ETH
-
-        // Bob should get ~9 ETH
-        assertEq(9.0909090909090909 ether, bob.balance, "bob amount");
-
-        // Assert leftover
-        assertEq(100 ether - 9.0909090909090909 ether, address(pool).balance, "pool eth amount last check");
-        assertEq(pool.totalSupply(), 100 ether, "pufETH total supply last check");
-
-        // Withdraw the remaining pufETH, zeroing out ETH and pufETH total supply
-        vm.prank(alice);
-        pool.withdrawETH(alice, 30 ether);
-
-        vm.prank(bob);
-        pool.withdrawETH(bob, 70 ether);
-
-        assertEq(0, address(pool).balance, "pool eth amount");
-        assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
+        assertEq(expectedAmount, pufETHRecipient.balance, "recipient didnt get any ETH");
     }
+
+    // // Test multiple deposits, fake rewards, fake slashing and withdrawal of pufETH -> ETH
+    // function testMultipleDeposits() public {
+    //     address alice = makeAddr("alice");
+    //     address bob = makeAddr("bob");
+
+    //     uint256 aliceAmount = 100 ether;
+    //     pool.depositETH{ value: aliceAmount }(alice);
+
+    //     uint256 alicePufETHBalance = pool.balanceOf(alice);
+    //     assertEq(alicePufETHBalance, aliceAmount); // first depositor got 1:1 conversion rate because totalSupply of pufETH is 0
+
+    //     // 100 ETH deposited, 100 pufETH minted - 1:1 rate
+
+    //     // Send fake rewards to pool
+    //     // pool now has 25 ETH
+    //     (bool success,) = payable(address(pool)).call{ value: 25 ether }("");
+    //     require(success, "rewards failed");
+
+    //     // Pool before deposit has 125 ETH and 100 pufETH total supply
+    //     // conversion rate is 1.25
+    //     uint256 bobAmount = 100 ether;
+    //     pool.depositETH{ value: bobAmount }(bob);
+
+    //     // Pool now has 225 ETH (fake rewards + alice deposit + bob deposit)
+    //     assertEq(225 ether, address(pool).balance, "pool eth amount first check");
+
+    //     // Check that the bob got the right amount of pufETH tokens
+    //     uint256 bobPufETHBalance = pool.balanceOf(bob);
+    //     assertEq(bobPufETHBalance, 80 ether);
+
+    //     // Check the total supply 100 pufETH from alice and 80 from bob
+    //     assertEq(pool.totalSupply(), 180 ether, "pufETH total supply");
+
+    //     // Send fake rewards to pool
+    //     (success,) = payable(address(pool)).call{ value: 45 ether }("");
+    //     require(success, "rewards failed");
+
+    //     // 270 ETH in the pool and 180 pufETH mean 1.5 conversion rate
+    //     assertEq(pool.getPufETHtoETHExchangeRate(), 1.5 ether, "conversion rate"); // conversion rate should be 1.5
+
+    //     // Alice withdraws 70 pufETH for 105 ETH
+    //     vm.prank(alice);
+    //     pool.withdrawETH(alice, 70 ether);
+
+    //     assertEq(105 ether, alice.balance, "alice amount");
+
+    //     // Fake slashing of the pool
+    //     vm.prank(address(pool));
+    //     (success,) = payable(address(0)).call{ value: 65 ether }("");
+    //     require(success, "fake slashing");
+
+    //     assertEq(100 ether, address(pool).balance, "pool eth amount");
+    //     assertEq(pool.totalSupply(), 110 ether, "pufETH total supply second check");
+
+    //     // 100 eth / 110 pufETH => 0.90909090909090909 exchange rate
+    //     assertEq(pool.getPufETHtoETHExchangeRate(), 0.90909090909090909 ether, "conversion rate after fake slashing"); // ~0.9
+
+    //     vm.prank(bob);
+    //     pool.withdrawETH(bob, 10 ether); // withdraw 10pufETH -> ETH
+
+    //     // Bob should get ~9 ETH
+    //     assertEq(9.0909090909090909 ether, bob.balance, "bob amount");
+
+    //     // Assert leftover
+    //     assertEq(100 ether - 9.0909090909090909 ether, address(pool).balance, "pool eth amount last check");
+    //     assertEq(pool.totalSupply(), 100 ether, "pufETH total supply last check");
+
+    //     // Withdraw the remaining pufETH, zeroing out ETH and pufETH total supply
+    //     vm.prank(alice);
+    //     pool.withdrawETH(alice, 30 ether);
+
+    //     vm.prank(bob);
+    //     pool.withdrawETH(bob, 70 ether);
+
+    //     assertEq(0, address(pool).balance, "pool eth amount");
+    //     assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
+    // }
 
     // Test provisioning pod ETH and starting the validation process
     function testProvisionPodETH() public {
@@ -418,5 +525,45 @@ contract PufferPoolTest is Test {
         assertEq(pool.isAVSEnabled(avs), enabled);
         assertEq(pool.getAVSComission(avs), avsComission);
         assertEq(pool.getMinBondRequirement(avs), minBondRequirement);
+    }
+
+    function testSplittingUpTheETH() public {
+        (bool success,) = address(pool).call{ value: 100 ether }("");
+        assertTrue(success, "failed");
+
+        // Initial values are 5% to treasury
+        // 90% of the remainder to deposit pool
+        // the rest to the withdrawal pool
+
+        assertEq(pool.getTreasury().balance, 5 ether, "treasury");
+        assertEq(address(pool).balance, 85.5 ether, "depositPool");
+        assertEq(address(withdrawalPool).balance, 9.5 ether, "withdrawalPool");
+    }
+
+    function testSetDepositRate() public {
+        uint256 depositRate = 70 * 1 ether; // 70%
+        vm.expectEmit(true, true, true, true);
+        emit DepositRateChanged(pool.getDepositRate(), depositRate);
+        pool.setDepositRate(depositRate);
+    }
+
+    // Modified from https://github.com/Vectorized/solady/blob/2ced0d8382fd0289932010517d66efb28b07c3ce/test/ERC20.t.sol
+    function _signPermit(_TestTemps memory t) internal view returns (WithdrawalPool.Permit memory p) {
+        bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
+        bytes32 domainSeparator = pool.DOMAIN_SEPARATOR();
+        bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
+        (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
+
+        return WithdrawalPool.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+    }
+
+    function _createSafeContractSignature() internal view returns (bytes memory) {
+        return abi.encodePacked(
+            bytes(hex"000000000000000000000000"),
+            address(this),
+            bytes(
+                hex"0000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
     }
 }

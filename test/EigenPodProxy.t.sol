@@ -20,6 +20,7 @@ import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.s
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import "forge-std/console.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
@@ -199,7 +200,7 @@ contract EigenPodProxyTest is Test {
 
     function testExecutionRewardsProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         address payable eigenPodProxyAddress = payable(
@@ -235,7 +236,7 @@ contract EigenPodProxyTest is Test {
 
     function testConsensusRewardsActiveProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -261,7 +262,7 @@ contract EigenPodProxyTest is Test {
 
     function testQuickWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -293,7 +294,7 @@ contract EigenPodProxyTest is Test {
 
     function testCompleteSlowWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -304,7 +305,7 @@ contract EigenPodProxyTest is Test {
 
     function testRewardsAfterBondWithdrawnProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
