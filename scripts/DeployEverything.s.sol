@@ -33,18 +33,11 @@ using stdJson for string;
 // Example script call (Assumes `PK` environment variable is set to eth private key):
 // forge script ./DeployEverything.s.sol:DeployEverything ./simulation/ephemery-sim-2 --sig 'run(string)' --rpc-url 'https://otter.bordel.wtf/erigon' --broadcast
 contract DeployEverything is BaseScript {
-    function run(string calldata simulationDir) external broadcast {
+    function run(string calldata simulationDir, address slasherAddress, address eigenPodManager) external broadcast {
         console.log("Running DeployEverything");
 
-        address eigenPodManager = address(new EigenPodManagerMock());
-        // if (!useEigenPodManagerMock) {
-        //     eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
-        // }
-
-        ISlasher slasher = new SlasherMock(
-            IStrategyManager(address(0)),
-            IDelegationManager(address(0))
-        );
+        ISlasher slasher = ISlasher(slasherAddress);
+        
         EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(
             IEigenPodManager(eigenPodManager),
             slasher
