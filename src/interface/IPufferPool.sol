@@ -322,11 +322,6 @@ interface IPufferPool is IERC20Upgradeable {
     function getExecutionCommission() external view returns (uint256);
 
     /**
-     * @notice Returns Commission Denominator
-     */
-    function getCommissionDenominator() external view returns (uint256);
-
-    /**
      * @notice Returns the index of the Beacon Chain ETH Strategy
      */
     function getBeaconChainETHStrategyIndex() external view returns (uint256);

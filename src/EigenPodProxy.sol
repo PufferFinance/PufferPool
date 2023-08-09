@@ -21,6 +21,16 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
  */
 contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
+     * @dev Exchange rate 1 is represented as 10 ** 18
+     */
+    uint256 internal constant _ONE = 10 ** 18;
+
+    /**
+     * @dev Constant representing 100%
+     */
+    uint256 internal constant _ONE_HUNDRED = 100 * _ONE;
+
+    /**
      * @dev {Safe} PodAccount is the pod proxy owner
      */
     address payable internal _podProxyOwner;
@@ -85,7 +95,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
-    fallback() external payable {
+    receive() external payable {
         // If bond is already withdrawn, send any incoming money directly to pool
         if (bondWithdrawn) {
             _sendETH(payable(address(_podProxyManager)), msg.value);
@@ -156,19 +166,17 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     function _distributeAvsRewards(uint256 amount) internal {
-        uint256 toPod = (amount * _podProxyManager.getAvsCommission()) / _podProxyManager.getCommissionDenominator();
+        uint256 toPod = (amount * _podProxyManager.getAvsCommission()) / _ONE_HUNDRED;
         _distributeFunds(amount, toPod);
     }
 
     function _distributeExecutionRewards(uint256 amount) internal {
-        uint256 toPod =
-            (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator();
+        uint256 toPod = (amount * _podProxyManager.getExecutionCommission()) / _ONE_HUNDRED;
         _distributeFunds(amount, toPod);
     }
 
     function _distributeConsensusRewards(uint256 amount) internal {
-        uint256 toPod =
-            (amount * _podProxyManager.getConsensusCommission()) / _podProxyManager.getCommissionDenominator();
+        uint256 toPod = (amount * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED;
         _distributeFunds(amount, toPod);
     }
 
@@ -183,8 +191,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         // Eth owned to podProxyOwner
         // Up to 1 ETH will remain on this contract until fullWithdrawal
         uint256 skimmable = SignedMath.abs(SignedMath.max(int256(amount - 1 ether), 0));
-        uint256 podsCut =
-            (skimmable * _podProxyManager.getConsensusCommission()) / _podProxyManager.getCommissionDenominator();
+        uint256 podsCut = (skimmable * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED;
         _sendETH(_podRewardsRecipient, podsCut);
 
         // ETH owed to pool

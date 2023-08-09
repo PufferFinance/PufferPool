@@ -25,11 +25,6 @@ interface IPufferOwner {
     function setAvsCommission(uint256 newValue) external;
 
     /**
-     * @notice Sets the commission denominator used in commission calculations
-     */
-    function setCommissionDenominator(uint256 newValue) external;
-
-    /**
      * @notice Changes the {Safe} implementation address to `newSafeImplementation`
      */
     function changeSafeImplementation(address newSafeImplementation) external;

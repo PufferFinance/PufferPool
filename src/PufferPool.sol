@@ -120,17 +120,12 @@ contract PufferPool is
     uint256 internal _executionCommission;
 
     /**
-     * The denomination of shares represented by each commission value (e.g. one billion)
-     */
-    uint256 internal _commissionDenominator;
-
-    /**
-     * @dev Protocol fee rate, can be updated by governance (1e18 = 100%, 1e16 = 1%)
+     * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
      */
     uint256 internal _protocolFeeRate;
 
     /**
-     * @dev Deposit rate, can be updated by governance (1e18 = 100%, 1e16 = 1%)
+     * @dev Deposit rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
      */
     uint256 internal _depositRate;
 
@@ -245,10 +240,6 @@ contract PufferPool is
         _setNonCustodialBondRequirement(16 ether);
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
-        _avsCommission = 5 * 10 ** 7;
-        _executionCommission = 5 * 10 ** 7;
-        _consensusCommission = 5 * 10 ** 7;
-        _commissionDenominator = 10 ** 9;
 
         address treasury = address(
             _deploySafe({
@@ -598,13 +589,6 @@ contract PufferPool is
         _setAvsCommission(newValue);
     }
 
-    /**
-     * @inheritdoc IPufferOwner
-     */
-    function setCommissionDenominator(uint256 newValue) external onlyOwner {
-        _setCommissionDenominator(newValue);
-    }
-
     // TODO: do we really need this? use constants?
     function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
         _setNonCustodialBondRequirement(newValue);
@@ -689,13 +673,6 @@ contract PufferPool is
 
     function getDepositRate() external view returns (uint256) {
         return _depositRate;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getCommissionDenominator() external view returns (uint256) {
-        return _commissionDenominator;
     }
 
     /**
@@ -934,12 +911,6 @@ contract PufferPool is
         uint256 oldValue = _avsCommission;
         _avsCommission = newValue;
         emit AvsCommissionChanged(oldValue, newValue);
-    }
-
-    function _setCommissionDenominator(uint256 newValue) internal {
-        uint256 oldValue = _commissionDenominator;
-        _commissionDenominator = newValue;
-        emit CommissionDenominatorChanged(oldValue, newValue);
     }
 
     function _setNonCustodialBondRequirement(uint256 newValue) internal {

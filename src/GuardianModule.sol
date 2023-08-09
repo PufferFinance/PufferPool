@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
+import { ModuleManager } from "safe-contracts/base/ModuleManager.sol";
 import { GuardManager } from "safe-contracts/base/GuardManager.sol";
 import { Enum } from "safe-contracts/common/Enum.sol";
 import { BaseGuard } from "safe-contracts/base/GuardManager.sol";
@@ -90,7 +91,7 @@ contract GuardianModule is Initializable, BaseGuard, IGuardianModule {
     function checkTransaction(
         address to,
         uint256 value,
-        bytes memory,
+        bytes memory data,
         Enum.Operation operation,
         uint256,
         uint256,
@@ -107,8 +108,24 @@ contract GuardianModule is Initializable, BaseGuard, IGuardianModule {
             }
         }
 
+        // Prevent delegatecall anywhere
         if (operation == Enum.Operation.DelegateCall) {
             revert DelegateCallIsNotAllowed();
+        }
+
+        bytes4 selector;
+        assembly {
+            selector := mload(add(data, 32))
+        }
+
+        // Prevent adding new modules
+        if (selector == ModuleManager.enableModule.selector) {
+            revert EnableModuleIsNotAllowed();
+        }
+
+        // Prevent disabling modules
+        if (selector == ModuleManager.disableModule.selector) {
+            revert DisableModuleIsNotAllowed();
         }
     }
 

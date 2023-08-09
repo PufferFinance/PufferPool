@@ -26,6 +26,18 @@ interface IGuardianModule is Guard {
     error DelegateCallIsNotAllowed();
 
     /**
+     * @notice Thrown if the {Safe} tries to use enable module
+     * @dev Signature 0xfe98d492
+     */
+    error EnableModuleIsNotAllowed();
+
+    /**
+     * @notice Thrown if the {Safe} tries to use enable module
+     * @dev Signature 0x1c82dd57
+     */
+    error DisableModuleIsNotAllowed();
+
+    /**
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address

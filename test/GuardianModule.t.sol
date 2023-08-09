@@ -111,6 +111,40 @@ contract GuardianModuleTest is Test, SafeDeployer {
         });
     }
 
+    // Enable new module should fail
+    function testEnableAnotherModuleShouldFail() public {
+        vm.expectRevert(IGuardianModule.EnableModuleIsNotAllowed.selector);
+        safe.execTransaction({
+            to: address(safe),
+            value: 0,
+            data: abi.encodeCall(ModuleManager.enableModule, address(module)),
+            operation: Enum.Operation.Call,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: payable(address(0)),
+            signatures: _createSafeContractSignature()
+        });
+    }
+
+    // Disable existing module should fail
+    function testDisableExistingModule() public {
+        vm.expectRevert(IGuardianModule.DisableModuleIsNotAllowed.selector);
+        safe.execTransaction({
+            to: address(safe),
+            value: 0,
+            data: abi.encodeCall(ModuleManager.disableModule, (address(5), address(3))), // data doesn't really matter
+            operation: Enum.Operation.Call,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: payable(address(0)),
+            signatures: _createSafeContractSignature()
+        });
+    }
+
     // Sending ETH to any other address than the fee splitter should fail
     function testSendingMoneyElswhereShouldFail() public {
         // Simulate sending rewards to {Safe}
