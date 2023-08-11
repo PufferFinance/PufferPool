@@ -162,9 +162,10 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Emitted when Pod owners create an account
      * @param creator Creator address
      * @param account {Safe} account address
-     * @dev Signature "0xbacf7df31ba6945af4242fdcb05dd33cf3ef9301e05f220e3e504394ef8ed1fa"
+     * @param rewardsContract is the rewards contract
+     * @dev Signature "0xdb59fdaec46a06b9c7c78b7780e8967a0003f7ad1696ec05ab7c035c5cef53c0"
      */
-    event PodAccountCreated(address creator, address account);
+    event PodAccountCreated(address creator, address account, address rewardsContract);
 
     /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`

@@ -74,6 +74,7 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
 
 contract EigenPodProxyTest is Test {
     UpgradeableBeacon beacon;
+    UpgradeableBeacon rewardsBeacon;
     address payable alice = payable(makeAddr("alice"));
     address payable bob = payable(makeAddr("bob"));
     PufferPool pool;
@@ -83,7 +84,7 @@ contract EigenPodProxyTest is Test {
     address beaconOwner = makeAddr("beaconOwner");
 
     function setUp() public {
-        (, beacon) = new DeployBeacon().run(true);
+        (, beacon,, rewardsBeacon) = new DeployBeacon().run(true);
 
         // Transfer ownership from 'default tx sender' in foundry to beaconOwner
         vm.prank(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38);
@@ -200,7 +201,8 @@ contract EigenPodProxyTest is Test {
 
     function testExecutionRewardsProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) =
+        new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         address payable eigenPodProxyAddress = payable(
@@ -236,7 +238,8 @@ contract EigenPodProxyTest is Test {
 
     function testConsensusRewardsActiveProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) =
+        new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -262,7 +265,8 @@ contract EigenPodProxyTest is Test {
 
     function testQuickWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) =
+        new DeployPufferPool().run(address(beacon),address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -294,7 +298,8 @@ contract EigenPodProxyTest is Test {
 
     function testCompleteSlowWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) =
+        new DeployPufferPool().run(address(beacon),address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -305,7 +310,8 @@ contract EigenPodProxyTest is Test {
 
     function testRewardsAfterBondWithdrawnProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool,) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool,) =
+        new DeployPufferPool().run(address(beacon),address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();

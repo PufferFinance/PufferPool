@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { Test, console } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { Enum } from "safe-contracts/common/Enum.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferPoolMockUpgrade } from "test/mocks/PufferPoolMockUpgrade.sol";
@@ -37,6 +36,7 @@ contract PufferPoolTest is Test {
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
     UpgradeableBeacon beacon;
+    UpgradeableBeacon rewardsSplitterBeacon;
 
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -64,10 +64,10 @@ contract PufferPoolTest is Test {
     }
 
     function setUp() public {
-        (, beacon) = new DeployBeacon().run(true);
+        (, beacon,, rewardsSplitterBeacon) = new DeployBeacon().run(true);
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool, withdrawalPool) =
-            new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        new DeployPufferPool().run(address(beacon),address(rewardsSplitterBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
     }
 
@@ -119,7 +119,7 @@ contract PufferPoolTest is Test {
         vm.expectRevert();
         uint256 result = PufferPoolMockUpgrade(payable(address(pool))).returnSomething();
 
-        PufferPoolMockUpgrade newImplementation = new PufferPoolMockUpgrade(address(beacon));
+        PufferPoolMockUpgrade newImplementation = new PufferPoolMockUpgrade(address(beacon), address(rewardsSplitterBeacon));
         pool.upgradeTo(address(newImplementation));
 
         result = PufferPoolMockUpgrade(payable(address(pool))).returnSomething();
@@ -154,11 +154,11 @@ contract PufferPoolTest is Test {
         owners[0] = makeAddr("guardian");
         owners[1] = makeAddr("guardian2");
 
-        Safe safe = pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
-        assertTrue(safe.isOwner(owners[0]), "bad owner0");
-        assertTrue(safe.isOwner(owners[1]), "bad owner1");
-        assertTrue(safe.isOwner(address(pool)), "bad owner");
-        assertEq(safe.getThreshold(), 2, "threshold");
+        Safe guardianAccount = pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
+        assertTrue(guardianAccount.isOwner(owners[0]), "bad owner0");
+        assertTrue(guardianAccount.isOwner(owners[1]), "bad owner1");
+        assertTrue(guardianAccount.isOwner(address(pool)), "bad owner");
+        assertEq(guardianAccount.getThreshold(), 2, "threshold");
 
         GuardianModule module = pool.getGuardianModule();
 
@@ -166,12 +166,29 @@ contract PufferPoolTest is Test {
         bytes memory pubKey =
             hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6384e";
 
+        address secondEnclaveAddress = 0xb762966F76376B5C2f9CbA17154c460b09ac9C4D;
+        bytes memory secondPubKey =
+            hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6385e";
+
         vm.prank(owners[0]);
-        module.rotateGuardianKeys(address(safe), 0, pubKey, "");
+        module.rotateGuardianKeys(address(guardianAccount), 0, pubKey, "");
 
         // assert guardian key is good
-        bool isGuardianEnclave = module.isGuardiansEnclaveAddress(payable(address(safe)), enclaveAddress);
+        bool isGuardianEnclave =
+            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], enclaveAddress);
         assertTrue(isGuardianEnclave, "failed to rotate keys");
+
+        // Change that key again
+        vm.prank(owners[0]);
+        module.rotateGuardianKeys(address(guardianAccount), 0, secondPubKey, "");
+
+        isGuardianEnclave =
+            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], secondEnclaveAddress);
+        assertTrue(isGuardianEnclave, "new key should be valid");
+
+        isGuardianEnclave =
+            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], enclaveAddress);
+        assertFalse(isGuardianEnclave, "old key shouldnt be valid");
 
         vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
@@ -284,14 +301,20 @@ contract PufferPoolTest is Test {
 
         assertEq(depositAmount, pufETHRecipientBalance, "1:1 ratio");
 
+        // Split ratio is 90%, meaning 90 ether stays in the pool
+        assertEq(address(pool).balance, 90 ether, "not eth in the pool");
+
         // Our WithdrawalPool is empty, so we need to give it some ETH so that it can handle withdrawals
-        uint256 liquidityAmount = 1_000_000 ether;
-
-        // Give eth to eth pool so that it has liquidity
+        // note: vm.deal overwrites the ETH amount in the withdrawal pool
+        // Original deposit of 100 eth is split 90 -> depositPool, 10 -> withdrawalPool
+        uint256 liquidityAmount = 110 ether;
         vm.deal(address(withdrawalPool), liquidityAmount);
+        assertEq(address(withdrawalPool).balance, 110 ether, "withdrawalPool balance");
+        assertEq(address(withdrawalPool).balance + address(pool).balance, 200 ether, "total balance");
+        assertEq(pool.totalSupply(), 100 ether, "pufferPool total supply");
 
-        // Calculate the expected amount out
-        uint256 expectedAmount = (depositAmount + liquidityAmount) / 2;
+        // Ratio is now 1:2
+        // 100 totalSupply and 200 ETH amount
 
         vm.startPrank(pufETHRecipient);
         // 2 step withdrawal
@@ -300,16 +323,16 @@ contract PufferPoolTest is Test {
 
         WithdrawalPool.Permit memory permit;
         permit.owner = pufETHRecipient;
-        permit.amount = pufETHRecipientBalance / 2;
+        permit.amount = 50 ether;
 
         // 2. withdraw
         withdrawalPool.withdrawETH(pufETHRecipient, permit);
 
-        assertEq(expectedAmount, pufETHRecipient.balance, "amounts don't match");
+        assertEq(100 ether, pufETHRecipient.balance, "amounts don't match");
     }
 
     // Deposits ETH and tries to get half of that back via permit signature
-    function testDepositAndWithdrawalWithPermit() public {
+    function testWithdrawalFlowWithPermit() public {
         uint256 depositAmount = 100 ether;
         string memory addressSeed = "pufETHDepositor";
 
@@ -325,18 +348,17 @@ contract PufferPoolTest is Test {
         assertEq(depositAmount, pufETHRecipientBalance, "1:1 ratio");
 
         // Our WithdrawalPool is empty, so we need to give it some ETH so that it can handle withdrawals
-        uint256 liquidityAmount = 1_000_000 ether;
+        uint256 liquidityAmount = 110 ether;
 
         // Give eth to eth pool so that it has liquidity
+        // Our WithdrawalPool is empty, so we need to give it some ETH so that it can handle withdrawals
+        // note: vm.deal overwrites the ETH amount in the withdrawal pool
+        // Original deposit of 100 eth is split 90 -> depositPool, 10 -> withdrawalPool
         vm.deal(address(withdrawalPool), liquidityAmount);
-
-        // Calculate the expected amount out
-        uint256 expectedAmount = (depositAmount + liquidityAmount) / 2;
 
         vm.startPrank(pufETHDepositor);
 
-        _TestTemps memory temp =
-            _testTemps(addressSeed, address(withdrawalPool), pufETHRecipientBalance / 2, block.timestamp);
+        _TestTemps memory temp = _testTemps(addressSeed, address(withdrawalPool), 50 ether, block.timestamp);
 
         // Do a gasless signature
         WithdrawalPool.Permit memory permit = _signPermit(temp);
@@ -347,7 +369,7 @@ contract PufferPoolTest is Test {
         // Approve is actually a permit signature
         withdrawalPool.withdrawETH(pufETHRecipient, permit);
 
-        assertEq(expectedAmount, pufETHRecipient.balance, "recipient didnt get any ETH");
+        assertEq(100 ether, pufETHRecipient.balance, "recipient didnt get any ETH");
     }
 
     // // Test multiple deposits, fake rewards, fake slashing and withdrawal of pufETH -> ETH

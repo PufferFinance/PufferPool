@@ -13,14 +13,16 @@ contract IntegrationTestHelper is Test {
     address safeImplementation = 0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552;
 
     UpgradeableBeacon beacon;
+    UpgradeableBeacon rewardsSplitterBeacon;
     PufferPool pool;
 
     function deployContracts() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 17784482);
 
-        (, beacon) = new DeployBeacon().run(false);
+        (, beacon,, rewardsSplitterBeacon) = new DeployBeacon().run(false);
 
-        (pool,) = new DeployPufferPool().run(address(beacon), safeProxyFactory, safeImplementation);
+        (pool,) =
+            new DeployPufferPool().run(address(beacon),address(rewardsSplitterBeacon), safeProxyFactory, safeImplementation);
         vm.label(address(pool), "PufferPool");
     }
 }

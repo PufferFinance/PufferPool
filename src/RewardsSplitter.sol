@@ -8,14 +8,10 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 contract RewardsSplitter {
-    address public immutable treasury;
+    event ETHReceived(uint256 amount);
 
-    // TODO: logic for everything
-    constructor(address pufferTreasury) {
-        treasury = pufferTreasury;
-    }
-
-    function splitRewards() external {
-        // ...
+    receive() external payable {
+        // TODO: logic
+        emit ETHReceived(msg.value);
     }
 }

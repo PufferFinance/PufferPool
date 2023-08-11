@@ -8,6 +8,7 @@ import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableUpgradeable.sol";
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
+import { RewardsSplitter } from "puffer/RewardsSplitter.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe, Enum, ModuleManager, OwnerManager } from "safe-contracts/Safe.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
@@ -38,6 +39,11 @@ contract PufferPool is
      * @notice Address of the Eigen pod proxy beacon
      */
     address public immutable EIGEN_POD_PROXY_BEACON;
+
+    /**
+     * @notice Address of the Rewards splitter beacon
+     */
+    address public immutable REWARDS_BEACON;
 
     /**
      * @notice Address of the Eigen Pod Manager
@@ -200,20 +206,25 @@ contract PufferPool is
         _;
     }
 
-    constructor(address beacon) {
+    constructor(address beacon, address rewardsBeacon) {
         EIGEN_POD_PROXY_BEACON = beacon;
+        REWARDS_BEACON = rewardsBeacon;
         EIGEN_POD_MANAGER = IEigenPodProxy(UpgradeableBeacon((beacon)).implementation()).getEigenPodManager();
         _disableInitializers();
     }
 
     receive() external payable {
-        _splitETH();
+        _splitETH(true);
     }
 
-    function _splitETH() internal {
-        // Calculate and split between the treasury, deposit pool and the withdrawal pool
-        uint256 protocolFee = msg.value * _protocolFeeRate / _ONE_HUNDRED;
-        _safeTransferETH(_treasury, protocolFee);
+    function _splitETH(bool includeProtocolFee) internal {
+        uint256 protocolFee;
+
+        if (includeProtocolFee) {
+            // Calculate and split between the treasury, deposit pool and the withdrawal pool
+            protocolFee = msg.value * _protocolFeeRate / _ONE_HUNDRED;
+            _safeTransferETH(_treasury, protocolFee);
+        }
 
         // PufferPool is the deposit pool, so we just leave this amount in this contract
         uint256 depositPoolAmount = (msg.value - protocolFee) * _depositRate / _ONE_HUNDRED;
@@ -303,13 +314,14 @@ contract PufferPool is
         if (msg.value < _MINIMUM_DEPOSIT_AMOUNT) {
             revert InsufficientETH();
         }
-        // TODO: split this eth between deposit and withdrawal pool
 
         uint256 pufETHAmount = calculateETHToPufETHAmount(msg.value);
 
         _mint(recipient, pufETHAmount);
 
         emit Deposited(msg.sender, recipient, msg.value, pufETHAmount);
+
+        _splitETH(false);
     }
 
     /**
@@ -806,6 +818,20 @@ contract PufferPool is
         return IEigenPodProxy(address(eigenPodProxy));
     }
 
+    function _createRewardsContract() internal returns (RewardsSplitter rewardsSplitter) {
+        bytes memory deploymentData =
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(EIGEN_POD_PROXY_BEACON, ""));
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            rewardsSplitter := create(0x0, add(0x20, deploymentData), mload(deploymentData))
+        }
+
+        if (address(rewardsSplitter) == address(0)) {
+            revert Create2Failed();
+        }
+    }
+
     function _createPodAccount(address[] calldata podAccountOwners, uint256 threshold) internal returns (Safe) {
         Safe account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
@@ -817,7 +843,9 @@ contract PufferPool is
             data: bytes("")
         });
 
-        emit PodAccountCreated(msg.sender, address(account));
+        RewardsSplitter rewardsContract = _createRewardsContract();
+
+        emit PodAccountCreated(msg.sender, address(account), address(rewardsContract));
 
         return account;
     }
