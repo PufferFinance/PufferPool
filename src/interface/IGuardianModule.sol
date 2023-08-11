@@ -20,12 +20,12 @@ interface IGuardianModule {
     event RotatedGuardianKey(address guardian, address guardianEnclave);
 
     /**
-     * @notice Rotates guardians key
+     * @notice Rotates guardian key
      * @dev If the msg.sender is one of the owners of the `guardianAccount`, the transaction will be executed.
      *      It executes a delegatecall to this smart contract and calls `rotateKeys`
      *      It will update the guardian's enclave key to address derived from the `pubKey`
      */
-    function rotateGuardianKeys(
+    function rotateGuardianKey(
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,

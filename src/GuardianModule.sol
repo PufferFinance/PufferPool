@@ -24,7 +24,7 @@ contract GuardianModule is Initializable, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function rotateGuardianKeys(
+    function rotateGuardianKey(
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,
@@ -41,16 +41,16 @@ contract GuardianModule is Initializable, IGuardianModule {
         safe.execTransactionFromModule({
             to: address(this),
             value: 0,
-            data: abi.encodeCall(GuardianModule.rotateKeys, (msg.sender, blockNumber, pubKey, raveEvidence)),
+            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey, raveEvidence)),
             operation: Enum.Operation.DelegateCall
         });
     }
 
     /**
-     * @notice This function is supposed to be called via delegatecall from "rotateGuardianKeys"
+     * @notice This function is supposed to be called via delegatecall from "rotateGuardianKey"
      * @dev DO NOT CALL THIS FUNCTION
      */
-    function rotateKeys(address guardian, uint256 blockNumber, bytes calldata pubKey, bytes calldata raveEvidence)
+    function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, bytes calldata raveEvidence)
         external
     {
         address computedAddress = address(uint160(uint256(keccak256(pubKey))));

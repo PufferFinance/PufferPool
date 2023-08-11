@@ -171,7 +171,7 @@ contract PufferPoolTest is Test {
             hex"a091f34f8e90ce7eb0f2ca31a3f12e98dbbdffcae36da273d2fe701b3b14d83a492a4704c0ac4a550308faf0eac6385e";
 
         vm.prank(owners[0]);
-        module.rotateGuardianKeys(address(guardianAccount), 0, pubKey, "");
+        module.rotateGuardianKey(address(guardianAccount), 0, pubKey, "");
 
         // assert guardian key is good
         bool isGuardianEnclave =
@@ -180,7 +180,7 @@ contract PufferPoolTest is Test {
 
         // Change that key again
         vm.prank(owners[0]);
-        module.rotateGuardianKeys(address(guardianAccount), 0, secondPubKey, "");
+        module.rotateGuardianKey(address(guardianAccount), 0, secondPubKey, "");
 
         isGuardianEnclave =
             module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], secondEnclaveAddress);
