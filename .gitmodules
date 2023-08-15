@@ -5,8 +5,6 @@
 	path = lib/safe-contracts.git
 	url = https://github.com/safe-global/safe-contracts.git
 	branch = v1.4.1
-[submodule "lib/openzeppelin-contracts-upgradeable/"]
-	branch = v4.9.2
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
