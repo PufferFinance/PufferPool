@@ -195,11 +195,13 @@ contract EigenPodProxyTest is Test {
         assertEq(EigenPodProxyV2Mock(payable(eigenPodProxyTwo)).getSomething(), 225883, "failed upgrade for bob");
     }
 
+    // Tests rewards recipient change, revers if not called by the owner
     function testChangePodRewardsRecipient() public {
         vm.prank(alice);
         eigenPodProxy.updatePodRewardsRecipient(payable(address(bob)));
+
+        vm.expectRevert(IEigenPodProxy.Unauthorized.selector);
         vm.prank(bob);
-        vm.expectRevert();
         eigenPodProxy.updatePodRewardsRecipient(payable(address(alice)));
     }
 
