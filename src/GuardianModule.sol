@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
+import { SafeStorage } from "safe-contracts/libraries/SafeStorage.sol";
 import { Enum } from "safe-contracts/common/Enum.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -9,10 +10,13 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 /**
  * @title Guardian module
  * @author Puffer finance
- * @dev This contract is called via `delegatecall` opcode
+ * @dev This contract is both {Safe} module, and a logic contract to be called via `delegatecall` from {Safe} (GuardianAccount)
  * @custom:security-contact security@puffer.fi
  */
-contract GuardianModule is Initializable, IGuardianModule {
+contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+    address public immutable myAddress;
+    address internal constant SENTINEL_MODULES = address(0x1);
+
     /**
      * @notice This seed is representing a mappin glike this: mapping(address guardian => address guardianEnclave);
      *         We are storing this mapping data in PodAccount's unstructured storage
@@ -20,6 +24,10 @@ contract GuardianModule is Initializable, IGuardianModule {
      */
     uint256 public constant GUARDIAN_KEYS_SEED =
         21179069603049101978888635358919905010850171584254878123552458168785430937385;
+
+    constructor() {
+        myAddress = address(this);
+    }
 
     /**
      * @inheritdoc IGuardianModule
@@ -41,7 +49,7 @@ contract GuardianModule is Initializable, IGuardianModule {
         safe.execTransactionFromModule({
             to: address(this),
             value: 0,
-            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey, raveEvidence)),
+            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], raveEvidence)),
             operation: Enum.Operation.DelegateCall
         });
     }
@@ -62,7 +70,7 @@ contract GuardianModule is Initializable, IGuardianModule {
             sstore(storageSlot, computedAddress)
         }
 
-        emit RotatedGuardianKey(guardian, computedAddress);
+        emit RotatedGuardianKey(guardian, computedAddress, pubKey);
     }
 
     /**
@@ -73,6 +81,11 @@ contract GuardianModule is Initializable, IGuardianModule {
         view
         returns (bool)
     {
+        // Assert if the stored enclaveAddress equals enclave
+        return _getGuardianEnclaveAddress(Safe(guardianAccount), guardian) == enclave;
+    }
+
+    function _getGuardianEnclaveAddress(Safe guardianAccount, address guardian) internal view returns (address) {
         // Compute the storage slot
         uint256 storageSlot;
         assembly ("memory-safe") {
@@ -81,15 +94,40 @@ contract GuardianModule is Initializable, IGuardianModule {
             storageSlot := keccak256(0x0c, 0x20)
         }
 
-        Safe safe = Safe(payable(guardianAccount));
-
         // Read storage slot from the {Safe}
-        bytes memory result = safe.getStorageAt(storageSlot, 1);
+        bytes memory result = guardianAccount.getStorageAt(storageSlot, 1);
 
-        // Decode it
+        // Decode it to bytes32
         bytes32 data = abi.decode(result, (bytes32));
 
-        // Assert if the stored enclaveAddress equals enclave
-        return address(uint160(uint256(data))) == enclave;
+        // Return the address
+        return address(uint160(uint256(data)));
+    }
+
+    function getGuardiansEnclaveAddresses(Safe guardianAccount) external view returns (address[] memory) {
+        address[] memory guardians = guardianAccount.getOwners();
+        address[] memory enclaveAddresses = new address[](guardians.length);
+
+        for (uint256 i = 0; i < guardians.length;) {
+            enclaveAddresses[i] = _getGuardianEnclaveAddress(guardianAccount, guardians[i]);
+            unchecked {
+                ++i;
+            }
+        }
+
+        return enclaveAddresses;
+    }
+
+    /**
+     * @notice Enable this module on {Safe} creation
+     */
+    function enableMyself() public {
+        // Only DelegateCall should work
+        require(myAddress != address(this));
+
+        // Module cannot be added twice.
+        require(modules[myAddress] == address(0), "GS102");
+        modules[myAddress] = modules[SENTINEL_MODULES];
+        modules[SENTINEL_MODULES] = myAddress;
     }
 }

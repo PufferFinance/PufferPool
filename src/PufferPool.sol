@@ -19,12 +19,14 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-
+import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
+import { console } from "forge-std/console.sol";
 /**
  * @title PufferPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
+
 contract PufferPool is
     IPufferPool,
     IPufferOwner,
@@ -35,6 +37,8 @@ contract PufferPool is
     ERC20PermitUpgradeable,
     SafeDeployer
 {
+    using ECDSA for bytes32;
+
     /**
      * @notice Address of the Eigen pod proxy beacon
      */
@@ -284,14 +288,45 @@ contract PufferPool is
         address eigenPodProxy,
         bytes calldata pubKey,
         bytes calldata signature,
+        bytes[] calldata guardianEnclaveSignatures,
         bytes32 depositDataRoot
-    )
-        external
-        // onlyGuardians // TODO: make it onlyGuardians, for testnet we've commented out that modifier
-        whenNotPaused
-    {
-        // TODO: logic for this
-        // What validations do we need here since it will be a onlyGuardians function?
+    ) external {
+        address lastSigner = address(0);
+        address currentSigner;
+
+        // Get guardian enclave addresses
+        address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig);
+
+        // create a hash // TODO: use EIP712?, or go with the simple version like this?
+        bytes32 hash = keccak256(abi.encodePacked(eigenPodProxy, pubKey)).toEthSignedMessageHash();
+
+        uint256 validSignatures;
+
+        // Iterate through guardian enclave addresses and make sure that the signers match
+        for (uint256 i = 0; i < enclaveAddresses.length;) {
+            currentSigner = ECDSA.recover(hash, guardianEnclaveSignatures[i]);
+            if (currentSigner == address(0)) {
+                revert Unauthorized();
+            }
+            // Signatures need to be sorted in ascending order based on signer addresses
+            if (currentSigner <= lastSigner) {
+                revert Unauthorized();
+            }
+            for (uint256 j = 0; j < enclaveAddresses.length; ++j) {
+                if (enclaveAddresses[j] == currentSigner) {
+                    lastSigner = currentSigner;
+                    validSignatures++;
+                    break;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (validSignatures < _guardiansMultisig.getThreshold()) {
+            revert Unauthorized();
+        }
 
         // Update locked ETH Amount
         _lockedETHAmount += _32_ETHER;
@@ -368,60 +403,16 @@ contract PufferPool is
             revert GuardiansAlreadyExist();
         }
 
-        // Append PufferPool to owners
-        address[] memory owners = new address[](guardiansWallets.length + 1);
-        for (uint256 i = 0; i < guardiansWallets.length;) {
-            owners[i] = guardiansWallets[i];
-            unchecked {
-                ++i;
-            }
-        }
-        // Add PufferPool as guardian so that we can execute addModule
-        owners[guardiansWallets.length] = address(this);
-
-        // Deploy {Safe} with threshold 1
+        // Deploy {Safe} and enable module
         account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
             saltNonce: uint256(keccak256(abi.encode(guardiansWallets))),
-            owners: owners,
-            threshold: 1,
-            to: address(0),
-            data: bytes("")
+            owners: guardiansWallets,
+            threshold: threshold,
+            to: address(_guardianModule),
+            data: abi.encodeCall(GuardianModule.enableMyself, ())
         });
-
-        // _guardianModule.initialize(address(account));
-
-        // Enable module on {Safe}
-        // Because PufferPool is the owner and threshold is 1, we can craft a valid signature
-        account.execTransaction({
-            to: address(account),
-            value: 0,
-            data: abi.encodeCall(ModuleManager.enableModule, address(_guardianModule)),
-            operation: Enum.Operation.Call,
-            safeTxGas: 0,
-            baseGas: 0,
-            gasPrice: 0,
-            gasToken: address(0),
-            refundReceiver: payable(address(0)),
-            signatures: _createSafeContractSignature()
-        });
-
-        // Change threshold to desired threshold if the threshold is not 1
-        if (threshold != 1) {
-            account.execTransaction({
-                to: address(account),
-                value: 0,
-                data: abi.encodeCall(OwnerManager.changeThreshold, threshold),
-                operation: Enum.Operation.Call,
-                safeTxGas: 0,
-                baseGas: 0,
-                gasPrice: 0,
-                gasToken: address(0),
-                refundReceiver: payable(address(0)),
-                signatures: _createSafeContractSignature()
-            });
-        }
 
         _guardiansMultisig = account;
 

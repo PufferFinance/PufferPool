@@ -408,6 +408,7 @@ interface IPufferPool is IERC20Upgradeable {
         address eigenPodProxy,
         bytes calldata pubkey,
         bytes calldata signature,
+        bytes[] calldata guardianEnclaveSignatures,
         bytes32 depositDataRoot
     ) external;
 

@@ -22,7 +22,7 @@ contract IntegrationTestHelper is Test {
         (, beacon,, rewardsSplitterBeacon) = new DeployBeacon().run(false);
 
         (pool,) =
-            new DeployPufferPool().run(address(beacon),address(rewardsSplitterBeacon), safeProxyFactory, safeImplementation);
+        new DeployPufferPool().run(address(beacon),address(rewardsSplitterBeacon), safeProxyFactory, safeImplementation);
         vm.label(address(pool), "PufferPool");
     }
 }

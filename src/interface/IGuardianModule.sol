@@ -16,8 +16,9 @@ interface IGuardianModule {
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address
+     * @param pubKey is the public key
      */
-    event RotatedGuardianKey(address guardian, address guardianEnclave);
+    event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
 
     /**
      * @notice Rotates guardian key
