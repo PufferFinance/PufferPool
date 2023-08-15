@@ -128,7 +128,7 @@ interface IEigenPodWrapper {
      */
     function verifyBalanceUpdate(
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
+        bytes calldata proofs,
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
