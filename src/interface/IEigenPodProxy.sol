@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 
 /**
  * @title IEigenPodProxy
@@ -16,6 +17,8 @@ interface IEigenPodProxy {
      * @dev Thrown if the msg.sender is unauthorized.
      */
     error Unauthorized();
+
+    error PodIsAlreadyStaking();
 
     /**
      * @dev Thrown if the Eigenlayer AVS is not supported by Puffer Finance
@@ -38,6 +41,11 @@ interface IEigenPodProxy {
      * @notice Returns the Eigen pod manager from EigenLayer
      */
     function getEigenPodManager() external view returns (IEigenPodManager);
+
+    /**
+     * @notice Returns the EigenPod
+     */
+    function ownedEigenPod() external view returns (IEigenPodWrapper);
 
     /**
      * @notice Sets the `podProxyowner` and `podRewardsRecipient`
@@ -129,16 +137,17 @@ interface IEigenPodProxy {
     ) external;
 
     /**
-     * @notice Returns the EigenPodProxy's manager which is PufferPool
-     */
-    function getProxyManager() external view returns (IPufferPool);
-
-    /**
      * @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status
      */
     function completeWithdrawal() external;
 
+    /**
+     * @notice Returns the EigenPodProxy's owner
+     */
     function getPodProxyOwner() external returns (address payable);
 
+    /**
+     * @notice Returns the EigenPodProxy's manager which is PufferPool
+     */
     function getPodProxyManager() external returns (address payable);
 }

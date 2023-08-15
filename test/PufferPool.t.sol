@@ -34,6 +34,7 @@ contract PufferPoolTest is Test {
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
     event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
+    // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
     uint256 guardian1PK;

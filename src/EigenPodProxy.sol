@@ -12,6 +12,8 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 /**
  * @title EingenPodProxy
@@ -21,14 +23,9 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
  */
 contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
-     * @dev Exchange rate 1 is represented as 10 ** 18
-     */
-    uint256 internal constant _ONE = 10 ** 18;
-
-    /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED = 100 * _ONE;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
     /**
      * @dev {Safe} PodAccount is the pod proxy owner
@@ -79,7 +76,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     mapping(address => bool) public AVSPaymentAddresses;
 
     bool public bondWithdrawn;
-    bool public staked;
 
     modifier onlyPodProxyOwner() {
         if (msg.sender != _podProxyOwner) {
@@ -123,12 +119,12 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     receive() external payable {
         // If bond is already withdrawn, send any incoming money directly to pool
         if (bondWithdrawn) {
-            _sendETH(payable(address(_podProxyManager)), msg.value);
+            SafeTransferLib.safeTransferETH(payable(address(_podProxyManager)), msg.value);
             return;
         } else if (AVSPaymentAddresses[msg.sender]) {
             _distributeAvsRewards(msg.value);
         } else if (msg.sender != address(ownedEigenPod)) {
-            _distributeExecutionRewards(msg.value);
+            // TODO: nothing atm, refactoring this
         } else {
             IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(keccak256(_pubKey));
             if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
@@ -152,13 +148,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
                 bondWithdrawn = true;
             }
         }
-    }
-
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
-    function getProxyManager() external view returns (IPufferPool) {
-        return _podProxyManager;
     }
 
     /**
@@ -199,7 +188,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         onlyPodProxyManager
     {
         require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
-        staked = true;
         _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
         _pubKey = pubKey;
     }
@@ -208,7 +196,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      * @inheritdoc IEigenPodProxy
      */
     function stopRegistraion() external onlyPodProxyOwner {
-        require(!staked, "pufETH bond is locked, because pod is already staking");
+        if (_pubKey.length != 0) {
+            revert PodIsAlreadyStaking();
+        }
         bondWithdrawn = true;
         _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
     }
@@ -313,6 +303,10 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         return payable(address(_podProxyManager));
     }
 
+    function getPubKey() external view returns (bytes memory) {
+        return _pubKey;
+    }
+
     /**
      * @inheritdoc IEigenPodProxy
      */
@@ -327,22 +321,17 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     }
 
     function _distributeFunds(uint256 total, uint256 toPod) internal {
-        _sendETH(_podRewardsRecipient, toPod);
-        _sendETH(getPodProxyManager(), total - toPod);
+        SafeTransferLib.safeTransferETH(_podRewardsRecipient, toPod);
+        SafeTransferLib.safeTransferETH(getPodProxyManager(), total - toPod);
     }
 
     function _distributeAvsRewards(uint256 amount) internal {
-        uint256 toPod = (amount * _podProxyManager.getAvsCommission()) / _ONE_HUNDRED;
-        _distributeFunds(amount, toPod);
-    }
-
-    function _distributeExecutionRewards(uint256 amount) internal {
-        uint256 toPod = (amount * _podProxyManager.getExecutionCommission()) / _ONE_HUNDRED;
+        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, _podProxyManager.getAvsCommission(), _ONE_HUNDRED_WAD);
         _distributeFunds(amount, toPod);
     }
 
     function _distributeConsensusRewards(uint256 amount) internal {
-        uint256 toPod = (amount * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED;
+        uint256 toPod = (amount * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED_WAD;
         _distributeFunds(amount, toPod);
     }
 
@@ -357,29 +346,14 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         // Eth owned to podProxyOwner
         // Up to 1 ETH will remain on this contract until fullWithdrawal
         uint256 skimmable = SignedMath.abs(SignedMath.max(int256(amount - 1 ether), 0));
-        uint256 podsCut = (skimmable * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED;
-        _sendETH(_podRewardsRecipient, podsCut);
+        uint256 podsCut = (skimmable * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED_WAD;
+        SafeTransferLib.safeTransferETH(_podRewardsRecipient, podsCut);
 
         // ETH owed to pool
         uint256 poolCut = skimmable - podsCut;
-        _sendETH(getPodProxyManager(), poolCut);
+        SafeTransferLib.safeTransferETH(getPodProxyManager(), poolCut);
 
         // Update previous status to withdrawn
         _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN;
-    }
-
-    function _sendETH(address payable to, uint256 amount) internal {
-        if (amount == 0) {
-            return;
-        }
-        bool success;
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        require(success);
     }
 }

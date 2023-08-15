@@ -393,11 +393,12 @@ interface IPufferPool is IERC20Upgradeable {
      */
     function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) external view returns (address, address);
 
-    // /**
-    //  * @notice Returns the Eigen pod proxy information
-    //  * @param eigenPodProxy Eigen pod proxy address
-    //  */
-    // function getEigenPodProxyInfo(address eigenPodProxy) external view returns (EigenPodProxyInformation memory);
+    /**
+     * @notice Returns the execution rewards comission
+     * @param amount Is the total amount received
+     * @return the comission amount
+     */
+    function getExecutionAmount(uint256 amount) external view returns (uint256);
 
     // ==== Only Guardians ====
 

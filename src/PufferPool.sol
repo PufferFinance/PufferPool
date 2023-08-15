@@ -62,7 +62,17 @@ contract PufferPool is
     uint256 internal constant _32_ETHER = 32 ether;
 
     /**
-     * @dev Constant representing 100% 
+     * @dev EigenLayer's beacon chain strategy address
+     */
+    IStrategy internal constant _beaconChainETHStrategy = IStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
+
+    /**
+     * @dev Index of the beacon ETH strategy
+     */
+    uint256 internal constant _beaconChainETHStrategyIndex = 0;
+
+    /**
+     * @dev Constant representing 100%
      */
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
@@ -167,16 +177,6 @@ contract PufferPool is
     GuardianModule internal _guardianModule;
 
     /**
-     * @dev Index of the beacon ETH strategy
-     */
-    uint256 internal _beaconChainETHStrategyIndex;
-
-    /**
-     * @dev The Beacon ETH Strategy
-     */
-    IStrategy internal _beaconETHStrategy;
-
-    /**
      * @dev EigenLayer's Strategy Manager
      */
     IStrategyManager internal _strategyManager;
@@ -268,8 +268,8 @@ contract PufferPool is
 
         _guardianModule = GuardianModule(guardianSafeModule);
         _setTreasury(treasury);
-        _setDepositRate(90 * FixedPointMathLib.WAD);
-        _setProtocolFeeRate(5 * FixedPointMathLib.WAD);
+        _setDepositRate(90 * FixedPointMathLib.WAD); // 90%
+        _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
 
         // TODO: use constants / immutables
         _withdrawalPool = withdrawalPool;
@@ -634,7 +634,7 @@ contract PufferPool is
      * @inheritdoc IPufferPool
      */
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) public view returns (uint256) {
-        return FixedPointMathLib.mulWad(pufETHAmount,getPufETHtoETHExchangeRate());
+        return FixedPointMathLib.mulWad(pufETHAmount, getPufETHtoETHExchangeRate());
     }
 
     /**
@@ -663,6 +663,10 @@ contract PufferPool is
      */
     function getExecutionCommission() external view returns (uint256) {
         return _executionCommission;
+    }
+
+    function getExecutionAmount(uint256 amount) external view returns (uint256) {
+        return FixedPointMathLib.fullMulDiv(amount, _executionCommission, _ONE_HUNDRED_WAD);
     }
 
     /**
@@ -740,8 +744,8 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function getBeaconChainETHStrategy() external view returns (IStrategy) {
-        return _beaconETHStrategy;
+    function getBeaconChainETHStrategy() external pure returns (IStrategy) {
+        return _beaconChainETHStrategy;
     }
 
     /**
@@ -757,29 +761,17 @@ contract PufferPool is
             return FixedPointMathLib.WAD;
         }
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
-        uint256 exchangeRate = FixedPointMathLib.divWad(getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
-                + (address(this).balance - ethDepositedAmount)
-        , pufETHSupply);
+        uint256 exchangeRate = FixedPointMathLib.divWad(
+            getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
+                + (address(this).balance - ethDepositedAmount),
+            pufETHSupply
+        );
 
         return exchangeRate;
     }
 
     // TODO: timelock on upgrade?
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
-
-    /**
-     * @dev Helper function for creating a valid {Safe} signature
-     *      It is expected that the {Safe} will have address(this) as the owner and threshold of 1
-     */
-    function _createSafeContractSignature() internal view returns (bytes memory) {
-        return abi.encodePacked(
-            bytes(hex"000000000000000000000000"),
-            address(this),
-            bytes(
-                hex"0000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-            )
-        );
-    }
 
     /**
      * @dev Creates eigen pod proxy via create2
@@ -806,9 +798,11 @@ contract PufferPool is
         return IEigenPodProxy(address(eigenPodProxy));
     }
 
-    function _createRewardsContract() internal returns (RewardsSplitter rewardsSplitter) {
-        bytes memory deploymentData =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(EIGEN_POD_PROXY_BEACON, ""));
+    function _createRewardsContract(address podAccount) internal returns (RewardsSplitter rewardsSplitter) {
+        bytes memory deploymentData = abi.encodePacked(
+            type(BeaconProxy).creationCode,
+            abi.encode(REWARDS_BEACON, abi.encodeCall(RewardsSplitter.initialize, (this, podAccount)))
+        );
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -831,7 +825,7 @@ contract PufferPool is
             data: bytes("")
         });
 
-        RewardsSplitter rewardsContract = _createRewardsContract();
+        RewardsSplitter rewardsContract = _createRewardsContract(address(account));
 
         emit PodAccountCreated(msg.sender, address(account), address(rewardsContract));
 
