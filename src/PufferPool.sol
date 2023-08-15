@@ -737,7 +737,7 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function getBeaconChainETHStrategyIndex() external view returns (uint256) {
+    function getBeaconChainETHStrategyIndex() external pure returns (uint256) {
         return _beaconChainETHStrategyIndex;
     }
 
