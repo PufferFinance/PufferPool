@@ -10,7 +10,7 @@ import { PausableUpgradeable } from "openzeppelin-upgradeable/security/PausableU
 import { SafeDeployer } from "puffer/SafeDeployer.sol";
 import { RewardsSplitter } from "puffer/RewardsSplitter.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { Safe, Enum, ModuleManager, OwnerManager } from "safe-contracts/Safe.sol";
+import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferOwner } from "puffer/interface/IPufferOwner.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
@@ -20,7 +20,9 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { console } from "forge-std/console.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+
 /**
  * @title PufferPool
  * @author Puffer finance
@@ -60,14 +62,9 @@ contract PufferPool is
     uint256 internal constant _32_ETHER = 32 ether;
 
     /**
-     * @dev Exchange rate 1 is represented as 10 ** 18
+     * @dev Constant representing 100% 
      */
-    uint256 internal constant _ONE = 10 ** 18;
-
-    /**
-     * @dev Constant representing 100%
-     */
-    uint256 internal constant _ONE_HUNDRED = 100 * _ONE;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
     /**
      * @dev Minimum deposit amount in ETH
@@ -226,16 +223,17 @@ contract PufferPool is
 
         if (includeProtocolFee) {
             // Calculate and split between the treasury, deposit pool and the withdrawal pool
-            protocolFee = msg.value * _protocolFeeRate / _ONE_HUNDRED;
-            _safeTransferETH(_treasury, protocolFee);
+            protocolFee = FixedPointMathLib.fullMulDiv(msg.value, _protocolFeeRate, _ONE_HUNDRED_WAD);
+            SafeTransferLib.safeTransferETH(_treasury, protocolFee);
         }
 
         // PufferPool is the deposit pool, so we just leave this amount in this contract
-        uint256 depositPoolAmount = (msg.value - protocolFee) * _depositRate / _ONE_HUNDRED;
+        uint256 depositPoolAmount =
+            FixedPointMathLib.fullMulDiv((msg.value - protocolFee), _depositRate, _ONE_HUNDRED_WAD);
 
         // We transfer this amount to Withdrawal Pool contract
         uint256 withdrawalPoolAmount = msg.value - protocolFee - depositPoolAmount;
-        _safeTransferETH(_withdrawalPool, withdrawalPoolAmount);
+        SafeTransferLib.safeTransferETH(_withdrawalPool, withdrawalPoolAmount);
     }
 
     function initialize(
@@ -270,8 +268,8 @@ contract PufferPool is
 
         _guardianModule = GuardianModule(guardianSafeModule);
         _setTreasury(treasury);
-        _setDepositRate(90 * _ONE);
-        _setProtocolFeeRate(5 * _ONE);
+        _setDepositRate(90 * FixedPointMathLib.WAD);
+        _setProtocolFeeRate(5 * FixedPointMathLib.WAD);
 
         // TODO: use constants / immutables
         _withdrawalPool = withdrawalPool;
@@ -386,7 +384,7 @@ contract PufferPool is
 
         if (bondFinal >= 0) {
             // Return bond and any rewards back to podRewardsRecipient
-            _safeTransferETH(podRewardsRecipient, bondRewards + uint256(bondFinal));
+            SafeTransferLib.safeTransferETH(podRewardsRecipient, bondRewards + uint256(bondFinal));
         }
 
         // TODO: Split msg.value - (bondRewards + uint256(bondFinal)) into deposit and withdrawal pools - ensure signedness is good by also using above positive case
@@ -629,14 +627,14 @@ contract PufferPool is
      * @inheritdoc IPufferPool
      */
     function calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
-        return amount * _ONE / _getPufETHtoETHExchangeRate(amount);
+        return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate(amount));
     }
 
     /**
      * @inheritdoc IPufferPool
      */
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) public view returns (uint256) {
-        return pufETHAmount * getPufETHtoETHExchangeRate() / _ONE;
+        return FixedPointMathLib.mulWad(pufETHAmount,getPufETHtoETHExchangeRate());
     }
 
     /**
@@ -756,13 +754,12 @@ contract PufferPool is
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
         uint256 pufETHSupply = totalSupply();
         if (pufETHSupply == 0) {
-            return _ONE;
+            return FixedPointMathLib.WAD;
         }
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
-        uint256 exchangeRate = (
-            getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
+        uint256 exchangeRate = FixedPointMathLib.divWad(getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
                 + (address(this).balance - ethDepositedAmount)
-        ) * _ONE / pufETHSupply;
+        , pufETHSupply);
 
         return exchangeRate;
     }
@@ -886,22 +883,6 @@ contract PufferPool is
         //     pufferPool.getSecureSignerMrenclave(),
         //     pufferPool.getSecureSignerMrsigner()
         // );
-    }
-
-    /**
-     * @dev Helper function for transfering ETH
-     * https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol
-     */
-    function _safeTransferETH(address to, uint256 amount) internal {
-        bool success;
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        require(success);
     }
 
     function _setSafeProxyFactory(address safeProxyFactory) internal {

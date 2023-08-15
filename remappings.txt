@@ -11,3 +11,4 @@ openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 puffer/=src/
 scripts/=scripts/
 safe-contracts/=lib/safe-contracts.git/contracts/
+solady/=lib/solady/src/
