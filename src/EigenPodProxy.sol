@@ -2,8 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-// TODO: Temporarily use a wrapper for EigenPod before eigenpodupdates branch is merged into eigenlayer contracts
-import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
@@ -45,7 +44,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @dev Address of the Pod owned by this proxy
      */
-    IEigenPodWrapper public ownedEigenPod;
+    IEigenPod public ownedEigenPod;
 
     /**
      * @dev Upgradeable contract from EigenLayer
@@ -63,7 +62,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     bytes internal _pubKey;
 
     // Keeps track of the previous status of the validator corresponding to this EigenPodProxy
-    IEigenPodWrapper.VALIDATOR_STATUS internal _previousStatus;
+    IEigenPod.VALIDATOR_STATUS internal _previousStatus;
 
     /**
      * @dev Bond amount
@@ -74,8 +73,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
-
-    bool public bondWithdrawn;
 
     modifier onlyPodProxyOwner() {
         if (msg.sender != _podProxyOwner) {
@@ -110,44 +107,56 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     function initialize(IPufferPool manager, uint256 bond) external initializer {
         _bond = bond;
         _podProxyManager = manager;
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+        _previousStatus = IEigenPod.VALIDATOR_STATUS.INACTIVE;
         _eigenPodManager.createPod();
-        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
+        ownedEigenPod = IEigenPod(address(_eigenPodManager.ownerToPod(address(this))));
     }
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     receive() external payable {
-        // If bond is already withdrawn, send any incoming money directly to pool
-        if (bondWithdrawn) {
-            SafeTransferLib.safeTransferETH(payable(address(_podProxyManager)), msg.value);
-            return;
-        } else if (AVSPaymentAddresses[msg.sender]) {
-            _distributeAvsRewards(msg.value);
-        } else if (msg.sender != address(ownedEigenPod)) {
-            // TODO: nothing atm, refactoring this
-        } else {
-            IEigenPodWrapper.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(keccak256(_pubKey));
-            if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE) {
+        // If our public key is not registered, that means that there is no pufETH bond
+        // Transfer everything directly to the PufferPool
+        if (_pubKey.length == 0) {
+            return SafeTransferLib.safeTransferETH(payable(address(_podProxyManager)), msg.value);
+        }
+
+        // If we are here, that means that we are running a validator and our `_pubKey` is registered
+
+        if (AVSPaymentAddresses[msg.sender]) {
+            // TODO: AVS's will probably distribute ERC20 and not ETH
+            return _distributeRewards(msg.value, _podProxyManager.getAVSComission(msg.sender));
+        }
+
+        // Consensus rewards
+        if (msg.sender == address(ownedEigenPod)) {
+            IEigenPod.VALIDATOR_STATUS currentStatus = ownedEigenPod.validatorStatus(keccak256(_pubKey));
+
+            if (currentStatus == IEigenPod.VALIDATOR_STATUS.INACTIVE) {
                 _handleInactiveSkim();
-            } else if (currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE) {
-                _distributeConsensusRewards(msg.value);
+            } else if (currentStatus == IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+                _distributeRewards(msg.value, _podProxyManager.getConsensusCommission());
             } else if (
-                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
-                    && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE
+                currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                    && _previousStatus == IEigenPod.VALIDATOR_STATUS.ACTIVE
             ) {
                 _handleQuickWithdraw(msg.value);
             } else if (
-                currentStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
-                    && _previousStatus == IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN
+                currentStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
+                    && _previousStatus == IEigenPod.VALIDATOR_STATUS.WITHDRAWN
                     && ownedEigenPod.withdrawableRestakedExecutionLayerGwei() == 0
             ) {
+                delete _pubKey;
                 // Distribute all ETH upon full withdraw to Pool, podRewardsRecipient, and Treasury, burning pufETH
                 _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
                     _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
                 );
-                bondWithdrawn = true;
             }
         }
+
+        // MEV boost and execution rewards are going to `RewardsSplitter` smart contract
+
+        // Donation
+        return SafeTransferLib.safeTransferETH(payable(address(_podProxyManager)), msg.value);
     }
 
     /**
@@ -187,7 +196,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         payable
         onlyPodProxyManager
     {
-        require(!bondWithdrawn, "The bond has been withdrawn, cannot stake");
+        if (_pubKey.length != 0) {
+            revert PodIsAlreadyStaking();
+        }
         _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
         _pubKey = pubKey;
     }
@@ -195,11 +206,12 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @inheritdoc IEigenPodProxy
      */
-    function stopRegistraion() external onlyPodProxyOwner {
+    function stopRegistration() external onlyPodProxyOwner {
         if (_pubKey.length != 0) {
             revert PodIsAlreadyStaking();
         }
-        bondWithdrawn = true;
+        // Clear the Pub Key
+        delete _pubKey;
         _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
     }
 
@@ -261,13 +273,13 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      */
     function enableRestaking(
         uint64 oracleBlockNumber,
-        uint40 validatorIndex,
-        bytes memory proofs,
-        bytes32[] calldata validatorFields
+        uint40[] calldata validatorIndices,
+        BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,
+        bytes32[][] calldata validatorFields
     ) external {
-        ownedEigenPod.verifyWithdrawalCredentialsAndBalance(oracleBlockNumber, validatorIndex, proofs, validatorFields);
+        ownedEigenPod.verifyWithdrawalCredentials(oracleBlockNumber, validatorIndices, proofs, validatorFields);
         // Keep track of ValidatorStatus state changes
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.ACTIVE;
+        _previousStatus = IEigenPod.VALIDATOR_STATUS.ACTIVE;
     }
 
     /**
@@ -281,14 +293,15 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external {
-        ownedEigenPod.verifyAndProcessWithdrawal(
-            withdrawalProofs,
-            validatorFieldsProof,
-            validatorFields,
-            withdrawalFields,
-            beaconChainETHStrategyIndex,
-            oracleBlockNumber
-        );
+        // TODO:
+        // ownedEigenPod.verifyAndProcessWithdrawal(
+        //     withdrawalProofs,
+        //     validatorFieldsProof,
+        //     validatorFields,
+        //     withdrawalFields,
+        //     beaconChainETHStrategyIndex,
+        //     oracleBlockNumber
+        // );
     }
 
     /**
@@ -320,26 +333,17 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         emit PodRewardsRecipientChanged(oldRecipient, podRewardsRecipient);
     }
 
-    function _distributeFunds(uint256 total, uint256 toPod) internal {
+    function _distributeRewards(uint256 amount, uint256 comission) internal {
+        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, comission, _ONE_HUNDRED_WAD);
+        SafeTransferLib.safeTransferETH(getPodProxyManager(), amount - toPod);
         SafeTransferLib.safeTransferETH(_podRewardsRecipient, toPod);
-        SafeTransferLib.safeTransferETH(getPodProxyManager(), total - toPod);
-    }
-
-    function _distributeAvsRewards(uint256 amount) internal {
-        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, _podProxyManager.getAvsCommission(), _ONE_HUNDRED_WAD);
-        _distributeFunds(amount, toPod);
-    }
-
-    function _distributeConsensusRewards(uint256 amount) internal {
-        uint256 toPod = (amount * _podProxyManager.getConsensusCommission()) / _ONE_HUNDRED_WAD;
-        _distributeFunds(amount, toPod);
     }
 
     function _handleInactiveSkim() internal {
         _podProxyManager.withdrawFromProtocol{ value: address(this).balance }(
             _podProxyManager.balanceOf(address(this)), _podRewardsRecipient, _bond
         );
-        bondWithdrawn = true;
+        delete _pubKey;
     }
 
     function _handleQuickWithdraw(uint256 amount) internal {
@@ -354,6 +358,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         SafeTransferLib.safeTransferETH(getPodProxyManager(), poolCut);
 
         // Update previous status to withdrawn
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.WITHDRAWN;
+        _previousStatus = IEigenPod.VALIDATOR_STATUS.WITHDRAWN;
     }
 }

@@ -19,9 +19,9 @@ import { SlasherMock } from "test/mocks/SlasherMock.sol";
 import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
-import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
 import { PufferPoolMock } from "test/mocks/PufferPoolMock.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
     constructor() EigenPodProxy(IEigenPodManager(address(0)), ISlasher(address(0))) {
@@ -46,29 +46,21 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
         _bond = bond;
         _podProxyOwner = owner;
         _podProxyManager = manager;
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+        _previousStatus = IEigenPod.VALIDATOR_STATUS.INACTIVE;
         _eigenPodManager.createPod();
-        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
+        ownedEigenPod = IEigenPod(address(_eigenPodManager.ownerToPod(address(this))));
     }
 
     function handleInactiveSkim() public {
         return _handleInactiveSkim();
     }
 
-    function distributeConsensusRewards(uint256 amount) public {
-        return _distributeConsensusRewards(amount);
-    }
-
     function handleQuickWithdraw(uint256 amount) public {
         return _handleQuickWithdraw(amount);
     }
 
-    function getPreviousStatus() public view returns (IEigenPodWrapper.VALIDATOR_STATUS) {
+    function getPreviousStatus() public view returns (IEigenPod.VALIDATOR_STATUS) {
         return _previousStatus;
-    }
-
-    function setBondWithdrawn(bool _bondWithdrawn) public {
-        bondWithdrawn = _bondWithdrawn;
     }
 }
 
@@ -145,7 +137,7 @@ contract EigenPodProxyTest is Test {
         testCallStakeShouldWork();
         vm.expectRevert(IEigenPodProxy.PodIsAlreadyStaking.selector);
         vm.prank(alice);
-        eigenPodProxy.stopRegistraion();
+        eigenPodProxy.stopRegistration();
     }
 
     // Test stop registration
@@ -156,7 +148,7 @@ contract EigenPodProxyTest is Test {
         deal(address(pool), address(eigenPodProxy), 100 ether);
 
         vm.prank(alice);
-        eigenPodProxy.stopRegistraion();
+        eigenPodProxy.stopRegistration();
 
         assertEq(pool.balanceOf(alice), 100 ether, "alice should get pufETH");
     }

@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 /**
  * @title IEigenPodProxy
@@ -45,7 +45,7 @@ interface IEigenPodProxy {
     /**
      * @notice Returns the EigenPod
      */
-    function ownedEigenPod() external view returns (IEigenPodWrapper);
+    function ownedEigenPod() external view returns (IEigenPod);
 
     /**
      * @notice Sets the `podProxyowner` and `podRewardsRecipient`
@@ -63,7 +63,7 @@ interface IEigenPodProxy {
     /**
      * @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
      */
-    function stopRegistraion() external;
+    function stopRegistration() external;
     /**
      * @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
      */
@@ -113,9 +113,9 @@ interface IEigenPodProxy {
      */
     function enableRestaking(
         uint64 oracleBlockNumber,
-        uint40 validatorIndex,
-        bytes memory proofs,
-        bytes32[] calldata validatorFields
+        uint40[] calldata validatorIndices,
+        BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,
+        bytes32[][] calldata validatorFields
     ) external;
 
     /**
