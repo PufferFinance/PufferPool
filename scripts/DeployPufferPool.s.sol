@@ -13,11 +13,11 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
  * @notice Deploys UUPS upgradeable `PufferPool`.
  */
 contract DeployPufferPool is Script {
-    function run(address beacon, address rewardsBeacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool, WithdrawalPool) {
+    function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool, WithdrawalPool) {
         vm.startBroadcast();
 
         // Deploys Puffer Pool implementation
-        PufferPool poolImpl = new PufferPool(beacon, rewardsBeacon);
+        PufferPool poolImpl = new PufferPool(beacon);
         // Deploys Proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(address(poolImpl), "");
         // Casts Proxy to PufferPool

@@ -18,9 +18,21 @@ interface IPufferPool is IERC20Upgradeable {
      */
     struct EigenPodProxyInformation {
         address creator;
-        bytes32 pubKeyHash;
         bytes32 mrenclave;
+        mapping(bytes32 pubKeyHash => ValidatorInfo info) validatorInformation;
     }
+
+    enum Status {
+        PENDING,
+        BOND_WITHDRAWN,
+        VALIDATING
+    }
+
+    struct ValidatorInfo {
+        uint256 bond;
+        Status status;
+    }
+    // TODO: the rest
 
     /**
      * @dev Validator Key data struct
@@ -44,6 +56,13 @@ interface IPufferPool is IERC20Upgradeable {
         uint8 minBondRequirement;
         bool enabled;
     }
+
+    /**
+     * @notice Thrown then the user tries to register a bls public key that is
+     * already active
+     * @dev Signature "0x7d1a5966"
+     */
+    error PublicKeyIsAlreadyActive();
 
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
@@ -162,10 +181,10 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Emitted when Pod owners create an account
      * @param creator Creator address
      * @param account {Safe} account address
-     * @param rewardsContract is the rewards contract
-     * @dev Signature "0xdb59fdaec46a06b9c7c78b7780e8967a0003f7ad1696ec05ab7c035c5cef53c0"
+     * @param eigenPodProxy is the Eigen Pod Proxy address
+     * @dev Signature "0xa5eedecb358fe000da5d6bc51490f507146398db895d143ac20c6d91b261e116"
      */
-    event PodAccountCreated(address creator, address account, address rewardsContract);
+    event PodAccountAndEigenPodProxyCreated(address creator, address account, address eigenPodProxy);
 
     /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
@@ -341,8 +360,13 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Creates a pod's {Safe} multisig wallet
      * @param podAccountOwners is a Pod's wallet owner addresses
      * @param threshold is a number of required confirmations for a {Safe} transaction
+     * @param podRewardsRecipient is the recipient of pod rewards
+     * @return EigenPod
+     * @return EigenPodProxy
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold) external returns (Safe);
+    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
+        external
+        returns (Safe, IEigenPodProxy);
 
     /**
      * @notice Creates a Pod and registers a validator key
@@ -363,15 +387,16 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Registers a validator key for a `podAccount`
      * @dev Sender is expected to send the correct ETH amount
-     * @param podAccount is the address of the Eigen Pod Account
-     * @param podRewardsRecipient is the address of the Rewards recipient
+     * @param eigenPodProxy is the address of the Eigen Pod Proxy
      * @param data is a validator key data
-     * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
      */
-    function registerValidatorKey(address podAccount, address podRewardsRecipient, ValidatorKeyData calldata data)
-        external
-        payable
-        returns (IEigenPodProxy);
+    function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable;
+
+    /**
+     * @notice Stops the validator registration
+     * @dev Can only be called by EigenPodProxy, and Validator must be in `Pending` state
+     */
+    function stopRegistration(bytes32 publicKeyHash) external;
 
     /**
      * @notice Creates a guardian {Safe} multisig wallet
@@ -383,15 +408,15 @@ interface IPufferPool is IERC20Upgradeable {
         returns (Safe account);
 
     /**
-     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `blsPubKey`
+     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `msg.sender`
      * @dev Creation of EigenPodProxy and EigenPod is done via `create2` opcode.
-     *      For EigenPodProxy the salt is keccak256(blsPubKey), and for EigenPod it is the `msg.sender`.
+     *      For EigenPodProxy the salt is keccak256(msg.sender), and for EigenPod it is the `msg.sender`.
      *      In our case that will be EigenPodProxy.
      *      If we know address of the EigenPodProxy, we can calculate address of the EigenPod
      * @return EigenPodProxy address (Puffer Finance)
      * @return Eigen Pod Address (Eigen Layer)
      */
-    function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) external view returns (address, address);
+    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address);
 
     /**
      * @notice Returns the execution rewards comission
@@ -399,6 +424,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @return the comission amount
      */
     function getExecutionAmount(uint256 amount) external view returns (uint256);
+
+    /**
+     * @notice Returns validator information for `eigenPodProxy` and `pubKeyHash`
+     * @return Validator info struct
+     */
+    function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
 
     // ==== Only Guardians ====
 

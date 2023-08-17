@@ -60,7 +60,10 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getStrategyManager() external view returns (IStrategyManager) { }
 
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold) external returns (Safe) { }
+    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
+        external
+        returns (Safe, IEigenPodProxy)
+    { }
 
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
@@ -69,18 +72,14 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         address podRewardsRecipient
     ) external payable returns (Safe, IEigenPodProxy) { }
 
-    function registerValidatorKey(address podAccount, address podRewardsRecipient, ValidatorKeyData calldata data)
-        external
-        payable
-        returns (IEigenPodProxy)
-    { }
+    function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable { }
 
     function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
         external
         returns (Safe account)
     { }
 
-    function getEigenPodProxyAndEigenPod(bytes calldata blsPubKey) external view returns (address, address) { }
+    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address) { }
 
     function getExecutionAmount(uint256 amount) external view returns (uint256) { }
 
@@ -93,4 +92,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     ) external { }
 
     function updateETHBackingAmount(uint256 amount) external { }
+
+    function stopRegistration(bytes32 publicKeyHash) external { }
+
+    function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory) { }
 }

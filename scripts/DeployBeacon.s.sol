@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Script } from "forge-std/Script.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
-import { RewardsSplitter } from "puffer/RewardsSplitter.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
@@ -18,7 +17,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
  * @notice Deployment of Beacon for EigenPodProxy
  */
 contract DeployBeacon is Script {
-    function run(bool useEigenPodManagerMock) external returns (EigenPodProxy, UpgradeableBeacon, RewardsSplitter, UpgradeableBeacon) {
+    function run(bool useEigenPodManagerMock) external returns (EigenPodProxy, UpgradeableBeacon) {
         vm.startBroadcast();
 
         address eigenPodManager = address(new EigenPodManagerMock());
@@ -28,16 +27,12 @@ contract DeployBeacon is Script {
         
         ISlasher slasher = new SlasherMock(IStrategyManager(address(0)), IDelegationManager(address(0)));
         EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(IEigenPodManager(eigenPodManager), slasher);
-
-        UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
-
-        RewardsSplitter rewardImplementation = new RewardsSplitter();
         
-        UpgradeableBeacon rewardBeacon = new UpgradeableBeacon(address(rewardImplementation));
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
 
         vm.stopBroadcast();
 
         // Returns Proxy Factory & Safe Implementation
-        return (eigenPodProxyImplementation, beacon, rewardImplementation, rewardBeacon);
+        return (eigenPodProxyImplementation, beacon);
     }
 }
