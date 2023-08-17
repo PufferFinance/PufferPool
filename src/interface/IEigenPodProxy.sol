@@ -18,7 +18,7 @@ interface IEigenPodProxy {
      */
     error Unauthorized();
 
-    error PodIsAlreadyStaking();
+    error ValidatorIsAlreadyStaking();
 
     /**
      * @dev Thrown if the Eigenlayer AVS is not supported by Puffer Finance
@@ -62,8 +62,9 @@ interface IEigenPodProxy {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     /**
      * @notice Returns the pufETH bond to PodProxyOwner if they no longer want to stake
+     * @param publicKeyHash is the keccak256 hash of the validator's public key
      */
-    function stopRegistration() external;
+    function stopRegistration(bytes32 publicKeyHash) external;
     /**
      * @notice Calls optIntoSlashing on the Slasher.sol() contract as part of the AVS registration process
      */
@@ -142,12 +143,18 @@ interface IEigenPodProxy {
     function completeWithdrawal() external;
 
     /**
+     * @notice Releases `bondAmount` of pufETH to EigenPodProxy's owner
+     * @dev Can only be called by PufferPool
+     */
+    function releaseBond(uint256 bondAmount) external;
+
+    /**
      * @notice Returns the EigenPodProxy's owner
      */
-    function getPodProxyOwner() external returns (address payable);
+    function getPodProxyOwner() external view returns (address payable);
 
     /**
      * @notice Returns the EigenPodProxy's manager which is PufferPool
      */
-    function getPodProxyManager() external returns (address payable);
+    function getPodProxyManager() external view returns (address payable);
 }

@@ -61,7 +61,6 @@ contract PufferPoolTest is Test {
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
     UpgradeableBeacon beacon;
-    UpgradeableBeacon rewardsSplitterBeacon;
 
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -100,10 +99,10 @@ contract PufferPoolTest is Test {
         (guardian3Enclave, guardian3PKEnclave) = makeAddrAndKey("guardian3enclave");
         guardiansEnclavePks.push(guardian3PKEnclave);
 
-        (, beacon,, rewardsSplitterBeacon) = new DeployBeacon().run(true);
+        (, beacon) = new DeployBeacon().run(true);
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool, withdrawalPool) =
-        new DeployPufferPool().run(address(beacon),address(rewardsSplitterBeacon), address(proxyFactory), address(safeImplementation));
+            new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
     }
 
@@ -155,8 +154,7 @@ contract PufferPoolTest is Test {
         vm.expectRevert();
         uint256 result = PufferPoolMockUpgrade(payable(address(pool))).returnSomething();
 
-        PufferPoolMockUpgrade newImplementation =
-            new PufferPoolMockUpgrade(address(beacon), address(rewardsSplitterBeacon));
+        PufferPoolMockUpgrade newImplementation = new PufferPoolMockUpgrade(address(beacon));
         pool.upgradeTo(address(newImplementation));
 
         result = PufferPoolMockUpgrade(payable(address(pool))).returnSomething();
@@ -236,17 +234,23 @@ contract PufferPoolTest is Test {
     }
 
     // Test creating pod account
-    function testCreatePodAccount(address owner1) public {
+    function testCreatePodAccount(address owner1) public returns (Safe, IEigenPodProxy) {
         vm.assume(owner1 != address(0)); // address(0) can't be used
         vm.assume(owner1 != address(1)); // address(1) can't be used as it is special address in {Safe}
 
         address[] memory owners = new address[](1);
         owners[0] = owner1;
 
-        Safe safe = pool.createPodAccount({ podAccountOwners: owners, threshold: owners.length });
+        (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccount({
+            podAccountOwners: owners,
+            threshold: owners.length,
+            podRewardsRecipient: makeAddr("rewardsRecipient")
+        });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertEq(safe.getThreshold(), 1, "safe threshold");
+
+        return (safe, eigenPodProxy);
     }
 
     // Fuzz test for creating Pod account and registering one validator key
@@ -289,27 +293,23 @@ contract PufferPoolTest is Test {
 
         assertEq(proxy.getPodProxyOwner(), address(safe), "eigen pod proxy owner");
         assertEq(proxy.getPodProxyManager(), address(pool), "eigen pod proxy manager");
+
+        IPufferPool.ValidatorInfo memory info =
+            pool.getValidatorInfo(address(proxy), keccak256(validatorData.blsPubKey));
+        assertEq(info.bond, 16 ether, "bond is wrong");
+        assertTrue(info.status == IPufferPool.Status.PENDING, "status");
     }
 
-    function testCreatePodAccountAlija() public {
+    function testCreatePodAccount() public {
         address[] memory owners = new address[](2);
 
         owners[0] = makeAddr("owner1");
         owners[1] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
+        address rewardsRecipient = makeAddr("rewardsRecipientMock");
 
-        Safe safe = pool.createPodAccount(owners, 2);
+        (Safe safe, IEigenPodProxy proxy) = pool.createPodAccount(owners, 2, rewardsRecipient);
 
-        IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
-
-        (address precomputedEigenPodProxyAddress, address eigenPod) =
-            pool.getEigenPodProxyAndEigenPod(validatorData.blsPubKey);
-
-        IEigenPodProxy proxy =
-            pool.registerValidatorKey{ value: 16 ether }(address(safe), makeAddr("rewardsRecipientMock"), validatorData);
-
-        assertEq(address(proxy), precomputedEigenPodProxyAddress, "precompute failed");
         assertEq(proxy.getPodProxyOwner(), address(safe), "did not set owner");
-        assertEq(precomputedEigenPodProxyAddress, eigenPod, "in mock they should match");
     }
 
     // Fuzz test for depositing ETH to PufferPool
@@ -529,10 +529,14 @@ contract PufferPoolTest is Test {
             depositDataRoot: bytes32(""),
             guardianEnclaveSignatures: enclaveSignatures
         });
+
+        IPufferPool.ValidatorInfo memory info =
+            pool.getValidatorInfo(address(proxy), keccak256(validatorData.blsPubKey));
+        assertTrue(info.status == IPufferPool.Status.VALIDATING, "status update");
     }
 
-    // Test provisioning pod ETH with the same valid signature, it should revert
-    function testProvisionPodETHInvalidSignatures() public {
+    // Test provisioning pod ETH with invalid signatures
+    function testProvisionPodETHWithInvalidSignatures() public {
         (Safe guardianAccount,) = _createGuardians();
 
         IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
@@ -549,7 +553,44 @@ contract PufferPoolTest is Test {
 
         bytes[] memory enclaveSignatures = new bytes[](enclaveAddresses.length);
 
-        bytes32 digest = keccak256(abi.encodePacked(proxy, validatorData.blsPubKey));
+        bytes32 digest = keccak256(abi.encodePacked(proxy, validatorData.blsPubKey)).toEthSignedMessageHash();
+
+        // Submit same invalid signature 3 times
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1PK, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        enclaveSignatures[0] = signature;
+        enclaveSignatures[1] = signature;
+        enclaveSignatures[2] = signature;
+
+        vm.expectRevert(IPufferPool.Unauthorized.selector);
+        pool.provisionPodETH({
+            eigenPodProxy: address(proxy),
+            pubKey: validatorData.blsPubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            guardianEnclaveSignatures: enclaveSignatures
+        });
+    }
+
+    // Test provisioning pod ETH a valid signature sent 3 times
+    function testProvisionPodETHWithValidSignaturesReplay() public {
+        (Safe guardianAccount,) = _createGuardians();
+
+        IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
+
+        address[] memory owners = new address[](1);
+        owners[0] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
+
+        (, IEigenPodProxy proxy) =
+            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
+
+        pool.depositETH{ value: 100 ether }(address(this));
+
+        address[] memory enclaveAddresses = pool.getGuardianModule().getGuardiansEnclaveAddresses(guardianAccount);
+
+        bytes[] memory enclaveSignatures = new bytes[](enclaveAddresses.length);
+
+        bytes32 digest = keccak256(abi.encodePacked(proxy, validatorData.blsPubKey)).toEthSignedMessageHash();
 
         // Try the same key valid signature 3 times, instead of 3 different valid signatures
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardiansEnclavePks[0], digest);
@@ -571,24 +612,20 @@ contract PufferPoolTest is Test {
     // Test trying to register a validator key for invalid Eigen pod proxy
     function testRegisterKeyForInvalidEigenPod() public {
         // Use invalid pod address
-        address eigenPodProxyMock = address(new MockPodNotOwned());
-        vm.expectRevert(IPufferPool.Unauthorized.selector);
-        pool.registerValidatorKey{ value: 16 ether }(
-            eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
-        );
+        IEigenPodProxy eigenPodProxyMock = IEigenPodProxy(address(new MockPodNotOwned()));
+        vm.expectRevert();
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxyMock, _getMockValidatorKeyData());
     }
 
     // Test trying to register a duplicate vaidator key
-    function testRegisterDuplicateKey() public {
-        // Use invalid pod address
-        address eigenPodProxyMock = address(new MockPodOwned());
-        pool.registerValidatorKey{ value: 16 ether }(
-            eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
-        );
-        vm.expectRevert(IPufferPool.Create2Failed.selector);
-        pool.registerValidatorKey{ value: 16 ether }(
-            eigenPodProxyMock, makeAddr("rewardsRecipientMock"), _getMockValidatorKeyData()
-        );
+    function testRegisterDuplicateKey(address owner) public {
+        (, IEigenPodProxy eigenPodProxy) = testCreatePodAccount(owner);
+
+        vm.deal(owner, 100 ether);
+        vm.startPrank(owner);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
+        vm.expectRevert(IPufferPool.PublicKeyIsAlreadyActive.selector);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
     }
 
     // Deposit should revert when trying to deposit too small amount

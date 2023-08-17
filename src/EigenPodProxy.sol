@@ -13,6 +13,7 @@ import { SignedMath } from "openzeppelin/utils/math/SignedMath.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 
 /**
  * @title EingenPodProxy
@@ -153,8 +154,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
             }
         }
 
-        // MEV boost and execution rewards are going to `RewardsSplitter` smart contract
-
         // Donation
         return SafeTransferLib.safeTransferETH(payable(address(_podProxyManager)), msg.value);
     }
@@ -196,23 +195,21 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         payable
         onlyPodProxyManager
     {
-        if (_pubKey.length != 0) {
-            revert PodIsAlreadyStaking();
-        }
         _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
-        _pubKey = pubKey;
     }
 
     /**
      * @inheritdoc IEigenPodProxy
      */
-    function stopRegistration() external onlyPodProxyOwner {
-        if (_pubKey.length != 0) {
-            revert PodIsAlreadyStaking();
-        }
-        // Clear the Pub Key
-        delete _pubKey;
-        _podProxyManager.transfer(_podRewardsRecipient, _podProxyManager.balanceOf(address(this)));
+    function stopRegistration(bytes32 publicKeyHash) external onlyPodProxyOwner {
+        _podProxyManager.stopRegistration(publicKeyHash);
+    }
+
+    /**
+     * @inheritdoc IEigenPodProxy
+     */
+    function releaseBond(uint256 bondAmount) external onlyPodProxyManager {
+        _podProxyManager.transfer(_podRewardsRecipient, bondAmount);
     }
 
     /**

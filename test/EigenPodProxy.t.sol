@@ -82,7 +82,7 @@ contract EigenPodProxyTest is Test {
     }
 
     function setUp() public {
-        (, beacon,, rewardsBeacon) = new DeployBeacon().run(true);
+        (, beacon) = new DeployBeacon().run(true);
 
         // Transfer ownership from 'default tx sender' in foundry to beaconOwner
         vm.prank(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38);
@@ -121,34 +121,23 @@ contract EigenPodProxyTest is Test {
     function testCallStakeShouldWork() public fromPool {
         bytes memory pubKey = abi.encodePacked("1234");
 
-        assertEq(eigenPodProxy.getPubKey().length, 0, "pubkey shouldnt exist");
-
         eigenPodProxy.callStake{ value: 32 ether }({
             pubKey: pubKey,
             signature: new bytes(0),
             depositDataRoot: bytes32("")
         });
-
-        assertEq(eigenPodProxy.getPubKey(), pubKey, "pubkey");
-    }
-
-    // Stop registration should revert if the validator is already activated
-    function testStopRegistrationReverts() public {
-        testCallStakeShouldWork();
-        vm.expectRevert(IEigenPodProxy.PodIsAlreadyStaking.selector);
-        vm.prank(alice);
-        eigenPodProxy.stopRegistration();
     }
 
     // Test stop registration
-    function testStopRegistration() public {
+    function testReleaseBond() public {
         assertEq(pool.balanceOf(alice), 0, "alice should not have pufETH");
 
         // Give 100 pufETH to eigen pod proxy
         deal(address(pool), address(eigenPodProxy), 100 ether);
 
-        vm.prank(alice);
-        eigenPodProxy.stopRegistration();
+        // Only PufferPool can call this
+        vm.prank(address(pool));
+        eigenPodProxy.releaseBond(100 ether);
 
         assertEq(pool.balanceOf(alice), 100 ether, "alice should get pufETH");
     }
