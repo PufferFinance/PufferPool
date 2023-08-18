@@ -27,7 +27,7 @@ contract DeployBeacon is Script {
         
         ISlasher slasher = new SlasherMock(IStrategyManager(address(0)), IDelegationManager(address(0)));
         EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(IEigenPodManager(eigenPodManager), slasher);
-
+        
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
 
         vm.stopBroadcast();

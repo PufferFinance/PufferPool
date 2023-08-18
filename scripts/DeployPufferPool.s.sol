@@ -3,6 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import {Script} from "forge-std/Script.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { GuardianModule } from "puffer/GuardianModule.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
@@ -11,7 +13,7 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
  * @notice Deploys UUPS upgradeable `PufferPool`.
  */
 contract DeployPufferPool is Script {
-    function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool) {
+    function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool, WithdrawalPool) {
         vm.startBroadcast();
 
         // Deploys Puffer Pool implementation
@@ -24,7 +26,11 @@ contract DeployPufferPool is Script {
         address[] memory treasuryOwners = new address[](1);
         treasuryOwners[0] = address(1234); // mock owner
 
-        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners);
+        WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
+
+        GuardianModule module = new GuardianModule();
+
+        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners, address(withdrawalPool), address(module));
 
         // For test environment transfer ownership to Test contract
         pool.transferOwnership(msg.sender);
@@ -32,6 +38,6 @@ contract DeployPufferPool is Script {
         vm.stopBroadcast();
 
         // Returns pool
-        return (pool);
+        return (pool, withdrawalPool);
     }
 }
