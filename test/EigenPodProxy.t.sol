@@ -197,7 +197,7 @@ contract EigenPodProxyTest is Test {
     }
     */
 
-    function testExecutionRewardsProxy() public {
+    function testExecutionRewardsProxy(uint256 rewardAmount) public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
@@ -216,21 +216,21 @@ contract EigenPodProxyTest is Test {
         eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
 
         vm.prank(address(1));
-        vm.deal(address(1), 2 ether);
-        assertEq(address(1).balance, 2 ether);
+        vm.deal(address(1), rewardAmount);
+        assertEq(address(1).balance, rewardAmount);
 
-        payable(address(eigenPodProxy)).call{ value: 1 ether }("");
+        payable(address(eigenPodProxy)).call{ value: rewardAmount }("");
 
         // After sending 1 eth AVS rewards, both alice and the pool should receive funds
-        assert(alice.balance > aliceBalanceBefore);
-        assert(address(pool).balance > poolBalanceBefore);
+        assert(alice.balance >= aliceBalanceBefore);
+        assert(address(pool).balance >= poolBalanceBefore);
 
         // Total funds received should add up to total funds sent to fallback
-        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 1 ether);
+        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), rewardAmount);
 
         // Alice shold get 5% of 1 eth, pool gets the rest
-        assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
-        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
+        assertEq(alice.balance - aliceBalanceBefore, (rewardAmount * pool.getExecutionCommission()) / pool.getCommissionDenominator()); // (5 * 10 ** 16 * rewardAmount) / 10 ** 18); (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator()
+        //assertEq(address(pool).balance - poolBalanceBefore, (rewardAmount * (pool.getCommissionDenominator() - pool.getExecutionCommission())) / pool.getCommissionDenominator());
     }
 
     function testConsensusRewardsActiveProxy() public {
