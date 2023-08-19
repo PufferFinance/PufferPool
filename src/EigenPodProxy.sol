@@ -292,28 +292,6 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @inheritdoc IEigenPodProxy
      */
-    function verifyAndWithdraw(
-        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs,
-        bytes calldata validatorFieldsProof,
-        bytes32[] calldata validatorFields,
-        bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex,
-        uint64 oracleBlockNumber
-    ) external {
-        // TODO:
-        // ownedEigenPod.verifyAndProcessWithdrawal(
-        //     withdrawalProofs,
-        //     validatorFieldsProof,
-        //     validatorFields,
-        //     withdrawalFields,
-        //     beaconChainETHStrategyIndex,
-        //     oracleBlockNumber
-        // );
-    }
-
-    /**
-     * @inheritdoc IEigenPodProxy
-     */
     function completeWithdrawal() external { }
 
     /**
