@@ -30,6 +30,11 @@ interface IEigenPodProxy {
      */
     event PodRewardsRecipientChanged(address oldRecipient, address newRecipient);
 
+    struct ValidatorData {
+        bytes32 pubKeyHash;
+        uint64 restakedBalanceGwei; 
+    }
+
     /**
      * @notice Initializes the proxy contract
      * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
@@ -114,6 +119,7 @@ interface IEigenPodProxy {
      */
     function enableRestaking(
         uint64 oracleBlockNumber,
+        bytes32 pubKey,
         uint40[] calldata validatorIndices,
         BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,
         bytes32[][] calldata validatorFields
