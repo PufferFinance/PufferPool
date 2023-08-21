@@ -9,10 +9,15 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function initialize() external {
         __ERC20_init("pufETH", "pufETH");
+    }
+
+    receive() external payable {
+        // take the money
     }
 
     function depositETH(address recipient) external payable { }
@@ -43,16 +48,17 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getPufETHtoETHExchangeRate() external view returns (uint256) { }
 
-    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient, uint256 bondAmount)
-        external
-        payable
-    { }
+    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient) external payable { }
 
     function getAvsCommission() external view returns (uint256) { }
 
-    function getConsensusCommission() external view returns (uint256) { }
+    function getConsensusCommission() external view returns (uint256) {
+        return (10 * FixedPointMathLib.WAD); // 10%
+    }
 
-    function getExecutionCommission() external view returns (uint256) { }
+    function getExecutionCommission() external pure returns (uint256) {
+        return (5 * FixedPointMathLib.WAD); // 5%
+    }
 
     function getBeaconChainETHStrategyIndex() external view returns (uint256) { }
 
@@ -87,8 +93,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         address eigenPodProxy,
         bytes calldata pubkey,
         bytes calldata signature,
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes32 depositDataRoot
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
     ) external { }
 
     function updateETHBackingAmount(uint256 amount) external { }
@@ -96,4 +102,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function stopRegistration(bytes32 publicKeyHash) external { }
 
     function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory) { }
+
+    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner) { }
+
+    function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner) { }
 }

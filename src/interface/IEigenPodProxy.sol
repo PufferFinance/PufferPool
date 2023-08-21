@@ -32,10 +32,9 @@ interface IEigenPodProxy {
 
     /**
      * @notice Initializes the proxy contract
-     * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
-     * @param bond is the bond amount
+     * @param pool is the Manager of Eigen Pod Proxy (PufferPool)
      */
-    function initialize(IPufferPool manager, uint256 bond) external;
+    function initialize(IPufferPool pool) external;
 
     /**
      * @notice Returns the Eigen pod manager from EigenLayer
@@ -45,7 +44,7 @@ interface IEigenPodProxy {
     /**
      * @notice Returns the EigenPod
      */
-    function ownedEigenPod() external view returns (IEigenPod);
+    function eigenPod() external view returns (IEigenPod);
 
     /**
      * @notice Sets the `podProxyowner` and `podRewardsRecipient`
@@ -90,21 +89,6 @@ interface IEigenPodProxy {
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external;
 
     /**
-     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
-     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
-     * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
-     * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
-     * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
-     * that the value per share reported by each strategy will remain consistent, and that the shares will continue
-     * to accrue gains during the enforced withdrawal waiting period.
-     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
-     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed
-     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
-     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
-     */
-    function initiateWithdrawal() external;
-
-    /**
      * @notice Withdraws full EigenPod balance if corresponding validator was slashed before restaking
      */
     function withdrawSlashedEth() external;
@@ -119,23 +103,17 @@ interface IEigenPodProxy {
         bytes32[][] calldata validatorFields
     ) external;
 
-    /**
-     * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param withdrawalProofs is the information needed to check the veracity of the block number and withdrawal being proven
-     * @param validatorFieldsProof is the proof of the validator's fields in the validator tree
-     * @param withdrawalFields are the fields of the withdrawal being proven
-     * @param validatorFields are the fields of the validator being proven
-     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to
-     *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
-     */
-    function verifyAndWithdraw(
-        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs,
-        bytes calldata validatorFieldsProof,
-        bytes32[] calldata validatorFields,
-        bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex,
-        uint64 oracleBlockNumber
-    ) external;
+    // /**
+    //  * TODO: natspec
+    //  */
+    // function verifyAndWithdraw(
+    //     BeaconChainProofs.WithdrawalProofs[] calldata withdrawalProofs,
+    //     bytes[] calldata validatorFieldsProofs,
+    //     bytes32[][] calldata validatorFields,
+    //     bytes32[][] calldata withdrawalFields,
+    //     uint256 beaconChainETHStrategyIndex,
+    //     uint64 oracleTimestamp
+    // ) external;
 
     /**
      * @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status

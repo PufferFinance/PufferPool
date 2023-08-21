@@ -34,6 +34,8 @@ contract PufferPoolTest is Test {
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
     event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
+    address rewardsRecipient = makeAddr("rewardsRecipient");
+
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -138,6 +140,8 @@ contract PufferPoolTest is Test {
         assertEq(address(this), pool.owner(), "owner");
         assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
+        assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "eth startegy index");
+        assertEq(address(pool.getBeaconChainETHStrategy()), address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0), "eth startegy");
 
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({
@@ -200,6 +204,7 @@ contract PufferPoolTest is Test {
         assertEq(guardianAccount.getThreshold(), 3, "threshold");
 
         GuardianModule module = pool.getGuardianModule();
+        assertEq(address(module.pool()), address(pool), "module pool address is wrong");
 
         vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
@@ -244,7 +249,7 @@ contract PufferPoolTest is Test {
         (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccount({
             podAccountOwners: owners,
             threshold: owners.length,
-            podRewardsRecipient: makeAddr("rewardsRecipient")
+            podRewardsRecipient: rewardsRecipient
         });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
@@ -305,7 +310,6 @@ contract PufferPoolTest is Test {
 
         owners[0] = makeAddr("owner1");
         owners[1] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
-        address rewardsRecipient = makeAddr("rewardsRecipientMock");
 
         (Safe safe, IEigenPodProxy proxy) = pool.createPodAccount(owners, 2, rewardsRecipient);
 
@@ -496,7 +500,7 @@ contract PufferPoolTest is Test {
 
         IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
 
-        (, IEigenPodProxy proxy) =
+        (Safe podAccount, IEigenPodProxy proxy) =
             pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
 
         pool.depositETH{ value: 100 ether }(address(this));
@@ -533,6 +537,19 @@ contract PufferPoolTest is Test {
         IPufferPool.ValidatorInfo memory info =
             pool.getValidatorInfo(address(proxy), keccak256(validatorData.blsPubKey));
         assertTrue(info.status == IPufferPool.Status.VALIDATING, "status update");
+
+        vm.expectRevert(IPufferPool.InvalidBLSPubKey.selector);
+        pool.provisionPodETH({
+            eigenPodProxy: address(proxy),
+            pubKey: validatorData.blsPubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            guardianEnclaveSignatures: enclaveSignatures
+        });
+
+        vm.expectRevert(IPufferPool.InvalidValidatorStatus.selector);
+        vm.prank(address(podAccount));
+        proxy.stopRegistration(keccak256(validatorData.blsPubKey));
     }
 
     // Test provisioning pod ETH with invalid signatures
@@ -626,6 +643,25 @@ contract PufferPoolTest is Test {
         pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
         vm.expectRevert(IPufferPool.PublicKeyIsAlreadyActive.selector);
         pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
+    }
+
+    // Register validator key and then stop validator registration, it should return the bond
+    function testRegisterValidatorKeyAndStopRegistration(address owner) public {
+        (Safe podAccount, IEigenPodProxy eigenPodProxy) = testCreatePodAccount(owner);
+
+        vm.deal(owner, 100 ether);
+        vm.prank(owner);
+        pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
+
+        bytes32 pubKeyHash = keccak256(_getMockValidatorKeyData().blsPubKey);
+
+        vm.prank(address(podAccount));
+        eigenPodProxy.stopRegistration(pubKeyHash);
+
+        IPufferPool.ValidatorInfo memory info = pool.getValidatorInfo(address(eigenPodProxy), pubKeyHash);
+        assertEq(info.bond, 0, "bond should be zero");
+        assertTrue(info.status == IPufferPool.Status.BOND_WITHDRAWN, "status should be bond withdrawn");
+        assertEq(pool.balanceOf(rewardsRecipient), 16 ether, "recipient should get 16 pufETH (original bond)");
     }
 
     // Deposit should revert when trying to deposit too small amount
