@@ -35,12 +35,20 @@ interface IEigenPodProxy {
         uint64 restakedBalanceGwei; 
     }
 
+    struct WithdrawalData {
+        BeaconChainProofs.WithdrawalProofs[] withdrawalProofs;
+        bytes[] validatorFieldsProofs;
+        bytes32[][] validatorFields;
+        bytes32[][] withdrawalFields;
+        uint256 beaconChainETHStrategyIndex;
+        uint64 oracleTimestamp;
+    }
+
     /**
      * @notice Initializes the proxy contract
-     * @param manager is the Manager of Eigen Pod Proxy (PufferPool)
-     * @param bond is the bond amount
+     * @param pool is the Manager of Eigen Pod Proxy (PufferPool)
      */
-    function initialize(IPufferPool manager, uint256 bond) external;
+    function initialize(IPufferPool pool) external;
 
     /**
      * @notice Returns the Eigen pod manager from EigenLayer
@@ -50,7 +58,7 @@ interface IEigenPodProxy {
     /**
      * @notice Returns the EigenPod
      */
-    function ownedEigenPod() external view returns (IEigenPod);
+    function eigenPod() external view returns (IEigenPod);
 
     /**
      * @notice Sets the `podProxyowner` and `podRewardsRecipient`
@@ -95,21 +103,6 @@ interface IEigenPodProxy {
     function updatePodRewardsRecipient(address payable podRewardsRecipient) external;
 
     /**
-     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
-     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
-     * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
-     * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
-     * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
-     * that the value per share reported by each strategy will remain consistent, and that the shares will continue
-     * to accrue gains during the enforced withdrawal waiting period.
-     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
-     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed
-     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
-     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
-     */
-    function initiateWithdrawal() external;
-
-    /**
      * @notice Withdraws full EigenPod balance if corresponding validator was slashed before restaking
      */
     function withdrawSlashedEth() external;
@@ -123,6 +116,13 @@ interface IEigenPodProxy {
         uint40[] calldata validatorIndices,
         BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,
         bytes32[][] calldata validatorFields
+    ) external;
+
+    // /**
+    //  * TODO: natspec
+    //  */
+    function pokePod (
+        WithdrawalData memory data
     ) external;
 
     /**
