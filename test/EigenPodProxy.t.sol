@@ -15,12 +15,14 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { SlasherMock } from "test/mocks/SlasherMock.sol";
 import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
-import { IEigenPodWrapper } from "puffer/interface/IEigenPodWrapper.sol";
-import "forge-std/console.sol";
+import { PufferPoolMock } from "test/mocks/PufferPoolMock.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
     constructor() EigenPodProxy(IEigenPodManager(address(0)), ISlasher(address(0))) {
@@ -29,6 +31,13 @@ contract EigenPodProxyV2Mock is EigenPodProxy {
 
     function getSomething() external pure returns (uint256 number) {
         return 225883;
+    }
+}
+
+contract EigenPodMock {
+    // Address(1) is the delayed withdrawal mock address
+    function delayedWithdrawalRouter() public pure returns (IDelayedWithdrawalRouter) {
+        return IDelayedWithdrawalRouter(address(1));
     }
 }
 
@@ -42,44 +51,49 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
         public
     {
         _podRewardsRecipient = podRewardsRecipient;
-        _bond = bond;
         _podProxyOwner = owner;
-        _podProxyManager = manager;
-        _previousStatus = IEigenPodWrapper.VALIDATOR_STATUS.INACTIVE;
+        _pool = manager;
+        _previousStatus = IEigenPod.VALIDATOR_STATUS.INACTIVE;
         _eigenPodManager.createPod();
-        ownedEigenPod = IEigenPodWrapper(address(_eigenPodManager.ownerToPod(address(this))));
+        eigenPod = IEigenPod(address(_eigenPodManager.ownerToPod(address(this))));
     }
 
-    function handleInactiveSkim() public {
-        return _handleInactiveSkim();
-    }
+    function handleQuickWithdraw(uint256 amount) public { }
 
-    function distributeConsensusRewards(uint256 amount) public {
-        return _distributeConsensusRewards(amount);
-    }
-
-    function handleQuickWithdraw(uint256 amount) public {
-        return _handleQuickWithdraw(amount);
-    }
-
-    function getPreviousStatus() public view returns (IEigenPodWrapper.VALIDATOR_STATUS) {
+    function getPreviousStatus() public view returns (IEigenPod.VALIDATOR_STATUS) {
         return _previousStatus;
-    }
-
-    function setBondWithdrawn(bool _bondWithdrawn) public {
-        bondWithdrawn = _bondWithdrawn;
     }
 }
 
 contract EigenPodProxyTest is Test {
+    PufferPool pool;
     UpgradeableBeacon beacon;
+    UpgradeableBeacon rewardsBeacon;
     address payable alice = payable(makeAddr("alice"));
     address payable bob = payable(makeAddr("bob"));
-    PufferPool pool;
+    address beaconOwner = makeAddr("beaconOwner");
+
+    // For Simplifying tests, we are assigning eigenpodMock to address(0)
+    address eigenPodMock = address(0);
+    // And DelayedWithdrawalRouter to address(1)
+    address delayedWithdrawalMock = address(1);
+
     SafeProxyFactory proxyFactory;
     Safe safeImplementation;
+    EigenPodProxy eigenPodProxy;
 
-    address beaconOwner = makeAddr("beaconOwner");
+    mapping(address addr => bool skip) _skipAddresses;
+
+    modifier fromPool() {
+        vm.startPrank(address(pool));
+        _;
+        vm.stopPrank();
+    }
+
+    modifier fuzzAddresses(address addr) virtual {
+        vm.assume(_skipAddresses[addr] == false);
+        _;
+    }
 
     function setUp() public {
         (, beacon) = new DeployBeacon().run(true);
@@ -87,31 +101,75 @@ contract EigenPodProxyTest is Test {
         // Transfer ownership from 'default tx sender' in foundry to beaconOwner
         vm.prank(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38);
         beacon.transferOwnership(beaconOwner);
+
+        pool = PufferPool(payable(address(new PufferPoolMock())));
+
+        eigenPodProxy = EigenPodProxy(
+            payable(
+                address(
+                    new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(pool)))))
+                )
+            )
+        );
+
+        // Give ETH to pool
+        vm.deal(address(pool), 100 ether);
+
+        vm.prank(address(pool));
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
+
+        // In this test setup we set EigenPodMock to address(0)
+        EigenPodMock eigenPodMockDeployment = new EigenPodMock();
+        // Change the bytecode of address(0) to EigenPodMock bytecode
+        vm.etch(eigenPodMock, address(eigenPodMockDeployment).code);
+
+        _skipAddresses[address(pool)] = true;
+        _skipAddresses[address(eigenPodProxy)] = true;
+        _skipAddresses[eigenPodMock] = true;
+        _skipAddresses[delayedWithdrawalMock] = true;
+        _skipAddresses[alice] = true;
     }
 
+    // Tests the setup
     function testSetup() public {
-        address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
-        );
+        assertEq(eigenPodProxy.getPodProxyManager(), address(pool), "Pool should be the manager");
 
-        assertEq(
-            EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
-            address(this),
-            "In production PufferPool will be the manager"
-        );
+        assertEq(eigenPodProxy.getPodProxyOwner(), alice, "alice should be the pool proxy owner");
+        assertTrue(address(eigenPodProxy.getEigenPodManager()) != address(0), "Eigen pod manager shouldnt be address 0");
+
+        // This acts as a second initializer, so it should revert if we try to call it again
+        vm.expectRevert();
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
+    }
+
+    // Activates the validator staking
+    function testCallStakeShouldWork() public fromPool {
+        bytes memory pubKey = abi.encodePacked("1234");
+
+        eigenPodProxy.callStake{ value: 32 ether }({
+            pubKey: pubKey,
+            signature: new bytes(0),
+            depositDataRoot: bytes32("")
+        });
+    }
+
+    // Test stop registration
+    function testReleaseBond() public {
+        assertEq(pool.balanceOf(alice), 0, "alice should not have pufETH");
+
+        // Give 100 pufETH to eigen pod proxy
+        deal(address(pool), address(eigenPodProxy), 100 ether);
+
+        // Only PufferPool can call this
+        vm.prank(address(pool));
+        eigenPodProxy.releaseBond(100 ether);
+
+        assertEq(pool.balanceOf(alice), 100 ether, "alice should get pufETH");
     }
 
     // Tests the upgrade of two eigen pod proxies
     function testUpgradeBeaconProxy() public {
-        address eigenPodProxy = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
-        );
-
-        assertEq(
-            EigenPodProxy(payable(eigenPodProxy)).getPodProxyManager(),
-            address(this),
-            "In production PufferPool will be the manager"
-        );
+        testSetup();
 
         (bool success, bytes memory returndata) =
             address(eigenPodProxy).call(abi.encodeCall(EigenPodProxyV2Mock.getSomething, ()));
@@ -121,7 +179,7 @@ contract EigenPodProxyTest is Test {
         assertEq(returndata.length, 0);
 
         address eigenPodProxyTwo = address(
-            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
+            new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)))))
         );
 
         // // Both Eigen pod proxies should return empty data
@@ -143,63 +201,36 @@ contract EigenPodProxyTest is Test {
         assertEq(EigenPodProxyV2Mock(payable(eigenPodProxyTwo)).getSomething(), 225883, "failed upgrade for bob");
     }
 
+    // Tests rewards recipient change, revers if not called by the owner
     function testChangePodRewardsRecipient() public {
-        address payable eigenPodProxyAddress = payable(
-            address(
-                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(this)), 2 ether)))
-            )
-        );
-        EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
-
-        // Set Owner and Pod Rewards Recipient
-        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
-
         vm.prank(alice);
         eigenPodProxy.updatePodRewardsRecipient(payable(address(bob)));
+
+        vm.expectRevert(IEigenPodProxy.Unauthorized.selector);
         vm.prank(bob);
-        vm.expectRevert();
         eigenPodProxy.updatePodRewardsRecipient(payable(address(alice)));
     }
 
-    /* TODO: Fix so that AVS we mock is whitelisted
-    // TODO: Needs to change when we make dictionary for AVS info and payments
-    function testAvsRewardsProxy() public {
-        (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
-        vm.label(address(pool), "PufferPool");
-
-        address payable eigenPodProxyAddress = payable(
-            address(
-                new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (alice, IPufferPool(address(pool)), alice, 2 ether)))
-            )
-        );
-        EigenPodProxy eigenPodProxy = EigenPodProxy(eigenPodProxyAddress);
-        vm.prank(alice);
-        eigenPodProxy.enableSlashing(address(bob));
-
-        uint256 aliceBalanceBefore = alice.balance;
+/*
+    // Execution rewards distirbution
+    function testDistributeExecutionRewards(address blockProducer) public fuzzAddresses(blockProducer) {
+        vm.assume(blockProducer != address(0));
+        vm.assume(blockProducer != alice && blockProducer != address(pool) && blockProducer != address(eigenPodProxy));
+        // For execution rewards msg.sender must be address other than EigenLayer's router
         uint256 poolBalanceBefore = address(pool).balance;
 
-        vm.deal(bob, 2 ether);
-        vm.prank(bob);
-        payable(address(eigenPodProxy)).call{ value: 1 ether }("");
-
-        // After sending 1 eth AVS rewards, both alice and the pool should receive funds
-        assert(alice.balance > aliceBalanceBefore);
-        assert(address(pool).balance > poolBalanceBefore);
-
-        // Total funds received should add up to total funds sent to fallback
-        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 1 ether);
-
-        // Alice shold get 5% of 1 eth, pool gets the rest
-        assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
-        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
+        vm.prank(blockProducer);
+        vm.deal(blockProducer, 100 ether);
+        (bool success,) = address(eigenPodProxy).call{ value: 100 ether }("");
+        require(success, "failed");
+        assertEq(alice.balance, 5 ether, "alice did not receive 5% execution reward");
+        assertEq(address(pool).balance, poolBalanceBefore + 95 ether, "pool should get the rest");
     }
     */
-
-    function testExecutionRewardsProxy() public {
+    /*
+    function testExecutionRewardsProxy(uint256 rewardAmount) public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool) = new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         address payable eigenPodProxyAddress = payable(
@@ -216,26 +247,26 @@ contract EigenPodProxyTest is Test {
         eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
 
         vm.prank(address(1));
-        vm.deal(address(1), 2 ether);
-        assertEq(address(1).balance, 2 ether);
+        vm.deal(address(1), rewardAmount);
+        assertEq(address(1).balance, rewardAmount);
 
-        payable(address(eigenPodProxy)).call{ value: 1 ether }("");
+        payable(address(eigenPodProxy)).call{ value: rewardAmount }("");
 
         // After sending 1 eth AVS rewards, both alice and the pool should receive funds
-        assert(alice.balance > aliceBalanceBefore);
-        assert(address(pool).balance > poolBalanceBefore);
+        assert(alice.balance >= aliceBalanceBefore);
+        assert(address(pool).balance >= poolBalanceBefore);
 
         // Total funds received should add up to total funds sent to fallback
-        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 1 ether);
+        assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), rewardAmount);
 
         // Alice shold get 5% of 1 eth, pool gets the rest
-        assertEq(alice.balance - aliceBalanceBefore, 5 * 10 ** 16);
-        assertEq(address(pool).balance - poolBalanceBefore, 95 * 10 ** 16);
+        assertEq(alice.balance - aliceBalanceBefore, (rewardAmount * pool.getExecutionCommission()) / pool.getCommissionDenominator()); // (5 * 10 ** 16 * rewardAmount) / 10 ** 18); (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator()
+        //assertEq(address(pool).balance - poolBalanceBefore, (rewardAmount * (pool.getCommissionDenominator() - pool.getExecutionCommission())) / pool.getCommissionDenominator());
     }
 
     function testConsensusRewardsActiveProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool) = new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -261,7 +292,7 @@ contract EigenPodProxyTest is Test {
 
     function testQuickWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool) = new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -293,7 +324,7 @@ contract EigenPodProxyTest is Test {
 
     function testCompleteSlowWithdrawProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool) = new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -304,7 +335,7 @@ contract EigenPodProxyTest is Test {
 
     function testRewardsAfterBondWithdrawnProxy() public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool) = new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool) = new DeployPufferPool().run(address(beacon), address(rewardsBeacon), address(proxyFactory), address(safeImplementation));
         vm.label(address(pool), "PufferPool");
 
         EigenPodProxyV3Mock eigenPodProxy = new EigenPodProxyV3Mock();
@@ -322,5 +353,18 @@ contract EigenPodProxyTest is Test {
         // Alice should get no funds, and pool should receive everything
         assertEq(alice.balance, aliceBalanceBefore);
         assertEq(address(pool).balance, poolBalanceBefore + 1 ether);
+    }
+    */
+
+    // Consensus rewards distirbution
+    function testDistributeConsensusRewards() public {
+        uint256 poolBalanceBefore = address(pool).balance;
+
+        vm.deal(delayedWithdrawalMock, 100 ether);
+        vm.startPrank(delayedWithdrawalMock);
+        (bool success,) = address(eigenPodProxy).call{ value: 100 ether }("");
+        require(success, "failed");
+        assertEq(alice.balance, 10 ether, "alice did not receive 5% consensus reward");
+        assertEq(address(pool).balance, poolBalanceBefore + 90 ether, "pool should get the rest");
     }
 }

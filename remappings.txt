@@ -10,4 +10,5 @@ eigenlayer-test/=lib/eigenlayer-contracts/src/test
 openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 puffer/=src/
 scripts/=scripts/
-safe-contracts/=lib/safe-contracts.git/contracts/
+safe-contracts/=lib/safe-contracts/contracts/
+solady/=lib/solady/src/

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import {Script} from "forge-std/Script.sol";
-import {NewBaseScript} from "scripts/NewBaseScript.s.sol";
+import {BaseScript} from "scripts/BaseScript.s.sol";
 import {SafeProxyFactory} from "safe-contracts/proxies/SafeProxyFactory.sol";
 import {Safe} from "safe-contracts/Safe.sol";
 import {IEigenPodProxy} from "puffer/interface/IEigenPodProxy.sol";
@@ -25,7 +25,7 @@ using stdJson for string;
 // Commandline argument will give path to json file for params, and public key, needed in vm.startBroadcast()
 // Example script call (Assumes `PK` environment variable is set to eth private key):
 // forge script ./CreatePodAccountAndRegisterValidatorKey.s.sol:CreatePodAndRegisterKey ~/puffer/PufferPool/simulation/ephemery-sim-1/validator-1 --sig 'run(string)' --rpc-url 'https://otter.bordel.wtf/erigon' --broadcast
-contract CreatePodAndRegisterKey is NewBaseScript {
+contract CreatePodAndRegisterKey is BaseScript {
     function _parseRegistrationData(
         string memory json
     )

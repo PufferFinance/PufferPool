@@ -25,11 +25,6 @@ interface IPufferOwner {
     function setAvsCommission(uint256 newValue) external;
 
     /**
-     * @notice Sets the commission denominator used in commission calculations
-     */
-    function setCommissionDenominator(uint256 newValue) external;
-
-    /**
      * @notice Changes the {Safe} implementation address to `newSafeImplementation`
      */
     function changeSafeImplementation(address newSafeImplementation) external;
@@ -38,6 +33,16 @@ interface IPufferOwner {
      * @notice Changes the {Safe} proxy factory address to `newSafeFactory`
      */
     function changeSafeProxyFactory(address newSafeFactory) external;
+
+    /**
+     * TODO:
+     */
+    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
+
+    /**
+     * TODO:
+     */
+    function setGuardianEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
 
     /**
      * @notice Changes the treasury address to `treasury`
@@ -58,4 +63,18 @@ interface IPufferOwner {
      * @notice Changes the `avs` configuration to `configuration`
      */
     function changeAVSConfiguration(address avs, IPufferPool.AVSParams memory configuration) external;
+
+    /**
+     * @notice Changes the deposit rate to `depositRate`
+     *          Deposit Rate represents how much of the funds is being split between deposit pool and withdrawal pool
+     *          Deposit pool is for bootstrapping new validators
+     *          Withdrawal pool is for users that want to convert their pufETH -> ETH
+     */
+    function setDepositRate(uint256 depositRate) external;
+
+    /**
+     * @notice Changes the protocol fee rate to `protocolFeeRate`
+     *         Protocol fee is a percentage of funds going to the Puffer treasury and it is being taken only from the rewards
+     */
+    function setProtocolFeeRate(uint256 protocolFeeRate) external;
 }

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import {Script} from "forge-std/Script.sol";
-import {NewBaseScript} from "scripts/NewBaseScript.s.sol";
+import {BaseScript} from "scripts/BaseScript.s.sol";
 import {SafeProxyFactory} from "safe-contracts/proxies/SafeProxyFactory.sol";
 import {Safe} from "safe-contracts/Safe.sol";
 import {IEigenPodProxy} from "puffer/interface/IEigenPodProxy.sol";
@@ -32,19 +32,12 @@ using stdJson for string;
 // Commandline argument will give path to ephemery simulation dir
 // Example script call (Assumes `PK` environment variable is set to eth private key):
 // forge script ./DeployEverything.s.sol:DeployEverything ./simulation/ephemery-sim-2 --sig 'run(string)' --rpc-url 'https://otter.bordel.wtf/erigon' --broadcast
-contract DeployEverything is NewBaseScript {
-    function run(string calldata simulationDir) external broadcast {
+contract DeployEverything is BaseScript {
+    function run(string calldata simulationDir, address slasherAddress, address eigenPodManager) external broadcast {
         console.log("Running DeployEverything");
 
-        address eigenPodManager = address(new EigenPodManagerMock());
-        // if (!useEigenPodManagerMock) {
-        //     eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
-        // }
-
-        ISlasher slasher = new SlasherMock(
-            IStrategyManager(address(0)),
-            IDelegationManager(address(0))
-        );
+        ISlasher slasher = ISlasher(slasherAddress);
+        
         EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(
             IEigenPodManager(eigenPodManager),
             slasher
