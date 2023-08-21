@@ -141,7 +141,11 @@ contract PufferPoolTest is Test {
         assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
         assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "eth startegy index");
-        assertEq(address(pool.getBeaconChainETHStrategy()), address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0), "eth startegy");
+        assertEq(
+            address(pool.getBeaconChainETHStrategy()),
+            address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0),
+            "eth startegy"
+        );
 
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({

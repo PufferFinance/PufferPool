@@ -127,6 +127,7 @@ contract EigenPodProxyTest is Test {
         _skipAddresses[address(eigenPodProxy)] = true;
         _skipAddresses[eigenPodMock] = true;
         _skipAddresses[delayedWithdrawalMock] = true;
+        _skipAddresses[alice] = true;
     }
 
     // Tests the setup
