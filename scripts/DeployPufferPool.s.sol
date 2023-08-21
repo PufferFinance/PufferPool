@@ -28,7 +28,7 @@ contract DeployPufferPool is Script {
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
-        GuardianModule module = new GuardianModule();
+        GuardianModule module = new GuardianModule(pool);
 
         pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners, address(withdrawalPool), address(module));
 

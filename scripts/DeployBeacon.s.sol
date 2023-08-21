@@ -7,6 +7,7 @@ import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { EigenPodManagerMock } from "eigenlayer-test/mocks/EigenPodManagerMock.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { SlasherMock } from "test/mocks/SlasherMock.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";

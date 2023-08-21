@@ -83,6 +83,12 @@ interface IPufferPool is IERC20Upgradeable {
     error Create2Failed();
 
     /**
+     * @notice Thrown when validator is not in valid status for withdrawing bond
+     * @dev Signature "0xa36c527f"
+     */
+    error InvalidValidatorStatus();
+
+    /**
      * @notice Thrown when the BLS public key is not valid
      * @dev Signature "0x7eef7967"
      */
@@ -322,9 +328,7 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Distributes all ETH to the pool and PodProxyOwner upon protocol exit
      */
-    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient, uint256 bondAmount)
-        external
-        payable;
+    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient) external payable;
 
     /**
      * @notice Returns AVS Commission
@@ -431,6 +435,16 @@ interface IPufferPool is IERC20Upgradeable {
      */
     function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
 
+    /**
+     * TODO:
+     */
+    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
+
+    /**
+     * TODO:
+     */
+    function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
+
     // ==== Only Guardians ====
 
     /**
@@ -440,8 +454,8 @@ interface IPufferPool is IERC20Upgradeable {
         address eigenPodProxy,
         bytes calldata pubkey,
         bytes calldata signature,
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes32 depositDataRoot
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
     ) external;
 
     function updateETHBackingAmount(uint256 amount) external;

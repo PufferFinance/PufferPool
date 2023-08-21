@@ -35,6 +35,16 @@ interface IPufferOwner {
     function changeSafeProxyFactory(address newSafeFactory) external;
 
     /**
+     * TODO:
+     */
+    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
+
+    /**
+     * TODO:
+     */
+    function setGuardianEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
+
+    /**
      * @notice Changes the treasury address to `treasury`
      */
     function changeTreasury(address treasury) external;

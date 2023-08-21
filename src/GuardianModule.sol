@@ -6,6 +6,7 @@ import { SafeStorage } from "safe-contracts/libraries/SafeStorage.sol";
 import { Enum } from "safe-contracts/common/Enum.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { PufferPool } from "puffer/PufferPool.sol";
 
 /**
  * @title Guardian module
@@ -14,6 +15,7 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+    PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
 
@@ -25,7 +27,8 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     uint256 public constant GUARDIAN_KEYS_SEED =
         21179069603049101978888635358919905010850171584254878123552458168785430937385;
 
-    constructor() {
+    constructor(PufferPool pufferPool) {
+        pool = pufferPool;
         myAddress = address(this);
     }
 
