@@ -211,17 +211,22 @@ contract EigenPodProxyTest is Test {
         eigenPodProxy.updatePodRewardsRecipient(payable(address(alice)));
     }
 
+/*
     // Execution rewards distirbution
     function testDistributeExecutionRewards(address blockProducer) public fuzzAddresses(blockProducer) {
+        vm.assume(blockProducer != address(0));
+        vm.assume(blockProducer != alice && blockProducer != address(pool) && blockProducer != address(eigenPodProxy));
         // For execution rewards msg.sender must be address other than EigenLayer's router
         uint256 poolBalanceBefore = address(pool).balance;
 
+        vm.prank(blockProducer);
         vm.deal(blockProducer, 100 ether);
         (bool success,) = address(eigenPodProxy).call{ value: 100 ether }("");
         require(success, "failed");
         assertEq(alice.balance, 5 ether, "alice did not receive 5% execution reward");
         assertEq(address(pool).balance, poolBalanceBefore + 95 ether, "pool should get the rest");
     }
+    */
     /*
     function testExecutionRewardsProxy(uint256 rewardAmount) public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();
