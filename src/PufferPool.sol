@@ -1003,6 +1003,8 @@ contract PufferPool is
             return _nonEnclaveBondRequirement;
         }
 
+        // TODO use the EnclaveVerifier.verifyValidatorPubKey()
+
         return _enclaveBondRequirement;
     }
 
