@@ -12,3 +12,5 @@ puffer/=src/
 scripts/=scripts/
 safe-contracts/=lib/safe-contracts/contracts/
 solady/=lib/solady/src/
+rave/=lib/rave/src/
+rave-test/=lib/rave/test/

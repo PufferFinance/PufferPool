@@ -15,6 +15,7 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
@@ -119,6 +120,8 @@ contract PufferPoolTest is Test {
         bytes[] memory blsEncPrivKeyShares = new bytes[](0);
         bytes[] memory blsPubKeyShares = new bytes[](0);
 
+        RaveEvidence memory evidence;
+
         IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
             blsPubKey: pubKey,
             signature: new bytes(0),
@@ -126,7 +129,9 @@ contract PufferPoolTest is Test {
             blsEncPrivKeyShares: blsEncPrivKeyShares,
             blsPubKeyShares: blsPubKeyShares,
             blockNumber: 1,
-            raveEvidence: new bytes(0)
+            mrenclave: bytes32(""),
+            mrsigner: bytes32(""),
+            evidence: evidence
         });
 
         return validatorData;
@@ -153,7 +158,8 @@ contract PufferPoolTest is Test {
             safeImplementation: address(safeImplementation),
             treasuryOwners: new address[](0),
             withdrawalPool: address(123),
-            guardianSafeModule: address(555123)
+            guardianSafeModule: address(555123),
+            enclaveVerifier: address(1231555324534)
         });
     }
 
@@ -277,8 +283,6 @@ contract PufferPoolTest is Test {
         // bad pub key length, it needs to be 48
         bytes memory badPubKey = new bytes(45);
         validatorData.blsPubKey = badPubKey;
-
-        address rewardsRecipient = makeAddr("rewardsRecipient");
 
         // Registering key from unauthorized msg.sender should fail
         vm.expectRevert(IPufferPool.InvalidBLSPubKey.selector);

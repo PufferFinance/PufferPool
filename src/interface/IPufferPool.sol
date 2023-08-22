@@ -6,6 +6,7 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title IPufferPool
@@ -44,7 +45,9 @@ interface IPufferPool is IERC20Upgradeable {
         bytes[] blsEncPrivKeyShares;
         bytes[] blsPubKeyShares;
         uint256 blockNumber;
-        bytes raveEvidence;
+        bytes32 mrenclave;
+        bytes32 mrsigner;
+        RaveEvidence evidence;
     }
 
     /**
@@ -63,6 +66,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x7d1a5966"
      */
     error PublicKeyIsAlreadyActive();
+
+    /**
+     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
+     * @dev Signature "0x14236792"
+     */
+    error CouldNotVerifyCustody();
 
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
@@ -145,6 +154,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x7deed74ce611e6c4a95846634fcd60af15a02e80c78e4692fb5455f094f60d43"
      */
     event SafeImplementationChanged(address safeImplementation);
+
+    /**
+     * @param enclaveVerifier is the address of Enclave verifier contract
+     * @dev Signature "0x60e300c919f110ebd183109296d6cd03856a84f64cb7acb91abde69baefd0d7e"
+     */
+    event EnclaveVerifierChanged(address enclaveVerifier);
 
     /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator

@@ -6,16 +6,17 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
-import { console } from "forge-std/console.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 contract PufferPoolIntegrationTest is IntegrationTestHelper {
+    address bob = makeAddr("bob"); // bob address is -> 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e
+
     function setUp() public {
         deployContracts();
     }
 
     function testIntegrationCreatePodAccountAndRegisterValidatorKey() public {
         // Sanity check
-        address bob = makeAddr("bob"); // bob address is -> 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e
 
         address[] memory owners = new address[](1);
         owners[0] = bob;
@@ -38,6 +39,8 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         bytes[] memory blsEncPrivKeyShares = new bytes[](0);
         bytes[] memory blsPubKeyShares = new bytes[](0);
 
+        RaveEvidence memory evidence;
+
         IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
             blsPubKey: pubKey,
             signature: new bytes(0),
@@ -45,7 +48,9 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
             blsEncPrivKeyShares: blsEncPrivKeyShares,
             blsPubKeyShares: blsPubKeyShares,
             blockNumber: 1,
-            raveEvidence: new bytes(0)
+            mrenclave: bytes32(""),
+            mrsigner: bytes32(""),
+            evidence: evidence
         });
 
         (address predictedEigenPodProxy, address predictedEigenPod) = pool.getEigenPodProxyAndEigenPod(bob);

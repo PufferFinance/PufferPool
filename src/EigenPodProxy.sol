@@ -116,11 +116,13 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     receive() external payable {
-        //address router = address(eigenPod.delayedWithdrawalRouter());
+        // TODO: Create a wrapper interface, or leave it like this?
+        (, bytes memory data) = address(eigenPod).call(abi.encodeWithSignature("delayedWithdrawalRouter()"));
+        address router = abi.decode(data, (address));
         // Everything that is not from the EigenLayer's router is execution reward / donation
-        /*if (msg.sender != router) {
+        if (msg.sender != router) {
             return _distributeRewards(msg.value, _pool.getExecutionCommission());
-        }*/
+        }
 
         // If we're here, that means that the msg.sender is the EigenLayer's router
 

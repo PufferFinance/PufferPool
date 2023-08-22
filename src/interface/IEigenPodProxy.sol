@@ -32,7 +32,7 @@ interface IEigenPodProxy {
 
     struct ValidatorData {
         bytes32 pubKeyHash;
-        uint64 restakedBalanceGwei; 
+        uint64 restakedBalanceGwei;
     }
 
     struct WithdrawalData {
@@ -121,9 +121,7 @@ interface IEigenPodProxy {
     // /**
     //  * TODO: natspec
     //  */
-    function pokePod (
-        WithdrawalData memory data
-    ) external;
+    function pokePod(WithdrawalData memory data) external;
 
     /**
      * @notice Completes an EigenPod's queued withdrawal by proving their beacon chain status

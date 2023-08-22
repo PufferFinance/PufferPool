@@ -22,6 +22,8 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
+import { EnclaveVerifier, IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title PufferPool
@@ -178,6 +180,11 @@ contract PufferPool is
     IStrategyManager internal _strategyManager;
 
     /**
+     * @dev Enclave verifier smart contract
+     */
+    IEnclaveVerifier internal _enclaveVerifier;
+
+    /**
      * @dev Public keys of the active validators
      */
     EnumerableSet.Bytes32Set internal _pubKeyHashes;
@@ -241,7 +248,8 @@ contract PufferPool is
         address safeImplementation,
         address[] calldata treasuryOwners,
         address withdrawalPool,
-        address guardianSafeModule
+        address guardianSafeModule,
+        address enclaveVerifier
     ) external initializer {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
@@ -250,6 +258,7 @@ contract PufferPool is
         __Ownable_init();
         _setSafeProxyFactory(safeProxyFactory);
         _setSafeImplementation(safeImplementation);
+        _setEnclaveVerifier(enclaveVerifier);
         _setNonCustodialBondRequirement(16 ether);
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
@@ -505,7 +514,7 @@ contract PufferPool is
             revert PublicKeyIsAlreadyActive();
         }
 
-        uint256 validatorBondRequirement = _getValidatorBondRequirement(data.raveEvidence, data.blsEncPrivKeyShares);
+        uint256 validatorBondRequirement = _getValidatorBondRequirement(data.evidence, data.blsEncPrivKeyShares);
         if (msg.value != validatorBondRequirement) {
             revert InvalidAmount();
         }
@@ -880,7 +889,7 @@ contract PufferPool is
     }
 
     function _validateCustody(ValidatorKeyData calldata data) internal view {
-        if (data.raveEvidence.length + data.blsEncPrivKeyShares.length == 0) {
+        if (data.evidence.report.length + data.blsEncPrivKeyShares.length == 0) {
             // First case:
             // No enclave or guardian custody
             // We don't do validations
@@ -899,7 +908,7 @@ contract PufferPool is
             revert InvalidBLSPublicKeyShares();
         }
 
-        if (data.raveEvidence.length == 0) {
+        if (data.evidence.report.length == 0) {
             // Second case:
             // No Enclave but gives custody
             return;
@@ -908,22 +917,17 @@ contract PufferPool is
         // Third case:
         // Enclave and gives custody
         // Do RAVE validation
+        bool custodyVerified = _enclaveVerifier.verifyValidatorPubKey({
+            pubKey: data.blsPubKey,
+            blockNumber: data.blockNumber,
+            evidence: data.evidence,
+            mrenclave: data.mrenclave,
+            mrsigner: data.mrsigner
+        });
 
-        // TODO:
-
-        // (bytes memory report, bytes memory sig, bytes memory leafX509Cert) =
-        //     abi.decode(("bytes", "bytes", "bytes"), raveEvidence);
-        // bytes memory key = verifyEnclaveKey(
-        //     blsPubKey,
-        //     blockNumber,
-        //     report,
-        //     sig,
-        //     leafX509Cert,
-        //     signingMod,
-        //     signingExp,
-        //     pufferPool.getSecureSignerMrenclave(),
-        //     pufferPool.getSecureSignerMrsigner()
-        // );
+        if (!custodyVerified) {
+            revert CouldNotVerifyCustody();
+        }
     }
 
     function _setSafeProxyFactory(address safeProxyFactory) internal {
@@ -934,6 +938,11 @@ contract PufferPool is
     function _setSafeImplementation(address safeImplementation) internal {
         _safeImplementation = safeImplementation;
         emit SafeImplementationChanged(safeImplementation);
+    }
+
+    function _setEnclaveVerifier(address enclaveVerifier) internal {
+        _enclaveVerifier = IEnclaveVerifier(enclaveVerifier);
+        emit EnclaveVerifierChanged(enclaveVerifier);
     }
 
     function _setExecutionCommission(uint256 newValue) internal {
@@ -990,20 +999,18 @@ contract PufferPool is
         emit DepositRateChanged(oldDepositRate, depositRate);
     }
 
-    function _getValidatorBondRequirement(bytes calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)
+    function _getValidatorBondRequirement(RaveEvidence calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)
         internal
         view
         returns (uint256)
     {
-        if (raveEvidence.length + blsEncPrivKeyShares.length == 0) {
+        if (raveEvidence.report.length + blsEncPrivKeyShares.length == 0) {
             return _nonCustodialBondRequirement;
         }
 
-        if (raveEvidence.length == 0) {
+        if (raveEvidence.report.length == 0) {
             return _nonEnclaveBondRequirement;
         }
-
-        // TODO use the EnclaveVerifier.verifyValidatorPubKey()
 
         return _enclaveBondRequirement;
     }
