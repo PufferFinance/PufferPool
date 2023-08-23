@@ -25,7 +25,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18;
 
     /**
      * @dev {Safe} PodAccount is the pod proxy owner
@@ -73,7 +73,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @dev Mapping representing the full withdrawals
      */
-    mapping(uint256 index => uint256 validatorBond) internal _fullWithdrawals;
+    mapping(uint256 => uint256) internal _fullWithdrawals;
 
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;

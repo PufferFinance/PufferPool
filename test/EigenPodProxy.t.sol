@@ -82,7 +82,7 @@ contract EigenPodProxyTest is Test {
     Safe safeImplementation;
     EigenPodProxy eigenPodProxy;
 
-    mapping(address addr => bool skip) _skipAddresses;
+    mapping(address => bool) _skipAddresses;
 
     modifier fromPool() {
         vm.startPrank(address(pool));
@@ -152,6 +152,14 @@ contract EigenPodProxyTest is Test {
             depositDataRoot: bytes32("")
         });
     }
+
+    // TODO: Test withdrawBeforeRestaking
+    /*
+    function testSkimRewards() public {
+        testCallStakeShouldWork();
+        IEigenPod pod = eigenPodProxy.eigenPod();
+        require(pod.hasRestaked() == false, "Pod should not be restaked");
+    }*/
 
     // Test stop registration
     function testReleaseBond() public {

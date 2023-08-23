@@ -91,7 +91,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function _getGuardianEnclaveAddress(Safe guardianAccount, address guardian) internal view returns (address) {
         // Compute the storage slot
         uint256 storageSlot;
-        assembly ("memory-safe") {
+        assembly {
             mstore(0x0c, GUARDIAN_KEYS_SEED)
             mstore(0x00, guardian)
             storageSlot := keccak256(0x0c, 0x20)

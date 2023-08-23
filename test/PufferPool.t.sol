@@ -159,7 +159,8 @@ contract PufferPoolTest is Test {
             treasuryOwners: new address[](0),
             withdrawalPool: address(123),
             guardianSafeModule: address(555123),
-            enclaveVerifier: address(1231555324534)
+            enclaveVerifier: address(1231555324534),
+            data: bytes("")
         });
     }
 
@@ -205,7 +206,11 @@ contract PufferPoolTest is Test {
         owners[1] = guardian2;
         owners[2] = guardian3;
 
-        Safe guardianAccount = pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
+        Safe guardianAccount = pool.createGuardianAccount({
+            guardiansWallets: owners,
+            threshold: owners.length,
+            data: abi.encodeCall(GuardianModule.enableMyself, ())
+        });
 
         // Assert 3 guardians
         assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
@@ -217,7 +222,7 @@ contract PufferPoolTest is Test {
         assertEq(address(module.pool()), address(pool), "module pool address is wrong");
 
         vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
-        pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length });
+        pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: "" });
 
         // Register enclave keys for guardians
         vm.prank(owners[0]);
@@ -259,7 +264,8 @@ contract PufferPoolTest is Test {
         (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccount({
             podAccountOwners: owners,
             threshold: owners.length,
-            podRewardsRecipient: rewardsRecipient
+            podRewardsRecipient: rewardsRecipient,
+            data: ""
         });
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
@@ -286,19 +292,21 @@ contract PufferPoolTest is Test {
 
         // Registering key from unauthorized msg.sender should fail
         vm.expectRevert(IPufferPool.InvalidBLSPubKey.selector);
-        pool.createPodAccountAndRegisterValidatorKey(owners, 2, validatorData, rewardsRecipient);
+        pool.createPodAccountAndRegisterValidatorKey(owners, 2, validatorData, rewardsRecipient, bytes(""));
 
         // set key to correct length
         validatorData.blsPubKey = new bytes(48);
 
         // Invalid amount revert
         vm.expectRevert(IPufferPool.InvalidAmount.selector);
-        (Safe safe, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 13 ether }(owners, 2, validatorData, rewardsRecipient);
+        (Safe safe, IEigenPodProxy proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 13 ether }(
+            owners, 2, validatorData, rewardsRecipient, bytes("")
+        );
 
         // Success
-        (safe, proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 2, validatorData, rewardsRecipient);
+        (safe, proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(
+            owners, 2, validatorData, rewardsRecipient, bytes("")
+        );
 
         assertTrue(safe.isOwner(address(owner1)), "bad owner");
         assertTrue(safe.isOwner(address(this)), "bad owner2");
@@ -319,7 +327,7 @@ contract PufferPoolTest is Test {
         owners[0] = makeAddr("owner1");
         owners[1] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
 
-        (Safe safe, IEigenPodProxy proxy) = pool.createPodAccount(owners, 2, rewardsRecipient);
+        (Safe safe, IEigenPodProxy proxy) = pool.createPodAccount(owners, 2, rewardsRecipient, bytes(""));
 
         assertEq(proxy.getPodProxyOwner(), address(safe), "did not set owner");
     }
@@ -508,8 +516,9 @@ contract PufferPoolTest is Test {
 
         IPufferPool.ValidatorKeyData memory validatorData = _getMockValidatorKeyData();
 
-        (Safe podAccount, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
+        (Safe podAccount, IEigenPodProxy proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(
+            owners, 1, validatorData, owners[0], bytes("")
+        );
 
         pool.depositETH{ value: 100 ether }(address(this));
 
@@ -569,8 +578,9 @@ contract PufferPoolTest is Test {
         address[] memory owners = new address[](1);
         owners[0] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
 
-        (, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
+        (, IEigenPodProxy proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(
+            owners, 1, validatorData, owners[0], bytes("")
+        );
 
         pool.depositETH{ value: 100 ether }(address(this));
 
@@ -606,8 +616,9 @@ contract PufferPoolTest is Test {
         address[] memory owners = new address[](1);
         owners[0] = address(this); // set owner as this address, so that we don't `unauthorized` reverts
 
-        (, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, owners[0]);
+        (, IEigenPodProxy proxy) = pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(
+            owners, 1, validatorData, owners[0], bytes("")
+        );
 
         pool.depositETH{ value: 100 ether }(address(this));
 

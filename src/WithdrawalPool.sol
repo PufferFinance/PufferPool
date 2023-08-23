@@ -17,7 +17,7 @@ contract WithdrawalPool {
         pool = pufferPool;
     }
 
-    mapping(uint256 withdrawalId => Withdrawal info) internal _withdrawalQueue;
+    mapping(uint256 => Withdrawal) internal _withdrawalQueue;
     uint256 internal _lastId;
 
     uint256 internal _lockedTime = 3 days;

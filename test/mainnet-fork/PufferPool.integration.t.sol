@@ -61,7 +61,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         vm.startPrank(bob);
         // Register validator 1
         (, IEigenPodProxy proxy) =
-            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, bob);
+            pool.createPodAccountAndRegisterValidatorKey{ value: 16 ether }(owners, 1, validatorData, bob, bytes(""));
 
         address podAddress = address(IEigenPodManager(pool.EIGEN_POD_MANAGER()).getPod(address(proxy)));
 

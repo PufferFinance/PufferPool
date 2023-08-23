@@ -72,7 +72,7 @@ contract PufferPool is
     /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18;
 
     /**
      * @dev Minimum deposit amount in ETH
@@ -97,12 +97,12 @@ contract PufferPool is
     /**
      * @dev EigenPodProxy -> EigenPodProxyInformation
      */
-    mapping(address eigenPodProxy => EigenPodProxyInformation info) internal _eigenPodProxies;
+    mapping(address => EigenPodProxyInformation) internal _eigenPodProxies;
 
     /**
      * @dev Actively validated services (AVSs) configuration
      */
-    mapping(address AVS => AVSParams parameters) internal _allowedAVSs;
+    mapping(address => AVSParams) internal _allowedAVSs;
 
     /**
      * @dev Address of the {Safe} proxy factory
@@ -249,7 +249,8 @@ contract PufferPool is
         address[] calldata treasuryOwners,
         address withdrawalPool,
         address guardianSafeModule,
-        address enclaveVerifier
+        address enclaveVerifier,
+        bytes calldata data
     ) external initializer {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
@@ -271,7 +272,7 @@ contract PufferPool is
                 owners: treasuryOwners,
                 threshold: treasuryOwners.length,
                 to: address(0),
-                data: bytes("")
+                data: data
             })
         );
 
@@ -423,7 +424,7 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account)
     {
@@ -439,7 +440,7 @@ contract PufferPool is
             owners: guardiansWallets,
             threshold: threshold,
             to: address(_guardianModule),
-            data: abi.encodeCall(GuardianModule.enableMyself, ())
+            data: data
         });
 
         _guardiansMultisig = account;
@@ -450,11 +451,13 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy)
-    {
-        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient);
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata data
+    ) external returns (Safe, IEigenPodProxy) {
+        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient, data);
     }
 
     /**
@@ -464,10 +467,11 @@ contract PufferPool is
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata podData
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
         (Safe account, IEigenPodProxy eigenPodProxy) =
-            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient);
+            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient, podData);
         registerValidatorKey(eigenPodProxy, data);
         return (account, eigenPodProxy);
     }
@@ -864,7 +868,8 @@ contract PufferPool is
     function _createPodAccountAndEigenPodProxy(
         address[] calldata podAccountOwners,
         uint256 threshold,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata data
     ) internal returns (Safe, IEigenPodProxy) {
         Safe account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
@@ -873,7 +878,7 @@ contract PufferPool is
             owners: podAccountOwners,
             threshold: threshold,
             to: address(0),
-            data: bytes("")
+            data: data
         });
 
         // msg.sender is caller of the `createPodAccount` or `createPodAccountAndRegisterValidatorKey`

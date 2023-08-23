@@ -20,7 +20,7 @@ interface IPufferPool is IERC20Upgradeable {
     struct EigenPodProxyInformation {
         address creator;
         bytes32 mrenclave;
-        mapping(bytes32 pubKeyHash => ValidatorInfo info) validatorInformation;
+        mapping(bytes32 => ValidatorInfo) validatorInformation;
     }
 
     enum Status {
@@ -383,9 +383,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @return EigenPod
      * @return EigenPodProxy
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy);
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata data
+    ) external returns (Safe, IEigenPodProxy);
 
     /**
      * @notice Creates a Pod and registers a validator key
@@ -400,7 +403,8 @@ interface IPufferPool is IERC20Upgradeable {
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata podData
     ) external payable returns (Safe, IEigenPodProxy);
 
     /**
@@ -422,7 +426,7 @@ interface IPufferPool is IERC20Upgradeable {
      * @param guardiansWallets Guardian's wallet addresses
      * @param threshold Number of required confirmations for a {Safe} transaction
      */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account);
 
