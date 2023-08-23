@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import {RAVE} from "rave/RAVE.sol";
-import {X509Verifier} from "rave/X509Verifier.sol";
-import {IEnclaveVerifier} from "puffer/interface/IEnclaveVerifier.sol";
-import {RaveEvidence} from "puffer/interface/RaveEvidence.sol";
+import { RAVE } from "rave/RAVE.sol";
+import { X509Verifier } from "rave/X509Verifier.sol";
+import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title EnclaveVerifier
@@ -50,29 +50,19 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
      * @inheritdoc IEnclaveVerifier
      */
     function getIntelRootCAPubKey() public pure returns (RSAPubKey memory) {
-        return
-            RSAPubKey({modulus: _INTEL_RSA_MODULUS, exponent: _INTEL_EXPONENT});
+        return RSAPubKey({ modulus: _INTEL_RSA_MODULUS, exponent: _INTEL_EXPONENT });
     }
 
     /**
      * @notice Adds a leaf x509 RSA public key if the x509 was signed by Intel's root CA
      */
     function addLeafX509(bytes calldata leafX509Cert) external onlyPool {
-        (
-            bytes memory leafCertModulus,
-            bytes memory leafCertExponent
-        ) = X509Verifier.verifySignedX509(
-                leafX509Cert,
-                _INTEL_RSA_MODULUS,
-                _INTEL_EXPONENT
-            );
+        (bytes memory leafCertModulus, bytes memory leafCertExponent) =
+            X509Verifier.verifySignedX509(leafX509Cert, _INTEL_RSA_MODULUS, _INTEL_EXPONENT);
 
         bytes32 hashedCert = keccak256(leafX509Cert);
 
-        _validLeafX509s[hashedCert] = RSAPubKey({
-            modulus: leafCertModulus,
-            exponent: leafCertExponent
-        });
+        _validLeafX509s[hashedCert] = RSAPubKey({ modulus: leafCertModulus, exponent: leafCertExponent });
 
         emit AddedPubKey(hashedCert);
     }
@@ -102,20 +92,13 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
             revert StaleEvidence();
         }
 
-        RSAPubKey memory leafX509 = _validLeafX509s[
-            evidence.leafX509CertDigest
-        ];
+        RSAPubKey memory leafX509 = _validLeafX509s[evidence.leafX509CertDigest];
         // require(leafX509.modulus.length == todo);
         // require(leafX509.exponent == todo);
 
         // Recover a remote attestation payload if everything is valid
         bytes memory recoveredPayload = verifyRemoteAttestation(
-            evidence.report,
-            evidence.signature,
-            leafX509.modulus,
-            leafX509.exponent,
-            mrenclave,
-            mrsigner
+            evidence.report, evidence.signature, leafX509.modulus, leafX509.exponent, mrenclave, mrsigner
         );
 
         // Remote attestation payloads are expected to be in the form (32B_Commitment || 32B_BlockHash)
