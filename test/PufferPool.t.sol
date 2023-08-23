@@ -117,7 +117,7 @@ contract PufferPoolTest is Test {
         // key length must be 48 bytes
         bytes memory pubKey = new bytes(48);
 
-        bytes[] memory blsEncPrivKeyShares = new bytes[](0);
+        bytes[] memory blsEncryptedPrivKeyShares = new bytes[](0);
         bytes[] memory blsPubKeyShares = new bytes[](0);
 
         RaveEvidence memory evidence;
@@ -126,11 +126,9 @@ contract PufferPoolTest is Test {
             blsPubKey: pubKey,
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncPrivKeyShares: blsEncPrivKeyShares,
+            blsEncryptedPrivKeyShares: blsEncryptedPrivKeyShares,
             blsPubKeyShares: blsPubKeyShares,
             blockNumber: 1,
-            mrenclave: bytes32(""),
-            mrsigner: bytes32(""),
             evidence: evidence
         });
 

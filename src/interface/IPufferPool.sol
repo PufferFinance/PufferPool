@@ -42,11 +42,9 @@ interface IPufferPool is IERC20Upgradeable {
         bytes blsPubKey;
         bytes signature;
         bytes32 depositDataRoot;
-        bytes[] blsEncPrivKeyShares;
+        bytes[] blsEncryptedPrivKeyShares;
         bytes[] blsPubKeyShares;
         uint256 blockNumber;
-        bytes32 mrenclave;
-        bytes32 mrsigner;
         RaveEvidence evidence;
     }
 

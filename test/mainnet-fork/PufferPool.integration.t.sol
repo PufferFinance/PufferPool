@@ -45,11 +45,9 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
             blsPubKey: pubKey,
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncPrivKeyShares: blsEncPrivKeyShares,
+            blsEncryptedPrivKeyShares: blsEncPrivKeyShares,
             blsPubKeyShares: blsPubKeyShares,
             blockNumber: 1,
-            mrenclave: bytes32(""),
-            mrsigner: bytes32(""),
             evidence: evidence
         });
 
