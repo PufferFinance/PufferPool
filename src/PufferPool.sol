@@ -400,14 +400,6 @@ contract PufferPool is
         }
     }
 
-    function getNodeMrenclave() public view returns (bytes32) {
-        return ""; // TODO
-    }
-
-    function getNodeMrsigner() public view returns (bytes32) {
-        return ""; // TODO
-    }
-
     /**
      * @inheritdoc IPufferPool
      */
@@ -840,16 +832,38 @@ contract PufferPool is
      */
     function getNodeEnclaveMeasurements()
         external
+        view
         returns (bytes32 mrenclave, bytes32 mrsigner)
-    {}
+    {
+        (mrenclave, mrsigner) = _getNodeEnclaveMeasurements();
+    }
 
     /**
      * @inheritdoc IPufferPool
      */
     function getGuardianEnclaveMeasurements()
         external
+        view
         returns (bytes32 mrenclave, bytes32 mrsigner)
-    {}
+    {
+        (mrenclave, mrsigner) = _getGuardianEnclaveMeasurements();
+    }
+
+    function _getNodeEnclaveMeasurements()
+        internal
+        view
+        returns (bytes32 mrenclave, bytes32 mrsigner)
+    {
+        // TODO
+    }
+
+    function _getGuardianEnclaveMeasurements()
+        internal
+        view
+        returns (bytes32 mrenclave, bytes32 mrsigner)
+    {
+        // TODO
+    }
 
     /**
      * @inheritdoc IPufferPool
@@ -1070,12 +1084,13 @@ contract PufferPool is
         }
 
         // Use RAVE to verify remote attestation evidence
+        (bytes32 mrenclave, bytes32 mrsigner) = _getNodeEnclaveMeasurements();
         bool custodyVerified = _enclaveVerifier.verifyEvidence({
             blockNumber: data.blockNumber,
             raveCommitment: raveCommitment,
             evidence: data.evidence,
-            mrenclave: getNodeMrenclave(), // todo implement and add setter
-            mrsigner: getNodeMrsigner() // todo implement and add setter
+            mrenclave: mrenclave,
+            mrsigner: mrsigner
         });
 
         if (!custodyVerified) {
