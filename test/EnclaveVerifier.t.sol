@@ -41,7 +41,6 @@ contract EnclaveVerifierTest is Test {
     function testAddLeafX509() public {
         vm.expectEmit(true, true, true, true);
         emit AddedPubKey(keccak256(validLeafX509Certificate));
-        vm.prank(mockPool);
         verifier.addLeafX509(validLeafX509Certificate);
     }
 

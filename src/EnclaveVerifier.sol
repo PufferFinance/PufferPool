@@ -56,7 +56,7 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
     /**
      * @notice Adds a leaf x509 RSA public key if the x509 was signed by Intel's root CA
      */
-    function addLeafX509(bytes calldata leafX509Cert) external onlyPool {
+    function addLeafX509(bytes calldata leafX509Cert) external {
         (bytes memory leafCertModulus, bytes memory leafCertExponent) =
             X509Verifier.verifySignedX509(leafX509Cert, _INTEL_RSA_MODULUS, _INTEL_EXPONENT);
 
