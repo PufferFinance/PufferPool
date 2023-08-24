@@ -229,13 +229,16 @@ contract PufferPoolTest is Test {
         vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
 
+        // TODO: generate mock data for this
+        RaveEvidence memory evidence;
+
         // Register enclave keys for guardians
         vm.prank(owners[0]);
-        module.rotateGuardianKey(address(guardianAccount), 0, guardian1EnclavePubKey, "");
+        module.rotateGuardianKey(address(guardianAccount), 0, guardian1EnclavePubKey, evidence);
         vm.prank(owners[1]);
-        module.rotateGuardianKey(address(guardianAccount), 0, guardian2EnclavePubKey, "");
+        module.rotateGuardianKey(address(guardianAccount), 0, guardian2EnclavePubKey, evidence);
         vm.prank(owners[2]);
-        module.rotateGuardianKey(address(guardianAccount), 0, guardian3EnclavePubKey, "");
+        module.rotateGuardianKey(address(guardianAccount), 0, guardian3EnclavePubKey, evidence);
 
         assertTrue(
             module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], guardian1Enclave),
