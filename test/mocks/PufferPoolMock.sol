@@ -71,21 +71,24 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getProtocolFeeRate() external view returns (uint256) { }
 
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy)
-    { }
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata emptyData
+    ) external returns (Safe, IEigenPodProxy) { }
 
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) external payable returns (Safe, IEigenPodProxy) { }
 
     function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable { }
 
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account)
     { }

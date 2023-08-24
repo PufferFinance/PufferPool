@@ -17,11 +17,6 @@ contract WithdrawalPool {
         pool = pufferPool;
     }
 
-    mapping(uint256 withdrawalId => Withdrawal info) internal _withdrawalQueue;
-    uint256 internal _lastId;
-
-    uint256 internal _lockedTime = 3 days;
-
     struct Withdrawal {
         uint256 pufETH;
         uint256 ETH;

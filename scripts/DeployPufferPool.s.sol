@@ -33,7 +33,7 @@ contract DeployPufferPool is Script {
 
         EnclaveVerifier verifier = new EnclaveVerifier(50, address(pool));
 
-        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners, address(withdrawalPool), address(module), address(verifier));
+        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners, address(withdrawalPool), address(module), address(verifier), "");
 
         // For test environment transfer ownership to Test contract
         pool.transferOwnership(msg.sender);

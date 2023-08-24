@@ -24,7 +24,6 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @title PufferPool
@@ -73,7 +72,7 @@ contract PufferPool is
     /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
     /**
      * @dev Minimum deposit amount in ETH
@@ -97,13 +96,15 @@ contract PufferPool is
 
     /**
      * @dev EigenPodProxy -> EigenPodProxyInformation
+     * eigenPodProxy -> info
      */
-    mapping(address eigenPodProxy => EigenPodProxyInformation info) internal _eigenPodProxies;
+    mapping(address => EigenPodProxyInformation) internal _eigenPodProxies;
 
     /**
      * @dev Actively validated services (AVSs) configuration
+     * AVS -> parameters
      */
-    mapping(address AVS => AVSParams parameters) internal _allowedAVSs;
+    mapping(address => AVSParams) internal _allowedAVSs;
 
     /**
      * @dev Address of the {Safe} proxy factory
@@ -249,7 +250,8 @@ contract PufferPool is
         address[] calldata treasuryOwners,
         address withdrawalPool,
         address guardianSafeModule,
-        address enclaveVerifier
+        address enclaveVerifier,
+        bytes calldata emptyData
     ) external initializer {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
@@ -263,6 +265,8 @@ contract PufferPool is
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
 
+        require(emptyData.length == 0);
+
         address treasury = address(
             _deploySafe({
                 safeProxyFactory: _safeProxyFactory,
@@ -271,7 +275,7 @@ contract PufferPool is
                 owners: treasuryOwners,
                 threshold: treasuryOwners.length,
                 to: address(0),
-                data: bytes("")
+                data: emptyData
             })
         );
 
@@ -431,13 +435,15 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account)
     {
         if (address(_guardiansMultisig) != address(0)) {
             revert GuardiansAlreadyExist();
         }
+
+        require(keccak256(data) == keccak256(abi.encodeCall(GuardianModule.enableMyself, ())));
 
         // Deploy {Safe} and enable module
         account = _deploySafe({
@@ -447,7 +453,7 @@ contract PufferPool is
             owners: guardiansWallets,
             threshold: threshold,
             to: address(_guardianModule),
-            data: abi.encodeCall(GuardianModule.enableMyself, ())
+            data: data
         });
 
         _guardiansMultisig = account;
@@ -458,11 +464,14 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy)
-    {
-        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient);
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata emptyData
+    ) external returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
+        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient, emptyData);
     }
 
     /**
@@ -472,10 +481,12 @@ contract PufferPool is
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
         (Safe account, IEigenPodProxy eigenPodProxy) =
-            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient);
+            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient, emptyData);
         registerValidatorKey(eigenPodProxy, data);
         return (account, eigenPodProxy);
     }
@@ -488,8 +499,6 @@ contract PufferPool is
             type(BeaconProxy).creationCode,
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
         );
-
-        // console.logBytes(bytecode);
 
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), _getSalt(podAccountOwners), keccak256(bytecode)));
@@ -914,7 +923,8 @@ contract PufferPool is
     function _createPodAccountAndEigenPodProxy(
         address[] calldata podAccountOwners,
         uint256 threshold,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) internal returns (Safe, IEigenPodProxy) {
         uint256 salt = _getSalt(podAccountOwners);
 
@@ -925,16 +935,10 @@ contract PufferPool is
             owners: podAccountOwners,
             threshold: threshold,
             to: address(0),
-            data: bytes("")
+            data: emptyData
         });
 
-        console.log(address(this), "sta je sender");
-        console.logBytes32(bytes32(salt));
-        console.logBytes(getEigenPodProxyInitCode());
-
         IEigenPodProxy eigenPodProxy = _createEigenPodProxy(salt);
-
-        console.log(address(eigenPodProxy), "proxy");
 
         _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
 

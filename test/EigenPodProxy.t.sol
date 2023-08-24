@@ -82,7 +82,8 @@ contract EigenPodProxyTest is Test {
     Safe safeImplementation;
     EigenPodProxy eigenPodProxy;
 
-    mapping(address addr => bool skip) _skipAddresses;
+    // address -> skip
+    mapping(address => bool) _skipAddresses;
 
     modifier fromPool() {
         vm.startPrank(address(pool));
