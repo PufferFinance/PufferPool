@@ -396,8 +396,47 @@ contract EigenPodProxyTest is Test {
         _skipAddresses[alice] = true;
     }
 
+    function setUpPufferAndEL() public {
+        setUpEL();
+
+        // Dploy the eigenpodProxy with the deployed EL contracts
+        EigenPodProxy eigenPodProxyImplementation = new EigenPodProxy(IEigenPodManager(eigenPodManager), slasher);
+        beacon = new UpgradeableBeacon(address(eigenPodProxyImplementation));
+
+        beacon.transferOwnership(beaconOwner);
+
+        // TODO: Remove mock pool and use real pool?
+        pool = PufferPool(payable(address(new PufferPoolMock())));
+
+        eigenPodProxy = EigenPodProxy(
+            payable(
+                address(
+                    new BeaconProxy(address(beacon), abi.encodeCall(EigenPodProxy.initialize, (IPufferPool(address(pool)))))
+                )
+            )
+        );
+
+        // Give ETH to pool
+        vm.deal(address(pool), 100 ether);
+
+        vm.prank(address(pool));
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
+
+        // In this test setup we set EigenPodMock to address(0)
+        EigenPodMock eigenPodMockDeployment = new EigenPodMock();
+        // Change the bytecode of address(0) to EigenPodMock bytecode
+        vm.etch(eigenPodMock, address(eigenPodMockDeployment).code);
+
+        _skipAddresses[address(pool)] = true;
+        _skipAddresses[address(eigenPodProxy)] = true;
+        _skipAddresses[eigenPodMock] = true;
+        _skipAddresses[delayedWithdrawalMock] = true;
+        _skipAddresses[alice] = true;
+    }
+
+
     // Tests the setup
-    function testSetup() public {
+    function testPufferSetup() public {
         setUpPuffer();
         assertEq(eigenPodProxy.getPodProxyManager(), address(pool), "Pool should be the manager");
 
@@ -411,9 +450,9 @@ contract EigenPodProxyTest is Test {
 
     // Activates the validator staking
     function testCallStakeShouldWork() public {
-        setUpPuffer();
-        vm.prank(address(pool));
+        setUpPufferAndEL();
         bytes memory pubKey = abi.encodePacked("1234");
+        vm.prank(address(pool));
 
         eigenPodProxy.callStake{ value: 32 ether }({
             pubKey: pubKey,
@@ -422,13 +461,27 @@ contract EigenPodProxyTest is Test {
         });
     }
 
-    // TODO: Test withdrawBeforeRestaking
-    /*
     function testSkimRewards() public {
-        testCallStakeShouldWork();
+        setUpPufferAndEL();
+        vm.prank(address(pool));
+        
+        eigenPodProxy.callStake{ value: 32 ether }({
+            pubKey: abi.encodePacked("1234"),
+            signature: new bytes(0),
+            depositDataRoot: bytes32("")
+        });
+        
         IEigenPod pod = eigenPodProxy.eigenPod();
         require(pod.hasRestaked() == false, "Pod should not be restaked");
-    }*/
+
+        // simulate a withdrawal
+        cheats.deal(address(pod), stakeAmount);
+        cheats.expectEmit(true, true, true, true, address(delayedWithdrawalRouter));
+        emit DelayedWithdrawalCreated(address(eigenPodProxy), address(eigenPodProxy), stakeAmount, delayedWithdrawalRouter.userWithdrawalsLength(address(eigenPodProxy)));
+        eigenPodProxy.skimRewards(); //pod.withdrawBeforeRestaking();
+        require(_getLatestDelayedWithdrawalAmount(address(eigenPodProxy)) == stakeAmount, "Payment amount should be stake amount");
+        require(pod.mostRecentWithdrawalTimestamp() == uint64(block.timestamp), "Most recent withdrawal block number not updated");
+    }
 
     // Test stop registration
     function testReleaseBond() public {
@@ -447,7 +500,7 @@ contract EigenPodProxyTest is Test {
 
     // Tests the upgrade of two eigen pod proxies
     function testUpgradeBeaconProxy() public {
-        testSetup();
+        testPufferSetup();
 
         (bool success, bytes memory returndata) =
             address(eigenPodProxy).call(abi.encodeCall(EigenPodProxyV2Mock.getSomething, ()));
@@ -646,5 +699,10 @@ contract EigenPodProxyTest is Test {
         require(success, "failed");
         assertEq(alice.balance, 10 ether, "alice did not receive 5% consensus reward");
         assertEq(address(pool).balance, poolBalanceBefore + 90 ether, "pool should get the rest");
+    }
+
+
+    function _getLatestDelayedWithdrawalAmount(address recipient) internal view returns (uint256) {
+        return delayedWithdrawalRouter.userDelayedWithdrawalByIndex(recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1).amount;
     }
 }
