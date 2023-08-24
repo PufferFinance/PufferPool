@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+
 /**
  * @title IGuardianModule interface
  * @author Puffer Finance
@@ -30,7 +32,7 @@ interface IGuardianModule {
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,
-        bytes calldata raveEvidence
+        RaveEvidence calldata raveEvidence
     ) external;
 
     /**

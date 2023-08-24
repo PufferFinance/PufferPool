@@ -8,6 +8,7 @@ import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title Guardian module
@@ -40,7 +41,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,
-        bytes calldata raveEvidence
+        RaveEvidence calldata evidence
     ) external {
         Safe safe = Safe(payable(guardianAccount));
         // Because this is called from the safe via .delegateCall
@@ -53,7 +54,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         safe.execTransactionFromModule({
             to: address(this),
             value: 0,
-            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], raveEvidence)),
+            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], evidence)),
             operation: Enum.Operation.DelegateCall
         });
     }
@@ -62,14 +63,22 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
      * @notice This function is supposed to be called via delegatecall from "rotateGuardianKey"
      * @dev DO NOT CALL THIS FUNCTION
      */
-    function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, bytes calldata raveEvidence)
+    function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence)
         external
     {
         IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
 
-        // enclaveVerifier.verifyEvidence({
+        bool isValid = enclaveVerifier.verifyEvidence({
+            blockNumber: blockNumber,
+            raveCommitment: keccak256(pubKey),
+            mrenclave: bytes32(""), // TODO: what is mrsigner here?
+            mrsigner: bytes32(""), // TODO: what is mrsigner here?
+            evidence: evidence
+        });
 
-        // });
+        if (!isValid) {
+            revert Unauthorized();
+        }
 
         address computedAddress = address(uint160(uint256(keccak256(pubKey))));
 
@@ -98,7 +107,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function _getGuardianEnclaveAddress(Safe guardianAccount, address guardian) internal view returns (address) {
         // Compute the storage slot
         uint256 storageSlot;
-        assembly ("memory-safe") {
+        assembly {
             mstore(0x0c, GUARDIAN_KEYS_SEED)
             mstore(0x00, guardian)
             storageSlot := keccak256(0x0c, 0x20)

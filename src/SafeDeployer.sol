@@ -25,10 +25,10 @@ abstract contract SafeDeployer {
         address safeProxyFactory,
         address safeSingleton,
         uint256 saltNonce,
-        address[] memory owners,
+        address[] calldata owners,
         uint256 threshold,
         address to,
-        bytes memory data
+        bytes calldata data
     ) internal returns (Safe) {
         address zeroAddress = address(0);
 

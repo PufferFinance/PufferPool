@@ -31,8 +31,9 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
 
     /**
      * @dev Mapping from keccak'd leaf x509 to RSA pub key components
+     * leafHash -> pubKey
      */
-    mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s;
+    mapping(bytes32 => RSAPubKey) internal _validLeafX509s;
 
     modifier onlyPool() {
         if (msg.sender != POOL) {
