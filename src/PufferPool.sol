@@ -22,8 +22,9 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
-import { EnclaveVerifier, IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title PufferPool
@@ -488,6 +489,8 @@ contract PufferPool is
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
         );
 
+        // console.logBytes(bytecode);
+
         bytes32 hash =
             keccak256(abi.encodePacked(bytes1(0xff), address(this), _getSalt(podAccountOwners), keccak256(bytecode)));
 
@@ -845,7 +848,7 @@ contract PufferPool is
      */
     function getValidatorWithdrawalCredentials(address eigenPodProxy) public view returns (bytes32) {
         address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(address(eigenPodProxy)));
-        return bytes32(bytes.concat(hex"010000000000000000000000", abi.encodePacked(eigenPod)));
+        return bytes32(abi.encodePacked(bytes1(uint8(1)), bytes11(0), eigenPod));
     }
 
     /**
@@ -853,6 +856,13 @@ contract PufferPool is
      */
     function getProtocolFeeRate() external view returns (uint256) {
         return _protocolFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier) {
+        return _enclaveVerifier;
     }
 
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
@@ -894,6 +904,13 @@ contract PufferPool is
         return IEigenPodProxy(address(eigenPodProxy));
     }
 
+    function getEigenPodProxyInitCode() public view returns (bytes memory) {
+        return abi.encodePacked(
+            type(BeaconProxy).creationCode,
+            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
+        );
+    }
+
     function _createPodAccountAndEigenPodProxy(
         address[] calldata podAccountOwners,
         uint256 threshold,
@@ -911,7 +928,13 @@ contract PufferPool is
             data: bytes("")
         });
 
+        console.log(address(this), "sta je sender");
+        console.logBytes32(bytes32(salt));
+        console.logBytes(getEigenPodProxyInitCode());
+
         IEigenPodProxy eigenPodProxy = _createEigenPodProxy(salt);
+
+        console.log(address(eigenPodProxy), "proxy");
 
         _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
 
@@ -1050,7 +1073,7 @@ contract PufferPool is
         return _enclaveBondRequirement;
     }
 
-    function _getSalt(address[] calldata podAccountOwners) internal view returns (uint256) {
+    function _getSalt(address[] calldata podAccountOwners) internal pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(podAccountOwners)));
     }
 

@@ -7,6 +7,7 @@ import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensio
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 
 /**
  * @title IPufferPool
@@ -450,6 +451,11 @@ interface IPufferPool is IERC20Upgradeable {
      * @return the comission amount
      */
     function getExecutionAmount(uint256 amount) external view returns (uint256);
+
+    /**
+     * @notice Returns the Enclave verifier
+     */
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Returns validator information for `eigenPodProxy` and `pubKeyHash`

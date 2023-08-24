@@ -7,6 +7,7 @@ import { Enum } from "safe-contracts/common/Enum.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 
 /**
  * @title Guardian module
@@ -64,6 +65,12 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, bytes calldata raveEvidence)
         external
     {
+        IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
+
+        // enclaveVerifier.verifyEvidence({
+
+        // });
+
         address computedAddress = address(uint160(uint256(keccak256(pubKey))));
 
         assembly {

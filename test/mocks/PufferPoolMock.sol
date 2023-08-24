@@ -10,6 +10,7 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 
 contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function initialize() external {
@@ -94,6 +95,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         view
         returns (address, address)
     { }
+
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier) { }
 
     function getExecutionAmount(uint256 amount) external view returns (uint256) { }
 
