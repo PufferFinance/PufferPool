@@ -62,9 +62,13 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getBeaconChainETHStrategyIndex() external view returns (uint256) { }
 
+    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32) { }
+
     function getBeaconChainETHStrategy() external view returns (IStrategy) { }
 
     function getStrategyManager() external view returns (IStrategyManager) { }
+
+    function getProtocolFeeRate() external view returns (uint256) { }
 
     function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
         external
@@ -85,7 +89,11 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         returns (Safe account)
     { }
 
-    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address) { }
+    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
+        external
+        view
+        returns (address, address)
+    { }
 
     function getExecutionAmount(uint256 amount) external view returns (uint256) { }
 

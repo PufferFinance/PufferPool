@@ -86,15 +86,13 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
         RaveEvidence calldata evidence,
         bytes32 mrenclave,
         bytes32 mrsigner
-    ) external view returns (bool success) {
+    ) external view returns (bool) {
         // Check for freshness
         if ((block.number - blockNumber) > FRESHNESS_BLOCKS) {
             revert StaleEvidence();
         }
 
         RSAPubKey memory leafX509 = _validLeafX509s[evidence.leafX509CertDigest];
-        // require(leafX509.modulus.length == todo);
-        // require(leafX509.exponent == todo);
 
         // Recover a remote attestation payload if everything is valid
         bytes memory recoveredPayload = verifyRemoteAttestation(

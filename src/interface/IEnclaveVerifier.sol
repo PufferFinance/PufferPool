@@ -53,6 +53,7 @@ interface IEnclaveVerifier {
      * @param evidence is the remote attestation evidence
      * @param mrenclave is the MRENCLAVE value expected by the calling contract
      * @param mrsigner is the MRSIGNER value expected by the calling contract
+     * @return true if evidence verification is a success
      */
     function verifyEvidence(
         uint256 blockNumber,

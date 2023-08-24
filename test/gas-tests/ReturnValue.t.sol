@@ -27,10 +27,19 @@ contract ThirdVersion {
     }
 }
 
+// 11 985
+contract FourthVersion {
+    function doSomething(uint256 x, uint256 y, uint256 z) public pure returns (bytes32) {
+        bytes32 variableae = keccak256(abi.encode(x, y, z)); //
+        return variableae;
+    }
+}
+
 contract ReturnValueTest is Test {
     FirstVersion firstVersion;
     SecondVersion secondVersion;
     ThirdVersion thirdVersion;
+    FourthVersion fourthVersion;
 
     uint256 x = 100;
     uint256 y = 10 ** 21;
@@ -40,6 +49,7 @@ contract ReturnValueTest is Test {
         firstVersion = new FirstVersion();
         secondVersion = new SecondVersion();
         thirdVersion = new ThirdVersion();
+        fourthVersion = new FourthVersion();
     }
 
     function testFirstVersion() public view {
@@ -52,5 +62,9 @@ contract ReturnValueTest is Test {
 
     function testThirdVersion() public view {
         thirdVersion.doSomething(x, y, z);
+    }
+
+    function testFourthVersion() public view {
+        fourthVersion.doSomething(x, y, z);
     }
 }

@@ -374,6 +374,12 @@ interface IPufferPool is IERC20Upgradeable {
     function getStrategyManager() external view returns (IStrategyManager);
 
     /**
+     * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format
+     *
+     */
+    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32);
+
+    /**
      * @notice Creates a pod's {Safe} multisig wallet
      * @param podAccountOwners is a Pod's wallet owner addresses
      * @param threshold is a number of required confirmations for a {Safe} transaction
@@ -433,7 +439,10 @@ interface IPufferPool is IERC20Upgradeable {
      * @return EigenPodProxy address (Puffer Finance)
      * @return Eigen Pod Address (Eigen Layer)
      */
-    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address);
+    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
+        external
+        view
+        returns (address, address);
 
     /**
      * @notice Returns the execution rewards comission
@@ -457,6 +466,11 @@ interface IPufferPool is IERC20Upgradeable {
      * TODO:
      */
     function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
+
+    /**
+     * @notice Returns the protocol fee rate in wad
+     */
+    function getProtocolFeeRate() external view returns (uint256);
 
     // ==== Only Guardians ====
 

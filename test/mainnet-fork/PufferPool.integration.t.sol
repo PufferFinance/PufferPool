@@ -51,7 +51,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
             evidence: evidence
         });
 
-        (address predictedEigenPodProxy, address predictedEigenPod) = pool.getEigenPodProxyAndEigenPod(bob);
+        (address predictedEigenPodProxy, address predictedEigenPod) = pool.getEigenPodProxyAndEigenPod(owners);
 
         // Give money to bob
         vm.deal(bob, 100 ether);

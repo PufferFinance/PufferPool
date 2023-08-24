@@ -16,6 +16,7 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
@@ -149,6 +150,7 @@ contract PufferPoolTest is Test {
             address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0),
             "eth startegy"
         );
+        assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "beacon chain strategy index should be zero");
 
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({
@@ -159,6 +161,12 @@ contract PufferPoolTest is Test {
             guardianSafeModule: address(555123),
             enclaveVerifier: address(1231555324534)
         });
+    }
+
+    function testSetProtocolFeeRate() public {
+        uint256 rate = 20 * FixedPointMathLib.WAD;
+        pool.setProtocolFeeRate(rate); // 20%
+        assertEq(pool.getProtocolFeeRate(), rate, "new rate");
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -497,7 +505,7 @@ contract PufferPoolTest is Test {
     //     assertEq(pool.totalSupply(), 0, "pufETH total supply last check");
     // }
 
-    // Test provisioning pod ETH and starting the validation process
+    // Test provisioning pod ETH and starting the validation process (non custodial)
     function testProvisionPodETHWorks() public {
         (Safe guardianAccount,) = _createGuardians();
 
@@ -515,18 +523,28 @@ contract PufferPoolTest is Test {
 
         bytes[] memory enclaveSignatures = new bytes[](enclaveAddresses.length);
 
-        bytes32 digest = keccak256(abi.encodePacked(address(proxy), validatorData.blsPubKey)).toEthSignedMessageHash();
+        bytes memory depositSignature = new bytes(0);
+        bytes32 depositDataRoot = bytes32("");
+
+        bytes32 msgToBeSigned = keccak256(
+            abi.encode(
+                validatorData.blsPubKey,
+                pool.getValidatorWithdrawalCredentials(address(proxy)),
+                depositSignature,
+                depositDataRoot
+            )
+        ).toEthSignedMessageHash();
 
         // Manually sort enclaveSignatures by addresses that signed them
         // Signatures need to be in ascending order based on the address of the PK that signed them
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardiansEnclavePks[0], digest);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardiansEnclavePks[0], msgToBeSigned);
         bytes memory signature = abi.encodePacked(r, s, v);
         enclaveSignatures[0] = signature;
-        (v, r, s) = vm.sign(guardiansEnclavePks[2], digest);
+        (v, r, s) = vm.sign(guardiansEnclavePks[2], msgToBeSigned);
         signature = abi.encodePacked(r, s, v);
         enclaveSignatures[1] = signature;
 
-        (v, r, s) = vm.sign(guardiansEnclavePks[1], digest);
+        (v, r, s) = vm.sign(guardiansEnclavePks[1], msgToBeSigned);
         signature = abi.encodePacked(r, s, v);
         enclaveSignatures[2] = signature;
 
@@ -535,8 +553,8 @@ contract PufferPoolTest is Test {
         pool.provisionPodETH({
             eigenPodProxy: address(proxy),
             pubKey: validatorData.blsPubKey,
-            signature: new bytes(0),
-            depositDataRoot: bytes32(""),
+            signature: depositSignature,
+            depositDataRoot: depositDataRoot,
             guardianEnclaveSignatures: enclaveSignatures
         });
 
