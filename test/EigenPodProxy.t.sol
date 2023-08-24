@@ -13,7 +13,7 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
-import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
+import "puffer/interface/IEigenPodProxy.sol";
 import { EigenPod } from "eigenlayer/pods/EigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { EigenPodManager } from "eigenlayer/pods/EigenPodManager.sol";
@@ -197,6 +197,9 @@ contract EigenPodProxyTest is Test {
 
     /// @notice event for the claiming of delayedWithdrawals
     event DelayedWithdrawalsClaimed(address recipient, uint256 amountClaimed, uint256 delayedWithdrawalsCompleted);
+
+    /// @notice Emitted when podRewardsRecipient is changed on EigenPodProxy
+    event PodRewardsRecipientChanged(address oldRecipient, address newRecipient);
 
     modifier fuzzedAddress(address addr) virtual {
         cheats.assume(fuzzedAddressMapping[addr] == false);
@@ -506,10 +509,17 @@ contract EigenPodProxyTest is Test {
         );
     }
 
-    // TODO: Test SetPodProxyOwnerAndRewardsRecipient
-    // TODO: Also test calling without being owner and expecting failure
     function testSetPodProxyOwnerAndRewardsRecipient() public {
-        
+        setUpPufferAndEL();
+        require(eigenPodProxy.getPodProxyOwner() == alice, "Pod Proxy owner expected to be Alice");
+        vm.prank(address(pool));
+        // Owner can't change once EigenPodProxy is initialized
+        vm.expectRevert();
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(bob, bob);
+        // Only pool can call this function
+        vm.expectRevert(IEigenPodProxy.Unauthorized.selector);
+        vm.prank(bob);
+        eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
     }
 
     // Test stop registration
@@ -563,8 +573,10 @@ contract EigenPodProxyTest is Test {
 
     // Tests rewards recipient change, revers if not called by the owner
     function testChangePodRewardsRecipient() public {
-        setUpPuffer();
+        setUpPufferAndEL();
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true, address(eigenPodProxy));
+        emit PodRewardsRecipientChanged(address(alice), address(bob));
         eigenPodProxy.updatePodRewardsRecipient(payable(address(bob)));
 
         vm.expectRevert(IEigenPodProxy.Unauthorized.selector);
