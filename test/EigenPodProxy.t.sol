@@ -3,7 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ProxyAdmin } from "openzeppelin/proxy/transparent/ProxyAdmin.sol";
 import { IBeacon } from "openzeppelin/proxy/beacon/IBeacon.sol";
-import { ITransparentUpgradeableProxy, TransparentUpgradeableProxy } from "openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy,
+    TransparentUpgradeableProxy
+} from "openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Test } from "forge-std/Test.sol";
 import { DeployBeacon } from "scripts/DeployBeacon.s.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -126,7 +129,7 @@ contract EigenPodProxyTest is Test {
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
     address podAddress = address(123);
     uint256 stakeAmount = 32e18;
-    mapping (address => bool) fuzzedAddressMapping;
+    mapping(address => bool) fuzzedAddressMapping;
     bytes signature;
     bytes32 depositDataRoot;
 
@@ -151,7 +154,6 @@ contract EigenPodProxyTest is Test {
 
     mapping(address => bool) _skipAddresses;
 
-
     // EIGENPODMANAGER EVENTS
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address indexed newOracleAddress);
@@ -165,7 +167,6 @@ contract EigenPodProxyTest is Test {
     /// @notice Emitted when `maxPods` value is updated from `previousValue` to `newValue`
     event MaxPodsUpdated(uint256 previousValue, uint256 newValue);
 
-
     // EIGENPOD EVENTS
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
@@ -176,12 +177,13 @@ contract EigenPodProxyTest is Test {
     /// @notice Emitted when an ETH validator's balance is updated in EigenLayer
     event ValidatorBalanceUpdated(uint40 validatorIndex, uint64 newBalanceGwei);
 
-    
     /// @notice Emitted when an ETH validator is prove to have withdrawn from the beacon chain
     event FullWithdrawalRedeemed(uint40 validatorIndex, address indexed recipient, uint64 withdrawalAmountGwei);
 
     /// @notice Emitted when a partial withdrawal claim is successfully redeemed
-    event PartialWithdrawalRedeemed(uint40 validatorIndex, address indexed recipient, uint64 partialWithdrawalAmountGwei);
+    event PartialWithdrawalRedeemed(
+        uint40 validatorIndex, address indexed recipient, uint64 partialWithdrawalAmountGwei
+    );
 
     /// @notice Emitted when restaked beacon chain ETH is withdrawn from the eigenPod.
     event RestakedBeaconChainETHWithdrawn(address indexed recipient, uint256 amount);
@@ -196,17 +198,26 @@ contract EigenPodProxyTest is Test {
     /// @notice event for the claiming of delayedWithdrawals
     event DelayedWithdrawalsClaimed(address recipient, uint256 amountClaimed, uint256 delayedWithdrawalsCompleted);
 
-
     modifier fuzzedAddress(address addr) virtual {
         cheats.assume(fuzzedAddressMapping[addr] == false);
         _;
     }
 
+    modifier fromPool() {
+        vm.startPrank(address(pool));
+        _;
+        vm.stopPrank();
+    }
+
+    modifier fuzzAddresses(address addr) virtual {
+        vm.assume(_skipAddresses[addr] == false);
+        _;
+    }
 
     uint32 WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
     uint256 REQUIRED_BALANCE_WEI = 32 ether;
-    uint64  MAX_VALIDATOR_BALANCE_GWEI = 32e9;
-    uint64  EFFECTIVE_RESTAKED_BALANCE_OFFSET = 75e7;
+    uint64 MAX_VALIDATOR_BALANCE_GWEI = 32e9;
+    uint64 EFFECTIVE_RESTAKED_BALANCE_OFFSET = 75e7;
 
     //performs basic deployment before each test
     function setUpEL() public {
@@ -216,7 +227,7 @@ contract EigenPodProxyTest is Test {
         // deploy pauser registry
         address[] memory pausers = new address[](1);
         pausers[0] = pauser;
-        pauserReg= new PauserRegistry(pausers, unpauser);
+        pauserReg = new PauserRegistry(pausers, unpauser);
 
         blsPkCompendium = new BLSPublicKeyCompendium();
 
@@ -231,9 +242,8 @@ contract EigenPodProxyTest is Test {
         strategyManager = StrategyManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        slasher = Slasher(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
-        );
+        slasher =
+            Slasher(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
         delayedWithdrawalRouter = DelayedWithdrawalRouter(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
@@ -255,9 +265,11 @@ contract EigenPodProxyTest is Test {
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         DelegationManager delegationImplementation = new DelegationManager(strategyManager, slasher);
-        StrategyManager strategyManagerImplementation = new StrategyManager(delegation, IEigenPodManager(podManagerAddress), slasher);
+        StrategyManager strategyManagerImplementation =
+            new StrategyManager(delegation, IEigenPodManager(podManagerAddress), slasher);
         Slasher slasherImplementation = new Slasher(strategyManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher);
+        EigenPodManager eigenPodManagerImplementation =
+            new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher);
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;
@@ -265,7 +277,8 @@ contract EigenPodProxyTest is Test {
         eigenPodManager = IEigenPodManager(podManagerAddress);
 
         beaconChainOracle = new BeaconChainOracleMock();
-        DelayedWithdrawalRouter delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(IEigenPodManager(podManagerAddress));
+        DelayedWithdrawalRouter delayedWithdrawalRouterImplementation =
+            new DelayedWithdrawalRouter(IEigenPodManager(podManagerAddress));
 
         address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -273,10 +286,7 @@ contract EigenPodProxyTest is Test {
             ITransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
             abi.encodeWithSelector(
-                DelegationManager.initialize.selector,
-                initialOwner,
-                pauserReg,
-                0/*initialPausedStatus*/
+                DelegationManager.initialize.selector, initialOwner, pauserReg, 0 /*initialPausedStatus*/
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -287,19 +297,14 @@ contract EigenPodProxyTest is Test {
                 initialOwner,
                 initialOwner,
                 pauserReg,
-                0/*initialPausedStatus*/,
-                0/*withdrawalDelayBlocks*/
+                0, /*initialPausedStatus*/
+                0 /*withdrawalDelayBlocks*/
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             ITransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(
-                Slasher.initialize.selector,
-                initialOwner,
-                pauserReg,
-                0/*initialPausedStatus*/
-            )
+            abi.encodeWithSelector(Slasher.initialize.selector, initialOwner, pauserReg, 0 /*initialPausedStatus*/ )
         );
         // TODO: add `cheats.expectEmit` calls for initialization events
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -311,7 +316,7 @@ contract EigenPodProxyTest is Test {
                 beaconChainOracle,
                 initialOwner,
                 pauserReg,
-                0/*initialPausedStatus*/
+                0 /*initialPausedStatus*/
             )
         );
         uint256 initPausedStatus = 0;
@@ -319,7 +324,13 @@ contract EigenPodProxyTest is Test {
         eigenLayerProxyAdmin.upgradeAndCall(
             ITransparentUpgradeableProxy(payable(address(delayedWithdrawalRouter))),
             address(delayedWithdrawalRouterImplementation),
-            abi.encodeWithSelector(DelayedWithdrawalRouter.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
+            abi.encodeWithSelector(
+                DelayedWithdrawalRouter.initialize.selector,
+                initialOwner,
+                pauserReg,
+                initPausedStatus,
+                withdrawalDelayBlocks
+            )
         );
         generalServiceManager1 = new ServiceManagerMock(slasher);
 
@@ -328,7 +339,7 @@ contract EigenPodProxyTest is Test {
              strategyManager
         );
 
-        cheats.deal(address(podOwner), 5*stakeAmount);     
+        cheats.deal(address(podOwner), 5 * stakeAmount);
 
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
@@ -338,27 +349,6 @@ contract EigenPodProxyTest is Test {
         fuzzedAddressMapping[address(slasher)] = true;
         fuzzedAddressMapping[address(generalServiceManager1)] = true;
         fuzzedAddressMapping[address(generalReg1)] = true;
-    }
-
-    function testStaking() public {
-        setUpEL();
-        cheats.startPrank(podOwner);
-        IEigenPod newPod = eigenPodManager.getPod(podOwner);
-        cheats.expectEmit(true, true, true, true, address(newPod));
-        emit EigenPodStaked(pubkey);
-        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
-        cheats.stopPrank();
-    }
-
-    modifier fromPool() {
-        vm.startPrank(address(pool));
-        _;
-        vm.stopPrank();
-    }
-
-    modifier fuzzAddresses(address addr) virtual {
-        vm.assume(_skipAddresses[addr] == false);
-        _;
     }
 
     function setUpPuffer() public {
@@ -434,7 +424,6 @@ contract EigenPodProxyTest is Test {
         _skipAddresses[alice] = true;
     }
 
-
     // Tests the setup
     function testPufferSetup() public {
         setUpPuffer();
@@ -446,6 +435,16 @@ contract EigenPodProxyTest is Test {
         // This acts as a second initializer, so it should revert if we try to call it again
         vm.expectRevert();
         eigenPodProxy.setPodProxyOwnerAndRewardsRecipient(alice, alice);
+    }
+
+    function testStaking() public {
+        setUpEL();
+        cheats.startPrank(podOwner);
+        IEigenPod newPod = eigenPodManager.getPod(podOwner);
+        cheats.expectEmit(true, true, true, true, address(newPod));
+        emit EigenPodStaked(pubkey);
+        eigenPodManager.stake{ value: stakeAmount }(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
     }
 
     // Activates the validator staking
@@ -464,23 +463,53 @@ contract EigenPodProxyTest is Test {
     function testSkimRewards() public {
         setUpPufferAndEL();
         vm.prank(address(pool));
-        
+
         eigenPodProxy.callStake{ value: 32 ether }({
             pubKey: abi.encodePacked("1234"),
             signature: new bytes(0),
             depositDataRoot: bytes32("")
         });
-        
+
         IEigenPod pod = eigenPodProxy.eigenPod();
         require(pod.hasRestaked() == false, "Pod should not be restaked");
 
         // simulate a withdrawal
         cheats.deal(address(pod), stakeAmount);
         cheats.expectEmit(true, true, true, true, address(delayedWithdrawalRouter));
-        emit DelayedWithdrawalCreated(address(eigenPodProxy), address(eigenPodProxy), stakeAmount, delayedWithdrawalRouter.userWithdrawalsLength(address(eigenPodProxy)));
+        emit DelayedWithdrawalCreated(
+            address(eigenPodProxy),
+            address(eigenPodProxy),
+            stakeAmount,
+            delayedWithdrawalRouter.userWithdrawalsLength(address(eigenPodProxy))
+        );
         eigenPodProxy.skimRewards(); //pod.withdrawBeforeRestaking();
-        require(_getLatestDelayedWithdrawalAmount(address(eigenPodProxy)) == stakeAmount, "Payment amount should be stake amount");
-        require(pod.mostRecentWithdrawalTimestamp() == uint64(block.timestamp), "Most recent withdrawal block number not updated");
+        require(
+            _getLatestDelayedWithdrawalAmount(address(eigenPodProxy)) == stakeAmount,
+            "Payment amount should be stake amount"
+        );
+        require(
+            pod.mostRecentWithdrawalTimestamp() == uint64(block.timestamp),
+            "Most recent withdrawal block number not updated"
+        );
+    }
+
+    function testPostInit() public {
+        setUpPufferAndEL();
+        require(address(eigenPodProxy.eigenPod()) != address(0), "Eigen Pod should have been created upon Init");
+    }
+
+    function testGetEigenPodManager() public {
+        setUpPufferAndEL();
+        require(
+            address(eigenPodProxy.getEigenPodManager()) == address(eigenPodManager),
+            "EigenPodManager stored on EigenPodProxy should match deployed"
+        );
+    }
+
+    // TODO: Test SetPodProxyOwnerAndRewardsRecipient
+    // TODO: Also test calling without being owner and expecting failure
+    function testSetPodProxyOwnerAndRewardsRecipient() public {
+        
     }
 
     // Test stop registration
@@ -701,8 +730,9 @@ contract EigenPodProxyTest is Test {
         assertEq(address(pool).balance, poolBalanceBefore + 90 ether, "pool should get the rest");
     }
 
-
     function _getLatestDelayedWithdrawalAmount(address recipient) internal view returns (uint256) {
-        return delayedWithdrawalRouter.userDelayedWithdrawalByIndex(recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1).amount;
+        return delayedWithdrawalRouter.userDelayedWithdrawalByIndex(
+            recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1
+        ).amount;
     }
 }
