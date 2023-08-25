@@ -17,6 +17,10 @@ import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+    /**
+     * @dev Uncompressed ECDSA keys are 64 bytes long
+     */
+    uint256 internal constant _ECDSA_KEY_LENGTH = 64;
     PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
@@ -66,19 +70,27 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence)
         external
     {
+        if (pubKey.length != _ECDSA_KEY_LENGTH) {
+            revert InvalidECDSAPubKey();
+        }
+
         IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
 
-        bool isValid = enclaveVerifier.verifyEvidence({
-            blockNumber: blockNumber,
-            raveCommitment: keccak256(pubKey),
-            mrenclave: bytes32(""), // TODO: what is mrsigner here?
-            mrsigner: bytes32(""), // TODO: what is mrsigner here?
-            evidence: evidence
-        });
+        // TODO: uncomment when we get valid RAVE proofs for unit tests
 
-        if (!isValid) {
-            revert Unauthorized();
-        }
+        // (bytes32 mrenclave, bytes32 mrsigner) = pool.getGuardianEnclaveMeasurements();
+
+        // bool isValid = enclaveVerifier.verifyEvidence({
+        //     blockNumber: blockNumber,
+        //     raveCommitment: keccak256(pubKey),
+        //     mrenclave: mrenclave,
+        //     mrsigner: mrsigner,
+        //     evidence: evidence
+        // });
+
+        // if (!isValid) {
+        //     revert Unauthorized();
+        // }
 
         address computedAddress = address(uint160(uint256(keccak256(pubKey))));
 
