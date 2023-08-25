@@ -60,6 +60,11 @@ contract PufferPool is
     uint256 internal constant _32_ETHER = 32 ether;
 
     /**
+     * @dev BLS public keys are 48 bytes long
+     */
+    uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
+
+    /**
      * @dev EigenLayer's beacon chain strategy address
      */
     IStrategy internal constant _beaconChainETHStrategy = IStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
@@ -185,6 +190,11 @@ contract PufferPool is
      * @dev Enclave verifier smart contract
      */
     IEnclaveVerifier internal _enclaveVerifier;
+
+    bytes32 internal _mrenclave;
+    bytes32 internal _mrsigner;
+    bytes32 internal _guardianMrenclave;
+    bytes32 internal _guardianMrsigner;
 
     /**
      * @dev Public keys of the active validators
@@ -345,37 +355,19 @@ contract PufferPool is
         bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
     ) internal view {
-        address lastSigner = address(0);
-        address currentSigner;
+        bytes32 msgToBeSigned = _getMessageToBeSigned(eigenPodProxy, pubKey, signature, depositDataRoot);
 
-        // Get guardian enclave addresses
         address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig);
-
-        bytes32 msgToBeSigned = keccak256(
-            abi.encode(pubKey, getValidatorWithdrawalCredentials(eigenPodProxy), signature, depositDataRoot)
-        ).toEthSignedMessageHash();
-
         uint256 validSignatures;
 
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i = 0; i < enclaveAddresses.length;) {
-            currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
+            address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
             if (currentSigner == address(0)) {
                 revert Unauthorized();
             }
-            // Signatures need to be sorted in ascending order based on signer addresses
-            if (currentSigner <= lastSigner) {
-                revert Unauthorized();
-            }
-            for (uint256 j = 0; j < enclaveAddresses.length;) {
-                if (enclaveAddresses[j] == currentSigner) {
-                    lastSigner = currentSigner;
-                    validSignatures++;
-                    break;
-                }
-                unchecked {
-                    ++j;
-                }
+            if (currentSigner == enclaveAddresses[i]) {
+                validSignatures++;
             }
             unchecked {
                 ++i;
@@ -385,6 +377,28 @@ contract PufferPool is
         if (validSignatures < _guardiansMultisig.getThreshold()) {
             revert Unauthorized();
         }
+    }
+
+    function _getMessageToBeSigned(
+        address eigenPodProxy,
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                pubKey,
+                getValidatorWithdrawalCredentials(eigenPodProxy),
+                signature,
+                depositDataRoot,
+                _expectCustody(eigenPodProxy, pubKey)
+            )
+        ).toEthSignedMessageHash();
+    }
+
+    function _expectCustody(address eigenPodProxy, bytes calldata pubKey) internal view returns (bool) {
+        return _eigenPodProxies[address(eigenPodProxy)].validatorInformation[keccak256(pubKey)].bond
+            != _nonCustodialBondRequirement;
     }
 
     /**
@@ -520,7 +534,7 @@ contract PufferPool is
         whenNotPaused
     {
         // Sanity check on blsPubKey
-        if (data.blsPubKey.length != 48) {
+        if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
             revert InvalidBLSPubKey();
         }
 
@@ -651,12 +665,24 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferOwner
      */
-    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner { }
+    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner {
+        bytes32 oldMrenclave = _mrenclave;
+        bytes32 oldMrsigner = _mrsigner;
+        _mrenclave = mrenclave;
+        _mrsigner = mrsigner;
+        emit NodeEnclaveMeasurementsChanged(oldMrenclave, mrenclave, oldMrsigner, mrsigner);
+    }
 
     /**
      * @inheritdoc IPufferOwner
      */
-    function setGuardianEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner { }
+    function setGuardianEnclaveMeasurements(bytes32 guardianMrenclave, bytes32 guardianMrsigner) external onlyOwner {
+        bytes32 oldMrenclave = _guardianMrenclave;
+        bytes32 oldMrsigner = _guardianMrsigner;
+        _guardianMrenclave = guardianMrenclave;
+        _guardianMrsigner = guardianMrsigner;
+        emit GuardianNodeEnclaveMeasurementsChanged(oldMrenclave, guardianMrenclave, oldMrsigner, guardianMrsigner);
+    }
 
     // TODO: do we really need this? use constants?
     function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
@@ -740,30 +766,18 @@ contract PufferPool is
         return _executionCommission;
     }
 
-    function getExecutionAmount(uint256 amount) external view returns (uint256) {
-        return FixedPointMathLib.fullMulDiv(amount, _executionCommission, _ONE_HUNDRED_WAD);
-    }
-
     /**
      * @inheritdoc IPufferPool
      */
-    function getNodeEnclaveMeasurements() external view returns (bytes32, bytes32) {
-        return _getNodeEnclaveMeasurements();
+    function getNodeEnclaveMeasurements() public view returns (bytes32, bytes32) {
+        return (_mrenclave, _mrsigner);
     }
 
     /**
      * @inheritdoc IPufferPool
      */
     function getGuardianEnclaveMeasurements() external view returns (bytes32, bytes32) {
-        return _getGuardianEnclaveMeasurements();
-    }
-
-    function _getNodeEnclaveMeasurements() internal view returns (bytes32 mrenclave, bytes32 mrsigner) {
-        // TODO
-    }
-
-    function _getGuardianEnclaveMeasurements() internal view returns (bytes32 mrenclave, bytes32 mrsigner) {
-        // TODO
+        return (_guardianMrenclave, _guardianMrsigner);
     }
 
     /**
@@ -978,13 +992,12 @@ contract PufferPool is
         }
 
         // Use RAVE to verify remote attestation evidence
-        (bytes32 mrenclave, bytes32 mrsigner) = _getNodeEnclaveMeasurements();
         bool custodyVerified = _enclaveVerifier.verifyEvidence({
             blockNumber: data.blockNumber,
             raveCommitment: raveCommitment,
             evidence: data.evidence,
-            mrenclave: mrenclave,
-            mrsigner: mrsigner
+            mrenclave: _mrenclave,
+            mrsigner: _mrsigner
         });
 
         if (!custodyVerified) {

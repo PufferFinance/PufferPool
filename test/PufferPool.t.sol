@@ -17,6 +17,7 @@ import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { console } from "forge-std/console.sol";
 
 contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
@@ -536,25 +537,23 @@ contract PufferPoolTest is Test {
         bytes memory depositSignature = new bytes(0);
         bytes32 depositDataRoot = bytes32("");
 
-        bytes32 msgToBeSigned = keccak256(
-            abi.encode(
-                validatorData.blsPubKey,
-                pool.getValidatorWithdrawalCredentials(address(proxy)),
-                depositSignature,
-                depositDataRoot
-            )
-        ).toEthSignedMessageHash();
+        bytes32 msgToBeSigned = pool._getMessageToBeSigned({
+            eigenPodProxy: address(proxy),
+            pubKey: validatorData.blsPubKey,
+            signature: depositSignature,
+            depositDataRoot: depositDataRoot
+        });
 
         // Manually sort enclaveSignatures by addresses that signed them
         // Signatures need to be in ascending order based on the address of the PK that signed them
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardiansEnclavePks[0], msgToBeSigned);
         bytes memory signature = abi.encodePacked(r, s, v);
         enclaveSignatures[0] = signature;
-        (v, r, s) = vm.sign(guardiansEnclavePks[2], msgToBeSigned);
+        (v, r, s) = vm.sign(guardiansEnclavePks[1], msgToBeSigned);
         signature = abi.encodePacked(r, s, v);
         enclaveSignatures[1] = signature;
 
-        (v, r, s) = vm.sign(guardiansEnclavePks[1], msgToBeSigned);
+        (v, r, s) = vm.sign(guardiansEnclavePks[2], msgToBeSigned);
         signature = abi.encodePacked(r, s, v);
         enclaveSignatures[2] = signature;
 
@@ -658,6 +657,22 @@ contract PufferPoolTest is Test {
             depositDataRoot: bytes32(""),
             guardianEnclaveSignatures: enclaveSignatures
         });
+    }
+
+    // Tests setter for enclave measurements
+    function testSetNodeEnclaveMeasurements(bytes32 mrsigner, bytes32 mrenclave) public {
+        pool.setNodeEnclaveMeasurements(mrsigner, mrenclave);
+        (bytes32 ms, bytes32 me) = pool.getNodeEnclaveMeasurements();
+        assertTrue(mrsigner == ms, "mrsigner");
+        assertTrue(mrenclave == me, "mrenclave");
+    }
+
+    // Tests setter for guardian enclave measurements
+    function testGuardianEnclaveMeasurements(bytes32 mrsigner, bytes32 mrenclave) public {
+        pool.setGuardianEnclaveMeasurements(mrsigner, mrenclave);
+        (bytes32 ms, bytes32 me) = pool.getGuardianEnclaveMeasurements();
+        assertTrue(mrsigner == ms, "mrsigner guardian");
+        assertTrue(mrenclave == me, "mrenclave guardian");
     }
 
     // Test trying to register a validator key for invalid Eigen pod proxy

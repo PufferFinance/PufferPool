@@ -242,6 +242,22 @@ interface IPufferPool is IERC20Upgradeable {
     event NonEnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
 
     /**
+     * @notice Emitted when the enclave measurements are changed
+     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
+     */
+    event NodeEnclaveMeasurementsChanged(
+        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
+    );
+
+    /**
+     * @notice Emitted when the Guaridan enclave measurements are changed
+     * @dev signature "0x9a538ef1307d6ba0812109ae1345331f1a76ba6a7ed805a0b450c7d198c389ce"
+     */
+    event GuardianNodeEnclaveMeasurementsChanged(
+        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
+    );
+
+    /**
      * @notice Emitted when the enclave bond requirement is changed from `oldValue` to `newValue`
      * @dev Signature "0xef8b2e3d8234f201774dbbf55aedb1aa0a5e5e3d0ffe3b4947e6a477be1d1747"
      */
@@ -468,12 +484,12 @@ interface IPufferPool is IERC20Upgradeable {
     function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
 
     /**
-     * TODO:
+     * @notice Returns the `mrenclave` and `mrsigner` values
      */
     function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 
     /**
-     * TODO:
+     * @notice Returns the `mrenclave` and `mrsigner` values
      */
     function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 

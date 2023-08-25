@@ -15,6 +15,12 @@ interface IGuardianModule {
     error Unauthorized();
 
     /**
+     * @notice Thrown when the ECDSA public key is not valid
+     * @dev Signature "0xe3eece5a"
+     */
+    error InvalidECDSAPubKey();
+
+    /**
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address
