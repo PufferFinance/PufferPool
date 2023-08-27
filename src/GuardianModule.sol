@@ -7,6 +7,8 @@ import { Enum } from "safe-contracts/common/Enum.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title Guardian module
@@ -15,6 +17,10 @@ import { PufferPool } from "puffer/PufferPool.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+    /**
+     * @dev Uncompressed ECDSA keys are 64 bytes long
+     */
+    uint256 internal constant _ECDSA_KEY_LENGTH = 64;
     PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
@@ -39,7 +45,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,
-        bytes calldata raveEvidence
+        RaveEvidence calldata evidence
     ) external {
         Safe safe = Safe(payable(guardianAccount));
         // Because this is called from the safe via .delegateCall
@@ -52,7 +58,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         safe.execTransactionFromModule({
             to: address(this),
             value: 0,
-            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], raveEvidence)),
+            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], evidence)),
             operation: Enum.Operation.DelegateCall
         });
     }
@@ -61,9 +67,31 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
      * @notice This function is supposed to be called via delegatecall from "rotateGuardianKey"
      * @dev DO NOT CALL THIS FUNCTION
      */
-    function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, bytes calldata raveEvidence)
+    function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence)
         external
     {
+        if (pubKey.length != _ECDSA_KEY_LENGTH) {
+            revert InvalidECDSAPubKey();
+        }
+
+        IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
+
+        // TODO: uncomment when we get valid RAVE proofs for unit tests
+
+        // (bytes32 mrenclave, bytes32 mrsigner) = pool.getGuardianEnclaveMeasurements();
+
+        // bool isValid = enclaveVerifier.verifyEvidence({
+        //     blockNumber: blockNumber,
+        //     raveCommitment: keccak256(pubKey),
+        //     mrenclave: mrenclave,
+        //     mrsigner: mrsigner,
+        //     evidence: evidence
+        // });
+
+        // if (!isValid) {
+        //     revert Unauthorized();
+        // }
+
         address computedAddress = address(uint160(uint256(keccak256(pubKey))));
 
         assembly {
@@ -91,7 +119,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function _getGuardianEnclaveAddress(Safe guardianAccount, address guardian) internal view returns (address) {
         // Compute the storage slot
         uint256 storageSlot;
-        assembly ("memory-safe") {
+        assembly {
             mstore(0x0c, GUARDIAN_KEYS_SEED)
             mstore(0x00, guardian)
             storageSlot := keccak256(0x0c, 0x20)

@@ -25,7 +25,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
     /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18;
 
     /**
      * @dev {Safe} PodAccount is the pod proxy owner
@@ -72,8 +72,9 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /**
      * @dev Mapping representing the full withdrawals
+     * index -> validatorBond
      */
-    mapping(uint256 index => uint256 validatorBond) internal _fullWithdrawals;
+    mapping(uint256 => uint256) internal _fullWithdrawals;
 
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
@@ -116,11 +117,13 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
     /// @notice Fallback function used to differentiate execution rewards from consensus rewards
     receive() external payable {
-        //address router = address(eigenPod.delayedWithdrawalRouter());
+        // TODO: Create a wrapper interface, or leave it like this?
+        (, bytes memory data) = address(eigenPod).call(abi.encodeWithSignature("delayedWithdrawalRouter()"));
+        address router = abi.decode(data, (address));
         // Everything that is not from the EigenLayer's router is execution reward / donation
-        /*if (msg.sender != router) {
+        if (msg.sender != router) {
             return _distributeRewards(msg.value, _pool.getExecutionCommission());
-        }*/
+        }
 
         // If we're here, that means that the msg.sender is the EigenLayer's router
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+
 /**
  * @title IGuardianModule interface
  * @author Puffer Finance
@@ -11,6 +13,12 @@ interface IGuardianModule {
      * @dev Signature "0x82b42900"
      */
     error Unauthorized();
+
+    /**
+     * @notice Thrown when the ECDSA public key is not valid
+     * @dev Signature "0xe3eece5a"
+     */
+    error InvalidECDSAPubKey();
 
     /**
      * @notice Emitted when the guardian changes guardian enclave address
@@ -30,7 +38,7 @@ interface IGuardianModule {
         address guardianAccount,
         uint256 blockNumber,
         bytes calldata pubKey,
-        bytes calldata raveEvidence
+        RaveEvidence calldata raveEvidence
     ) external;
 
     /**

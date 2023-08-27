@@ -82,7 +82,8 @@ contract EigenPodProxyTest is Test {
     Safe safeImplementation;
     EigenPodProxy eigenPodProxy;
 
-    mapping(address addr => bool skip) _skipAddresses;
+    // address -> skip
+    mapping(address => bool) _skipAddresses;
 
     modifier fromPool() {
         vm.startPrank(address(pool));
@@ -211,7 +212,6 @@ contract EigenPodProxyTest is Test {
         eigenPodProxy.updatePodRewardsRecipient(payable(address(alice)));
     }
 
-/*
     // Execution rewards distirbution
     function testDistributeExecutionRewards(address blockProducer) public fuzzAddresses(blockProducer) {
         vm.assume(blockProducer != address(0));
@@ -226,7 +226,7 @@ contract EigenPodProxyTest is Test {
         assertEq(alice.balance, 5 ether, "alice did not receive 5% execution reward");
         assertEq(address(pool).balance, poolBalanceBefore + 95 ether, "pool should get the rest");
     }
-    */
+
     /*
     function testExecutionRewardsProxy(uint256 rewardAmount) public {
         (proxyFactory, safeImplementation) = new DeploySafe().run();

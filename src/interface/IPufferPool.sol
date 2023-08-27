@@ -6,6 +6,8 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 
 /**
  * @title IPufferPool
@@ -19,7 +21,7 @@ interface IPufferPool is IERC20Upgradeable {
     struct EigenPodProxyInformation {
         address creator;
         bytes32 mrenclave;
-        mapping(bytes32 pubKeyHash => ValidatorInfo info) validatorInformation;
+        mapping(bytes32 => ValidatorInfo) validatorInformation; // pubKeyHash -> info
     }
 
     enum Status {
@@ -41,10 +43,18 @@ interface IPufferPool is IERC20Upgradeable {
         bytes blsPubKey;
         bytes signature;
         bytes32 depositDataRoot;
-        bytes[] blsEncPrivKeyShares;
+        bytes[] blsEncryptedPrivKeyShares;
         bytes[] blsPubKeyShares;
         uint256 blockNumber;
-        bytes raveEvidence;
+        RaveEvidence evidence;
+    }
+
+    struct ValidatorRaveData {
+        bytes pubKey;
+        bytes signature;
+        bytes32 depositDataRoot;
+        bytes[] blsEncryptedPrivKeyShares;
+        bytes[] blsPubKeyShares;
     }
 
     /**
@@ -63,6 +73,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x7d1a5966"
      */
     error PublicKeyIsAlreadyActive();
+
+    /**
+     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
+     * @dev Signature "0x14236792"
+     */
+    error CouldNotVerifyCustody();
 
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
@@ -147,6 +163,12 @@ interface IPufferPool is IERC20Upgradeable {
     event SafeImplementationChanged(address safeImplementation);
 
     /**
+     * @param enclaveVerifier is the address of Enclave verifier contract
+     * @dev Signature "0x60e300c919f110ebd183109296d6cd03856a84f64cb7acb91abde69baefd0d7e"
+     */
+    event EnclaveVerifierChanged(address enclaveVerifier);
+
+    /**
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
      * @param eigenPodProxy is the address of the EigenPod proxy contract
      * @param blsPubKey is the public key of the Validator
@@ -226,6 +248,22 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev signature "0x50e3aad3fe58c0addb7f600531ccc21d0790dd329e85d820dfe7a6dfc615f59d"
      */
     event NonEnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the enclave measurements are changed
+     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
+     */
+    event NodeEnclaveMeasurementsChanged(
+        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
+    );
+
+    /**
+     * @notice Emitted when the Guaridan enclave measurements are changed
+     * @dev signature "0x9a538ef1307d6ba0812109ae1345331f1a76ba6a7ed805a0b450c7d198c389ce"
+     */
+    event GuardianNodeEnclaveMeasurementsChanged(
+        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
+    );
 
     /**
      * @notice Emitted when the enclave bond requirement is changed from `oldValue` to `newValue`
@@ -361,6 +399,12 @@ interface IPufferPool is IERC20Upgradeable {
     function getStrategyManager() external view returns (IStrategyManager);
 
     /**
+     * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format
+     *
+     */
+    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32);
+
+    /**
      * @notice Creates a pod's {Safe} multisig wallet
      * @param podAccountOwners is a Pod's wallet owner addresses
      * @param threshold is a number of required confirmations for a {Safe} transaction
@@ -368,9 +412,12 @@ interface IPufferPool is IERC20Upgradeable {
      * @return EigenPod
      * @return EigenPodProxy
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy);
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata emptyData
+    ) external returns (Safe, IEigenPodProxy);
 
     /**
      * @notice Creates a Pod and registers a validator key
@@ -385,7 +432,8 @@ interface IPufferPool is IERC20Upgradeable {
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) external payable returns (Safe, IEigenPodProxy);
 
     /**
@@ -407,7 +455,7 @@ interface IPufferPool is IERC20Upgradeable {
      * @param guardiansWallets Guardian's wallet addresses
      * @param threshold Number of required confirmations for a {Safe} transaction
      */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account);
 
@@ -420,14 +468,15 @@ interface IPufferPool is IERC20Upgradeable {
      * @return EigenPodProxy address (Puffer Finance)
      * @return Eigen Pod Address (Eigen Layer)
      */
-    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address);
+    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
+        external
+        view
+        returns (address, address);
 
     /**
-     * @notice Returns the execution rewards comission
-     * @param amount Is the total amount received
-     * @return the comission amount
+     * @notice Returns the Enclave verifier
      */
-    function getExecutionAmount(uint256 amount) external view returns (uint256);
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Returns validator information for `eigenPodProxy` and `pubKeyHash`
@@ -436,14 +485,19 @@ interface IPufferPool is IERC20Upgradeable {
     function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
 
     /**
-     * TODO:
+     * @notice Returns the `mrenclave` and `mrsigner` values
      */
     function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 
     /**
-     * TODO:
+     * @notice Returns the `mrenclave` and `mrsigner` values
      */
     function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
+
+    /**
+     * @notice Returns the protocol fee rate in wad
+     */
+    function getProtocolFeeRate() external view returns (uint256);
 
     // ==== Only Guardians ====
 

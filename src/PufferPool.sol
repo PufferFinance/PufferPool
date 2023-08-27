@@ -22,6 +22,8 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 
 /**
  * @title PufferPool
@@ -58,6 +60,11 @@ contract PufferPool is
     uint256 internal constant _32_ETHER = 32 ether;
 
     /**
+     * @dev BLS public keys are 48 bytes long
+     */
+    uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
+
+    /**
      * @dev EigenLayer's beacon chain strategy address
      */
     IStrategy internal constant _beaconChainETHStrategy = IStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
@@ -70,7 +77,7 @@ contract PufferPool is
     /**
      * @dev Constant representing 100%
      */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
     /**
      * @dev Minimum deposit amount in ETH
@@ -94,13 +101,15 @@ contract PufferPool is
 
     /**
      * @dev EigenPodProxy -> EigenPodProxyInformation
+     * eigenPodProxy -> info
      */
-    mapping(address eigenPodProxy => EigenPodProxyInformation info) internal _eigenPodProxies;
+    mapping(address => EigenPodProxyInformation) internal _eigenPodProxies;
 
     /**
      * @dev Actively validated services (AVSs) configuration
+     * AVS -> parameters
      */
-    mapping(address AVS => AVSParams parameters) internal _allowedAVSs;
+    mapping(address => AVSParams) internal _allowedAVSs;
 
     /**
      * @dev Address of the {Safe} proxy factory
@@ -178,6 +187,16 @@ contract PufferPool is
     IStrategyManager internal _strategyManager;
 
     /**
+     * @dev Enclave verifier smart contract
+     */
+    IEnclaveVerifier internal _enclaveVerifier;
+
+    bytes32 internal _mrenclave;
+    bytes32 internal _mrsigner;
+    bytes32 internal _guardianMrenclave;
+    bytes32 internal _guardianMrsigner;
+
+    /**
      * @dev Public keys of the active validators
      */
     EnumerableSet.Bytes32Set internal _pubKeyHashes;
@@ -215,24 +234,23 @@ contract PufferPool is
     }
 
     receive() external payable {
-        _splitETH(true);
+        _splitETH(true, msg.value);
     }
 
-    function _splitETH(bool includeProtocolFee) internal {
+    function _splitETH(bool includeProtocolFee, uint256 amount) internal {
         uint256 protocolFee;
 
         if (includeProtocolFee) {
             // Calculate and split between the treasury, deposit pool and the withdrawal pool
-            protocolFee = FixedPointMathLib.fullMulDiv(msg.value, _protocolFeeRate, _ONE_HUNDRED_WAD);
+            protocolFee = FixedPointMathLib.fullMulDiv(amount, _protocolFeeRate, _ONE_HUNDRED_WAD);
             SafeTransferLib.safeTransferETH(_treasury, protocolFee);
         }
 
         // PufferPool is the deposit pool, so we just leave this amount in this contract
-        uint256 depositPoolAmount =
-            FixedPointMathLib.fullMulDiv((msg.value - protocolFee), _depositRate, _ONE_HUNDRED_WAD);
+        uint256 depositPoolAmount = FixedPointMathLib.fullMulDiv((amount - protocolFee), _depositRate, _ONE_HUNDRED_WAD);
 
         // We transfer this amount to Withdrawal Pool contract
-        uint256 withdrawalPoolAmount = msg.value - protocolFee - depositPoolAmount;
+        uint256 withdrawalPoolAmount = amount - protocolFee - depositPoolAmount;
         SafeTransferLib.safeTransferETH(_withdrawalPool, withdrawalPoolAmount);
     }
 
@@ -241,7 +259,9 @@ contract PufferPool is
         address safeImplementation,
         address[] calldata treasuryOwners,
         address withdrawalPool,
-        address guardianSafeModule
+        address guardianSafeModule,
+        address enclaveVerifier,
+        bytes calldata emptyData
     ) external initializer {
         __ReentrancyGuard_init(); // TODO: figure out if really need it?
         __UUPSUpgradeable_init();
@@ -250,9 +270,12 @@ contract PufferPool is
         __Ownable_init();
         _setSafeProxyFactory(safeProxyFactory);
         _setSafeImplementation(safeImplementation);
+        _setEnclaveVerifier(enclaveVerifier);
         _setNonCustodialBondRequirement(16 ether);
         _setNonEnclaveBondRequirement(8 ether);
         _setEnclaveBondRequirement(2 ether);
+
+        require(emptyData.length == 0);
 
         address treasury = address(
             _deploySafe({
@@ -262,7 +285,7 @@ contract PufferPool is
                 owners: treasuryOwners,
                 threshold: treasuryOwners.length,
                 to: address(0),
-                data: bytes("")
+                data: emptyData
             })
         );
 
@@ -300,7 +323,13 @@ contract PufferPool is
         }
 
         // Validate guardian signatures
-        _validateGuardianSignatures(eigenPodProxy, pubKey, guardianEnclaveSignatures);
+        _validateGuardianSignatures({
+            eigenPodProxy: eigenPodProxy,
+            pubKey: pubKey,
+            guardianEnclaveSignatures: guardianEnclaveSignatures,
+            signature: signature,
+            depositDataRoot: depositDataRoot
+        });
 
         // Update Validator status
         _eigenPodProxies[eigenPodProxy].validatorInformation[pubKeyHash].status = IPufferPool.Status.VALIDATING;
@@ -322,38 +351,23 @@ contract PufferPool is
     function _validateGuardianSignatures(
         address eigenPodProxy,
         bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
     ) internal view {
-        address lastSigner = address(0);
-        address currentSigner;
+        bytes32 msgToBeSigned = _getMessageToBeSigned(eigenPodProxy, pubKey, signature, depositDataRoot);
 
-        // Get guardian enclave addresses
         address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig);
-
-        // create a hash // TODO: use EIP712?, or go with the simple version like this?
-        bytes32 msgToBeSigned = keccak256(abi.encodePacked(eigenPodProxy, pubKey)).toEthSignedMessageHash();
-
         uint256 validSignatures;
 
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i = 0; i < enclaveAddresses.length;) {
-            currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
+            address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
             if (currentSigner == address(0)) {
                 revert Unauthorized();
             }
-            // Signatures need to be sorted in ascending order based on signer addresses
-            if (currentSigner <= lastSigner) {
-                revert Unauthorized();
-            }
-            for (uint256 j = 0; j < enclaveAddresses.length;) {
-                if (enclaveAddresses[j] == currentSigner) {
-                    lastSigner = currentSigner;
-                    validSignatures++;
-                    break;
-                }
-                unchecked {
-                    ++j;
-                }
+            if (currentSigner == enclaveAddresses[i]) {
+                validSignatures++;
             }
             unchecked {
                 ++i;
@@ -363,6 +377,28 @@ contract PufferPool is
         if (validSignatures < _guardiansMultisig.getThreshold()) {
             revert Unauthorized();
         }
+    }
+
+    function _getMessageToBeSigned(
+        address eigenPodProxy,
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                pubKey,
+                getValidatorWithdrawalCredentials(eigenPodProxy),
+                signature,
+                depositDataRoot,
+                _expectCustody(eigenPodProxy, pubKey)
+            )
+        ).toEthSignedMessageHash();
+    }
+
+    function _expectCustody(address eigenPodProxy, bytes calldata pubKey) internal view returns (bool) {
+        return _eigenPodProxies[address(eigenPodProxy)].validatorInformation[keccak256(pubKey)].bond
+            != _nonCustodialBondRequirement;
     }
 
     /**
@@ -379,7 +415,7 @@ contract PufferPool is
 
         emit Deposited(msg.sender, recipient, msg.value, pufETHAmount);
 
-        _splitETH(false);
+        _splitETH(false, msg.value);
     }
 
     /**
@@ -400,27 +436,28 @@ contract PufferPool is
         _burn(msg.sender, pufETHAmount);
 
         // Payout the validator
-        int256 toTransfer = int256(msg.value) - int256(32 ether);
+        bool isNotSlashed = (int256(msg.value) - int256(32 ether)) >= 0;
 
-        if (toTransfer >= 0) {
+        if (isNotSlashed) {
             // Return bond and any rewards back to podRewardsRecipient
-            SafeTransferLib.safeTransferETH(podRewardsRecipient, uint256(toTransfer));
+            SafeTransferLib.safeTransferETH(podRewardsRecipient, ethAmount);
         }
 
-        // TODO: tax?
-        _splitETH(false);
+        _splitETH(false, msg.value - ethAmount);
     }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account)
     {
         if (address(_guardiansMultisig) != address(0)) {
             revert GuardiansAlreadyExist();
         }
+
+        require(keccak256(data) == keccak256(abi.encodeCall(GuardianModule.enableMyself, ())));
 
         // Deploy {Safe} and enable module
         account = _deploySafe({
@@ -430,7 +467,7 @@ contract PufferPool is
             owners: guardiansWallets,
             threshold: threshold,
             to: address(_guardianModule),
-            data: abi.encodeCall(GuardianModule.enableMyself, ())
+            data: data
         });
 
         _guardiansMultisig = account;
@@ -441,11 +478,14 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy)
-    {
-        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient);
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata emptyData
+    ) external returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
+        return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient, emptyData);
     }
 
     /**
@@ -455,10 +495,12 @@ contract PufferPool is
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
         (Safe account, IEigenPodProxy eigenPodProxy) =
-            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient);
+            _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient, emptyData);
         registerValidatorKey(eigenPodProxy, data);
         return (account, eigenPodProxy);
     }
@@ -466,15 +508,14 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function getEigenPodProxyAndEigenPod(address creator) public view returns (address, address) {
+    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners) public view returns (address, address) {
         bytes memory bytecode = abi.encodePacked(
             type(BeaconProxy).creationCode,
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
         );
 
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), keccak256(abi.encodePacked(creator)), keccak256(bytecode))
-        );
+        bytes32 hash =
+            keccak256(abi.encodePacked(bytes1(0xff), address(this), _getSalt(podAccountOwners), keccak256(bytecode)));
 
         address eigenPodProxy = address(uint160(uint256(hash)));
 
@@ -493,7 +534,7 @@ contract PufferPool is
         whenNotPaused
     {
         // Sanity check on blsPubKey
-        if (data.blsPubKey.length != 48) {
+        if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
             revert InvalidBLSPubKey();
         }
 
@@ -505,16 +546,22 @@ contract PufferPool is
             revert PublicKeyIsAlreadyActive();
         }
 
-        uint256 validatorBondRequirement = _getValidatorBondRequirement(data.raveEvidence, data.blsEncPrivKeyShares);
+        // Determine bond requirement from inputs
+        uint256 validatorBondRequirement =
+            _getValidatorBondRequirement(data.evidence.report.length, data.blsEncryptedPrivKeyShares.length);
         if (msg.value != validatorBondRequirement) {
             revert InvalidAmount();
         }
 
-        _validateCustody(data);
-
-        uint256 pufETHBondAmount = calculateETHToPufETHAmount(msg.value);
+        // Verify enclave remote attestation evidence
+        if (validatorBondRequirement != _nonCustodialBondRequirement) {
+            bytes32 withdrawalCredentials = getValidatorWithdrawalCredentials(address(eigenPodProxy));
+            bytes32 raveCommitment = _buildNodeRaveCommitment(data, withdrawalCredentials);
+            _verifyKeyRequirements(data, raveCommitment);
+        }
 
         // Mint pufETH to validator and lock it there
+        uint256 pufETHBondAmount = calculateETHToPufETHAmount(msg.value);
         _mint(address(eigenPodProxy), pufETHBondAmount);
 
         // Save information
@@ -618,12 +665,24 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferOwner
      */
-    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner { }
+    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner {
+        bytes32 oldMrenclave = _mrenclave;
+        bytes32 oldMrsigner = _mrsigner;
+        _mrenclave = mrenclave;
+        _mrsigner = mrsigner;
+        emit NodeEnclaveMeasurementsChanged(oldMrenclave, mrenclave, oldMrsigner, mrsigner);
+    }
 
     /**
      * @inheritdoc IPufferOwner
      */
-    function setGuardianEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external onlyOwner { }
+    function setGuardianEnclaveMeasurements(bytes32 guardianMrenclave, bytes32 guardianMrsigner) external onlyOwner {
+        bytes32 oldMrenclave = _guardianMrenclave;
+        bytes32 oldMrsigner = _guardianMrsigner;
+        _guardianMrenclave = guardianMrenclave;
+        _guardianMrsigner = guardianMrsigner;
+        emit GuardianNodeEnclaveMeasurementsChanged(oldMrenclave, guardianMrenclave, oldMrsigner, guardianMrsigner);
+    }
 
     // TODO: do we really need this? use constants?
     function setNonCustodialBondRequirement(uint256 newValue) external onlyOwner {
@@ -707,19 +766,19 @@ contract PufferPool is
         return _executionCommission;
     }
 
-    function getExecutionAmount(uint256 amount) external view returns (uint256) {
-        return FixedPointMathLib.fullMulDiv(amount, _executionCommission, _ONE_HUNDRED_WAD);
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getNodeEnclaveMeasurements() public view returns (bytes32, bytes32) {
+        return (_mrenclave, _mrsigner);
     }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner) { }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner) { }
+    function getGuardianEnclaveMeasurements() external view returns (bytes32, bytes32) {
+        return (_guardianMrenclave, _guardianMrsigner);
+    }
 
     /**
      * @inheritdoc IPufferPool
@@ -807,6 +866,28 @@ contract PufferPool is
         return _strategyManager;
     }
 
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getValidatorWithdrawalCredentials(address eigenPodProxy) public view returns (bytes32) {
+        address eigenPod = address(IEigenPodManager(EIGEN_POD_MANAGER).getPod(address(eigenPodProxy)));
+        return bytes32(abi.encodePacked(bytes1(uint8(1)), bytes11(0), eigenPod));
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getProtocolFeeRate() external view returns (uint256) {
+        return _protocolFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier) {
+        return _enclaveVerifier;
+    }
+
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
         uint256 pufETHSupply = totalSupply();
         if (pufETHSupply == 0) {
@@ -828,47 +909,50 @@ contract PufferPool is
     /**
      * @dev Creates eigen pod proxy via create2
      */
-    function _createEigenPodProxy(address msgSender) internal returns (IEigenPodProxy eigenPodProxy) {
+    function _createEigenPodProxy(uint256 salt) internal returns (IEigenPodProxy eigenPodProxy) {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
             abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
         );
 
-        // Convert address to addressHash for salt
-        bytes32 addressHash = keccak256(abi.encodePacked(msgSender));
-
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            eigenPodProxy := create2(0x0, add(0x20, deploymentData), mload(deploymentData), addressHash)
+            eigenPodProxy := create2(0x0, add(0x20, deploymentData), mload(deploymentData), salt)
         }
 
         if (address(eigenPodProxy) == address(0)) {
             revert Create2Failed();
         }
 
-        // Save EigenPodProxy Information
-        _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
-
         return IEigenPodProxy(address(eigenPodProxy));
+    }
+
+    function getEigenPodProxyInitCode() public view returns (bytes memory) {
+        return abi.encodePacked(
+            type(BeaconProxy).creationCode,
+            abi.encode(EIGEN_POD_PROXY_BEACON, abi.encodeCall(EigenPodProxy.initialize, (this)))
+        );
     }
 
     function _createPodAccountAndEigenPodProxy(
         address[] calldata podAccountOwners,
         uint256 threshold,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) internal returns (Safe, IEigenPodProxy) {
+        uint256 salt = _getSalt(podAccountOwners);
+
         Safe account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
-            saltNonce: block.timestamp, // TODO: change
+            saltNonce: salt,
             owners: podAccountOwners,
             threshold: threshold,
             to: address(0),
-            data: bytes("")
+            data: emptyData
         });
 
-        // msg.sender is caller of the `createPodAccount` or `createPodAccountAndRegisterValidatorKey`
-        IEigenPodProxy eigenPodProxy = _createEigenPodProxy(msg.sender);
+        IEigenPodProxy eigenPodProxy = _createEigenPodProxy(salt);
 
         _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
 
@@ -879,51 +963,53 @@ contract PufferPool is
         return (account, eigenPodProxy);
     }
 
-    function _validateCustody(ValidatorKeyData calldata data) internal view {
-        if (data.raveEvidence.length + data.blsEncPrivKeyShares.length == 0) {
-            // First case:
-            // No enclave or guardian custody
-            // We don't do validations
-            return;
-        }
+    function _buildNodeRaveCommitment(ValidatorKeyData calldata data, bytes32 withdrawalCredentials)
+        public
+        view
+        returns (bytes32)
+    {
+        ValidatorRaveData memory raveData = ValidatorRaveData({
+            pubKey: data.blsPubKey,
+            signature: data.signature,
+            depositDataRoot: data.depositDataRoot,
+            blsEncryptedPrivKeyShares: data.blsEncryptedPrivKeyShares,
+            blsPubKeyShares: data.blsPubKeyShares
+        });
 
-        // Second case + Third case validations
-        // We validate that the number of key shares match number of guardians
+        return keccak256(
+            abi.encode(
+                raveData,
+                withdrawalCredentials,
+                _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig),
+                _guardiansMultisig.getThreshold()
+            )
+        );
+    }
 
-        uint256 nubmerOfGuardians = _guardiansMultisig.getOwners().length;
-        if (data.blsEncPrivKeyShares.length != nubmerOfGuardians) {
+    // checks that enough encrypted private keyshares + public keyshares were supplied for each guardian to receive one. Also verify that the raveEvidence is valid and contained the expected and fresh raveCommitment.
+    function _verifyKeyRequirements(ValidatorKeyData calldata data, bytes32 raveCommitment) internal view {
+        // Validate enough keyshares supplied for all guardians
+        uint256 numGuardians = _guardiansMultisig.getOwners().length;
+        if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
             revert InvalidBLSPrivateKeyShares();
         }
 
-        if (data.blsPubKeyShares.length != nubmerOfGuardians) {
+        if (data.blsPubKeyShares.length != numGuardians) {
             revert InvalidBLSPublicKeyShares();
         }
 
-        if (data.raveEvidence.length == 0) {
-            // Second case:
-            // No Enclave but gives custody
-            return;
+        // Use RAVE to verify remote attestation evidence
+        bool custodyVerified = _enclaveVerifier.verifyEvidence({
+            blockNumber: data.blockNumber,
+            raveCommitment: raveCommitment,
+            evidence: data.evidence,
+            mrenclave: _mrenclave,
+            mrsigner: _mrsigner
+        });
+
+        if (!custodyVerified) {
+            revert CouldNotVerifyCustody();
         }
-
-        // Third case:
-        // Enclave and gives custody
-        // Do RAVE validation
-
-        // TODO:
-
-        // (bytes memory report, bytes memory sig, bytes memory leafX509Cert) =
-        //     abi.decode(("bytes", "bytes", "bytes"), raveEvidence);
-        // bytes memory key = verifyEnclaveKey(
-        //     blsPubKey,
-        //     blockNumber,
-        //     report,
-        //     sig,
-        //     leafX509Cert,
-        //     signingMod,
-        //     signingExp,
-        //     pufferPool.getSecureSignerMrenclave(),
-        //     pufferPool.getSecureSignerMrsigner()
-        // );
     }
 
     function _setSafeProxyFactory(address safeProxyFactory) internal {
@@ -934,6 +1020,11 @@ contract PufferPool is
     function _setSafeImplementation(address safeImplementation) internal {
         _safeImplementation = safeImplementation;
         emit SafeImplementationChanged(safeImplementation);
+    }
+
+    function _setEnclaveVerifier(address enclaveVerifier) internal {
+        _enclaveVerifier = IEnclaveVerifier(enclaveVerifier);
+        emit EnclaveVerifierChanged(enclaveVerifier);
     }
 
     function _setExecutionCommission(uint256 newValue) internal {
@@ -990,20 +1081,24 @@ contract PufferPool is
         emit DepositRateChanged(oldDepositRate, depositRate);
     }
 
-    function _getValidatorBondRequirement(bytes calldata raveEvidence, bytes[] calldata blsEncPrivKeyShares)
+    function _getValidatorBondRequirement(uint256 raveEvidenceLen, uint256 blsEncPrivKeySharesLen)
         internal
         view
         returns (uint256)
     {
-        if (raveEvidence.length + blsEncPrivKeyShares.length == 0) {
+        if (raveEvidenceLen + blsEncPrivKeySharesLen == 0) {
             return _nonCustodialBondRequirement;
         }
 
-        if (raveEvidence.length == 0) {
+        if (raveEvidenceLen == 0) {
             return _nonEnclaveBondRequirement;
         }
 
         return _enclaveBondRequirement;
+    }
+
+    function _getSalt(address[] calldata podAccountOwners) internal pure returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(podAccountOwners)));
     }
 
     function _onlyGuardians() internal view {

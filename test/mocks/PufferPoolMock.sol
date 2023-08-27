@@ -10,6 +10,7 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 
 contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function initialize() external {
@@ -62,30 +63,43 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getBeaconChainETHStrategyIndex() external view returns (uint256) { }
 
+    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32) { }
+
     function getBeaconChainETHStrategy() external view returns (IStrategy) { }
 
     function getStrategyManager() external view returns (IStrategyManager) { }
 
-    function createPodAccount(address[] calldata podAccountOwners, uint256 threshold, address podRewardsRecipient)
-        external
-        returns (Safe, IEigenPodProxy)
-    { }
+    function getProtocolFeeRate() external view returns (uint256) { }
+
+    function createPodAccount(
+        address[] calldata podAccountOwners,
+        uint256 threshold,
+        address podRewardsRecipient,
+        bytes calldata emptyData
+    ) external returns (Safe, IEigenPodProxy) { }
 
     function createPodAccountAndRegisterValidatorKey(
         address[] calldata podAccountOwners,
         uint256 podAccountThreshold,
         ValidatorKeyData calldata data,
-        address podRewardsRecipient
+        address podRewardsRecipient,
+        bytes calldata emptyData
     ) external payable returns (Safe, IEigenPodProxy) { }
 
     function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable { }
 
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold)
+    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external
         returns (Safe account)
     { }
 
-    function getEigenPodProxyAndEigenPod(address creator) external view returns (address, address) { }
+    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
+        external
+        view
+        returns (address, address)
+    { }
+
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier) { }
 
     function getExecutionAmount(uint256 amount) external view returns (uint256) { }
 
