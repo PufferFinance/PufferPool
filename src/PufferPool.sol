@@ -968,15 +968,22 @@ contract PufferPool is
         view
         returns (bytes32)
     {
-        // return kecak256(abi.encode(dataStruct ,withdrawalCredentials, guardianEnclaveAddresses, threshold))
+        ValidatorRaveData memory raveData = ValidatorRaveData({
+            pubKey: data.blsPubKey,
+            signature: data.signature,
+            depositDataRoot: data.depositDataRoot,
+            blsEncryptedPrivKeyShares: data.blsEncryptedPrivKeyShares,
+            blsPubKeyShares: data.blsPubKeyShares
+        });
 
-        return keccak256(abi.encode(data.blsPubKey, withdrawalCredentials));
-        // data.signature,
-        // data.depositDataRoot,
-        // _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig),
-        // data.blsEncryptedPrivKeyShares,
-        // data.blsPubKeyShares,
-        // _guardiansMultisig.getThreshold()
+        return keccak256(
+            abi.encode(
+                raveData,
+                withdrawalCredentials,
+                _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig),
+                _guardiansMultisig.getThreshold()
+            )
+        );
     }
 
     // checks that enough encrypted private keyshares + public keyshares were supplied for each guardian to receive one. Also verify that the raveEvidence is valid and contained the expected and fresh raveCommitment.

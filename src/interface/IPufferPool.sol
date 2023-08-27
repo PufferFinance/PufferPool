@@ -49,6 +49,14 @@ interface IPufferPool is IERC20Upgradeable {
         RaveEvidence evidence;
     }
 
+    struct ValidatorRaveData {
+        bytes pubKey;
+        bytes signature;
+        bytes32 depositDataRoot;
+        bytes[] blsEncryptedPrivKeyShares;
+        bytes[] blsPubKeyShares;
+    }
+
     /**
      * @dev AVS Parameters
      */
@@ -464,13 +472,6 @@ interface IPufferPool is IERC20Upgradeable {
         external
         view
         returns (address, address);
-
-    /**
-     * @notice Returns the execution rewards comission
-     * @param amount Is the total amount received
-     * @return the comission amount
-     */
-    function getExecutionAmount(uint256 amount) external view returns (uint256);
 
     /**
      * @notice Returns the Enclave verifier
