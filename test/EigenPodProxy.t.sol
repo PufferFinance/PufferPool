@@ -39,6 +39,8 @@ contract EigenPodMock {
     function delayedWithdrawalRouter() public pure returns (IDelayedWithdrawalRouter) {
         return IDelayedWithdrawalRouter(address(1));
     }
+
+    function activateRestaking() external { }
 }
 
 contract EigenPodProxyV3Mock is EigenPodProxy {

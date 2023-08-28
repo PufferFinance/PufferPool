@@ -17,10 +17,6 @@ import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
-    /**
-     * @dev Uncompressed ECDSA keys are 64 bytes long
-     */
-    uint256 internal constant _ECDSA_KEY_LENGTH = 64;
     PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
@@ -70,10 +66,6 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     function rotateKey(address guardian, uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence)
         external
     {
-        if (pubKey.length != _ECDSA_KEY_LENGTH) {
-            revert InvalidECDSAPubKey();
-        }
-
         IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
 
         // TODO: uncomment when we get valid RAVE proofs for unit tests

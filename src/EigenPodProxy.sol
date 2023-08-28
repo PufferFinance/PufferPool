@@ -14,6 +14,7 @@ import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { Endian } from "eigenlayer/libraries/Endian.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title EingenPodProxy

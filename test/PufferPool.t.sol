@@ -23,6 +23,8 @@ contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
         return true;
     }
+
+    function activateRestaking() external { }
 }
 
 contract MockPodNotOwned {
@@ -556,6 +558,10 @@ contract PufferPoolTest is Test {
         (v, r, s) = vm.sign(guardiansEnclavePks[2], msgToBeSigned);
         signature = abi.encodePacked(r, s, v);
         enclaveSignatures[2] = signature;
+
+        // Because we are using EigenPodManager Mock, he is returning address(0) for EigenPod
+        // In order to not revert we will set bytecode of address(0) to EigenPodMock bytecode for the sake of this test
+        vm.etch(address(0), address(new MockPodOwned()).code);
 
         vm.expectEmit(true, true, true, true);
         emit ETHProvisioned(address(proxy), validatorData.blsPubKey, 1);
