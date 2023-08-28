@@ -111,7 +111,7 @@ interface IEigenPodProxy {
      * @notice Calls verifyWithdrawalCredentialsAndBalance() on the owned EigenPod contract
      */
     function enableRestaking(
-        uint64 oracleBlockNumber,
+        uint64 oracleTimestamp,
         bytes32 pubKey,
         uint40[] calldata validatorIndices,
         BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,

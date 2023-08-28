@@ -183,6 +183,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         onlyPodProxyManager
     {
         _eigenPodManager.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
+        eigenPod.activateRestaking();
     }
 
     /**
@@ -251,16 +252,16 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      * @inheritdoc IEigenPodProxy
      */
     function enableRestaking(
-        uint64 oracleBlockNumber,
+        uint64 oracleTimestamp,
         bytes32 pubKeyHash,
         uint40[] calldata validatorIndices,
         BeaconChainProofs.WithdrawalCredentialProofs[] calldata proofs,
         bytes32[][] calldata validatorFields
     ) external {
         uint64 previousRestakedBalanceGwei = eigenPod.validatorPubkeyHashToInfo(pubKeyHash).restakedBalanceGwei;
-        eigenPod.verifyWithdrawalCredentials(oracleBlockNumber, validatorIndices, proofs, validatorFields);
+        eigenPod.verifyWithdrawalCredentials(oracleTimestamp, validatorIndices, proofs, validatorFields);
         uint64 restakedBalanceGwei = eigenPod.validatorPubkeyHashToInfo(pubKeyHash).restakedBalanceGwei;
-        require(restakedBalanceGwei > previousRestakedBalanceGwei, "Did not successfully increase restakedBalanceGwei");
+        require(restakedBalanceGwei >= previousRestakedBalanceGwei, "Did not successfully increase restakedBalanceGwei");
         // Keep track of ValidatorStatus state changes
         _previousStatus = IEigenPod.VALIDATOR_STATUS.ACTIVE;
         validatorData.push(ValidatorData(pubKeyHash, restakedBalanceGwei));
