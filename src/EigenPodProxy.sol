@@ -3,18 +3,14 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
-import { Endian } from "eigenlayer/libraries/Endian.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @title EingenPodProxy
