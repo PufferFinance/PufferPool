@@ -14,7 +14,7 @@ contract PufferPoolInvariants is GuardianHelper {
     function setUp() public override {
         super.setUp();
 
-        // Create guardians in setup, always assume that we have guardians
+        // Create guardians in setup
         _createGuardians();
 
         handler = new PufferPoolHandler(pool, withdrawalPool, guardiansEnclavePks);
