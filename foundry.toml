@@ -29,3 +29,8 @@ bracket_spacing = true
 
 [rpc_endpoints]
 mainnet="https://eth-mainnet-public.unifra.io"
+
+[invariant]
+# fail_on_revert=true
+depth = 20
+# runs = 10000
