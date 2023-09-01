@@ -12,7 +12,6 @@ import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { console } from "forge-std/console.sol";
 import { GuardianHelper } from "./helpers/GuardianHelper.sol";
 import { TestBase } from "./TestBase.t.sol";
 
@@ -267,6 +266,8 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         fuzzedAddress(owner1)
         fuzzedAddress(owner2)
         fuzzedAddress(owner3)
+        fuzzedAddress(owner4)
+        fuzzedAddress(owner5)
     {
         vm.assume(owner1 != owner2);
         vm.assume(owner1 != owner3);
