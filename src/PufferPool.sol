@@ -294,8 +294,6 @@ contract PufferPool is
         _setTreasury(treasury);
         _setDepositRate(90 * FixedPointMathLib.WAD); // 90%
         _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
-
-        // TODO: use constants / immutables
         _withdrawalPool = withdrawalPool;
     }
 
@@ -434,7 +432,6 @@ contract PufferPool is
         address podRewardsRecipient,
         bytes calldata emptyData
     ) external returns (Safe, IEigenPodProxy) {
-        require(emptyData.length == 0);
         return _createPodAccountAndEigenPodProxy(podAccountOwners, threshold, podRewardsRecipient, emptyData);
     }
 
@@ -448,7 +445,6 @@ contract PufferPool is
         address podRewardsRecipient,
         bytes calldata emptyData
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
-        require(emptyData.length == 0);
         (Safe account, IEigenPodProxy eigenPodProxy) =
             _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient, emptyData);
         registerValidatorKey(eigenPodProxy, data);
@@ -890,6 +886,8 @@ contract PufferPool is
         address podRewardsRecipient,
         bytes calldata emptyData
     ) internal returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
+
         uint256 salt = _getSalt(podAccountOwners);
 
         Safe account = _deploySafe({

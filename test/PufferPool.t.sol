@@ -14,6 +14,7 @@ import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { console } from "forge-std/console.sol";
 import { GuardianHelper } from "./helpers/GuardianHelper.sol";
+import { TestBase } from "./TestBase.t.sol";
 
 contract MockPodOwned {
     function isOwner(address) external pure returns (bool) {
@@ -27,7 +28,7 @@ contract MockPodNotOwned {
     }
 }
 
-contract PufferPoolTest is GuardianHelper {
+contract PufferPoolTest is GuardianHelper, TestBase {
     using ECDSA for bytes32;
 
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
@@ -63,6 +64,8 @@ contract PufferPoolTest is GuardianHelper {
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();
+
+        _skipDefaultFuzzAddresses();
     }
 
     // Internal function for creating a Validator Data
@@ -165,14 +168,20 @@ contract PufferPoolTest is GuardianHelper {
     }
 
     // Test creating pod account
-    function testCreatePodAccount(address owner1) public returns (Safe, IEigenPodProxy) {
-        vm.assume(owner1 != address(0)); // address(0) can't be used
-        vm.assume(owner1 != address(1)); // address(1) can't be used as it is special address in {Safe}
-
+    function testCreatePodAccount(address owner1) public fuzzedAddress(owner1) returns (Safe, IEigenPodProxy) {
         address[] memory owners = new address[](1);
         owners[0] = owner1;
 
+        // Revert if emptyData is not really empty
+        vm.expectRevert();
         (Safe safe, IEigenPodProxy eigenPodProxy) = pool.createPodAccount({
+            podAccountOwners: owners,
+            threshold: owners.length,
+            podRewardsRecipient: rewardsRecipient,
+            emptyData: "0x123455"
+        });
+
+        (safe, eigenPodProxy) = pool.createPodAccount({
             podAccountOwners: owners,
             threshold: owners.length,
             podRewardsRecipient: rewardsRecipient,
@@ -186,9 +195,7 @@ contract PufferPoolTest is GuardianHelper {
     }
 
     // Fuzz test for creating Pod account and registering one validator key
-    function testCreatePodAccountAndRegisterValidatorKey(address owner1) public {
-        vm.assume(owner1 != address(0)); // address(0) can't be used
-        vm.assume(owner1 != address(1)); // address(1) is a special ddress in {Safe}
+    function testCreatePodAccountAndRegisterValidatorKey(address owner1) public fuzzedAddress(owner1) {
         vm.assume(owner1 != address(this));
 
         address[] memory owners = new address[](2);
@@ -244,8 +251,7 @@ contract PufferPoolTest is GuardianHelper {
     }
 
     // Fuzz test for depositing ETH to PufferPool
-    function testDeposit(address pufETHRecipient, uint256 depositAmount) public {
-        vm.assume(pufETHRecipient != address(0));
+    function testDeposit(address pufETHRecipient, uint256 depositAmount) public fuzzedAddress(pufETHRecipient) {
         depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
 
         assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
@@ -253,6 +259,29 @@ contract PufferPoolTest is GuardianHelper {
         pool.depositETH{ value: depositAmount }(pufETHRecipient);
 
         assertEq(pool.balanceOf(pufETHRecipient), depositAmount, "recipient pufETH amount");
+    }
+
+    // Predicted and created addresses should match
+    function testAddressPrediction(address owner1, address owner2, address owner3, address owner4, address owner5)
+        public
+        fuzzedAddress(owner1)
+        fuzzedAddress(owner2)
+        fuzzedAddress(owner3)
+        fuzzedAddress(owner4)
+        fuzzedAddress(owner5)
+    {
+        address[] memory owners = new address[](5);
+        owners[0] = address(owner1);
+        owners[1] = address(owner2);
+        owners[2] = address(owner3);
+        owners[3] = address(owner4);
+        owners[4] = address(owner5);
+
+        (address eigenPodProxy,) = pool.getEigenPodProxyAndEigenPod(owners);
+
+        (, IEigenPodProxy proxy) = pool.createPodAccount(owners, 3, address(12346), "");
+
+        assertTrue(eigenPodProxy == address(proxy), "address mismatch");
     }
 
     // Deposits ETH and tries to get half of that back

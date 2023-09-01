@@ -10,6 +10,7 @@ import { GuardianHelper } from "./helpers/GuardianHelper.sol";
 
 contract PufferPoolInvariants is GuardianHelper {
     PufferPoolHandler handler;
+    Safe guardians;
 
     function setUp() public override {
         super.setUp();
@@ -17,10 +18,17 @@ contract PufferPoolInvariants is GuardianHelper {
         // Create guardians in setup
         _createGuardians();
 
+        guardians = pool.getGuaridnasMultisig();
+
         handler = new PufferPoolHandler(pool, withdrawalPool, guardiansEnclavePks);
 
         // Set handler as a target contract for invariant test
         targetContract(address(handler));
+    }
+
+    // Guardian multisi is not supposed to change
+    function invariant_guardiansCanNeverChange() public {
+        assertTrue(address(guardians) == address(pool.getGuaridnasMultisig()));
     }
 
     function invariant_pufferPoolETHCanOnlyGoUp() public {

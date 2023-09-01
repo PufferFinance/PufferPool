@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { CommonBase } from "forge-std/Base.sol";
-import { StdCheats } from "forge-std/StdCheats.sol";
-import { StdUtils } from "forge-std/StdUtils.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
@@ -13,8 +10,9 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { console } from "forge-std/console.sol";
+import { TestBase } from "../TestBase.t.sol";
 
-contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
+contract PufferPoolHandler is TestBase {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -28,11 +26,13 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
 
     EnumerableSet.AddressSet _eigenPodProxies;
 
-    // EigenPodProxy to Part of the pubKey
-    mapping(address => bytes32) _pubKeyparts;
+    struct Data {
+        Safe owner;
+        bytes32 pubKeyPart;
+    }
 
-    // Addresses that are supposed to be skipped when fuzzing
-    mapping(address => bool) fuzzedAddressMapping;
+    // EigenPodProxy => Data about that eigne pod proxy
+    mapping(address => Data) _eigenPodProxiesData;
 
     uint256 public ghost_eth_deposited_amount;
     uint256 public ghost_eth_rewards_amount;
@@ -45,6 +45,7 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
     // This is important because that is the only way that ETH is leaving PufferPool
     bool public ethLeavingThePool;
 
+    // Counter for the calls in the invariant test
     mapping(bytes32 => uint256) public calls;
 
     constructor(PufferPool _pool, WithdrawalPool _withdrawalPool, uint256[] memory _guardiansEnclavePks) {
@@ -54,15 +55,9 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
         guardiansEnclavePks.push(_guardiansEnclavePks[1]);
         guardiansEnclavePks.push(_guardiansEnclavePks[2]);
 
-        fuzzedAddressMapping[address(0)] = true;
-        fuzzedAddressMapping[address(1)] = true;
+        _skipDefaultFuzzAddresses();
         fuzzedAddressMapping[address(pool)] = true;
         fuzzedAddressMapping[address(_withdrawalPool)] = true;
-    }
-
-    modifier fuzzedAddress(address addr) virtual {
-        vm.assume(fuzzedAddressMapping[addr] == false);
-        _;
     }
 
     modifier recordPreviousBalance() {
@@ -209,7 +204,9 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
         vm.deal(podAccountOwner, ethBondAmount);
         vm.startPrank(podAccountOwner);
 
-        (, IEigenPodProxy eigenPodProxy) = pool.createPodAccountAndRegisterValidatorKey{ value: ethBondAmount }({
+        (Safe podAccount, IEigenPodProxy eigenPodProxy) = pool.createPodAccountAndRegisterValidatorKey{
+            value: ethBondAmount
+        }({
             podAccountOwners: owners,
             podAccountThreshold: 1,
             data: _getMockValidatorKeyData(pubKeyPart),
@@ -222,16 +219,19 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
         // Account for that deposited eth in ghost variable
         ghost_eth_deposited_amount += ethBondAmount;
 
-        // Add EigenPodPrxy to progies set
+        // Add EigenPodProxy to proxies set
         _eigenPodProxies.add(address(eigenPodProxy));
-        // Save PubKeypart
-        _pubKeyparts[address(eigenPodProxy)] = pubKeyPart;
+
+        // Save information about that eigen pod proxy
+        _eigenPodProxiesData[address(eigenPodProxy)].owner = podAccount;
+        _eigenPodProxiesData[address(eigenPodProxy)].pubKeyPart = pubKeyPart;
     }
 
     // Starts the validating process for a random EigenPodProxy
     function provisionPodETH(uint256 eigenPodProxySeed, address podAccountOwner, bytes32 pubKeyPart)
         public
         isETHLeavingThePool
+        recordPreviousBalance
         countCall("provisionPodETH")
     {
         // If we don't have proxies, create and register validator key, then call this function again with the same params
@@ -247,7 +247,7 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
 
         // ATM we only test with 1 validator per 1 eigen pod proxy
         // TODO: change that
-        bytes32 pubKeypart = _pubKeyparts[proxy];
+        bytes32 pubKeypart = _eigenPodProxiesData[proxy].pubKeyPart;
 
         address[] memory enclaveAddresses =
             pool.getGuardianModule().getGuardiansEnclaveAddresses(pool.getGuaridnasMultisig());
@@ -288,6 +288,32 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
         _eigenPodProxies.remove(proxy);
     }
 
+    // Stops the validator registration process
+    function stopRegistration(uint256 eigenPodProxySeed, address podAccountOwner, bytes32 pubKeyPart)
+        public
+        isETHLeavingThePool
+        countCall("stopRegistration")
+        recordPreviousBalance
+    {
+        // If we don't have proxies, create and register validator key, then call this function again with the same params
+        if (_eigenPodProxies.length() == 0) {
+            return registerValidatorKey(podAccountOwner, pubKeyPart);
+        }
+
+        uint256 eigePodProxyIndex = eigenPodProxySeed % _eigenPodProxies.length();
+
+        // Fetch EigenPodProxy from the set
+        IEigenPodProxy proxy = IEigenPodProxy(_eigenPodProxies.at(eigePodProxyIndex));
+
+        Data memory data = _eigenPodProxiesData[address(proxy)];
+
+        bytes memory pubKey = _getPubKey(data.pubKeyPart);
+
+        vm.startPrank(address(data.owner));
+        proxy.stopRegistration(keccak256(pubKey));
+        vm.stopPrank();
+    }
+
     function callSummary() external view {
         console.log("Call summary:");
         console.log("-------------------");
@@ -304,7 +330,7 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
     function _getMockValidatorKeyData(bytes32 pubKeypart) internal pure returns (IPufferPool.ValidatorKeyData memory) {
         // key length must be 48 bytes
         // bytes memory pubKey = new bytes(48);
-        bytes memory pubKey = bytes.concat(abi.encodePacked(pubKeypart), bytes16(""));
+        bytes memory pubKey = _getPubKey(pubKeypart);
 
         bytes[] memory blsEncryptedPrivKeyShares = new bytes[](0);
         bytes[] memory blsPubKeyShares = new bytes[](0);
@@ -322,5 +348,9 @@ contract PufferPoolHandler is CommonBase, StdCheats, StdUtils {
         });
 
         return validatorData;
+    }
+
+    function _getPubKey(bytes32 pubKeypart) internal pure returns (bytes memory) {
+        return bytes.concat(abi.encodePacked(pubKeypart), bytes16(""));
     }
 }

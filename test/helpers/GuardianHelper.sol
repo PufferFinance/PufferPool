@@ -72,8 +72,12 @@ contract GuardianHelper is Test {
 
         bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
 
+        // Try passing in different calldata
+        vm.expectRevert();
         Safe guardianAccount =
-            pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
+            pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: "0x1235" });
+
+        guardianAccount = pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
 
         // Assert 3 guardians
         assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
@@ -110,6 +114,8 @@ contract GuardianHelper is Test {
             module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[2], guardian3Enclave),
             "bad enclave address"
         );
+
+        assertTrue(address(pool.getGuaridnasMultisig()) != address(0), "guardians getter");
 
         return (guardianAccount, owners);
     }
