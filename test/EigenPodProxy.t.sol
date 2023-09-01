@@ -22,7 +22,7 @@ import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { PufferPoolMock } from "test/mocks/PufferPoolMock.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { TestBase } from "./TestBase.T.sol";
+import { TestBase } from "./TestBase.t.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
