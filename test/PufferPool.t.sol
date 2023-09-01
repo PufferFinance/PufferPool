@@ -267,9 +267,18 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         fuzzedAddress(owner1)
         fuzzedAddress(owner2)
         fuzzedAddress(owner3)
-        fuzzedAddress(owner4)
-        fuzzedAddress(owner5)
     {
+        vm.assume(owner1 != owner2);
+        vm.assume(owner1 != owner3);
+        vm.assume(owner1 != owner4);
+        vm.assume(owner1 != owner5);
+        vm.assume(owner2 != owner3);
+        vm.assume(owner2 != owner4);
+        vm.assume(owner2 != owner5);
+        vm.assume(owner3 != owner4);
+        vm.assume(owner3 != owner5);
+        vm.assume(owner4 != owner5);
+
         address[] memory owners = new address[](5);
         owners[0] = address(owner1);
         owners[1] = address(owner2);
