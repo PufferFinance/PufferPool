@@ -5,6 +5,8 @@ import { RAVE } from "rave/RAVE.sol";
 import { X509Verifier } from "rave/X509Verifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { console2 } from "forge-std/console2.sol";
+import { StdStyle } from "forge-std/StdStyle.sol";
 
 /**
  * @title EnclaveVerifier
@@ -95,10 +97,18 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
 
         RSAPubKey memory leafX509 = _validLeafX509s[evidence.leafX509CertDigest];
 
+        console2.log(StdStyle.magenta("IF YOU CAN SEE THE NEXT console.log, YOU DID IT :D (hopefully)"));
+
         // Recover a remote attestation payload if everything is valid
         bytes memory recoveredPayload = verifyRemoteAttestation(
             evidence.report, evidence.signature, leafX509.modulus, leafX509.exponent, mrenclave, mrsigner
         );
+
+        console2.log(StdStyle.magenta("======== YOU DID IT! ======== "));
+
+        console2.log("recovered payload", "");
+        console2.logBytes(recoveredPayload);
+        console2.logBytes32(keccak256(recoveredPayload));
 
         // Remote attestation payloads are expected to be in the form (32B_Commitment || 32B_BlockHash)
         bytes memory expectedPayload = abi.encode(raveCommitment, blockhash(blockNumber));
