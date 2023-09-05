@@ -5,6 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { EnclaveVerifier, IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { ValidBLSEvidence, MockEvidence } from "rave-test/mocks/MockEvidence.sol";
+import { console2 } from "forge-std/console2.sol";
+import { StdStyle } from "forge-std/StdStyle.sol";
 
 contract Guardian1RaveEvidence is MockEvidence {
     function report() public pure override returns (bytes memory) {
@@ -126,21 +128,27 @@ contract EnclaveVerifierTest is Test {
 
     // Test verify validator public key
     function testVerifyValidatorPubKey() public {
+        MockEvidence raveEvidence = validEvidence1;
+
         vm.startPrank(mockPool);
-        verifier.addLeafX509(validEvidence1.signingCert());
+        verifier.addLeafX509(raveEvidence.signingCert());
+
+        console2.log(StdStyle.magenta("======== REPORT BYTES ======== "));
+        console2.logBytes(raveEvidence.report());
+        console2.log(StdStyle.magenta("======== REPORT BYTES END ======== "));
 
         RaveEvidence memory evidence = RaveEvidence({
-            report: validEvidence1.report(),
-            signature: validEvidence1.sig(),
-            leafX509CertDigest: keccak256(validEvidence1.signingCert())
+            report: raveEvidence.report(),
+            signature: raveEvidence.sig(),
+            leafX509CertDigest: keccak256(raveEvidence.signingCert())
         });
 
         bool success = verifier.verifyEvidence({
             blockNumber: 0,
             evidence: evidence,
-            raveCommitment: keccak256(validEvidence1.payload()),
-            mrenclave: validEvidence1.mrenclave(),
-            mrsigner: validEvidence1.mrsigner()
+            raveCommitment: keccak256(raveEvidence.payload()),
+            mrenclave: raveEvidence.mrenclave(),
+            mrsigner: raveEvidence.mrsigner()
         });
 
         assertTrue(success, "should verify");
