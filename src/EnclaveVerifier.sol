@@ -104,7 +104,7 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
             evidence.report, evidence.signature, leafX509.modulus, leafX509.exponent, mrenclave, mrsigner
         );
 
-        console2.log(StdStyle.magenta("======== YOU DID IT! ======== "));
+        console2.log(StdStyle.magenta("======== YOU DID IT! now we need to make sure that tha payloads match ======== "));
 
         console2.log("recovered payload", "");
         console2.logBytes(recoveredPayload);
