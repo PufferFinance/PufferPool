@@ -113,6 +113,12 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
         // Remote attestation payloads are expected to be in the form (32B_Commitment || 32B_BlockHash)
         bytes memory expectedPayload = abi.encode(raveCommitment, blockhash(blockNumber));
 
+        console2.log("expectedPayload payload", "");
+        console2.log("raveCommitment====", "");
+        console2.logBytes32(raveCommitment);
+        console2.logBytes(expectedPayload);
+        console2.logBytes32(keccak256(expectedPayload));
+
         // Compare with the expected payload
         return (keccak256(expectedPayload) == keccak256(recoveredPayload));
     }
