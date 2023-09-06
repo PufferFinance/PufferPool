@@ -106,12 +106,14 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
 
         console2.log(StdStyle.magenta("======== YOU DID IT! now we need to make sure that tha payloads match ======== "));
 
-        console2.log("recovered payload", "");
-        console2.logBytes(recoveredPayload);
-        console2.logBytes32(keccak256(recoveredPayload));
-
         // Remote attestation payloads are expected to be in the form (32B_Commitment || 32B_BlockHash)
         bytes memory expectedPayload = abi.encode(raveCommitment, blockhash(blockNumber));
+
+        console2.log("Expected");
+        console2.logBytes(expectedPayload);
+
+        console2.log("Recovered");
+        console2.logBytes(recoveredPayload);
 
         // Compare with the expected payload
         return (keccak256(expectedPayload) == keccak256(recoveredPayload));
