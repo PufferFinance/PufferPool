@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { Ownable } from "openzeppelin/access/Ownable.sol";
+import { InsuranceContract } from "puffer/InsuranceContract.sol";
 
 contract Treasury is ERC20, Ownable {
     uint256 public grantsCommission;
@@ -86,5 +87,8 @@ contract Treasury is ERC20, Ownable {
     function delegateInsurance(uint256 numPufi, address operatorAddress, uint256 lockupDuration) public {
         transferFrom(msg.sender, address(this), numPufi);
         require(isValidOperator(operatorAddress), "Invalid Operator");
+        InsuranceContract insuranceContract = new InsuranceContract(address(this), msg.sender);
+        insuranceContract.deposit(numPufi, lockupDuration);
+        // TODO: Treasury contract calls EL contract to delegate ethDelegationAmount(numPufi) ETH to the operatorAddress
     }
 }
