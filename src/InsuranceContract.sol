@@ -26,4 +26,14 @@ contract InsuranceContract {
         PufiDeposit memory deposit = PufiDeposit(_numPufi, block.timestamp + _lockupDuration);
         pufiDeposits.push(deposit);
     }
+
+    // TODO: Implement pulling rewards from EL rewards contract
+    function pullRewards() public {
+
+    }
+
+    // TODO: Implement withdrawing pufi from this contract
+    function withdraw() public {
+        require(msg.sender == owner, "Only insurance owner allowed");
+    }
 }

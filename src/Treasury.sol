@@ -5,6 +5,7 @@ import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { Ownable } from "openzeppelin/access/Ownable.sol";
 import { InsuranceContract } from "puffer/InsuranceContract.sol";
 
+// TODO: Higher premium for larger lockup period
 contract Treasury is ERC20, Ownable {
     uint256 public grantsCommission;
     uint256 public referralsCommission;
