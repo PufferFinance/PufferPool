@@ -291,9 +291,10 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
+     * @return pufETH amount minted
      * @dev Signature "0x2d2da806"
      */
-    function depositETH(address recipient) external payable;
+    function depositETH(address recipient) external payable returns (uint256);
 
     /**
      *
