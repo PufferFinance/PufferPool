@@ -22,6 +22,7 @@ import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { PufferPoolMock } from "test/mocks/PufferPoolMock.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { TestBase } from "./TestBase.t.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract EigenPodProxyV2Mock is EigenPodProxy {
@@ -65,7 +66,7 @@ contract EigenPodProxyV3Mock is EigenPodProxy {
     }
 }
 
-contract EigenPodProxyTest is Test {
+contract EigenPodProxyTest is TestBase {
     PufferPool pool;
     UpgradeableBeacon beacon;
     UpgradeableBeacon rewardsBeacon;
@@ -89,11 +90,6 @@ contract EigenPodProxyTest is Test {
         vm.startPrank(address(pool));
         _;
         vm.stopPrank();
-    }
-
-    modifier fuzzAddresses(address addr) virtual {
-        vm.assume(_skipAddresses[addr] == false);
-        _;
     }
 
     function setUp() public {
@@ -124,11 +120,12 @@ contract EigenPodProxyTest is Test {
         // Change the bytecode of address(0) to EigenPodMock bytecode
         vm.etch(eigenPodMock, address(eigenPodMockDeployment).code);
 
-        _skipAddresses[address(pool)] = true;
-        _skipAddresses[address(eigenPodProxy)] = true;
-        _skipAddresses[eigenPodMock] = true;
-        _skipAddresses[delayedWithdrawalMock] = true;
-        _skipAddresses[alice] = true;
+        _skipDefaultFuzzAddresses();
+        fuzzedAddressMapping[address(pool)] = true;
+        fuzzedAddressMapping[address(eigenPodProxy)] = true;
+        fuzzedAddressMapping[eigenPodMock] = true;
+        fuzzedAddressMapping[delayedWithdrawalMock] = true;
+        fuzzedAddressMapping[alice] = true;
     }
 
     // Tests the setup
@@ -213,8 +210,7 @@ contract EigenPodProxyTest is Test {
     }
 
     // Execution rewards distirbution
-    function testDistributeExecutionRewards(address blockProducer) public fuzzAddresses(blockProducer) {
-        vm.assume(blockProducer != address(0));
+    function testDistributeExecutionRewards(address blockProducer) public fuzzedAddress(blockProducer) {
         vm.assume(blockProducer != alice && blockProducer != address(pool) && blockProducer != address(eigenPodProxy));
         // For execution rewards msg.sender must be address other than EigenLayer's router
         uint256 poolBalanceBefore = address(pool).balance;
