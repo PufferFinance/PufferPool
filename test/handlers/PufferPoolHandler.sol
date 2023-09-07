@@ -250,7 +250,7 @@ contract PufferPoolHandler is TestBase {
         bytes32 pubKeypart = _eigenPodProxiesData[proxy].pubKeyPart;
 
         address[] memory enclaveAddresses =
-            pool.getGuardianModule().getGuardiansEnclaveAddresses(pool.getGuaridnasMultisig());
+            pool.getGuardianModule().getGuardiansEnclaveAddresses(pool.getGuardiansMultisig());
 
         bytes[] memory enclaveSignatures = new bytes[](enclaveAddresses.length);
 

@@ -383,14 +383,15 @@ contract PufferPool is
         // Burn pufETH on the sender's account
         _burn(msg.sender, pufETHAmount);
 
-        // Payout the validator
-        bool isNotSlashed = (int256(msg.value) - int256(32 ether)) >= 0;
+        uint256 totalETH = msg.value + ethAmount;
 
-        _splitETH(false, msg.value - ethAmount);
+        int256 remainderAfterReturningETHToPool = int256(totalETH) - int256(_32_ETHER);
 
-        if (isNotSlashed) {
+        _splitETH(false, msg.value);
+
+        if (remainderAfterReturningETHToPool > 0) {
             // Return bond and any rewards back to podRewardsRecipient
-            podRewardsRecipient.safeTransferETH(ethAmount); // TODO: reentrancy danger
+            podRewardsRecipient.safeTransferETH(uint256(remainderAfterReturningETHToPool)); // TODO: reentrancy danger
         }
     }
 
@@ -1008,7 +1009,7 @@ contract PufferPool is
         ).toEthSignedMessageHash();
     }
 
-    function getGuaridnasMultisig() external view returns (Safe) {
+    function getGuardiansMultisig() external view returns (Safe) {
         return _guardiansMultisig;
     }
 

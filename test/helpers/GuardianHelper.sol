@@ -18,22 +18,22 @@ contract GuardianHelper is Test {
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
-    uint256 guardian1PK;
+    uint256 guardian1SK;
     address guardian2;
-    uint256 guardian2PK;
+    uint256 guardian2SK;
     address guardian3;
-    uint256 guardian3PK;
+    uint256 guardian3SK;
     address guardian1Enclave;
-    uint256 guardian1PKEnclave;
+    uint256 guardian1SKEnclave;
     // PubKey is hardcoded because we are creating guardian enclaves deterministically
     bytes guardian1EnclavePubKey =
         hex"048289b999a1a6bc0cc6550ea018d03adee9bfeae6441e53e2e5eed22232a2b8f2d87cf1619c263971a6ada43f7310f37f473de7262ab63778fe3a859c68dc2e27";
     address guardian2Enclave;
-    uint256 guardian2PKEnclave;
+    uint256 guardian2SKEnclave;
     bytes guardian2EnclavePubKey =
         hex"0440ba2fa6602bdb09e40d8b400b0c82124c14c8666659c0c78d8e474f3e230d92597cd4811484e1a15d6886745ed6d3fbde7e66f1376e396d8d4e8fa67458a140";
     address guardian3Enclave;
-    uint256 guardian3PKEnclave;
+    uint256 guardian3SKEnclave;
     bytes guardian3EnclavePubKey =
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
@@ -45,15 +45,15 @@ contract GuardianHelper is Test {
 
     function setUp() public virtual {
         // Create Guardian wallets
-        (guardian1, guardian1PK) = makeAddrAndKey("guardian1");
-        (guardian1Enclave, guardian1PKEnclave) = makeAddrAndKey("guardian1enclave");
-        guardiansEnclavePks.push(guardian1PKEnclave);
-        (guardian2, guardian2PK) = makeAddrAndKey("guardian2");
-        (guardian2Enclave, guardian2PKEnclave) = makeAddrAndKey("guardian2enclave");
-        guardiansEnclavePks.push(guardian2PKEnclave);
-        (guardian3, guardian3PK) = makeAddrAndKey("guardian3");
-        (guardian3Enclave, guardian3PKEnclave) = makeAddrAndKey("guardian3enclave");
-        guardiansEnclavePks.push(guardian3PKEnclave);
+        (guardian1, guardian1SK) = makeAddrAndKey("guardian1");
+        (guardian1Enclave, guardian1SKEnclave) = makeAddrAndKey("guardian1enclave");
+        guardiansEnclavePks.push(guardian1SKEnclave);
+        (guardian2, guardian2SK) = makeAddrAndKey("guardian2");
+        (guardian2Enclave, guardian2SKEnclave) = makeAddrAndKey("guardian2enclave");
+        guardiansEnclavePks.push(guardian2SKEnclave);
+        (guardian3, guardian3SK) = makeAddrAndKey("guardian3");
+        (guardian3Enclave, guardian3SKEnclave) = makeAddrAndKey("guardian3enclave");
+        guardiansEnclavePks.push(guardian3SKEnclave);
 
         (, beacon) = new DeployBeacon().run(true);
         (proxyFactory, safeImplementation) = new DeploySafe().run();
@@ -115,7 +115,7 @@ contract GuardianHelper is Test {
             "bad enclave address"
         );
 
-        assertTrue(address(pool.getGuaridnasMultisig()) != address(0), "guardians getter");
+        assertTrue(address(pool.getGuardiansMultisig()) != address(0), "guardians getter");
 
         return (guardianAccount, owners);
     }

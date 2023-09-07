@@ -547,7 +547,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         bytes32 digest = keccak256(abi.encodePacked(proxy, validatorData.blsPubKey)).toEthSignedMessageHash();
 
         // Submit same invalid signature 3 times
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1PK, digest);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
         enclaveSignatures[0] = signature;
         enclaveSignatures[1] = signature;

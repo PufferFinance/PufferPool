@@ -18,7 +18,7 @@ contract PufferPoolInvariants is GuardianHelper {
         // Create guardians in setup
         _createGuardians();
 
-        guardians = pool.getGuaridnasMultisig();
+        guardians = pool.getGuardiansMultisig();
 
         handler = new PufferPoolHandler(pool, withdrawalPool, guardiansEnclavePks);
 
@@ -28,7 +28,7 @@ contract PufferPoolInvariants is GuardianHelper {
 
     // Guardian multisi is not supposed to change
     function invariant_guardiansCanNeverChange() public {
-        assertTrue(address(guardians) == address(pool.getGuaridnasMultisig()));
+        assertTrue(address(guardians) == address(pool.getGuardiansMultisig()));
     }
 
     function invariant_pufferPoolETHCanOnlyGoUp() public {
