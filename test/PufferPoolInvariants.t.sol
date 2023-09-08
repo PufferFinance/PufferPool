@@ -52,7 +52,7 @@ contract PufferPoolInvariants is GuardianHelper {
     //     assertTrue(handler.ghost_eth_deposited_amount() + handler.ghost_eth_rewards_amount() >= amount);
     // }
 
-    // function invariant_callSummary() public view {
-    //     handler.callSummary();
-    // }
+    function invariant_callSummary() public view {
+        handler.callSummary();
+    }
 }
