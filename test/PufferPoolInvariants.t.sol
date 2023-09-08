@@ -26,31 +26,31 @@ contract PufferPoolInvariants is GuardianHelper {
     }
 
     // Guardian multisig is not supposed to change
-    // function invariant_guardiansCanNeverChange() public {
-    //     assertTrue(address(guardians) == address(pool.getGuardiansMultisig()));
-    // }
+    function invariant_guardiansCanNeverChange() public {
+        assertTrue(address(guardians) == address(pool.getGuardiansMultisig()));
+    }
 
-    // function invariant_pufferPoolETHCanOnlyGoUp() public {
-    //     // PufferPool's ETH balance can only grow, unless it is `provisionPodETH`
-    //     if (handler.ethLeavingThePool()) {
-    //         assertTrue(address(pool).balance < handler.previousBalance());
-    //     } else {
-    //         assertTrue(address(pool).balance >= handler.previousBalance());
-    //     }
-    // }
+    function invariant_pufferPoolETHCanOnlyGoUp() public {
+        // PufferPool's ETH balance can only grow, unless it is `provisionPodETH`
+        if (handler.ethLeavingThePool()) {
+            assertTrue(address(pool).balance < handler.previousBalance());
+        } else {
+            assertTrue(address(pool).balance >= handler.previousBalance());
+        }
+    }
 
-    // // pufETH should always be worth more than ETH
-    // function invariant_pufEthToETHRate() public {
-    //     // Exchange rate should always be bigger than 1:1, we are not supposed to be losing anything with this setup ATM
-    //     assertTrue(pool.getPufETHtoETHExchangeRate() >= 1 ether);
-    // }
+    // pufETH should always be worth more than ETH
+    function invariant_pufEthToETHRate() public {
+        // Exchange rate should always be bigger than 1:1, we are not supposed to be losing anything with this setup ATM
+        assertTrue(pool.getPufETHtoETHExchangeRate() >= 1 ether);
+    }
 
-    // // Sanity check for our calculations
-    // function invariant_depositedShouldBeBiggerThanTotalSupply() public {
-    //     uint256 amount = pool.calculatePufETHtoETHAmount(pool.totalSupply());
-    //     // The total amount deposited + rewards should be bigger than all of pufETH converted to ETH calculation
-    //     assertTrue(handler.ghost_eth_deposited_amount() + handler.ghost_eth_rewards_amount() >= amount);
-    // }
+    // Sanity check for our calculations
+    function invariant_depositedShouldBeBiggerThanTotalSupply() public {
+        uint256 amount = pool.calculatePufETHtoETHAmount(pool.totalSupply());
+        // The total amount deposited + rewards should be bigger than all of pufETH converted to ETH calculation
+        assertTrue(handler.ghost_eth_deposited_amount() + handler.ghost_eth_rewards_amount() >= amount);
+    }
 
     function invariant_callSummary() public view {
         handler.callSummary();

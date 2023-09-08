@@ -28,12 +28,12 @@ jobs:
       # - name: Check gas snapshots
       #   run: forge snapshot 
   
-  # slither: 
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
+  slither: 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - uses: crytic/slither-action@v0.3.0
-  #       with:
-  #         node-version: 18.15
+      - uses: crytic/slither-action@v0.3.0
+        with:
+          node-version: 18.15
 
