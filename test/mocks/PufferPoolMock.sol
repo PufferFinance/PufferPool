@@ -67,7 +67,7 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getBeaconChainETHStrategy() external view returns (IStrategy) { }
 
-    function getStrategyManager() external view returns (IStrategyManager) { }
+    function STRATEGY_MANAGER() external view returns (IStrategyManager) { }
 
     function getProtocolFeeRate() external view returns (uint256) { }
 

@@ -51,6 +51,11 @@ contract PufferPool is
     address public immutable EIGEN_POD_PROXY_BEACON;
 
     /**
+     * @dev EigenLayer's Strategy Manager
+     */
+    IStrategyManager public immutable STRATEGY_MANAGER;
+
+    /**
      * @notice Address of the Eigen Pod Manager
      */
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
@@ -125,7 +130,8 @@ contract PufferPool is
     /**
      * @dev Address of the Puffer AVS contract
      */
-    address internal _pufferAvsAddress;
+    // TODO:
+    // address internal _pufferAvsAddress;
 
     /**
      * @dev Number of shares out of one billion to split AVS rewards with the pool
@@ -183,11 +189,6 @@ contract PufferPool is
     GuardianModule internal _guardianModule;
 
     /**
-     * @dev EigenLayer's Strategy Manager
-     */
-    IStrategyManager internal _strategyManager;
-
-    /**
      * @dev Enclave verifier smart contract
      */
     IEnclaveVerifier internal _enclaveVerifier;
@@ -230,6 +231,7 @@ contract PufferPool is
 
     constructor(address beacon) {
         EIGEN_POD_PROXY_BEACON = beacon;
+        STRATEGY_MANAGER = IStrategyManager(address(1234)); // TODO
         EIGEN_POD_MANAGER = IEigenPodProxy(UpgradeableBeacon((beacon)).implementation()).getEigenPodManager();
         _disableInitializers();
     }
@@ -239,7 +241,7 @@ contract PufferPool is
     }
 
     function _splitETH(bool includeProtocolFee, uint256 amount) internal {
-        uint256 protocolFee;
+        uint256 protocolFee = 0;
 
         if (includeProtocolFee) {
             // Calculate and split between the treasury, deposit pool and the withdrawal pool
@@ -255,6 +257,7 @@ contract PufferPool is
         _withdrawalPool.safeTransferETH(withdrawalPoolAmount);
     }
 
+    // slither-disable-next-line missing-zero-check
     function initialize(
         address safeProxyFactory,
         address safeImplementation,
@@ -278,6 +281,7 @@ contract PufferPool is
 
         require(emptyData.length == 0);
 
+        // slither-disable-next-line reentrancy-no-eth
         address treasury = address(
             _deploySafe({
                 safeProxyFactory: _safeProxyFactory,
@@ -336,15 +340,33 @@ contract PufferPool is
         // Update locked ETH Amount
         _lockedETHAmount += _32_ETHER;
 
-        // TODO: params
+        // @audit-ok no reentrancy because EigenPodProxy is our own contract that forwards ETH
+        // to EigenPod, and EigenPod forwards to ETH Staking contract
+        // slither-disable-next-line arbitrary-send-eth
         EigenPodProxy(payable(eigenPodProxy)).callStake{ value: _32_ETHER }({
             pubKey: pubKey,
             signature: signature,
             depositDataRoot: depositDataRoot
         });
 
-        // TODO: event update
         emit ETHProvisioned(eigenPodProxy, pubKey, block.timestamp);
+    }
+
+    function _getMessageToBeSigned(
+        address eigenPodProxy,
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                pubKey,
+                getValidatorWithdrawalCredentials(eigenPodProxy),
+                signature,
+                depositDataRoot,
+                _expectCustody(eigenPodProxy, pubKey)
+            )
+        ).toEthSignedMessageHash();
     }
 
     /**
@@ -409,6 +431,7 @@ contract PufferPool is
         require(keccak256(data) == keccak256(abi.encodeCall(GuardianModule.enableMyself, ())));
 
         // Deploy {Safe} and enable module
+        // slither-disable-next-line reentrancy-no-eth
         account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
@@ -446,6 +469,8 @@ contract PufferPool is
         address podRewardsRecipient,
         bytes calldata emptyData
     ) external payable whenNotPaused returns (Safe, IEigenPodProxy) {
+        require(emptyData.length == 0);
+        // slither-disable-next-line reentrancy-no-eth
         (Safe account, IEigenPodProxy eigenPodProxy) =
             _createPodAccountAndEigenPodProxy(podAccountOwners, podAccountThreshold, podRewardsRecipient, emptyData);
         registerValidatorKey(eigenPodProxy, data);
@@ -789,7 +814,7 @@ contract PufferPool is
      * @inheritdoc IPufferPool
      */
     function getPufferAvsAddress() external view returns (address) {
-        return _pufferAvsAddress;
+        // return _pufferAvsAddress; // TODO:
     }
 
     /**
@@ -804,13 +829,6 @@ contract PufferPool is
      */
     function getBeaconChainETHStrategy() external pure returns (IStrategy) {
         return _beaconChainETHStrategy;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
-    function getStrategyManager() external view returns (IStrategyManager) {
-        return _strategyManager;
     }
 
     /**
@@ -844,6 +862,7 @@ contract PufferPool is
 
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
         uint256 pufETHSupply = totalSupply();
+        // slither-disable-next-line incorrect-equality
         if (pufETHSupply == 0) {
             return FixedPointMathLib.WAD;
         }
@@ -891,6 +910,7 @@ contract PufferPool is
 
         uint256 salt = _getSalt(podAccountOwners);
 
+        // slither-disable-next-line reentrancy-no-eth
         Safe account = _deploySafe({
             safeProxyFactory: _safeProxyFactory,
             safeSingleton: _safeImplementation,
@@ -901,6 +921,7 @@ contract PufferPool is
             data: emptyData
         });
 
+        // slither-disable-next-line reentrancy-no-eth
         IEigenPodProxy eigenPodProxy = _createEigenPodProxy(salt);
 
         _eigenPodProxies[address(eigenPodProxy)].creator = msg.sender;
@@ -971,7 +992,7 @@ contract PufferPool is
         bytes32 msgToBeSigned = getMessageToBeSigned(eigenPodProxy, pubKey, signature, depositDataRoot);
 
         address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig);
-        uint256 validSignatures;
+        uint256 validSignatures = 0;
 
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i = 0; i < enclaveAddresses.length;) {

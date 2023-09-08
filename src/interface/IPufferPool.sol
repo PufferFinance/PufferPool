@@ -397,7 +397,7 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Returns the Strategy Manager
      */
-    function getStrategyManager() external view returns (IStrategyManager);
+    function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
      * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format
