@@ -29,7 +29,6 @@ jobs:
         run: forge snapshot 
   
   slither: 
-    run-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
