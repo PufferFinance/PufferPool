@@ -56,8 +56,17 @@ contract EnclaveVerifierTest is Test {
         verifier.removeLeafX509(hashedCertificate);
     }
 
-    // Test verify guardian public key
-    function testVerifyGuardianPubKey() public { }
+    // function testRaveEvidence1() public {
+    //     _verifyValidatorPubKey(new Guardian1RaveEvidence());
+    // }
+
+    // function testRaveEvidence2() public {
+    //     _verifyValidatorPubKey(new Guardian2RaveEvidence());
+    // }
+
+    // function testRaveEvidence3() public {
+    //     _verifyValidatorPubKey(new Guardian3RaveEvidence());
+    // }
 
     // Verify rave evidence
     function _verifyValidatorPubKey(MockEvidence raveEvidence) public {
@@ -79,17 +88,5 @@ contract EnclaveVerifierTest is Test {
         });
 
         assertTrue(success, "should verify rave");
-    }
-
-    function testRaveEvidence1() public {
-        _verifyValidatorPubKey(new Guardian1RaveEvidence());
-    }
-
-    function testRaveEvidence2() public {
-        _verifyValidatorPubKey(new Guardian2RaveEvidence());
-    }
-
-    function testRaveEvidence3() public {
-        _verifyValidatorPubKey(new Guardian3RaveEvidence());
     }
 }

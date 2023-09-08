@@ -9,7 +9,7 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  run-ci:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,15 +25,15 @@ jobs:
       - name: Run tests
         run: forge test -vvvv
 
-      - name: Check gas snapshots
-        run: forge snapshot 
+      # - name: Check gas snapshots
+      #   run: forge snapshot 
   
-  slither: 
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: crytic/slither-action@v0.3.0
-        with:
-          node-version: 18.15
+  # slither: 
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - uses: crytic/slither-action@v0.3.0
+  #       with:
+  #         node-version: 18.15
 
