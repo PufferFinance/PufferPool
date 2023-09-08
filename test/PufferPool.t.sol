@@ -101,11 +101,11 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         assertEq(address(this), pool.owner(), "owner");
         assertEq(pool.getSafeImplementation(), address(safeImplementation), "safe impl");
         assertEq(pool.getSafeProxyFactory(), address(proxyFactory), "proxy factory");
-        assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "eth startegy index");
+        assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "eth strategy index");
         assertEq(
             address(pool.getBeaconChainETHStrategy()),
             address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0),
-            "eth startegy"
+            "eth strategy"
         );
         assertEq(pool.getBeaconChainETHStrategyIndex(), 0, "beacon chain strategy index should be zero");
 
@@ -158,7 +158,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
     // Change treasury
     function testChangeTreasury(address newTreasury) public {
         pool.changeTreasury(newTreasury);
-        assertEq(pool.getTreasury(), newTreasury, "treasury didnt change");
+        assertEq(pool.getTreasury(), newTreasury, "treasury didn't change");
     }
 
     // Create guardian account
@@ -376,7 +376,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         // Approve is actually a permit signature
         withdrawalPool.withdrawETH(pufETHRecipient, permit);
 
-        assertEq(100 ether, pufETHRecipient.balance, "recipient didnt get any ETH");
+        assertEq(100 ether, pufETHRecipient.balance, "recipient didn't get any ETH");
     }
 
     // // Test multiple deposits, fake rewards, fake slashing and withdrawal of pufETH -> ETH
@@ -684,7 +684,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         assertEq(pool.getConsensusCommission(), newValue);
     }
 
-    // Setter for pod avs comission
+    // Setter for pod avs commission
     function testSetAvsCommision(uint256 newValue) public {
         pool.setAvsCommission(newValue);
         assertEq(pool.getAvsCommission(), newValue);
@@ -704,7 +704,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
 
         pool.changeAVSConfiguration(avs, cfg);
         assertEq(pool.isAVSEnabled(avs), enabled);
-        assertEq(pool.getAVSComission(avs), avsComission);
+        assertEq(pool.getAVSCommission(avs), avsComission);
         assertEq(pool.getMinBondRequirement(avs), minBondRequirement);
     }
 

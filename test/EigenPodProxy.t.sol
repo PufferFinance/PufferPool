@@ -133,7 +133,9 @@ contract EigenPodProxyTest is TestBase {
         assertEq(eigenPodProxy.getPodProxyManager(), address(pool), "Pool should be the manager");
 
         assertEq(eigenPodProxy.getPodProxyOwner(), alice, "alice should be the pool proxy owner");
-        assertTrue(address(eigenPodProxy.getEigenPodManager()) != address(0), "Eigen pod manager shouldnt be address 0");
+        assertTrue(
+            address(eigenPodProxy.getEigenPodManager()) != address(0), "Eigen pod manager shouldn't be address 0"
+        );
 
         // This acts as a second initializer, so it should revert if we try to call it again
         vm.expectRevert();
@@ -195,7 +197,7 @@ contract EigenPodProxyTest is TestBase {
         beacon.upgradeTo(newImplementation);
 
         // // Both eigen pods should return "magic" now that they are upgraded
-        assertEq(EigenPodProxyV2Mock(payable(eigenPodProxy)).getSomething(), 225883, "upgrade didnt work for alice");
+        assertEq(EigenPodProxyV2Mock(payable(eigenPodProxy)).getSomething(), 225883, "upgrade didn't work for alice");
         assertEq(EigenPodProxyV2Mock(payable(eigenPodProxyTwo)).getSomething(), 225883, "failed upgrade for bob");
     }
 
@@ -209,7 +211,7 @@ contract EigenPodProxyTest is TestBase {
         eigenPodProxy.updatePodRewardsRecipient(payable(address(alice)));
     }
 
-    // Execution rewards distirbution
+    // Execution rewards distribution
     function testDistributeExecutionRewards(address blockProducer) public fuzzedAddress(blockProducer) {
         vm.assume(blockProducer != alice && blockProducer != address(pool) && blockProducer != address(eigenPodProxy));
         // For execution rewards msg.sender must be address other than EigenLayer's router
@@ -255,7 +257,7 @@ contract EigenPodProxyTest is TestBase {
         // Total funds received should add up to total funds sent to fallback
         assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), rewardAmount);
 
-        // Alice shold get 5% of 1 eth, pool gets the rest
+        // Alice should get 5% of 1 eth, pool gets the rest
         assertEq(alice.balance - aliceBalanceBefore, (rewardAmount * pool.getExecutionCommission()) / pool.getCommissionDenominator()); // (5 * 10 ** 16 * rewardAmount) / 10 ** 18); (amount * _podProxyManager.getExecutionCommission()) / _podProxyManager.getCommissionDenominator()
         //assertEq(address(pool).balance - poolBalanceBefore, (rewardAmount * (pool.getCommissionDenominator() - pool.getExecutionCommission())) / pool.getCommissionDenominator());
     }
@@ -281,7 +283,7 @@ contract EigenPodProxyTest is TestBase {
         // Total funds received should add up to total funds sent to fallback
         assertEq((alice.balance - aliceBalanceBefore) + (address(pool).balance - poolBalanceBefore), 2 ether);
 
-        // Alice shold get 5% of 1 eth, pool gets the rest
+        // Alice should get 5% of 1 eth, pool gets the rest
         assertEq(alice.balance - aliceBalanceBefore, 10 * 10 ** 16);
         assertEq(address(pool).balance - poolBalanceBefore, 190 * 10 ** 16);
     }
@@ -352,7 +354,7 @@ contract EigenPodProxyTest is TestBase {
     }
     */
 
-    // Consensus rewards distirbution
+    // Consensus rewards distribution
     function testDistributeConsensusRewards() public {
         uint256 poolBalanceBefore = address(pool).balance;
 

@@ -311,8 +311,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         emit PodRewardsRecipientChanged(oldRecipient, podRewardsRecipient);
     }
 
-    function _distributeRewards(uint256 amount, uint256 comission) internal {
-        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, comission, _ONE_HUNDRED_WAD);
+    function _distributeRewards(uint256 amount, uint256 commission) internal {
+        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, commission, _ONE_HUNDRED_WAD);
         SafeTransferLib.safeTransferETH(getPodProxyManager(), amount - toPod);
         SafeTransferLib.safeTransferETH(_podRewardsRecipient, toPod);
     }
