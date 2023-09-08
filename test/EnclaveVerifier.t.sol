@@ -56,17 +56,17 @@ contract EnclaveVerifierTest is Test {
         verifier.removeLeafX509(hashedCertificate);
     }
 
-    // function testRaveEvidence1() public {
-    //     _verifyValidatorPubKey(new Guardian1RaveEvidence());
-    // }
+    function testRaveEvidence1() public {
+        _verifyValidatorPubKey(new Guardian1RaveEvidence());
+    }
 
-    // function testRaveEvidence2() public {
-    //     _verifyValidatorPubKey(new Guardian2RaveEvidence());
-    // }
+    function testRaveEvidence2() public {
+        _verifyValidatorPubKey(new Guardian2RaveEvidence());
+    }
 
-    // function testRaveEvidence3() public {
-    //     _verifyValidatorPubKey(new Guardian3RaveEvidence());
-    // }
+    function testRaveEvidence3() public {
+        _verifyValidatorPubKey(new Guardian3RaveEvidence());
+    }
 
     // Verify rave evidence
     function _verifyValidatorPubKey(MockEvidence raveEvidence) public {
