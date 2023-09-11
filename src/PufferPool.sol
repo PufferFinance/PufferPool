@@ -555,7 +555,7 @@ contract PufferPool is
         }
 
         uint256 bond = info.bond;
-        // Remove Bond amount and updte status
+        // Remove Bond amount and update status
         info.bond = 0;
         info.status = IPufferPool.Status.BOND_WITHDRAWN;
 
@@ -773,7 +773,7 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function getAVSComission(address avs) public view returns (uint256) {
+    function getAVSCommission(address avs) public view returns (uint256) {
         return _allowedAVSs[avs].podAVSCommission;
     }
 

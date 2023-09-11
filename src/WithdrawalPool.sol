@@ -35,7 +35,7 @@ contract WithdrawalPool {
 
     receive() external payable { }
 
-    // @audit-issue if the attacker get's PERMIT calldata, he can steal money from the permit.owner
+    // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
     // @audit-issue it is important that signature is not stored anywhere
     // @audit-issue frontend hack could cause harm here
     function withdrawETH(address recipient, Permit calldata permit) external {
@@ -74,7 +74,7 @@ contract WithdrawalPool {
     }
 
     /**
-     * @dev Helper function for transfering ETH
+     * @dev Helper function for transferring ETH
      * https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol
      */
     function _safeTransferETH(address to, uint256 amount) internal {

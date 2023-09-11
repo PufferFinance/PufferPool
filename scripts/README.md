@@ -8,7 +8,7 @@
 
 
 4. `DeployPufferPool.s.sol`
-- `forge script scripts/DeployPufferPool.s.sol:DeployPuffer $BEACON $SAFE_PROXY_FACTORY $SAFE_IMPLENTATION --sig "run(address,addres,address)" -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast`
+- `forge script scripts/DeployPufferPool.s.sol:DeployPuffer $BEACON $SAFE_PROXY_FACTORY $SAFE_IMPLENTATION --sig "run(address,address,address)" -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast`
 
 5. `DeployPuffer.s.sol`:
 - `forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast`

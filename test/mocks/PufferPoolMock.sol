@@ -43,7 +43,7 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function isAVSEnabled(address avs) external view returns (bool) { }
 
-    function getAVSComission(address avs) external view returns (uint256) { }
+    function getAVSCommission(address avs) external view returns (uint256) { }
 
     function getMinBondRequirement(address avs) external view returns (uint256) { }
 

@@ -42,7 +42,7 @@ contract CustomJSONBuilder {
  *         NOTE: 
  * 
  *         If you ran the deployment script, but did not `--broadcast` the transaction, it will still update your local chainId-deployment.json file.
- *         Other scripts wil fail because addresses will be updated in deployments file, but the deployment never happened.
+ *         Other scripts will fail because addresses will be updated in deployments file, but the deployment never happened.
  * 
  * 
  *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast

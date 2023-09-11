@@ -37,3 +37,14 @@ jobs:
         with:
           node-version: 18.15
 
+  codespell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run CodeSpell
+        uses: codespell-project/actions-codespell@v2.0
+        with:
+          check_hidden: true
+          check_filenames: true
+          skip: package-lock.json,*.pdf,./.git
+
