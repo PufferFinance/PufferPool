@@ -102,6 +102,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({
             withdrawalPool: address(123),
+            executionRewardsPool: address(512351234),
             guardianSafeModule: address(555123),
             enclaveVerifier: address(1231555324534),
             emptyData: ""
@@ -143,14 +144,18 @@ contract PufferPoolTest is GuardianHelper, TestBase {
     }
 
     // Fuzz test for depositing ETH to PufferPool
-    function testDeposit(address pufETHRecipient, uint256 depositAmount) public fuzzedAddress(pufETHRecipient) {
+    function testDeposit(address depositor, uint256 depositAmount) public fuzzedAddress(depositor) {
         depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
 
-        assertEq(pool.balanceOf(pufETHRecipient), 0, "recipient pufETH amount before deposit");
+        vm.deal(depositor, depositAmount);
 
-        pool.depositETH{ value: depositAmount }(pufETHRecipient);
+        vm.startPrank(depositor);
+        assertEq(pool.balanceOf(depositor), 0, "recipient pufETH amount before deposit");
 
-        assertEq(pool.balanceOf(pufETHRecipient), depositAmount, "recipient pufETH amount");
+        pool.depositETH{ value: depositAmount }();
+        vm.stopPrank();
+
+        assertEq(pool.balanceOf(depositor), depositAmount, "recipient pufETH amount");
     }
 
     // // Deposits ETH and tries to get half of that back
@@ -285,7 +290,22 @@ contract PufferPoolTest is GuardianHelper, TestBase {
     // Deposit should revert when trying to deposit too small amount
     function testDepositRevertsForTooSmallAmount() public {
         vm.expectRevert(IPufferPool.InsufficientETH.selector);
-        pool.depositETH{ value: 0.005 ether }(makeAddr("recipient"));
+        pool.depositETH{ value: 0.005 ether }();
+    }
+
+    // Minting and transferring tokens in the same block is not allowed
+    function testSandwichAttack() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        vm.deal(bob, 10 ether);
+
+        vm.startPrank(bob);
+        pool.depositETH{ value: 1 ether }();
+        uint256 pufETHAmount = pool.balanceOf(bob);
+        vm.expectRevert();
+        pool.transfer(alice, pufETHAmount);
+        vm.stopPrank();
     }
 
     // Setter for execution rewards

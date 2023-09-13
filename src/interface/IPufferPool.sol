@@ -67,6 +67,11 @@ interface IPufferPool is IERC20Upgradeable {
     }
 
     /**
+     * @notice Thrown if the user tries to mint and transfer pufETH in the same block
+     */
+    error MintAndTransferNotAllowed();
+
+    /**
      * @notice Thrown then the user tries to register a bls public key that is
      * already active
      * @dev Signature "0x7d1a5966"
@@ -160,14 +165,12 @@ interface IPufferPool is IERC20Upgradeable {
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool
-     * @param depositor is the depositor address
-     * @param pufETHRecipient is the recipient address
      * @param pufETHRecipient is the recipient address
      * @param ethAmountDeposited is the ETH amount deposited
      * @param pufETHAmount is the pufETH amount received in return
-     * @dev Signature "0xf5681f9d0db1b911ac18ee83d515a1cf1051853a9eae418316a2fdf7dea427c5"
+     * @dev Signature "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
      */
-    event Deposited(address depositor, address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
+    event Deposited(address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
     /**
      * @notice Emitted when pufETH is burned
@@ -238,17 +241,23 @@ interface IPufferPool is IERC20Upgradeable {
     event TreasuryChanged(address oldTreasury, address newTreasury);
 
     /**
+     * @notice Emitted when the guardians address changes from `oldGuardians` to `newGuardians`
+     * @dev Signature "0x6ec152e1a709322ea96ec4d6e8c6acc29aeba80455657f617b6ac837b100654a"
+     */
+    event GuardiansChanged(address oldGuardians, address newGuardians);
+
+    /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
      * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
      */
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Deposits ETH and `recipient` receives pufETH in return
+     * @notice Deposits ETH and `msg.sender` receives pufETH in return
      * @return pufETH amount minted
-     * @dev Signature "0x2d2da806"
+     * @dev Signature "0xf6326fb3"
      */
-    function depositETH(address recipient) external payable returns (uint256);
+    function depositETH() external payable returns (uint256);
 
     /**
      *
@@ -282,6 +291,11 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Returns the ETH rewards amount from the last update
      */
     function getNewRewardsETHAmount() external view returns (uint256);
+
+    /**
+     * @notice Returns the Withdrawal's pool address
+     */
+    function getWithdrawalPool() external view returns (address);
 
     /**
      * @notice Returns the Puffer Avs address

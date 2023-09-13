@@ -44,11 +44,6 @@ contract PufferPool is
     IStrategyManager public immutable STRATEGY_MANAGER;
 
     /**
-     * @dev Guaridans
-     */
-    address public immutable GUARDIANS;
-
-    /**
      * @dev ETH Amount required for becoming a Validator
      */
     uint256 internal constant _32_ETHER = 32 ether;
@@ -81,7 +76,7 @@ contract PufferPool is
     /**
      * @dev Guardians multisig wallet
      */
-    Safe internal _guardiansMultisig;
+    Safe public immutable GUARDIANS;
 
     /**
      * @dev EigenPodProxy -> EigenPodProxyInformation
@@ -142,9 +137,14 @@ contract PufferPool is
     uint256 internal _enclaveBondRequirement;
 
     /**
-     * @dev Withdrawal pool address
+     * @dev Consensus rewards and withdrawals pool address
      */
     address internal _withdrawalPool;
+
+    /**
+     * @dev Execution rewards pool address
+     */
+    address internal _executionRewardsPool;
 
     /**
      * @dev Guardian {Safe} Module
@@ -167,6 +167,12 @@ contract PufferPool is
     EnumerableSet.Bytes32Set internal _pubKeyHashes;
 
     /**
+     * @dev Mapping of mintRecipint => block.number
+     * This is useful for preventing a sandwich attack on ETH backing update
+     */
+    mapping(address => uint256) internal _lastMint;
+
+    /**
      * @dev Allow a call from guardians multisig
      */
     modifier onlyGuardians() {
@@ -182,11 +188,12 @@ contract PufferPool is
         _;
     }
 
-    constructor(address payable treasury, address guardians) {
+    constructor(address payable treasury, Safe guardians) payable {
         TREASURY = treasury;
         emit TreasuryChanged(address(0), treasury);
 
         GUARDIANS = guardians;
+        emit GuardiansChanged(address(0), address(guardians));
 
         STRATEGY_MANAGER = IStrategyManager(address(1234)); // TODO
         _disableInitializers();
@@ -196,12 +203,13 @@ contract PufferPool is
      * @notice no calldata automatically triggers the depositETH for `msg.sender`
      */
     receive() external payable {
-        depositETH(msg.sender);
+        depositETH();
     }
 
     // slither-disable-next-line missing-zero-check
     function initialize(
         address withdrawalPool,
+        address executionRewardsPool,
         address guardianSafeModule,
         address enclaveVerifier,
         bytes calldata emptyData
@@ -221,6 +229,7 @@ contract PufferPool is
         _guardianModule = GuardianModule(guardianSafeModule);
         _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
         _withdrawalPool = withdrawalPool;
+        _executionRewardsPool = executionRewardsPool;
     }
 
     // Guardians only
@@ -288,16 +297,18 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
-    function depositETH(address recipient) public payable whenNotPaused returns (uint256) {
+    function depositETH() public payable whenNotPaused returns (uint256) {
         if (msg.value < _MINIMUM_DEPOSIT_AMOUNT) {
             revert InsufficientETH();
         }
 
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
-        _mint(recipient, pufETHAmount);
+        emit Deposited(msg.sender, msg.value, pufETHAmount);
 
-        emit Deposited(msg.sender, recipient, msg.value, pufETHAmount);
+        _lastMint[msg.sender] = block.number;
+
+        _mint(msg.sender, pufETHAmount);
 
         return pufETHAmount;
     }
@@ -503,6 +514,13 @@ contract PufferPool is
     /**
      * @inheritdoc IPufferPool
      */
+    function getWithdrawalPool() external view returns (address) {
+        return _withdrawalPool;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
     function getExecutionCommission() external view returns (uint256) {
         return _executionCommission;
     }
@@ -591,7 +609,7 @@ contract PufferPool is
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
         uint256 exchangeRate = FixedPointMathLib.divWad(
             getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
-                + (address(this).balance - ethDepositedAmount),
+                + address(_executionRewardsPool).balance + (address(this).balance - ethDepositedAmount),
             pufETHSupply
         );
 
@@ -618,8 +636,8 @@ contract PufferPool is
             abi.encode(
                 raveData,
                 withdrawalCredentials,
-                _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig),
-                _guardiansMultisig.getThreshold()
+                _guardianModule.getGuardiansEnclaveAddresses(GUARDIANS),
+                GUARDIANS.getThreshold()
             )
         );
     }
@@ -627,7 +645,7 @@ contract PufferPool is
     // checks that enough encrypted private keyshares + public keyshares were supplied for each guardian to receive one. Also verify that the raveEvidence is valid and contained the expected and fresh raveCommitment.
     function _verifyKeyRequirements(ValidatorKeyData calldata data, bytes32 raveCommitment) internal view {
         // Validate enough keyshares supplied for all guardians
-        uint256 numGuardians = _guardiansMultisig.getOwners().length;
+        uint256 numGuardians = GUARDIANS.getOwners().length;
         if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
             revert InvalidBLSPrivateKeyShares();
         }
@@ -659,7 +677,7 @@ contract PufferPool is
     ) internal view {
         bytes32 msgToBeSigned = getMessageToBeSigned(eigenPodProxy, pubKey, signature, depositDataRoot);
 
-        address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(_guardiansMultisig);
+        address[] memory enclaveAddresses = _guardianModule.getGuardiansEnclaveAddresses(GUARDIANS);
         uint256 validSignatures = 0;
 
         // Iterate through guardian enclave addresses and make sure that the signers match
@@ -676,7 +694,7 @@ contract PufferPool is
             }
         }
 
-        if (validSignatures < _guardiansMultisig.getThreshold()) {
+        if (validSignatures < GUARDIANS.getThreshold()) {
             revert Unauthorized();
         }
     }
@@ -690,10 +708,6 @@ contract PufferPool is
         return keccak256(
             abi.encode(pubKey, _withdrawalPool, signature, depositDataRoot, _expectCustody(eigenPodProxy, pubKey))
         ).toEthSignedMessageHash();
-    }
-
-    function getGuardiansMultisig() external view returns (Safe) {
-        return _guardiansMultisig;
     }
 
     function _expectCustody(address eigenPodProxy, bytes calldata pubKey) internal view returns (bool) {
@@ -776,8 +790,17 @@ contract PufferPool is
     }
 
     function _onlyGuardians() internal view {
-        if (msg.sender != address(_guardiansMultisig)) {
+        if (msg.sender != address(GUARDIANS)) {
             revert Unauthorized();
+        }
+    }
+
+    function _beforeTokenTransfer(address from, address, uint256) internal virtual override {
+        // TODO: if we do it this way
+        if (from != address(0)) {
+            if (block.number == _lastMint[from]) {
+                revert MintAndTransferNotAllowed();
+            }
         }
     }
 

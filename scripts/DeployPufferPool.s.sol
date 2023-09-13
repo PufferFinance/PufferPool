@@ -7,6 +7,8 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { Safe } from "safe-contracts/Safe.sol";
+import { ExecutionRewardsPool } from "puffer/ExecutionRewardsPool.sol";
 
 /**
  * @title DeployPufferPool script
@@ -18,10 +20,10 @@ contract DeployPufferPool is Script {
         vm.startBroadcast();
         
         address payable treasury = payable(makeAddr("treasury"));
-        address guardians = makeAddr("guardians");
+        address payable guardians = payable(makeAddr("guardians"));
 
         // Deploys Puffer Pool implementation
-        PufferPool poolImpl = new PufferPool(treasury, guardians);
+        PufferPool poolImpl = new PufferPool(treasury, Safe(guardians));
         // Deploys Proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(address(poolImpl), "");
         // Casts Proxy to PufferPool
@@ -32,11 +34,13 @@ contract DeployPufferPool is Script {
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
-        GuardianModule module = new GuardianModule(pool);
+        GuardianModule module = new GuardianModule();
 
         EnclaveVerifier verifier = new EnclaveVerifier(50, address(pool));
 
-        pool.initialize(address(withdrawalPool), address(module), address(verifier), "");
+        ExecutionRewardsPool executionRewardsPool = new ExecutionRewardsPool(pool);
+
+        pool.initialize(address(withdrawalPool), address(executionRewardsPool), address(module), address(verifier), "");
 
         // For test environment transfer ownership to Test contract
         pool.transferOwnership(msg.sender);
