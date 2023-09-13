@@ -12,27 +12,17 @@ interface IPufferOwner {
     /**
      * @notice Sets the execution rewards split to `newValue`
      */
-    function setExecutionCommission(uint256 newValue) external;
+    // function setExecutionCommission(uint256 newValue) external;
 
     /**
      * @notice Sets the consensus rewards split to `newValue`
      */
-    function setConsensusCommission(uint256 newValue) external;
+    // function setConsensusCommission(uint256 newValue) external;
 
     /**
      * @notice Sets the POD AVS commission to `newValue`
      */
-    function setAvsCommission(uint256 newValue) external;
-
-    /**
-     * @notice Changes the {Safe} implementation address to `newSafeImplementation`
-     */
-    function changeSafeImplementation(address newSafeImplementation) external;
-
-    /**
-     * @notice Changes the {Safe} proxy factory address to `newSafeFactory`
-     */
-    function changeSafeProxyFactory(address newSafeFactory) external;
+    // function setAvsCommission(uint256 newValue) external;
 
     /**
      * TODO:
@@ -43,11 +33,6 @@ interface IPufferOwner {
      * TODO:
      */
     function setGuardianEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
-
-    /**
-     * @notice Changes the treasury address to `treasury`
-     */
-    function changeTreasury(address treasury) external;
 
     /**
      * @notice Pauses the smart contract
@@ -63,14 +48,6 @@ interface IPufferOwner {
      * @notice Changes the `avs` configuration to `configuration`
      */
     function changeAVSConfiguration(address avs, IPufferPool.AVSParams memory configuration) external;
-
-    /**
-     * @notice Changes the deposit rate to `depositRate`
-     *          Deposit Rate represents how much of the funds is being split between deposit pool and withdrawal pool
-     *          Deposit pool is for bootstrapping new validators
-     *          Withdrawal pool is for users that want to convert their pufETH -> ETH
-     */
-    function setDepositRate(uint256 depositRate) external;
 
     /**
      * @notice Changes the protocol fee rate to `protocolFeeRate`

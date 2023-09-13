@@ -9,7 +9,6 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";

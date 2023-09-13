@@ -4,8 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { EigenPodProxy } from "puffer/EigenPodProxy.sol";
-import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
@@ -16,6 +14,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function initialize() external {
         __ERC20_init("pufETH", "pufETH");
     }
+
+    address payable public constant TREASURY = payable(address(444));
 
     receive() external payable {
         // take the money
@@ -70,23 +70,6 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function STRATEGY_MANAGER() external view returns (IStrategyManager) { }
 
     function getProtocolFeeRate() external view returns (uint256) { }
-
-    function createPodAccount(
-        address[] calldata podAccountOwners,
-        uint256 threshold,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external returns (Safe, IEigenPodProxy) { }
-
-    function createPodAccountAndRegisterValidatorKey(
-        address[] calldata podAccountOwners,
-        uint256 podAccountThreshold,
-        ValidatorKeyData calldata data,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external payable returns (Safe, IEigenPodProxy) { }
-
-    function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable { }
 
     function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
         external

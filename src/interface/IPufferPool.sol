@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
-import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
@@ -129,12 +128,6 @@ interface IPufferPool is IERC20Upgradeable {
     error Unauthorized();
 
     /**
-     * @notice Thrown if the Guardians {Safe} wallet already exists
-     * @dev Signature "0xb8c56ff1"
-     */
-    error GuardiansAlreadyExist();
-
-    /**
      * @notice Emitted when the Validator key is registered
      * @param eigenPodProxy is the address of Eigen Pod Proxy
      * @param pubKey is the validator public key
@@ -149,18 +142,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x97718ff76d4db1b484deb230468b44f3ec4a033907837fd95f99b5cac5331a8f"
      */
     event AVSConfigurationChanged(address avs, AVSParams configuration);
-
-    /**
-     * @param safeProxyFactory is the address of the new {Safe} proxy factory
-     * @dev Signature "0xc3e8c5c8f40ba3a4be3207f225f804c87a3d7e6316ee9b32dfa383f87f51c800"
-     */
-    event SafeProxyFactoryChanged(address safeProxyFactory);
-
-    /**
-     * @param safeImplementation is the address of the new {Safe} implementation contract
-     * @dev Signature "0x7deed74ce611e6c4a95846634fcd60af15a02e80c78e4692fb5455f094f60d43"
-     */
-    event SafeImplementationChanged(address safeImplementation);
 
     /**
      * @param enclaveVerifier is the address of Enclave verifier contract
@@ -199,22 +180,6 @@ interface IPufferPool is IERC20Upgradeable {
     event Withdrawn(address withdrawer, address ETHRecipient, uint256 pufETHAmount, uint256 ETHAmount);
 
     /**
-     * @notice Emitted when Guardians create an account
-     * @param account {Safe} account address
-     * @dev Signature "0xffe8d6a65a1c220ce5b076d70345efdb48fc5e84f233acf312d6587505946dec"
-     */
-    event GuardianAccountCreated(address account);
-
-    /**
-     * @notice Emitted when Pod owners create an account
-     * @param creator Creator address
-     * @param account {Safe} account address
-     * @param eigenPodProxy is the Eigen Pod Proxy address
-     * @dev Signature "0xa5eedecb358fe000da5d6bc51490f507146398db895d143ac20c6d91b261e116"
-     */
-    event PodAccountAndEigenPodProxyCreated(address creator, address account, address eigenPodProxy);
-
-    /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
      * @dev Signature "0x27449eb3aaae64a55d5d46a9adbcc8e1e38857748959a38693d78c36b74eacff"
      */
@@ -231,11 +196,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0xc8bae083652b453155f90b7a5c39bc29bf290d6447172f49532abb28721ae548"
      */
     event AvsCommissionChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the Commission Denominator is changed from `oldValue` to `newValue`
-     */
-    event CommissionDenominatorChanged(uint256 oldValue, uint256 newValue);
 
     /**
      * @notice Emitted when the non custodial bond requirement is changed from `oldValue` to `newValue`
@@ -284,12 +244,6 @@ interface IPufferPool is IERC20Upgradeable {
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the deposit rate changes from `oldValue` to `newValue`
-     * @dev Signature "0x7aaf6e876013942206286cfff5091af2fa84c63a6f07b849acdc1e7eb91780c0"
-     */
-    event DepositRateChanged(uint256 oldValue, uint256 newValue);
-
-    /**
      * @notice Deposits ETH and `recipient` receives pufETH in return
      * @return pufETH amount minted
      * @dev Signature "0x2d2da806"
@@ -322,22 +276,12 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Returns the treasury address
      */
-    function getTreasury() external view returns (address);
+    function TREASURY() external view returns (address payable);
 
     /**
      * @notice Returns the ETH rewards amount from the last update
      */
     function getNewRewardsETHAmount() external view returns (uint256);
-
-    /**
-     * @notice Returns {Safe} implementation address
-     */
-    function getSafeImplementation() external view returns (address);
-
-    /**
-     * @notice Returns {Safe} proxy factory address
-     */
-    function getSafeProxyFactory() external view returns (address);
 
     /**
      * @notice Returns the Puffer Avs address
@@ -365,11 +309,6 @@ interface IPufferPool is IERC20Upgradeable {
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
-     * @notice Distributes all ETH to the pool and PodProxyOwner upon protocol exit
-     */
-    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient) external payable;
-
-    /**
      * @notice Returns AVS Commission
      */
     function getAvsCommission() external view returns (uint256);
@@ -385,94 +324,22 @@ interface IPufferPool is IERC20Upgradeable {
     function getExecutionCommission() external view returns (uint256);
 
     /**
-     * @notice Returns the index of the Beacon Chain ETH Strategy
-     */
-    function getBeaconChainETHStrategyIndex() external view returns (uint256);
-
-    /**
-     * @notice Returns the Beacon ETH Strategy
-     */
-    function getBeaconChainETHStrategy() external view returns (IStrategy);
-
-    /**
      * @notice Returns the Strategy Manager
      */
     function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
-     * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format
-     *
-     */
-    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32);
-
-    /**
-     * @notice Creates a pod's {Safe} multisig wallet
-     * @param podAccountOwners is a Pod's wallet owner addresses
-     * @param threshold is a number of required confirmations for a {Safe} transaction
-     * @param podRewardsRecipient is the recipient of pod rewards
-     * @return EigenPod
-     * @return EigenPodProxy
-     */
-    function createPodAccount(
-        address[] calldata podAccountOwners,
-        uint256 threshold,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external returns (Safe, IEigenPodProxy);
-
-    /**
-     * @notice Creates a Pod and registers a validator key
-     * @param podAccountOwners Pod's wallet owner addresses
-     * @param podAccountThreshold Number of required confirmations for a {Safe} transaction
-     * @param data is a validator key data
-     * @param podRewardsRecipient is the address of the Rewards recipient
-     * @return Safe is a newly created {Safe} multisig instance
-     * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
-     */
-    function createPodAccountAndRegisterValidatorKey(
-        address[] calldata podAccountOwners,
-        uint256 podAccountThreshold,
-        ValidatorKeyData calldata data,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external payable returns (Safe, IEigenPodProxy);
-
-    /**
      * @notice Registers a validator key for a `podAccount`
      * @dev Sender is expected to send the correct ETH amount
-     * @param eigenPodProxy is the address of the Eigen Pod Proxy
      * @param data is a validator key data
      */
-    function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable;
+    // function registerValidatorKey(ValidatorKeyData calldata data) external payable;
 
     /**
      * @notice Stops the validator registration
      * @dev Can only be called by EigenPodProxy, and Validator must be in `Pending` state
      */
     function stopRegistration(bytes32 publicKeyHash) external;
-
-    /**
-     * @notice Creates a guardian {Safe} multisig wallet
-     * @param guardiansWallets Guardian's wallet addresses
-     * @param threshold Number of required confirmations for a {Safe} transaction
-     */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
-        external
-        returns (Safe account);
-
-    /**
-     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `msg.sender`
-     * @dev Creation of EigenPodProxy and EigenPod is done via `create2` opcode.
-     *      For EigenPodProxy the salt is keccak256(msg.sender), and for EigenPod it is the `msg.sender`.
-     *      In our case that will be EigenPodProxy.
-     *      If we know address of the EigenPodProxy, we can calculate address of the EigenPod
-     * @return EigenPodProxy address (Puffer Finance)
-     * @return Eigen Pod Address (Eigen Layer)
-     */
-    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
-        external
-        view
-        returns (address, address);
 
     /**
      * @notice Returns the Enclave verifier
