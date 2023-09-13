@@ -28,7 +28,8 @@ quote_style = "double"
 bracket_spacing = true
 
 [rpc_endpoints]
-mainnet="https://eth-mainnet-public.unifra.io"
+# mainnet="https://eth-mainnet-public.unifra.io"
+mainnet="https://eth.llamarpc.com"
 
 [invariant]
 # fail_on_revert=true

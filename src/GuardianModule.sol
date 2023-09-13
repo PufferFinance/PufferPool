@@ -18,9 +18,9 @@ import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     /**
-     * @dev Uncompressed ECDSA keys are 64 bytes long
+     * @dev Uncompressed ECDSA keys are 65 bytes long
      */
-    uint256 internal constant _ECDSA_KEY_LENGTH = 64;
+    uint256 internal constant _ECDSA_KEY_LENGTH = 65;
     PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
@@ -55,12 +55,14 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
             revert Unauthorized();
         }
 
-        safe.execTransactionFromModule({
+        (bool success) = safe.execTransactionFromModule({
             to: address(this),
             value: 0,
-            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey[1:], evidence)),
+            data: abi.encodeCall(GuardianModule.rotateKey, (msg.sender, blockNumber, pubKey, evidence)),
             operation: Enum.Operation.DelegateCall
         });
+
+        require(success);
     }
 
     /**
@@ -76,23 +78,22 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
 
         IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
 
-        // TODO: uncomment when we get valid RAVE proofs for unit tests
+        (bytes32 mrenclave, bytes32 mrsigner) = pool.getGuardianEnclaveMeasurements();
 
-        // (bytes32 mrenclave, bytes32 mrsigner) = pool.getGuardianEnclaveMeasurements();
+        bool isValid = enclaveVerifier.verifyEvidence({
+            blockNumber: blockNumber,
+            raveCommitment: keccak256(pubKey),
+            mrenclave: mrenclave,
+            mrsigner: mrsigner,
+            evidence: evidence
+        });
 
-        // bool isValid = enclaveVerifier.verifyEvidence({
-        //     blockNumber: blockNumber,
-        //     raveCommitment: keccak256(pubKey),
-        //     mrenclave: mrenclave,
-        //     mrsigner: mrsigner,
-        //     evidence: evidence
-        // });
+        if (!isValid) {
+            revert Unauthorized();
+        }
 
-        // if (!isValid) {
-        //     revert Unauthorized();
-        // }
-
-        address computedAddress = address(uint160(uint256(keccak256(pubKey))));
+        // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
+        address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
 
         assembly {
             mstore(0x0c, GUARDIAN_KEYS_SEED)
@@ -126,6 +127,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         }
 
         // Read storage slot from the {Safe}
+        // slither-disable-next-line calls-loop
         bytes memory result = guardianAccount.getStorageAt(storageSlot, 1);
 
         // Decode it to bytes32

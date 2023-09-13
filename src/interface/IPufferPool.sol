@@ -172,7 +172,7 @@ interface IPufferPool is IERC20Upgradeable {
      * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
      * @param eigenPodProxy is the address of the EigenPod proxy contract
      * @param blsPubKey is the public key of the Validator
-     * @param timestamp is the unix timestmap in seconds
+     * @param timestamp is the unix timestamp in seconds
      * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
      */
     event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
@@ -350,9 +350,9 @@ interface IPufferPool is IERC20Upgradeable {
     function isAVSEnabled(address avs) external view returns (bool);
 
     /**
-     * @notice Returns the pod avs comission for `avs`
+     * @notice Returns the pod avs commission for `avs`
      */
-    function getAVSComission(address avs) external view returns (uint256);
+    function getAVSCommission(address avs) external view returns (uint256);
 
     /**
      * @notice Returns the minimum bond requirement for `avs`
@@ -397,7 +397,7 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Returns the Strategy Manager
      */
-    function getStrategyManager() external view returns (IStrategyManager);
+    function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
      * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format

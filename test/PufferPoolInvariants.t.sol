@@ -5,7 +5,6 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferPoolHandler } from "./handlers/PufferPoolHandler.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { console } from "forge-std/console.sol";
 import { GuardianHelper } from "./helpers/GuardianHelper.sol";
 
 contract PufferPoolInvariants is GuardianHelper {
@@ -26,7 +25,7 @@ contract PufferPoolInvariants is GuardianHelper {
         targetContract(address(handler));
     }
 
-    // Guardian multisi is not supposed to change
+    // Guardian multisig is not supposed to change
     function invariant_guardiansCanNeverChange() public {
         assertTrue(address(guardians) == address(pool.getGuardiansMultisig()));
     }
