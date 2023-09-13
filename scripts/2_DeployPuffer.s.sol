@@ -12,6 +12,7 @@ import { BaseScript } from "scripts/BaseScript.s.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title DeployPuffer
@@ -37,6 +38,8 @@ contract DeployPuffer is BaseScript {
         
         // PufferTreasury
         address payable treasury = payable(vm.envOr("TREASURY", address(1337)));
+
+        console.log(treasury, "<-- Puffer Treasury address");
         
         string memory guardiansDeployment = vm.readFile("./output/guardians.json");
         address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
@@ -44,16 +47,21 @@ contract DeployPuffer is BaseScript {
 
         // Deploys Puffer Pool implementation
         PufferPool poolImpl = new PufferPool(treasury, Safe(guardians));
+        console.log(address(poolImpl), "<-- Puffer pool implementation");
         // Deploys Proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(address(poolImpl), "");
+        console.log(address(proxy), "<-- Puffer POOL proxy (main contract)");
         // Casts Proxy to PufferPool
         PufferPool pool = PufferPool(payable(address(proxy)));
 
         EnclaveVerifier verifier = new EnclaveVerifier(100, address(pool));
+        console.log(address(verifier), "<-- EnclaveVerifier");
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
+        console.log(address(withdrawalPool), "<-- WithdrawalPool");
 
         ExecutionRewardsPool executionRewardsPool = new ExecutionRewardsPool(pool);
+        console.log(address(executionRewardsPool), "<-- ExecutionRewardsPool");
 
         // Initialize the Pool
         pool.initialize({withdrawalPool: address(withdrawalPool), executionRewardsPool: address(executionRewardsPool), guardianSafeModule: guardiansModule, enclaveVerifier: address(verifier), emptyData: ""});

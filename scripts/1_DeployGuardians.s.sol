@@ -22,11 +22,6 @@ contract DeployGuardians is BaseScript {
         console.log(safeProxy, "<-- Safe proxy factory");
         console.log(safeImplementation, "<-- Safe implementation");
 
-        // // ReadPufferPoolProxy
-        // // string memory poolDeployment = vm.readFile("./output/pufferPool.json");
-        // // address pufferPoolProxy = stdJson.readAddress(poolDeployment, ".pufferPoolProxy");
-        // address pufferPoolProxy = address(55);
-
         // Deploy module
         GuardianModule module = new GuardianModule();
 
