@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { ExecutionRewardsPool } from "puffer/ExecutionRewardsPool.sol";
+import { ExecutionRewardsVault } from "puffer/ExecutionRewardsVault.sol";
 import { Script } from "forge-std/Script.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -60,11 +60,11 @@ contract DeployPuffer is BaseScript {
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
         console.log(address(withdrawalPool), "<-- WithdrawalPool");
 
-        ExecutionRewardsPool executionRewardsPool = new ExecutionRewardsPool(pool);
-        console.log(address(executionRewardsPool), "<-- ExecutionRewardsPool");
+        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(pool);
+        console.log(address(executionRewardsVault), "<-- ExecutionRewardsVault");
 
         // Initialize the Pool
-        pool.initialize({withdrawalPool: address(withdrawalPool), executionRewardsPool: address(executionRewardsPool), guardianSafeModule: guardiansModule, enclaveVerifier: address(verifier), emptyData: ""});
+        pool.initialize({withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), guardianSafeModule: guardiansModule, enclaveVerifier: address(verifier), emptyData: ""});
         GuardianModule(guardiansModule).setPufferPool(pool);
 
         string memory obj = "";

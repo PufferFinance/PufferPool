@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { AVSParams } from "puffer/struct/AVSParams.sol";
 
 /**
  * @title IPufferOwner
@@ -47,7 +47,7 @@ interface IPufferOwner {
     /**
      * @notice Changes the `avs` configuration to `configuration`
      */
-    function changeAVSConfiguration(address avs, IPufferPool.AVSParams memory configuration) external;
+    function changeAVSConfiguration(address avs, AVSParams memory configuration) external;
 
     /**
      * @notice Changes the protocol fee rate to `protocolFeeRate`

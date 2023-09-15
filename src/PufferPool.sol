@@ -12,19 +12,21 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferOwner } from "puffer/interface/IPufferOwner.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { PufferPoolStorage } from "puffer/PufferPoolStorage.sol";
+import { AVSParams } from "puffer/struct/AVSParams.sol";
 
 /**
  * @title PufferPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-
 contract PufferPool is
     IPufferPool,
     IPufferOwner,
@@ -32,7 +34,8 @@ contract PufferPool is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable,
-    ERC20PermitUpgradeable
+    ERC20PermitUpgradeable,
+    PufferPoolStorage
 {
     using SafeTransferLib for address;
     using ECDSA for bytes32;
@@ -64,57 +67,9 @@ contract PufferPool is
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
 
     /**
-     * @dev Locked ETH amount
-     */
-    uint256 internal _lockedETHAmount;
-
-    /**
-     * @dev New rewards amount
-     */
-    uint256 internal _newETHRewardsAmount;
-
-    /**
      * @dev Guardians multisig wallet
      */
     Safe public immutable GUARDIANS;
-
-    /**
-     * @dev EigenPodProxy -> EigenPodProxyInformation
-     * eigenPodProxy -> info
-     */
-    mapping(address => EigenPodProxyInformation) internal _eigenPodProxies;
-
-    /**
-     * @dev Actively validated services (AVSs) configuration
-     * AVS -> parameters
-     */
-    mapping(address => AVSParams) internal _allowedAVSs;
-
-    /**
-     * @dev Address of the Puffer AVS contract
-     */
-    // TODO:
-    // address internal _pufferAvsAddress;
-
-    /**
-     * @dev Number of shares out of one billion to split AVS rewards with the pool
-     */
-    uint256 internal _avsCommission;
-
-    /**
-     * @dev Number of shares out of one billion to split consensus rewards with the pool
-     */
-    uint256 internal _consensusCommission;
-
-    /**
-     * @dev Number of shares out of one billion to split execution rewards with the pool
-     */
-    uint256 internal _executionCommission;
-
-    /**
-     * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     */
-    uint256 internal _protocolFeeRate;
 
     /**
      * @dev Puffer finance treasury
@@ -122,69 +77,10 @@ contract PufferPool is
     address payable public immutable TREASURY;
 
     /**
-     * @dev Validator bond for non custodial node runners
-     */
-    uint256 internal _nonCustodialBondRequirement;
-
-    /**
-     * @dev Validator bond for non enclave node runners
-     */
-    uint256 internal _nonEnclaveBondRequirement;
-
-    /**
-     * @dev Validator bond for Enclave node runners
-     */
-    uint256 internal _enclaveBondRequirement;
-
-    /**
-     * @dev Consensus rewards and withdrawals pool address
-     */
-    address internal _withdrawalPool;
-
-    /**
-     * @dev Execution rewards pool address
-     */
-    address internal _executionRewardsPool;
-
-    /**
-     * @dev Guardian {Safe} Module
-     */
-    GuardianModule internal _guardianModule;
-
-    /**
-     * @dev Enclave verifier smart contract
-     */
-    IEnclaveVerifier internal _enclaveVerifier;
-
-    bytes32 internal _mrenclave;
-    bytes32 internal _mrsigner;
-    bytes32 internal _guardianMrenclave;
-    bytes32 internal _guardianMrsigner;
-
-    /**
-     * @dev Public keys of the active validators
-     */
-    EnumerableSet.Bytes32Set internal _pubKeyHashes;
-
-    /**
-     * @dev Mapping of mintRecipint => block.number
-     * This is useful for preventing a sandwich attack on ETH backing update
-     */
-    mapping(address => uint256) internal _lastMint;
-
-    /**
      * @dev Allow a call from guardians multisig
      */
     modifier onlyGuardians() {
         _onlyGuardians();
-        _;
-    }
-
-    modifier onlyPodProxy() {
-        // Ensure caller corresponds to an instantiated PodPoxy contract
-        if (_eigenPodProxies[msg.sender].creator == address(0)) {
-            revert Unauthorized();
-        }
         _;
     }
 
@@ -209,7 +105,8 @@ contract PufferPool is
     // slither-disable-next-line missing-zero-check
     function initialize(
         address withdrawalPool,
-        address executionRewardsPool,
+        address executionRewardsVault,
+        address consensusVault,
         address guardianSafeModule,
         address enclaveVerifier,
         bytes calldata emptyData
@@ -229,7 +126,8 @@ contract PufferPool is
         _guardianModule = GuardianModule(guardianSafeModule);
         _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
         _withdrawalPool = withdrawalPool;
-        _executionRewardsPool = executionRewardsPool;
+        _executionRewardsVault = executionRewardsVault;
+        _consensusVault = consensusVault;
     }
 
     // Guardians only
@@ -249,12 +147,12 @@ contract PufferPool is
         bytes32 pubKeyHash = keccak256(pubKey);
 
         // Make sure that the validator is in the correct status
-        if (
-            _eigenPodProxies[address(eigenPodProxy)].validatorInformation[pubKeyHash].status
-                != IPufferPool.Status.PENDING
-        ) {
-            revert InvalidBLSPubKey();
-        }
+        // if (
+        //     _eigenPodProxies[address(eigenPodProxy)].validatorInformation[pubKeyHash].status
+        //         != IPufferPool.Status.PENDING
+        // ) {
+        //     revert InvalidBLSPubKey();
+        // }
 
         // Validate guardian signatures
         _validateGuardianSignatures({
@@ -266,7 +164,7 @@ contract PufferPool is
         });
 
         // Update Validator status
-        _eigenPodProxies[eigenPodProxy].validatorInformation[pubKeyHash].status = IPufferPool.Status.VALIDATING;
+        // _eigenPodProxies[eigenPodProxy].validatorInformation[pubKeyHash].status = IPufferPool.Status.VALIDATING;
 
         // Update locked ETH Amount
         _lockedETHAmount += _32_ETHER;
@@ -283,16 +181,16 @@ contract PufferPool is
         emit ETHProvisioned(eigenPodProxy, pubKey, block.timestamp);
     }
 
-    function _getMessageToBeSigned(
-        address eigenPodProxy,
-        bytes calldata pubKey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
-    ) public view returns (bytes32) {
-        return keccak256(
-            abi.encode(pubKey, _withdrawalPool, signature, depositDataRoot, _expectCustody(eigenPodProxy, pubKey))
-        ).toEthSignedMessageHash();
-    }
+    // function _getMessageToBeSigned(
+    //     address eigenPodProxy,
+    //     bytes calldata pubKey,
+    //     bytes calldata signature,
+    //     bytes32 depositDataRoot
+    // ) public view returns (bytes32) {
+    //     return keccak256(
+    //         abi.encode(pubKey, _withdrawalPool, signature, depositDataRoot, _expectCustody(eigenPodProxy, pubKey))
+    //     ).toEthSignedMessageHash();
+    // }
 
     /**
      * @inheritdoc IPufferPool
@@ -305,8 +203,6 @@ contract PufferPool is
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);
-
-        _lastMint[msg.sender] = block.number;
 
         _mint(msg.sender, pufETHAmount);
 
@@ -326,6 +222,19 @@ contract PufferPool is
             revert InvalidBLSPubKey();
         }
 
+        // To prevent spamming
+        // PufferAVS.isEligibleForRegisteringValidatorKey(msg.sender, data);
+
+        // _pendingValidators.push(..validatorInfo)
+
+        // TODO: remove payable
+        // add validator queue FIFO is the queue
+        // query eigen delegated amount
+        // check if the delegated amount is enough
+        // if its enough proceed
+
+        // we need to check 2x that the node operator has enough pufETH and that it is opted to AVS
+        //
         bytes32 pubKeyHash = keccak256(data.blsPubKey);
 
         // Make sure that there are no duplicate keys
@@ -347,13 +256,9 @@ contract PufferPool is
             _verifyKeyRequirements(data, raveCommitment);
         }
 
-        // Mint pufETH to validator and lock it there
-        uint256 pufETHBondAmount = _calculateETHToPufETHAmount(msg.value);
-        _mint(address(1234), pufETHBondAmount);
-
-        // Save information
-        _eigenPodProxies[address(1234)].validatorInformation[pubKeyHash] =
-            IPufferPool.ValidatorInfo({ bond: pufETHBondAmount, status: IPufferPool.Status.PENDING });
+        // // Save information
+        // _eigenPodProxies[address(1234)].validatorInformation[pubKeyHash] =
+        //     IPufferPool.ValidatorInfo({ bond: pufETHBondAmount, status: IPufferPool.Status.PENDING });
 
         emit ValidatorKeyRegistered(address(1234), data.blsPubKey);
     }
@@ -363,7 +268,8 @@ contract PufferPool is
      */
     function stopRegistration(bytes32 publicKeyHash) external {
         // `msg.sender` is EigenPodProxy
-        IPufferPool.ValidatorInfo storage info = _eigenPodProxies[msg.sender].validatorInformation[publicKeyHash];
+        IPufferPool.ValidatorInfo memory info;
+        // IPufferPool.ValidatorInfo storage info = _eigenPodProxies[msg.sender].validatorInformation[publicKeyHash];
 
         if (info.status != IPufferPool.Status.PENDING) {
             revert InvalidValidatorStatus();
@@ -501,7 +407,7 @@ contract PufferPool is
      * @inheritdoc IPufferPool
      */
     function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory) {
-        return _eigenPodProxies[eigenPodProxy].validatorInformation[pubKeyHash];
+        // return _eigenPodProxies[eigenPodProxy].validatorInformation[pubKeyHash];
     }
 
     /**
@@ -516,6 +422,20 @@ contract PufferPool is
      */
     function getWithdrawalPool() external view returns (address) {
         return _withdrawalPool;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getConsensusVault() external view returns (address) {
+        return _consensusVault;
+    }
+
+    /**
+     * @inheritdoc IPufferPool
+     */
+    function getExecutionRewardsVault() external view returns (address) {
+        return _executionRewardsVault;
     }
 
     /**
@@ -609,7 +529,7 @@ contract PufferPool is
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
         uint256 exchangeRate = FixedPointMathLib.divWad(
             getLockedETHAmount() + getNewRewardsETHAmount() + address(_withdrawalPool).balance
-                + address(_executionRewardsPool).balance + (address(this).balance - ethDepositedAmount),
+                + address(_executionRewardsVault).balance + (address(this).balance - ethDepositedAmount),
             pufETHSupply
         );
 
@@ -711,8 +631,10 @@ contract PufferPool is
     }
 
     function _expectCustody(address eigenPodProxy, bytes calldata pubKey) internal view returns (bool) {
-        return _eigenPodProxies[address(eigenPodProxy)].validatorInformation[keccak256(pubKey)].bond
-            != _nonCustodialBondRequirement;
+        // return _eigenPodProxies[address(eigenPodProxy)].validatorInformation[keccak256(pubKey)].bond
+        //     != _nonCustodialBondRequirement;
+
+        return true;
     }
 
     function _setEnclaveVerifier(address enclaveVerifier) internal {
@@ -794,20 +716,4 @@ contract PufferPool is
             revert Unauthorized();
         }
     }
-
-    function _beforeTokenTransfer(address from, address, uint256) internal virtual override {
-        // TODO: if we do it this way
-        if (from != address(0)) {
-            if (block.number == _lastMint[from]) {
-                revert MintAndTransferNotAllowed();
-            }
-        }
-    }
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
 }

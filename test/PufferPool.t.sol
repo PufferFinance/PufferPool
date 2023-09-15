@@ -6,6 +6,7 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferPoolMockUpgrade } from "test/mocks/PufferPoolMockUpgrade.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
+import { AVSParams } from "puffer/struct/AVSParams.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
@@ -102,7 +103,8 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         vm.expectRevert("Initializable: contract is already initialized");
         pool.initialize({
             withdrawalPool: address(123),
-            executionRewardsPool: address(512351234),
+            executionRewardsVault: address(512351234),
+            consensusVault: address(412312443333333),
             guardianSafeModule: address(555123),
             enclaveVerifier: address(1231555324534),
             emptyData: ""
@@ -293,21 +295,6 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         pool.depositETH{ value: 0.005 ether }();
     }
 
-    // Minting and transferring tokens in the same block is not allowed
-    function testSandwichAttack() public {
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
-
-        vm.deal(bob, 10 ether);
-
-        vm.startPrank(bob);
-        pool.depositETH{ value: 1 ether }();
-        uint256 pufETHAmount = pool.balanceOf(bob);
-        vm.expectRevert();
-        pool.transfer(alice, pufETHAmount);
-        vm.stopPrank();
-    }
-
     // Setter for execution rewards
     // function testSetExecutionCommission(uint256 newValue) public {
     //     pool.setExecutionCommission(newValue);
@@ -331,7 +318,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         uint256 avsComission = 50e16;
         uint8 minBondRequirement = uint8(2);
 
-        IPufferPool.AVSParams memory cfg = IPufferPool.AVSParams({
+        AVSParams memory cfg = AVSParams({
             podAVSCommission: avsComission,
             minReputationScore: 5,
             minBondRequirement: minBondRequirement,

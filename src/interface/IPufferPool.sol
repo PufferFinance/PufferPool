@@ -7,6 +7,7 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
+import { AVSParams } from "puffer/struct/AVSParams.sol";
 
 /**
  * @title IPufferPool
@@ -54,16 +55,6 @@ interface IPufferPool is IERC20Upgradeable {
         bytes32 depositDataRoot;
         bytes[] blsEncryptedPrivKeyShares;
         bytes[] blsPubKeyShares;
-    }
-
-    /**
-     * @dev AVS Parameters
-     */
-    struct AVSParams {
-        uint256 podAVSCommission;
-        uint256 minReputationScore; // experimental... TODO: figure out
-        uint8 minBondRequirement;
-        bool enabled;
     }
 
     /**
@@ -293,9 +284,19 @@ interface IPufferPool is IERC20Upgradeable {
     function getNewRewardsETHAmount() external view returns (uint256);
 
     /**
-     * @notice Returns the Withdrawal's pool address
+     * @notice Returns the address of the Withdrawal pool
      */
     function getWithdrawalPool() external view returns (address);
+
+    /**
+     * @notice Returns the address of the Consensus vault
+     */
+    function getConsensusVault() external view returns (address);
+
+    /**
+     * @notice Returns the address of the Execution rewards vault
+     */
+    function getExecutionRewardsVault() external view returns (address);
 
     /**
      * @notice Returns the Puffer Avs address

@@ -8,7 +8,8 @@ import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { ExecutionRewardsPool } from "puffer/ExecutionRewardsPool.sol";
+import { ExecutionRewardsVault } from "puffer/ExecutionRewardsVault.sol";
+import { ConsensusVault } from "puffer/ConsensusVault.sol";
 
 /**
  * @title DeployPufferPool script
@@ -38,9 +39,11 @@ contract DeployPufferPool is Script {
 
         EnclaveVerifier verifier = new EnclaveVerifier(50, address(pool));
 
-        ExecutionRewardsPool executionRewardsPool = new ExecutionRewardsPool(pool);
+        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(pool);
 
-        pool.initialize(address(withdrawalPool), address(executionRewardsPool), address(module), address(verifier), "");
+        ConsensusVault consensusVault = new ConsensusVault(pool);
+
+        pool.initialize(address(withdrawalPool), address(executionRewardsVault), address(consensusVault), address(module), address(verifier), "");
 
         // For test environment transfer ownership to Test contract
         pool.transferOwnership(msg.sender);
