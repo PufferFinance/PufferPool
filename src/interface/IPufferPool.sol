@@ -5,9 +5,11 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { AVSParams } from "puffer/struct/AVSParams.sol";
+import { Status } from "puffer/struct/Status.sol";
+import { Validator } from "puffer/struct/Validator.sol";
 
 /**
  * @title IPufferPool
@@ -15,66 +17,6 @@ import { AVSParams } from "puffer/struct/AVSParams.sol";
  * @notice IPufferPool TODO:
  */
 interface IPufferPool is IERC20Upgradeable {
-    /**
-     * TODO: figure out what we need here
-     */
-    struct EigenPodProxyInformation {
-        address creator;
-        bytes32 mrenclave;
-        mapping(bytes32 => ValidatorInfo) validatorInformation; // pubKeyHash -> info
-    }
-
-    enum Status {
-        PENDING,
-        BOND_WITHDRAWN,
-        VALIDATING
-    }
-
-    struct ValidatorInfo {
-        uint256 bond;
-        Status status;
-    }
-    // TODO: the rest
-
-    /**
-     * @dev Validator Key data struct
-     */
-    struct ValidatorKeyData {
-        bytes blsPubKey;
-        bytes signature;
-        bytes32 depositDataRoot;
-        bytes[] blsEncryptedPrivKeyShares;
-        bytes[] blsPubKeyShares;
-        uint256 blockNumber;
-        RaveEvidence evidence;
-    }
-
-    struct ValidatorRaveData {
-        bytes pubKey;
-        bytes signature;
-        bytes32 depositDataRoot;
-        bytes[] blsEncryptedPrivKeyShares;
-        bytes[] blsPubKeyShares;
-    }
-
-    /**
-     * @notice Thrown if the user tries to mint and transfer pufETH in the same block
-     */
-    error MintAndTransferNotAllowed();
-
-    /**
-     * @notice Thrown then the user tries to register a bls public key that is
-     * already active
-     * @dev Signature "0x7d1a5966"
-     */
-    error PublicKeyIsAlreadyActive();
-
-    /**
-     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
-     * @dev Signature "0x14236792"
-     */
-    error CouldNotVerifyCustody();
-
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
      * @dev Signature "0x6a12f104"
@@ -88,48 +30,10 @@ interface IPufferPool is IERC20Upgradeable {
     error InvalidAmount();
 
     /**
-     * @notice Thrown when creation of Eigen Pod Proxy fails
-     * @dev Signature "0x04a5b3ee"
-     */
-    error Create2Failed();
-
-    /**
-     * @notice Thrown when validator is not in valid status for withdrawing bond
-     * @dev Signature "0xa36c527f"
-     */
-    error InvalidValidatorStatus();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
-
-    /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians number
-     * @dev Signature "0x9a5bbd69"
-     */
-    error InvalidBLSPublicKeyShares();
-
-    /**
      * @notice Thrown when the user is not authorized
      * @dev Signature "0x82b42900"
      */
     error Unauthorized();
-
-    /**
-     * @notice Emitted when the Validator key is registered
-     * @param eigenPodProxy is the address of Eigen Pod Proxy
-     * @param pubKey is the validator public key
-     * @dev Signature "0x7f2d1d961b4cbafff19f21d113114b516b5f1e6c4737e4ecf361d8ab019574a6"
-     */
-    event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
 
     /**
      * @notice Emitted when the EigenLayer AVS status is changed
@@ -144,15 +48,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x60e300c919f110ebd183109296d6cd03856a84f64cb7acb91abde69baefd0d7e"
      */
     event EnclaveVerifierChanged(address enclaveVerifier);
-
-    /**
-     * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
-     * @param eigenPodProxy is the address of the EigenPod proxy contract
-     * @param blsPubKey is the public key of the Validator
-     * @param timestamp is the unix timestamp in seconds
-     * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
-     */
-    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool
@@ -202,14 +97,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev signature "0x50e3aad3fe58c0addb7f600531ccc21d0790dd329e85d820dfe7a6dfc615f59d"
      */
     event NonEnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the enclave measurements are changed
-     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
-     */
-    event NodeEnclaveMeasurementsChanged(
-        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
-    );
 
     /**
      * @notice Emitted when the Guaridan enclave measurements are changed
@@ -344,33 +231,9 @@ interface IPufferPool is IERC20Upgradeable {
     function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
-     * @notice Registers a validator key for a `podAccount`
-     * @dev Sender is expected to send the correct ETH amount
-     * @param data is a validator key data
-     */
-    // function registerValidatorKey(ValidatorKeyData calldata data) external payable;
-
-    /**
-     * @notice Stops the validator registration
-     * @dev Can only be called by EigenPodProxy, and Validator must be in `Pending` state
-     */
-    function stopRegistration(bytes32 publicKeyHash) external;
-
-    /**
      * @notice Returns the Enclave verifier
      */
     function getEnclaveVerifier() external view returns (IEnclaveVerifier);
-
-    /**
-     * @notice Returns validator information for `eigenPodProxy` and `pubKeyHash`
-     * @return Validator info struct
-     */
-    function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
-
-    /**
-     * @notice Returns the `mrenclave` and `mrsigner` values
-     */
-    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 
     /**
      * @notice Returns the `mrenclave` and `mrsigner` values
@@ -383,17 +246,6 @@ interface IPufferPool is IERC20Upgradeable {
     function getProtocolFeeRate() external view returns (uint256);
 
     // ==== Only Guardians ====
-
-    /**
-     * @notice Verifies the deposit of the Validator, provides the remaining 30 ETH and starts the staking via EigenLayer
-     */
-    function provisionPodETH(
-        address eigenPodProxy,
-        bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
-    ) external;
 
     function updateETHBackingAmount(uint256 amount) external;
 

@@ -24,10 +24,10 @@ interface IPufferOwner {
      */
     // function setAvsCommission(uint256 newValue) external;
 
-    /**
-     * TODO:
-     */
-    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
+    // /**
+    //  * TODO:
+    //  */
+    // function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
 
     /**
      * TODO:

@@ -5,8 +5,9 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
+import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -56,12 +57,20 @@ contract GuardianHelper is Test {
         (guardian3Enclave, guardian3SKEnclave) = makeAddrAndKey("guardian3enclave");
         guardiansEnclavePks.push(guardian3SKEnclave);
 
+        address[] memory guardians = new address[](3);
+        guardians[0] = guardian1;
+        guardians[1] = guardian2;
+        guardians[2] = guardian3;
+
+        // Deploy guardians safe
+        new DeployGuardians().run(guardians, 1);
+
         (proxyFactory, safeImplementation) = new DeploySafe().run();
         (pool, withdrawalPool) = new DeployPufferPool().run();
         vm.label(address(pool), "PufferPool");
     }
 
-    // // Internal function to create guardian account and register enclave addresses
+    // Internal function to create guardian account and register enclave addresses
     // function _createGuardians() internal returns (Safe, address[] memory) {
     //     // Register 3 guardians
     //     address[] memory owners = new address[](3);

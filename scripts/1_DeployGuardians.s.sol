@@ -8,6 +8,7 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { console } from "forge-std/console.sol";
+import { Strings } from "openzeppelin/utils/Strings.sol";
 
 // forge script scripts/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
 contract DeployGuardians is BaseScript {   
@@ -19,8 +20,8 @@ contract DeployGuardians is BaseScript {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
-        console.log(safeProxy, "<-- Safe proxy factory");
-        console.log(safeImplementation, "<-- Safe implementation");
+        // console.log(safeProxy, "<-- Safe proxy factory");
+        // console.log(safeImplementation, "<-- Safe implementation");
 
         // Deploy module
         GuardianModule module = new GuardianModule();
@@ -30,7 +31,7 @@ contract DeployGuardians is BaseScript {
 
         Safe guardiansSafe = this.deploySafe(guardians, threshold, address(module), data);
 
-        console.log(address(guardiansSafe), "<-- Guardians multisig deployed");
+        // console.log(address(guardiansSafe), "<-- Guardians multisig deployed");
 
         string memory obj = "";
         vm.serializeAddress(obj, "guardians", address(guardiansSafe));
@@ -40,7 +41,7 @@ contract DeployGuardians is BaseScript {
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
-        vm.writeJson(finalJson, "./output/guardians.json");
+        vm.writeJson(finalJson, string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
     }
 
     function deploySafe(

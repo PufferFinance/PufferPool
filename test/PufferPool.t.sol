@@ -10,7 +10,8 @@ import { AVSParams } from "puffer/struct/AVSParams.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardianHelper } from "./helpers/GuardianHelper.sol";
 import { TestBase } from "./TestBase.t.sol";
@@ -68,7 +69,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
     }
 
     // Internal function for creating a Validator Data
-    function _getMockValidatorKeyData() internal pure returns (IPufferPool.ValidatorKeyData memory) {
+    function _getMockValidatorKeyData() internal pure returns (ValidatorKeyData memory) {
         bytes[] memory newSetOfPubKeys = new bytes[](1);
         newSetOfPubKeys[0] = bytes("key1");
 
@@ -80,7 +81,7 @@ contract PufferPoolTest is GuardianHelper, TestBase {
 
         RaveEvidence memory evidence;
 
-        IPufferPool.ValidatorKeyData memory validatorData = IPufferPool.ValidatorKeyData({
+        ValidatorKeyData memory validatorData = ValidatorKeyData({
             blsPubKey: pubKey,
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
@@ -245,14 +246,6 @@ contract PufferPoolTest is GuardianHelper, TestBase {
     //     assertEq(100 ether, pufETHRecipient.balance, "recipient didn't get any ETH");
     // }
 
-    // Tests setter for enclave measurements
-    function testSetNodeEnclaveMeasurements(bytes32 mrsigner, bytes32 mrenclave) public {
-        pool.setNodeEnclaveMeasurements(mrsigner, mrenclave);
-        (bytes32 ms, bytes32 me) = pool.getNodeEnclaveMeasurements();
-        assertTrue(mrsigner == ms, "mrsigner");
-        assertTrue(mrenclave == me, "mrenclave");
-    }
-
     // Tests setter for guardian enclave measurements
     function testGuardianEnclaveMeasurements(bytes32 mrsigner, bytes32 mrenclave) public {
         pool.setGuardianEnclaveMeasurements(mrsigner, mrenclave);
@@ -260,15 +253,6 @@ contract PufferPoolTest is GuardianHelper, TestBase {
         assertTrue(mrsigner == ms, "mrsigner guardian");
         assertTrue(mrenclave == me, "mrenclave guardian");
     }
-
-    // Test trying to register a duplicate vaidator key
-    // function testRegisterDuplicateKey(address owner) public {
-    //     vm.deal(owner, 100 ether);
-    //     vm.startPrank(owner);
-    //     pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
-    //     vm.expectRevert(IPufferPool.PublicKeyIsAlreadyActive.selector);
-    //     pool.registerValidatorKey{ value: 16 ether }(eigenPodProxy, _getMockValidatorKeyData());
-    // }
 
     // Register validator key and then stop validator registration, it should return the bond
     // function testRegisterValidatorKeyAndStopRegistration(address owner) public {

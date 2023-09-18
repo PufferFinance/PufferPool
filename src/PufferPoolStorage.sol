@@ -7,6 +7,8 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { AVSParams } from "puffer/struct/AVSParams.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { Status } from "puffer/struct/Status.sol";
+import { Validator } from "puffer/struct/Validator.sol";
 
 abstract contract PufferPoolStorage {
     /**
@@ -24,11 +26,6 @@ abstract contract PufferPoolStorage {
      * AVS -> parameters
      */
     mapping(address => AVSParams) internal _allowedAVSs;
-
-    /**
-     * @dev Validator Index
-     */
-    uint256 validatorIndex;
 
     /**
      * @dev Address of the Puffer AVS contract
@@ -101,10 +98,10 @@ abstract contract PufferPoolStorage {
     bytes32 internal _guardianMrenclave;
     bytes32 internal _guardianMrsigner;
 
-    /**
-     * @dev Public keys of the active validators
-     */
-    EnumerableSet.Bytes32Set internal _pubKeyHashes;
+    // uint256 pendingValidatorIndex;
+    // uint256 currentValidatorIndex;
+
+    // mapping(uint256 => Validator) internal _validators;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new

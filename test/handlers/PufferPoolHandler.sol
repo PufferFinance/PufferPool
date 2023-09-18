@@ -7,7 +7,7 @@ import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { TestBase } from "../TestBase.t.sol";
 

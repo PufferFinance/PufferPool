@@ -8,7 +8,7 @@ import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 
 /**
  * @title Guardian module
