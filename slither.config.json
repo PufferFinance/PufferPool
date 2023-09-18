@@ -5,6 +5,6 @@
     "exclude_medium": false,
     "exclude_high": false,
     "disable_color": false,
-    "filter_paths": "(lib/|test/)",
+    "filter_paths": "(lib/|test/|scripts/)",
     "legacy_ast": false
 }
