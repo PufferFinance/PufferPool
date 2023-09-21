@@ -9,94 +9,13 @@ import { Status } from "puffer/struct/Status.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-
-interface IPufferServiceManager {
-    /**
-     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
-     * @dev Signature "0x14236792"
-     */
-    error CouldNotVerifyCustody();
-
-    /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians number
-     * @dev Signature "0x9a5bbd69"
-     */
-    error InvalidBLSPublicKeyShares();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
-
-    /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
-
-    /**
-     * @notice Thrown when validator is not in valid status for withdrawing bond
-     * @dev Signature "0xa36c527f"
-     */
-    error InvalidValidatorStatus();
-
-    /**
-     * @notice Emitted when the Validator key is registered
-     * @param pubKey is the validator public key
-     * @dev Signature "0x4627afae6730ccc8148672cbdd43af9f21bc62e234cd6267fd80a0d7395e53b0"
-     */
-    event ValidatorKeyRegistered(bytes pubKey);
-
-    /**
-     * @notice Emitted when the enclave measurements are changed
-     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
-     */
-    event NodeEnclaveMeasurementsChanged(
-        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
-    );
-
-    /**
-     * @notice Emitted when the validator is dequeued by the Node operator
-     * @param pubKey is the public key of the Validator
-     * @dev Signature "0xcb54ff5ec05355289c7faf3481c52a526f0e00e75484584dc9cbb72e5a7ed4cf"
-     */
-    event ValidatorDequeued(bytes pubKey);
-
-    /**
-     * @notice Emitted when the validator is provisioned
-     * @param nodeOperator is the address of the Node Operator
-     * @param blsPubKey is the public key of the Validator
-     * @param timestamp is the unix timestamp in seconds
-     * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
-     */
-    event ETHProvisioned(address nodeOperator, bytes blsPubKey, uint256 timestamp);
-
-    /**
-     * @notice Returns validator information
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @return Validator info struct
-     */
-    function getValidatorInfo(uint256 validatorIndex) external view returns (Validator memory);
-
-    /**
-     * @notice Stops the registration
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
-     */
-    function stopRegistration(uint256 validatorIndex) external;
-
-    /**
-     * @notice Returns the `mrenclave` and `mrsigner` values
-     */
-    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
-}
+import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
+import { PufferServiceManagerStorage } from "puffer/PufferServiceManagerStorage.sol";
+import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { GuardianModule } from "puffer/GuardianModule.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 /**
  * @title PufferServiceManager
@@ -104,7 +23,12 @@ interface IPufferServiceManager {
  * @notice PufferServiceManager TODO:
  * @custom:security-contact security@puffer.fi
  */
-contract PufferServiceManager is IPufferServiceManager {
+contract PufferServiceManager is
+    IPufferServiceManager,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    PufferServiceManagerStorage
+{
     using ECDSA for bytes32;
 
     /**
@@ -112,32 +36,90 @@ contract PufferServiceManager is IPufferServiceManager {
      */
     uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
 
+    uint256 internal constant _4_ETHER = 4 ether;
+
+    uint256 internal constant _2_ETHER = 2 ether;
+
     /**
      * @notice Puffer Pool
      */
-    PufferPool public immutable POOL;
-
-    IEnclaveVerifier internal _enclaveVerifier;
-
-    // State variables
-
-    bytes32 internal _mrenclave;
-    bytes32 internal _mrsigner;
+    PufferPool public POOL;
 
     /**
-     * @dev Next validator index for provisioning queue
+     * @dev Guardians multisig wallet
      */
-    uint256 pendingValidatorIndex;
+    Safe public GUARDIANS;
 
     /**
-     * @dev Index of the validator that will be provisioned next
+     * @dev Puffer finance treasury
      */
-    uint256 validatorIndexToBeProvisionedNext;
+    address payable public immutable TREASURY;
 
-    mapping(uint256 => Validator) internal _validators;
+    /**
+     * @dev EigenLayer's Strategy Manager
+     */
+    IStrategyManager public immutable EIGEN_STRATEGY_MANAGER;
 
-    constructor(PufferPool pool) {
+    /**
+     * @dev Allow a call from guardians multisig
+     */
+    modifier onlyGuardians() {
+        _onlyGuardians();
+        _;
+    }
+
+    constructor(Safe guardians, address payable treasury, IStrategyManager eigenStrategyManager) {
+        TREASURY = treasury;
+        GUARDIANS = guardians;
+        EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
+        _disableInitializers();
+    }
+
+    function initialize(
+        PufferPool pool,
+        address enclaveVerifier,
+        address withdrawalPool,
+        address executionRewardsVault,
+        address consensusVault,
+        address guardianSafeModule
+    ) external initializer {
+        __Ownable_init();
+        _setEnclaveVerifier(enclaveVerifier);
+        _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
         POOL = pool;
+        _withdrawalPool = withdrawalPool;
+        _executionRewardsVault = executionRewardsVault;
+        _consensusVault = consensusVault;
+        _guardianModule = GuardianModule(guardianSafeModule);
+    }
+
+    function setProtocolFeeRate(uint256 protocolFeeRate) external onlyOwner {
+        _setProtocolFeeRate(protocolFeeRate);
+    }
+
+    function setGuardianEnclaveMeasurements(bytes32 guardianMrenclave, bytes32 guardianMrsigner) external onlyOwner {
+        bytes32 oldMrenclave = _guardianMrenclave;
+        bytes32 oldMrsigner = _guardianMrsigner;
+        _guardianMrenclave = guardianMrenclave;
+        _guardianMrsigner = guardianMrsigner;
+        emit GuardianNodeEnclaveMeasurementsChanged(oldMrenclave, guardianMrenclave, oldMrsigner, guardianMrsigner);
+    }
+
+    function _setProtocolFeeRate(uint256 protocolFee) internal {
+        uint256 oldProtocolFee = _protocolFeeRate;
+        _protocolFeeRate = protocolFee;
+        emit ProtocolFeeRateChanged(oldProtocolFee, protocolFee);
+    }
+
+    function _setEnclaveVerifier(address enclaveVerifier) internal {
+        _enclaveVerifier = IEnclaveVerifier(enclaveVerifier);
+        emit EnclaveVerifierChanged(enclaveVerifier);
+    }
+
+    function _onlyGuardians() internal view {
+        if (msg.sender != address(GUARDIANS)) {
+            revert Unauthorized();
+        }
     }
 
     function registerValidatorKey(ValidatorKeyData calldata data) external {
@@ -146,10 +128,19 @@ contract PufferServiceManager is IPufferServiceManager {
             revert InvalidBLSPubKey();
         }
 
+        // Verify enclave remote attestation evidence
+        if (data.evidence.report.length > 0) {
+            bytes32 raveCommitment = _buildNodeRaveCommitment(data, _withdrawalPool);
+            _verifyKeyRequirements(data, raveCommitment);
+        }
+
+        uint256 validatorBondRequirement = data.evidence.report.length > 0 ? _4_ETHER : _2_ETHER;
+        // TODO: check if the msg.sender has enough ETH as a bond
+
         // To prevent spamming the queue
         // PufferAVS.isEligibleForRegisteringValidatorKey(msg.sender, data);
 
-        // PufferAVS logiv
+        // PufferAVS logic
 
         // 1. make sure that the node operator is opted to our AVS
         // 2. make sure that he has enough WETH delegated
@@ -162,23 +153,13 @@ contract PufferServiceManager is IPufferServiceManager {
 
         ++pendingValidatorIndex;
 
-        // Determine bond requirement from inputs
-        // uint256 validatorBondRequirement =
-        //     _getValidatorBondRequirement(data.evidence.report.length, data.blsEncryptedPrivKeyShares.length);
-        // if (msg.value != validatorBondRequirement) {
-        //     revert InvalidAmount();
-        // }
-
-        // // Verify enclave remote attestation evidence
-        // if (validatorBondRequirement != _nonCustodialBondRequirement) {
-        //     bytes32 raveCommitment = _buildNodeRaveCommitment(data, POOL.getWithdrawalPool());
-        //     _verifyKeyRequirements(data, raveCommitment);
-        // }
-
         emit ValidatorKeyRegistered(data.blsPubKey);
     }
 
-    function provisionNodeETH(
+    /**
+     * @dev We need to have this wrapper in order to modify the state of the contract if the provisionNodeETH reverts
+     */
+    function provisionNodeETHWrapper(
         bytes calldata signature,
         bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
@@ -189,21 +170,38 @@ contract PufferServiceManager is IPufferServiceManager {
 
         Validator memory validator = _validators[index];
 
+        try this.provisionNodeETH(index, validator, signature, depositDataRoot, guardianEnclaveSignatures) {
+            emit SuccesfullyProvisioned(validator.pubKey);
+        } catch {
+            emit FailedToProvision(validator.pubKey);
+        }
+    }
+
+    // @audit-info be super careful with this and DOS attack
+    function provisionNodeETH(
+        uint256 index,
+        Validator memory validator,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
+    ) external {
+        require(msg.sender == address(this));
+
         if (validator.status != Status.PENDING) {
-            revert InvalidValidatorStatus();
+            revert InvalidValidatorState();
         }
 
         // TODO: we need to check that the node operator has enough WETH delegated and that it is opted to our AVS
 
         // Validate guardian signatures
-        _validateGuardianSignatures({
+        _guardianModule.validateGuardianSignatures({
             pubKey: validator.pubKey,
             guardianEnclaveSignatures: guardianEnclaveSignatures,
             signature: signature,
             depositDataRoot: depositDataRoot
         });
 
-        _validators[index].status = Status.VALIDATING;
+        _validators[index].status = Status.ACTIVE;
 
         emit ETHProvisioned(validator.node, validator.pubKey, block.timestamp);
 
@@ -227,12 +225,24 @@ contract PufferServiceManager is IPufferServiceManager {
         return validators;
     }
 
+    function getValidatorsAddresses() external view returns (address[] memory) {
+        uint256 numOfValidators = validatorIndexToBeProvisionedNext + 1;
+
+        address[] memory addresses = new address[](numOfValidators);
+
+        for (uint256 i = numOfValidators; i > 0; i--) {
+            addresses[i] = _validators[i].node;
+        }
+
+        return addresses;
+    }
+
     function stopRegistration(uint256 validatorIndex) external {
         // `msg.sender` is the Node Operator
         Validator storage validator = _validators[validatorIndex];
 
         if (validator.status != Status.PENDING) {
-            revert InvalidValidatorStatus();
+            revert InvalidValidatorState();
         }
 
         if (msg.sender != validator.node) {
@@ -265,56 +275,18 @@ contract PufferServiceManager is IPufferServiceManager {
             blsPubKeyShares: data.blsPubKeyShares
         });
 
-        Safe guardians = POOL.GUARDIANS();
-
         return keccak256(
             abi.encode(
                 raveData,
                 withdrawalCredentials,
-                POOL.getGuardianModule().getGuardiansEnclaveAddresses(guardians),
-                guardians.getThreshold()
+                _guardianModule.getGuardiansEnclaveAddresses(GUARDIANS),
+                GUARDIANS.getThreshold()
             )
         );
     }
 
-    function _validateGuardianSignatures(
-        bytes memory pubKey,
-        bytes calldata signature,
-        bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
-    ) internal view {
-        bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, depositDataRoot);
-
-        Safe guardians = POOL.GUARDIANS();
-
-        address[] memory enclaveAddresses = POOL.getGuardianModule().getGuardiansEnclaveAddresses(guardians);
-        uint256 validSignatures = 0;
-
-        // Iterate through guardian enclave addresses and make sure that the signers match
-        for (uint256 i = 0; i < enclaveAddresses.length;) {
-            address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
-            if (currentSigner == address(0)) {
-                revert Unauthorized();
-            }
-            if (currentSigner == enclaveAddresses[i]) {
-                validSignatures++;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        if (validSignatures < guardians.getThreshold()) {
-            revert Unauthorized();
-        }
-    }
-
     function getValidatorInfo(uint256 validatorIndex) external view returns (Validator memory) {
         return _validators[validatorIndex];
-    }
-
-    function getEnclaveVerifier() external view returns (IEnclaveVerifier) {
-        return _enclaveVerifier;
     }
 
     function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external {
@@ -326,31 +298,40 @@ contract PufferServiceManager is IPufferServiceManager {
         emit NodeEnclaveMeasurementsChanged(oldMrenclave, mrenclave, oldMrsigner, mrsigner);
     }
 
-    function getMessageToBeSigned(bytes memory pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        public
-        view
-        returns (bytes32)
-    {
-        return keccak256(
-            abi.encode(pubKey, POOL.getWithdrawalPool(), signature, depositDataRoot, _expectCustody(pubKey))
-        ).toEthSignedMessageHash();
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function setExecutionCommission(uint256 newValue) external onlyOwner {
+        _setExecutionCommission(newValue);
     }
 
-    function _expectCustody(bytes memory pubKey) internal view returns (bool) {
-        // return _eigenPodProxies[address(eigenPodProxy)].validatorInformation[keccak256(pubKey)].bond
-        //     != _nonCustodialBondRequirement;
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function setConsensusCommission(uint256 newValue) external onlyOwner {
+        _setConsensusCommission(newValue);
+    }
 
-        return true;
+    function _setExecutionCommission(uint256 newValue) internal {
+        uint256 oldValue = _executionCommission;
+        _executionCommission = newValue;
+        emit ExecutionCommissionChanged(oldValue, newValue);
+    }
+
+    function _setConsensusCommission(uint256 newValue) internal {
+        uint256 oldValue = _consensusCommission;
+        _consensusCommission = newValue;
+        emit ConsensusCommissionChanged(oldValue, newValue);
     }
 
     function _getWithdrawalCredentials() internal view returns (bytes memory) {
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), POOL.getWithdrawalPool());
+        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), _withdrawalPool);
     }
 
     // checks that enough encrypted private keyshares + public keyshares were supplied for each guardian to receive one. Also verify that the raveEvidence is valid and contained the expected and fresh raveCommitment.
     function _verifyKeyRequirements(ValidatorKeyData calldata data, bytes32 raveCommitment) internal view {
         // Validate enough keyshares supplied for all guardians
-        uint256 numGuardians = POOL.GUARDIANS().getOwners().length;
+        uint256 numGuardians = GUARDIANS.getOwners().length;
         if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
             revert InvalidBLSPrivateKeyShares();
         }
@@ -359,17 +340,83 @@ contract PufferServiceManager is IPufferServiceManager {
             revert InvalidBLSPublicKeyShares();
         }
 
+        // @todo Possibly remove
         // Use RAVE to verify remote attestation evidence
-        bool custodyVerified = _enclaveVerifier.verifyEvidence({
-            blockNumber: data.blockNumber,
-            raveCommitment: raveCommitment,
-            evidence: data.evidence,
-            mrenclave: _mrenclave,
-            mrsigner: _mrsigner
-        });
+        // bool custodyVerified = _enclaveVerifier.verifyEvidence({
+        //     blockNumber: data.blockNumber,
+        //     raveCommitment: raveCommitment,
+        //     evidence: data.evidence,
+        //     mrenclave: _mrenclave,
+        //     mrsigner: _mrsigner
+        // });
 
-        if (!custodyVerified) {
-            revert CouldNotVerifyCustody();
-        }
+        // if (!custodyVerified) {
+        //     revert CouldNotVerifyCustody();
+        // }
     }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getWithdrawalPool() external view returns (address) {
+        return _withdrawalPool;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getConsensusVault() external view returns (address) {
+        return _consensusVault;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getExecutionRewardsVault() external view returns (address) {
+        return _executionRewardsVault;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getExecutionCommission() external view returns (uint256) {
+        return _executionCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getGuardianEnclaveMeasurements() external view returns (bytes32, bytes32) {
+        return (_guardianMrenclave, _guardianMrsigner);
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getGuardianModule() external view returns (GuardianModule) {
+        return _guardianModule;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getConsensusCommission() external view returns (uint256) {
+        return _consensusCommission;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getProtocolFeeRate() external view returns (uint256) {
+        return _protocolFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPufferServiceManager
+     */
+    function getEnclaveVerifier() external view returns (IEnclaveVerifier) {
+        return _enclaveVerifier;
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 }

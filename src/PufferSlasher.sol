@@ -2,18 +2,18 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferAVS } from "puffer/interface/IPufferAVS.sol";
 import { IPufferSlasher } from "puffer/interface/IPufferSlasher.sol";
+import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
 
 contract PufferSlasher is IPufferSlasher {
     ISlasher internal _slasher;
-    IPufferPool internal _pufferPool;
+    IPufferServiceManager _pufferServiceManager;
     IPufferAVS internal _pufferAVS;
 
-    constructor(address slasher, address pufferPool, address pufferAVS) {
+    constructor(address slasher, address pufferServiceManager, address pufferAVS) {
         _slasher = ISlasher(slasher);
-        _pufferPool = IPufferPool(pufferPool);
+        _pufferServiceManager = IPufferServiceManager(pufferServiceManager);
         _pufferAVS = IPufferAVS(pufferAVS);
     }
 
@@ -27,7 +27,7 @@ contract PufferSlasher is IPufferSlasher {
     }
 
     function _onlyGuardiansOrAVS() internal view {
-        if (msg.sender != address(_pufferPool.GUARDIANS()) && msg.sender != address(_pufferAVS)) {
+        if (msg.sender != address(_pufferServiceManager.getGuardianModule()) && msg.sender != address(_pufferAVS)) {
             revert Unauthorized();
         }
     }

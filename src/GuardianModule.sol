@@ -6,9 +6,10 @@ import { SafeStorage } from "safe-contracts/libraries/SafeStorage.sol";
 import { Enum } from "safe-contracts/common/Enum.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 /**
  * @title Guardian module
@@ -17,6 +18,8 @@ import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+    using ECDSA for bytes32;
+
     /**
      * @dev Uncompressed ECDSA keys are 65 bytes long
      */
@@ -24,7 +27,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
 
-    PufferPool public pool;
+    PufferServiceManager public pufferServiceManager;
 
     /**
      * @notice This seed is representing a mappin glike this: mapping(address guardian => address guardianEnclave);
@@ -38,12 +41,53 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         myAddress = address(this);
     }
 
-    function setPufferPool(PufferPool pufferPool) external {
+    function setPufferServiceManager(PufferServiceManager serviceManager) external {
         // TODO: onlyowner
-        if (address(pool) != address(0)) {
+        if (address(pufferServiceManager) != address(0)) {
             revert();
         }
-        pool = pufferPool;
+        pufferServiceManager = serviceManager;
+    }
+
+    function validateGuardianSignatures(
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
+    ) external view {
+        bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, depositDataRoot);
+
+        Safe guardians = pufferServiceManager.GUARDIANS();
+
+        address[] memory enclaveAddresses = getGuardiansEnclaveAddresses(guardians);
+        uint256 validSignatures = 0;
+
+        // Iterate through guardian enclave addresses and make sure that the signers match
+        for (uint256 i = 0; i < enclaveAddresses.length;) {
+            address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
+            if (currentSigner == address(0)) {
+                revert Unauthorized();
+            }
+            if (currentSigner == enclaveAddresses[i]) {
+                validSignatures++;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (validSignatures < guardians.getThreshold()) {
+            revert Unauthorized();
+        }
+    }
+
+    function getMessageToBeSigned(bytes memory pubKey, bytes calldata signature, bytes32 depositDataRoot)
+        public
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(pubKey, pufferServiceManager.getWithdrawalPool(), signature, depositDataRoot))
+            .toEthSignedMessageHash();
     }
 
     /**
@@ -84,9 +128,9 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
             revert InvalidECDSAPubKey();
         }
 
-        IEnclaveVerifier enclaveVerifier = pool.getEnclaveVerifier();
+        IEnclaveVerifier enclaveVerifier = pufferServiceManager.getEnclaveVerifier();
 
-        (bytes32 mrenclave, bytes32 mrsigner) = pool.getGuardianEnclaveMeasurements();
+        (bytes32 mrenclave, bytes32 mrsigner) = pufferServiceManager.getGuardianEnclaveMeasurements();
 
         bool isValid = enclaveVerifier.verifyEvidence({
             blockNumber: blockNumber,
@@ -145,7 +189,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         return address(uint160(uint256(data)));
     }
 
-    function getGuardiansEnclaveAddresses(Safe guardianAccount) external view returns (address[] memory) {
+    function getGuardiansEnclaveAddresses(Safe guardianAccount) public view returns (address[] memory) {
         address[] memory guardians = guardianAccount.getOwners();
         address[] memory enclaveAddresses = new address[](guardians.length);
 

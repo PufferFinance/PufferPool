@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 
 /**
  * @title ConsensusVault
@@ -11,5 +11,5 @@ import { AbstractVault } from "puffer/AbstractVault.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract ConsensusVault is AbstractVault {
-    constructor(PufferPool pool) payable AbstractVault(pool) { }
+    constructor(PufferServiceManager serviceManager) payable AbstractVault(serviceManager) { }
 }

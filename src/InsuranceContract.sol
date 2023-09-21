@@ -4,7 +4,7 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 contract InsuranceContract {
     IERC20 pufi;
-    
+
     struct PufiDeposit {
         uint256 amount;
         uint256 unlockDate;
@@ -28,9 +28,7 @@ contract InsuranceContract {
     }
 
     // TODO: Implement pulling rewards from EL rewards contract
-    function pullRewards() public {
-
-    }
+    function pullRewards() public { }
 
     // TODO: Implement withdrawing pufi from this contract
     function withdraw() public {

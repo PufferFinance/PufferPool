@@ -30,6 +30,7 @@ bracket_spacing = true
 [rpc_endpoints]
 # mainnet="https://eth-mainnet-public.unifra.io"
 mainnet="https://eth.llamarpc.com"
+goerli="https://ethereum-goerli-archive.allthatnode.com"
 
 [invariant]
 # fail_on_revert=true

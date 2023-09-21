@@ -5,18 +5,20 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
 import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
+import { BaseScript } from "scripts/BaseScript.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
+import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
+import { console } from "forge-std/console.sol";
 
-contract GuardianHelper is Test {
+contract TestHelper is Test, BaseScript {
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -40,10 +42,12 @@ contract GuardianHelper is Test {
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
     PufferPool pool;
+    PufferServiceManager serviceManager;
     WithdrawalPool withdrawalPool;
-    SafeProxyFactory proxyFactory;
-    Safe safeImplementation;
     UpgradeableBeacon beacon;
+
+    Safe guardiansSafe;
+    GuardianModule module;
 
     function setUp() public virtual {
         // Create Guardian wallets
@@ -62,12 +66,15 @@ contract GuardianHelper is Test {
         guardians[1] = guardian2;
         guardians[2] = guardian3;
 
-        // Deploy guardians safe
-        new DeployGuardians().run(guardians, 1);
+        // 1. Deploy guardians safe
+        (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
 
-        (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool, withdrawalPool) = new DeployPufferPool().run();
+        (serviceManager, pool) = new DeployPuffer().run();
+
+        withdrawalPool = WithdrawalPool(serviceManager.getWithdrawalPool());
+
         vm.label(address(pool), "PufferPool");
+        vm.label(address(serviceManager), "PufferServiceManager");
     }
 
     // Internal function to create guardian account and register enclave addresses
