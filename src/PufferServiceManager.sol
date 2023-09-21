@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferPool } from "puffer/PufferPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { ValidatorRaveData } from "puffer/struct/ValidatorRaveData.sol";
+import { ValidatorEnclaveKeyData } from "puffer/struct/ValidatorEnclaveKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
@@ -155,6 +156,9 @@ contract PufferServiceManager is
 
         emit ValidatorKeyRegistered(data.blsPubKey);
     }
+
+    // Cheyenne TODO: Implement
+    function registerEnclaveValidatorKey(ValidatorEnclaveKeyData calldata data) external { }
 
     /**
      * @dev We need to have this wrapper in order to modify the state of the contract if the provisionNodeETH reverts
