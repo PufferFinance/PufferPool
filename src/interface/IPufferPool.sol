@@ -231,6 +231,11 @@ interface IPufferPool is IERC20Upgradeable {
     function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
+     * @notice Returns the Guardians multisig
+     */
+    function GUARDIANS() external view returns (Safe);
+
+    /**
      * @notice Returns the Enclave verifier
      */
     function getEnclaveVerifier() external view returns (IEnclaveVerifier);

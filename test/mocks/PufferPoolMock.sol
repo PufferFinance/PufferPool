@@ -72,6 +72,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function STRATEGY_MANAGER() external view returns (IStrategyManager) { }
 
+    function GUARDIANS() external view returns (Safe) { }
+
     function getProtocolFeeRate() external view returns (uint256) { }
 
     function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
