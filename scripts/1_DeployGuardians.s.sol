@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "scripts/BaseScript.s.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
+import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
@@ -23,8 +23,10 @@ contract DeployGuardians is BaseScript {
         // console.log(safeProxy, "<-- Safe proxy factory");
         // console.log(safeImplementation, "<-- Safe implementation");
 
+        EnclaveVerifier verifier = new EnclaveVerifier(100);
+
         // Deploy module
-        GuardianModule module = new GuardianModule();
+        GuardianModule module = new GuardianModule(verifier);
 
         // calldata to enable guardian module
         bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
@@ -38,6 +40,7 @@ contract DeployGuardians is BaseScript {
         vm.serializeAddress(obj, "guardianModule", address(module));
         vm.serializeAddress(obj, "safeProxyFactory", address(safeProxy));
         vm.serializeAddress(obj, "safeImplementation", address(safeImplementation));
+        vm.serializeAddress(obj, "enclaveVerifier", address(verifier));
 
         string memory finalJson = vm.serializeString(obj, "", "");
 

@@ -37,11 +37,6 @@ interface IEnclaveVerifier {
     event RemovedPubKey(bytes32 pubKeyHash);
 
     /**
-     * @notice Returns the PufferPool's address
-     */
-    function POOL() external view returns (address);
-
-    /**
      * @notice Getter for intelRootCAPubKey
      */
     function getIntelRootCAPubKey() external pure returns (RSAPubKey memory);

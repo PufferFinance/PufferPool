@@ -5,13 +5,14 @@ import { RAVE } from "rave/RAVE.sol";
 import { X509Verifier } from "rave/X509Verifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { Ownable } from "openzeppelin/access/Ownable.sol";
 
 /**
  * @title EnclaveVerifier
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract EnclaveVerifier is IEnclaveVerifier, RAVE {
+contract EnclaveVerifier is IEnclaveVerifier, Ownable, RAVE {
     /**
      * @dev RSA Public key for Intel: https://api.portal.trustedservices.intel.com/documentation
      */
@@ -25,26 +26,13 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
     uint256 public immutable FRESHNESS_BLOCKS;
 
     /**
-     * @notice PufferPool
-     */
-    address public immutable POOL;
-
-    /**
      * @dev Mapping from keccak'd leaf x509 to RSA pub key components
      * leafHash -> pubKey
      */
     mapping(bytes32 => RSAPubKey) internal _validLeafX509s;
 
-    modifier onlyPool() {
-        if (msg.sender != POOL) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    constructor(uint256 freshnessBlocks, address pufferPool) {
+    constructor(uint256 freshnessBlocks) {
         FRESHNESS_BLOCKS = freshnessBlocks;
-        POOL = pufferPool;
     }
 
     /**
@@ -71,7 +59,7 @@ contract EnclaveVerifier is IEnclaveVerifier, RAVE {
     /**
      * @notice Removes a whitelisted leaf x509 RSA public key
      */
-    function removeLeafX509(bytes32 hashedCert) external onlyPool {
+    function removeLeafX509(bytes32 hashedCert) external onlyOwner {
         delete _validLeafX509s[hashedCert].modulus;
         delete _validLeafX509s[hashedCert].exponent;
 

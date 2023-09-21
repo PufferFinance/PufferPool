@@ -1,7 +1,8 @@
 {
   "": "",
-  "guardianModule": "0xd60DeE1b240f14A4bd22aeA4363D08FA6dA40F25",
-  "guardians": "0xD869BAec73Aa9C11C357B20c3050C89d8e6ab349",
+  "enclaveVerifier": "0xd60DeE1b240f14A4bd22aeA4363D08FA6dA40F25",
+  "guardianModule": "0xf55C5aa17a2a985316639882F3735Ee103737da5",
+  "guardians": "0x76d1b66f91044A909C7A3BB834bd302840cd3E4a",
   "safeImplementation": "0xc54e6F16A1940d000C6ADEE341D11570490a86F6",
   "safeProxyFactory": "0xE25E53220Df33D41b0422FeDBD2D23A94045cFf3"
 }

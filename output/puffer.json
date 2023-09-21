@@ -1,0 +1,13 @@
+{
+  "": "",
+  "consensusVault": "0xA050383C1b02D5D31C47FFA6496458502B82a9A9",
+  "enclaveVerifier": "0xBdEb03B426f8d0BA39A37eA98A6C51706D0D6bDA",
+  "executionRewardsVault": "0x1bEda62FAADA89ef21e047011bcBa47C3684aFDE",
+  "guardianModule": "0x7B973E7C9734bA21e776dE8F8bb9B53CDEf2Ffa3",
+  "guardians": "0x01c2A98a2ef35CBf4af9d3b407d178627291f813",
+  "pufferPool": "0x181Da01Bbfb444a3c2D9eD66cC8C4B05ccE86430",
+  "pufferServiceManagerImplementation": "0x028ea09BDDc13E3E4788093f3C9E5F2113D7f5Be",
+  "safeImplementation": "0x17ff65CFC23Ff5fa35718fd3378Ec468B0313496",
+  "safeProxyFactory": "0x51f658C3c6B1a177fe5D7E2654A49f4342A78Cf0",
+  "withdrawalPool": "0xA55d1077254fE04aFB1Eb5df5Bed5648731C4331"
+}

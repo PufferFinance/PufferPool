@@ -4,6 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
+import { PufferPool } from "puffer/PufferPool.sol";
+import { Safe } from "safe-contracts/Safe.sol";
 
 /**
  * @title PufferServiceManagerStorage
@@ -16,64 +18,68 @@ abstract contract PufferServiceManagerStorage {
      */
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
-    /**
-     * @dev Consensus rewards and withdrawals pool address
-     */
-    address internal _withdrawalPool;
+    bytes32 private constant PUFFER_SERVICE_MANAGER_STORAGE =
+        0x8a621627e30e4413ec3f43697d54d247cd8f0b626fb01f95c529b13b5b511300;
 
     /**
-     * @dev Execution rewards vault's address
+     * @custom:storage-location erc7201:PufferServiceManagerStorage.storage
      */
-    address internal _executionRewardsVault;
+    struct ServiceManagerStorage {
+        /**
+         * @notice Puffer Pool
+         */
+        PufferPool pool;
+        /**
+         * @dev Guardians multisig wallet
+         */
+        Safe guardians;
+        /**
+         * @dev Consensus rewards and withdrawals pool address
+         */
+        address withdrawalPool;
+        /**
+         * @dev Execution rewards vault's address
+         */
+        address executionRewardsVault;
+        /**
+         * @dev Vault for handling consensus rewards and withdrawals
+         */
+        address consensusVault;
+        /**
+         * @dev Contract responsible for RAVE attestation
+         */
+        IEnclaveVerifier enclaveVerifier;
+        /**
+         * @dev Consensus rewards commission, can be updated by governance (1e20 = 100%, 1e18 = 1%)
+         */
+        uint256 consensusCommission;
+        /**
+         * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
+         */
+        uint256 executionCommission;
+        GuardianModule guardianModule;
+        /**
+         * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
+         */
+        uint256 protocolFeeRate;
+        bytes32 mrenclave;
+        bytes32 mrsigner;
+        bytes32 guardianMrenclave;
+        bytes32 guardianMrsigner;
+        /**
+         * @dev Next validator index for provisioning queue
+         */
+        uint256 pendingValidatorIndex;
+        /**
+         * @dev Index of the validator that will be provisioned next
+         */
+        uint256 validatorIndexToBeProvisionedNext;
+        mapping(uint256 => Validator) validators;
+    }
 
-    /**
-     * @dev Vault for handling consensus rewards and withdrawals
-     */
-    address internal _consensusVault;
-
-    /**
-     * @dev Contract responsible for RAVE attestation
-     */
-    IEnclaveVerifier internal _enclaveVerifier;
-
-    /**
-     * @dev Consensus rewards commission, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     */
-    uint256 internal _consensusCommission;
-
-    /**
-     * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     */
-    uint256 internal _executionCommission;
-
-    GuardianModule internal _guardianModule;
-
-    /**
-     * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     */
-    uint256 internal _protocolFeeRate;
-
-    bytes32 internal _mrenclave;
-    bytes32 internal _mrsigner;
-    bytes32 internal _guardianMrenclave;
-    bytes32 internal _guardianMrsigner;
-
-    /**
-     * @dev Next validator index for provisioning queue
-     */
-    uint256 pendingValidatorIndex;
-
-    /**
-     * @dev Index of the validator that will be provisioned next
-     */
-    uint256 validatorIndexToBeProvisionedNext;
-
-    mapping(uint256 => Validator) internal _validators;
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
+    function _getPufferServiceManagerStorage() internal pure returns (ServiceManagerStorage storage $) {
+        assembly {
+            $.slot := PUFFER_SERVICE_MANAGER_STORAGE
+        }
+    }
 }
