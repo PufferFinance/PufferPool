@@ -1,34 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AVSParams } from "puffer/struct/AVSParams.sol";
-
 /**
  * @title IPufferOwner
  * @author Puffer Finance
  * @notice Interface for the contract owner
  */
 interface IPufferOwner {
-    /**
-     * @notice Sets the execution rewards split to `newValue`
-     */
-    // function setExecutionCommission(uint256 newValue) external;
-
-    /**
-     * @notice Sets the consensus rewards split to `newValue`
-     */
-    // function setConsensusCommission(uint256 newValue) external;
-
-    /**
-     * @notice Sets the POD AVS commission to `newValue`
-     */
-    // function setAvsCommission(uint256 newValue) external;
-
-    // /**
-    //  * TODO:
-    //  */
-    // function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external;
-
     /**
      * TODO:
      */
@@ -43,11 +21,6 @@ interface IPufferOwner {
      * @notice Unpauses the smart contract
      */
     function resume() external;
-
-    /**
-     * @notice Changes the `avs` configuration to `configuration`
-     */
-    function changeAVSConfiguration(address avs, AVSParams memory configuration) external;
 
     /**
      * @notice Changes the protocol fee rate to `protocolFeeRate`

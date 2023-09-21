@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
 
@@ -16,7 +16,7 @@ contract ExecutionRewardsVault is AbstractVault {
 
     event ExecutionRewardReceived(uint256 amount);
 
-    constructor(PufferPool pufferPool) payable AbstractVault(pufferPool) { }
+    constructor(PufferServiceManager serviceManager) payable AbstractVault(serviceManager) { }
 
     receive() external payable {
         emit ExecutionRewardReceived(msg.value);

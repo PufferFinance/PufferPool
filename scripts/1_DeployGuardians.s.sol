@@ -16,7 +16,7 @@ contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold) broadcast public {
+    function run(address[] calldata guardians, uint256 threshold) broadcast public returns(Safe, GuardianModule) {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
@@ -42,6 +42,8 @@ contract DeployGuardians is BaseScript {
         string memory finalJson = vm.serializeString(obj, "", "");
 
         vm.writeJson(finalJson, string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+
+        return (guardiansSafe, module);
     }
 
     function deploySafe(
