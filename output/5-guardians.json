@@ -1,0 +1,8 @@
+{
+  "": "",
+  "enclaveVerifier": "0xBdEb03B426f8d0BA39A37eA98A6C51706D0D6bDA",
+  "guardianModule": "0x7B973E7C9734bA21e776dE8F8bb9B53CDEf2Ffa3",
+  "guardians": "0x01c2A98a2ef35CBf4af9d3b407d178627291f813",
+  "safeImplementation": "0x17ff65CFC23Ff5fa35718fd3378Ec468B0313496",
+  "safeProxyFactory": "0x51f658C3c6B1a177fe5D7E2654A49f4342A78Cf0"
+}

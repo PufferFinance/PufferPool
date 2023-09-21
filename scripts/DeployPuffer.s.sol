@@ -10,7 +10,6 @@ import { Script } from "forge-std/Script.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";
-import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { console } from "forge-std/console.sol";
@@ -58,8 +57,6 @@ contract DeployPuffer is BaseScript {
         // Deploy pool
         PufferPool pool = new PufferPool(serviceManager);
 
-        EnclaveVerifier verifier = new EnclaveVerifier(100, address(pool));
-
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
         ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(serviceManager);
@@ -70,14 +67,11 @@ contract DeployPuffer is BaseScript {
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
         // Initialize the Pool
-        serviceManager.initialize({pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule, enclaveVerifier: address(verifier)});
+        serviceManager.initialize({pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
         
-        GuardianModule(guardiansModule).setPufferServiceManager(serviceManager);
-
         string memory obj = "";
         vm.serializeAddress(obj, "pufferServiceManagerImplementation", address(serviceManagerImpl));
         vm.serializeAddress(obj, "pufferPool", address(pool));
-        vm.serializeAddress(obj, "enclaveVerifier", address(verifier));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "executionRewardsVault", address(executionRewardsVault));
         vm.serializeAddress(obj, "consensusVault", address(consensusVault));
@@ -88,7 +82,6 @@ contract DeployPuffer is BaseScript {
 
         // console.log(address(executionRewardsVault), "<-- ExecutionRewardsVault");
         // console.log(address(withdrawalPool), "<-- WithdrawalPool");
-        // console.log(address(verifier), "<-- EnclaveVerifier");
         // console.log(address(pool), "<-- Puffer pool");
         // console.log(address(proxy), "<-- PufferServiceManager (main contract)");
 

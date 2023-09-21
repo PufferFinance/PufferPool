@@ -4,12 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Safe } from "safe-contracts/Safe.sol";
 import { SafeStorage } from "safe-contracts/libraries/SafeStorage.sol";
 import { Enum } from "safe-contracts/common/Enum.sol";
-import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
+import { Ownable } from "openzeppelin/access/Ownable.sol";
 
 /**
  * @title Guardian module
@@ -17,7 +17,7 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
  * @dev This contract is both {Safe} module, and a logic contract to be called via `delegatecall` from {Safe} (GuardianAccount)
  * @custom:security-contact security@puffer.fi
  */
-contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
+contract GuardianModule is SafeStorage, Ownable, IGuardianModule {
     using ECDSA for bytes32;
 
     /**
@@ -27,7 +27,10 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
 
-    PufferServiceManager public pufferServiceManager;
+    IEnclaveVerifier public immutable enclaveVerifier;
+
+    bytes32 mrsigner;
+    bytes32 mrenclave;
 
     /**
      * @notice This seed is representing a mappin glike this: mapping(address guardian => address guardianEnclave);
@@ -37,16 +40,15 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     uint256 public constant GUARDIAN_KEYS_SEED =
         21179069603049101978888635358919905010850171584254878123552458168785430937385;
 
-    constructor() {
+    constructor(IEnclaveVerifier verifier) {
+        enclaveVerifier = verifier;
         myAddress = address(this);
     }
 
-    function setPufferServiceManager(PufferServiceManager serviceManager) external {
-        // TODO: onlyowner
-        if (address(pufferServiceManager) != address(0)) {
-            revert();
-        }
-        pufferServiceManager = serviceManager;
+    function setPufferServiceManager(bytes32 newMrsigner, bytes32 newMrenclave) public onlyOwner {
+        mrsigner = newMrsigner;
+        mrenclave = newMrenclave;
+        // @todo events
     }
 
     function validateGuardianSignatures(
@@ -55,9 +57,11 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
-        bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, depositDataRoot);
+        PufferServiceManager serviceManager = PufferServiceManager(msg.sender);
 
-        Safe guardians = pufferServiceManager.GUARDIANS();
+        bytes32 msgToBeSigned = getMessageToBeSigned(serviceManager, pubKey, signature, depositDataRoot);
+
+        Safe guardians = serviceManager.getGuardians();
 
         address[] memory enclaveAddresses = getGuardiansEnclaveAddresses(guardians);
         uint256 validSignatures = 0;
@@ -81,12 +85,13 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
         }
     }
 
-    function getMessageToBeSigned(bytes memory pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        public
-        view
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(pubKey, pufferServiceManager.getWithdrawalPool(), signature, depositDataRoot))
+    function getMessageToBeSigned(
+        PufferServiceManager serviceManager,
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) public view returns (bytes32) {
+        return keccak256(abi.encode(pubKey, serviceManager.getWithdrawalPool(), signature, depositDataRoot))
             .toEthSignedMessageHash();
     }
 
@@ -128,10 +133,7 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
             revert InvalidECDSAPubKey();
         }
 
-        IEnclaveVerifier enclaveVerifier = pufferServiceManager.getEnclaveVerifier();
-
-        (bytes32 mrenclave, bytes32 mrsigner) = pufferServiceManager.getGuardianEnclaveMeasurements();
-
+        // slither-disable-next-line uninitialized-state-variables
         bool isValid = enclaveVerifier.verifyEvidence({
             blockNumber: blockNumber,
             raveCommitment: keccak256(pubKey),

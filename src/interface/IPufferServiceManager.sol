@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 /**
@@ -93,12 +92,6 @@ interface IPufferServiceManager {
     event GuardiansChanged(address oldGuardians, address newGuardians);
 
     /**
-     * @param enclaveVerifier is the address of Enclave verifier contract
-     * @dev Signature "0x60e300c919f110ebd183109296d6cd03856a84f64cb7acb91abde69baefd0d7e"
-     */
-    event EnclaveVerifierChanged(address enclaveVerifier);
-
-    /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @dev Signature "0x4627afae6730ccc8148672cbdd43af9f21bc62e234cd6267fd80a0d7395e53b0"
@@ -156,11 +149,6 @@ interface IPufferServiceManager {
      * @notice Returns the `mrenclave` and `mrsigner` values
      */
     function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
-
-    /**
-     * @notice Returns the Enclave verifier
-     */
-    function getEnclaveVerifier() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Returns the Strategy Manager
