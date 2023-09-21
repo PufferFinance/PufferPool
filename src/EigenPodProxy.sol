@@ -74,7 +74,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      * @dev Mapping representing the full withdrawals
      * index -> validatorBond
      */
-    mapping(uint256 => uint256) internal _fullWithdrawals;
+    // TODO:
+    // mapping(uint256 => uint256) internal _fullWithdrawals;
 
     // Keeps track of addresses which AVS payments can be expected to come from
     mapping(address => bool) public AVSPaymentAddresses;
@@ -135,10 +136,11 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
 
         // Full withdrawals means that the validator decided to stop operating
         // bond is the pufETH amount
-        uint256 bond = _fullWithdrawals[withdrawalIndex];
-        if (bond != 0) {
-            return _handleFullWithdrawal(bond);
-        }
+        // TODO:
+        // uint256 bond = _fullWithdrawals[withdrawalIndex];
+        // if (bond != 0) {
+        //     return _handleFullWithdrawal(bond);
+        // }
 
         // If it is not a full withdrawal, its is a consensus rewards withdrawal
         // Consensus rewards
@@ -163,6 +165,7 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         if (_podProxyOwner != address(0)) {
             revert();
         }
+        // slither-disable-next-line events-access
         _podProxyOwner = podProxyowner;
         _setPodRewardsRecipient(podRewardsRecipient);
     }
@@ -196,6 +199,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
      * @inheritdoc IEigenPodProxy
      */
     function releaseBond(uint256 bondAmount) external onlyPodProxyManager {
+        // pufETH contract reverts, no need to check for return value
+        // slither-disable-next-line unchecked-transfer
         _pool.transfer(_podRewardsRecipient, bondAmount);
     }
 
@@ -306,8 +311,8 @@ contract EigenPodProxy is IEigenPodProxy, Initializable {
         emit PodRewardsRecipientChanged(oldRecipient, podRewardsRecipient);
     }
 
-    function _distributeRewards(uint256 amount, uint256 comission) internal {
-        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, comission, _ONE_HUNDRED_WAD);
+    function _distributeRewards(uint256 amount, uint256 commission) internal {
+        uint256 toPod = FixedPointMathLib.fullMulDiv(amount, commission, _ONE_HUNDRED_WAD);
         SafeTransferLib.safeTransferETH(getPodProxyManager(), amount - toPod);
         SafeTransferLib.safeTransferETH(_podRewardsRecipient, toPod);
     }

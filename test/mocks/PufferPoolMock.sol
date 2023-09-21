@@ -21,7 +21,7 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         // take the money
     }
 
-    function depositETH(address recipient) external payable { }
+    function depositETH(address recipient) external payable returns (uint256) { }
 
     function burn(uint256 pufETHAmount) external { }
 
@@ -43,7 +43,7 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function isAVSEnabled(address avs) external view returns (bool) { }
 
-    function getAVSComission(address avs) external view returns (uint256) { }
+    function getAVSCommission(address avs) external view returns (uint256) { }
 
     function getMinBondRequirement(address avs) external view returns (uint256) { }
 
@@ -67,7 +67,7 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getBeaconChainETHStrategy() external view returns (IStrategy) { }
 
-    function getStrategyManager() external view returns (IStrategyManager) { }
+    function STRATEGY_MANAGER() external view returns (IStrategyManager) { }
 
     function getProtocolFeeRate() external view returns (uint256) { }
 

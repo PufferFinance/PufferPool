@@ -47,6 +47,12 @@ interface IEnclaveVerifier {
     function getIntelRootCAPubKey() external pure returns (RSAPubKey memory);
 
     /**
+     * @notice Adds a valid certificate if it is signed correctly
+     * @param leafX509Cert certificate
+     */
+    function addLeafX509(bytes calldata leafX509Cert) external;
+
+    /**
      * @notice Verifies remote attestation evidence: the report contains the expected MRENCLAVE/MRSIGNER values, a valid TCB status, and was signed by an Intel-issued x509 certificate. The report will contain a 64B payload in the form (32B_Commitment || 32B_BlockHash), where 32B_Blockhash is a recent L1 blockhash and 32B_Commitment is a keccak256 hash that the enclave is committing to. The calling contract is expected to precompute raveCommitment from public inputs. The function returns true if the report is valid and the extracted payload matches the expected.
      * @param blockNumber is the block number to fetch 32B_Blockhash
      * @param raveCommitment is the keccak256 hash commitment 32B_Commitment

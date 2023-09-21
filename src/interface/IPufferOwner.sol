@@ -20,7 +20,7 @@ interface IPufferOwner {
     function setConsensusCommission(uint256 newValue) external;
 
     /**
-     * @notice Sets the POD AVS comission to `newValue`
+     * @notice Sets the POD AVS commission to `newValue`
      */
     function setAvsCommission(uint256 newValue) external;
 

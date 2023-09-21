@@ -35,6 +35,9 @@ contract WithdrawalPool {
 
     receive() external payable { }
 
+    // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
+    // @audit-issue it is important that signature is not stored anywhere
+    // @audit-issue frontend hack could cause harm here
     function withdrawETH(address recipient, Permit calldata permit) external {
         // If permit owner is address zero, skip the permit call
         // That means that the user is doing this in two transactions
@@ -54,7 +57,11 @@ contract WithdrawalPool {
         }
 
         // Transfer pufETH from the owner to this contract
+        // pufETH contract reverts, no need to check for return value
+        // slither-disable-start arbitrary-send-erc20-permit
+        // slither-disable-next-line unchecked-transfer
         pool.transferFrom(permit.owner, address(this), permit.amount);
+        // slither-disable-end arbitrary-send-erc20-permit
 
         // Calculate ETH amount
         uint256 ethAmount = pool.calculatePufETHtoETHAmount(permit.amount);
@@ -67,7 +74,7 @@ contract WithdrawalPool {
     }
 
     /**
-     * @dev Helper function for transfering ETH
+     * @dev Helper function for transferring ETH
      * https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol
      */
     function _safeTransferETH(address to, uint256 amount) internal {
