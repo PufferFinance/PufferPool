@@ -2,19 +2,26 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 /**
  * @title WithdrawalPool
+ * @notice Users can burn their pufETH and get ETH from this pool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
 contract WithdrawalPool {
-    error WithdrawalNotProcessed();
+    using SafeTransferLib for address;
 
-    PufferPool public immutable pool;
+    PufferPool public immutable POOL;
 
-    constructor(PufferPool pufferPool) {
-        pool = pufferPool;
+    uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+
+    uint256 internal _withdrawalFee = 5e16; // 0.05%
+
+    constructor(PufferPool pufferPool) payable {
+        POOL = pufferPool;
     }
 
     struct Withdrawal {
@@ -33,59 +40,57 @@ contract WithdrawalPool {
         bytes32 s;
     }
 
-    receive() external payable { }
+    /**
+     * @notice Burns `pufETHAmount` and sends the ETH to `to`
+     * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
+     */
+    function withdrawETH(address to, uint256 pufETHAmount) external {
+        _withdrawETH(msg.sender, to, pufETHAmount);
+    }
 
-    // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
-    // @audit-issue it is important that signature is not stored anywhere
-    // @audit-issue frontend hack could cause harm here
-    function withdrawETH(address recipient, Permit calldata permit) external {
-        // If permit owner is address zero, skip the permit call
-        // That means that the user is doing this in two transactions
-        // 1. pufETH.approve(address(this), amount)
-        // 2. withdrawalPool.withdrawETH(recipient, amount)
-        if (permit.r != bytes32("")) {
-            // Approve pufETH from owner to this contract
-            pool.permit({
-                owner: permit.owner,
-                spender: address(this),
-                value: permit.amount,
-                deadline: permit.deadline,
-                v: permit.v,
-                s: permit.s,
-                r: permit.r
-            });
-        }
+    /**
+     *
+     * @notice Burns pufETH and sends ETH to `to`
+     * Permit allows a gasless approval. Owner signs a message giving transfer approval to this contract.
+     * @param permit is the struct required by IERC20Permit-permit
+     */
+    function withdrawETH(address to, Permit calldata permit) external {
+        // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
+        // @audit-issue it is important that signature is not stored anywhere
+        // @audit-issue frontend hack could cause harm here
 
+        // Approve pufETH from owner to this contract
+        POOL.permit({
+            owner: permit.owner,
+            spender: address(this),
+            value: permit.amount,
+            deadline: permit.deadline,
+            v: permit.v,
+            s: permit.s,
+            r: permit.r
+        });
+
+        _withdrawETH(permit.owner, to, permit.amount);
+    }
+
+    function _withdrawETH(address from, address to, uint256 pufETHAmount) internal {
         // Transfer pufETH from the owner to this contract
         // pufETH contract reverts, no need to check for return value
         // slither-disable-start arbitrary-send-erc20-permit
         // slither-disable-next-line unchecked-transfer
-        pool.transferFrom(permit.owner, address(this), permit.amount);
+        POOL.transferFrom(from, address(this), pufETHAmount);
         // slither-disable-end arbitrary-send-erc20-permit
 
         // Calculate ETH amount
-        uint256 ethAmount = pool.calculatePufETHtoETHAmount(permit.amount);
+        uint256 ethAmount = POOL.calculatePufETHtoETHAmount(pufETHAmount);
+
+        // There is a withdrawal fee that is staying in the WithdrawalPool
+        // It is not going to treasury, it is distributed to all pufETH holders
+        uint256 fee = FixedPointMathLib.fullMulDiv(ethAmount, _withdrawalFee, _ONE_HUNDRED_WAD);
 
         // Burn PufETH
-        pool.burn(permit.amount);
+        POOL.burn(pufETHAmount);
 
-        // Send ETH to the recipient
-        _safeTransferETH(recipient, ethAmount);
-    }
-
-    /**
-     * @dev Helper function for transferring ETH
-     * https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol
-     */
-    function _safeTransferETH(address to, uint256 amount) internal {
-        bool success;
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        require(success);
+        to.safeTransferETH(ethAmount - fee);
     }
 }

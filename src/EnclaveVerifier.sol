@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { RAVE } from "rave/RAVE.sol";
 import { X509Verifier } from "rave/X509Verifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 
 /**
  * @title EnclaveVerifier

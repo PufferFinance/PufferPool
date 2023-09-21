@@ -8,7 +8,7 @@ import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 
 /**
  * @title Guardian module
@@ -21,9 +21,10 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
      * @dev Uncompressed ECDSA keys are 65 bytes long
      */
     uint256 internal constant _ECDSA_KEY_LENGTH = 65;
-    PufferPool public immutable pool;
     address public immutable myAddress;
     address internal constant SENTINEL_MODULES = address(0x1);
+
+    PufferPool public pool;
 
     /**
      * @notice This seed is representing a mappin glike this: mapping(address guardian => address guardianEnclave);
@@ -33,9 +34,16 @@ contract GuardianModule is SafeStorage, Initializable, IGuardianModule {
     uint256 public constant GUARDIAN_KEYS_SEED =
         21179069603049101978888635358919905010850171584254878123552458168785430937385;
 
-    constructor(PufferPool pufferPool) {
-        pool = pufferPool;
+    constructor() {
         myAddress = address(this);
+    }
+
+    function setPufferPool(PufferPool pufferPool) external {
+        // TODO: onlyowner
+        if (address(pool) != address(0)) {
+            revert();
+        }
+        pool = pufferPool;
     }
 
     /**

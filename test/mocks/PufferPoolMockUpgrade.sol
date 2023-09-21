@@ -2,13 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { Safe } from "safe-contracts/Safe.sol";
 
 contract PufferPoolMockUpgrade is PufferPool {
     function returnSomething() external pure returns (uint256) {
         return 1337;
     }
 
-    constructor(address beacon) PufferPool(beacon) { }
+    constructor(address beacon) PufferPool(payable(address(55)), Safe(payable(address(12345)))) { }
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new

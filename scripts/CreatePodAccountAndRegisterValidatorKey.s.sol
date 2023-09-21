@@ -5,12 +5,9 @@ import {Script} from "forge-std/Script.sol";
 import {BaseScript} from "scripts/BaseScript.s.sol";
 import {SafeProxyFactory} from "safe-contracts/proxies/SafeProxyFactory.sol";
 import {Safe} from "safe-contracts/Safe.sol";
-import {IEigenPodProxy} from "puffer/interface/IEigenPodProxy.sol";
 import {IPufferPool} from "puffer/interface/IPufferPool.sol";
 import {BeaconProxy} from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import {UpgradeableBeacon} from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import {DeployBeacon} from "scripts/DeployBeacon.s.sol";
-import {EigenPodProxy} from "puffer/EigenPodProxy.sol";
 import {PufferPool} from "puffer/PufferPool.sol";
 import {Test} from "forge-std/Test.sol";
 import {DeploySafe} from "scripts/DeploySafe.s.sol";
@@ -95,7 +92,6 @@ contract CreatePodAndRegisterKey is BaseScript {
         uint256 bondAmount = 16 ether;
 
         Safe podAccount;
-        IEigenPodProxy eigenPodProxy;
 
         console.log(address(pool));
         console.log(podRewardsRecipient);

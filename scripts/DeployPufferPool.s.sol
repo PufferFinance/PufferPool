@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import {Script} from "forge-std/Script.sol";
+import { Script } from "forge-std/Script.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { Safe } from "safe-contracts/Safe.sol";
+import { ExecutionRewardsVault } from "puffer/ExecutionRewardsVault.sol";
+import { ConsensusVault } from "puffer/ConsensusVault.sol";
 
 /**
  * @title DeployPufferPool script
@@ -14,11 +17,14 @@ import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
  * @notice Deploys UUPS upgradeable `PufferPool`.
  */
 contract DeployPufferPool is Script {
-    function run(address beacon, address safeProxyFactory, address safeImplementation) external returns (PufferPool, WithdrawalPool) {
+    function run() external returns (PufferPool, WithdrawalPool) {
         vm.startBroadcast();
+        
+        address payable treasury = payable(makeAddr("treasury"));
+        address payable guardians = payable(makeAddr("guardians"));
 
         // Deploys Puffer Pool implementation
-        PufferPool poolImpl = new PufferPool(beacon);
+        PufferPool poolImpl = new PufferPool(treasury, Safe(guardians));
         // Deploys Proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(address(poolImpl), "");
         // Casts Proxy to PufferPool
@@ -29,11 +35,15 @@ contract DeployPufferPool is Script {
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
-        GuardianModule module = new GuardianModule(pool);
+        GuardianModule module = new GuardianModule();
 
         EnclaveVerifier verifier = new EnclaveVerifier(50, address(pool));
 
-        pool.initialize(safeProxyFactory, safeImplementation, treasuryOwners, address(withdrawalPool), address(module), address(verifier), "");
+        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(pool);
+
+        ConsensusVault consensusVault = new ConsensusVault(pool);
+
+        pool.initialize(address(withdrawalPool), address(executionRewardsVault), address(consensusVault), address(module), address(verifier), "");
 
         // For test environment transfer ownership to Test contract
         pool.transferOwnership(msg.sender);

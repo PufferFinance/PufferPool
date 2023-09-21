@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
-import { DeployBeacon } from "scripts/DeployBeacon.s.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 
 contract IntegrationTestHelper is Test {
@@ -19,9 +18,7 @@ contract IntegrationTestHelper is Test {
     function deployContracts() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 17784482);
 
-        (, beacon) = new DeployBeacon().run(false);
-
-        (pool,) = new DeployPufferPool().run(address(beacon), safeProxyFactory, safeImplementation);
+        (pool,) = new DeployPufferPool().run();
         vm.label(address(pool), "PufferPool");
     }
 }

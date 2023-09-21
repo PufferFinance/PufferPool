@@ -5,9 +5,9 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
-import { DeployBeacon } from "scripts/DeployBeacon.s.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { DeploySafe } from "scripts/DeploySafe.s.sol";
+import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -57,104 +57,110 @@ contract GuardianHelper is Test {
         (guardian3Enclave, guardian3SKEnclave) = makeAddrAndKey("guardian3enclave");
         guardiansEnclavePks.push(guardian3SKEnclave);
 
-        (, beacon) = new DeployBeacon().run(true);
+        address[] memory guardians = new address[](3);
+        guardians[0] = guardian1;
+        guardians[1] = guardian2;
+        guardians[2] = guardian3;
+
+        // Deploy guardians safe
+        new DeployGuardians().run(guardians, 1);
+
         (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool, withdrawalPool) =
-            new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        (pool, withdrawalPool) = new DeployPufferPool().run();
         vm.label(address(pool), "PufferPool");
     }
 
     // Internal function to create guardian account and register enclave addresses
-    function _createGuardians() internal returns (Safe, address[] memory) {
-        // Register 3 guardians
-        address[] memory owners = new address[](3);
-        owners[0] = guardian1;
-        owners[1] = guardian2;
-        owners[2] = guardian3;
+    // function _createGuardians() internal returns (Safe, address[] memory) {
+    //     // Register 3 guardians
+    //     address[] memory owners = new address[](3);
+    //     owners[0] = guardian1;
+    //     owners[1] = guardian2;
+    //     owners[2] = guardian3;
 
-        bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
+    //     bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
 
-        Safe guardianAccount =
-            pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
+    //     Safe guardianAccount =
+    //         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
 
-        // Assert 3 guardians
-        assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
-        assertTrue(guardianAccount.isOwner(owners[1]), "bad owner 2");
-        assertTrue(guardianAccount.isOwner(owners[2]), "bad owner 3");
-        assertEq(guardianAccount.getThreshold(), 3, "threshold");
+    //     // Assert 3 guardians
+    //     assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
+    //     assertTrue(guardianAccount.isOwner(owners[1]), "bad owner 2");
+    //     assertTrue(guardianAccount.isOwner(owners[2]), "bad owner 3");
+    //     assertEq(guardianAccount.getThreshold(), 3, "threshold");
 
-        GuardianModule module = pool.getGuardianModule();
-        assertEq(address(module.pool()), address(pool), "module pool address is wrong");
+    //     GuardianModule module = pool.getGuardianModule();
+    //     assertEq(address(module.pool()), address(pool), "module pool address is wrong");
 
-        vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
-        pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
+    //     vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
+    //     pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
 
-        Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
-        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
-        Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
+    //     Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
+    //     Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
+    //     Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
 
-        // mrenclave and mrsigner are the same for all evidences
-        pool.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+    //     // mrenclave and mrsigner are the same for all evidences
+    //     pool.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
 
-        // Add a valid certificate to verifier
-        IEnclaveVerifier verifier = pool.getEnclaveVerifier();
-        verifier.addLeafX509(guardian1Rave.signingCert());
+    //     // Add a valid certificate to verifier
+    //     IEnclaveVerifier verifier = pool.getEnclaveVerifier();
+    //     verifier.addLeafX509(guardian1Rave.signingCert());
 
-        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
+    //     require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
 
-        // Register enclave keys for guardians
-        vm.startPrank(owners[0]);
-        module.rotateGuardianKey(
-            address(guardianAccount),
-            0,
-            guardian1EnclavePubKey,
-            RaveEvidence({
-                report: guardian1Rave.report(),
-                signature: guardian1Rave.sig(),
-                leafX509CertDigest: keccak256(guardian1Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+    //     // Register enclave keys for guardians
+    //     vm.startPrank(owners[0]);
+    //     module.rotateGuardianKey(
+    //         address(guardianAccount),
+    //         0,
+    //         guardian1EnclavePubKey,
+    //         RaveEvidence({
+    //             report: guardian1Rave.report(),
+    //             signature: guardian1Rave.sig(),
+    //             leafX509CertDigest: keccak256(guardian1Rave.signingCert())
+    //         })
+    //     );
+    //     vm.stopPrank();
 
-        vm.startPrank(owners[1]);
-        module.rotateGuardianKey(
-            address(guardianAccount),
-            0,
-            guardian2EnclavePubKey,
-            RaveEvidence({
-                report: guardian2Rave.report(),
-                signature: guardian2Rave.sig(),
-                leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+    //     vm.startPrank(owners[1]);
+    //     module.rotateGuardianKey(
+    //         address(guardianAccount),
+    //         0,
+    //         guardian2EnclavePubKey,
+    //         RaveEvidence({
+    //             report: guardian2Rave.report(),
+    //             signature: guardian2Rave.sig(),
+    //             leafX509CertDigest: keccak256(guardian2Rave.signingCert())
+    //         })
+    //     );
+    //     vm.stopPrank();
 
-        vm.startPrank(owners[2]);
-        module.rotateGuardianKey(
-            address(guardianAccount),
-            0,
-            guardian3EnclavePubKey,
-            RaveEvidence({
-                report: guardian3Rave.report(),
-                signature: guardian3Rave.sig(),
-                leafX509CertDigest: keccak256(guardian3Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+    //     vm.startPrank(owners[2]);
+    //     module.rotateGuardianKey(
+    //         address(guardianAccount),
+    //         0,
+    //         guardian3EnclavePubKey,
+    //         RaveEvidence({
+    //             report: guardian3Rave.report(),
+    //             signature: guardian3Rave.sig(),
+    //             leafX509CertDigest: keccak256(guardian3Rave.signingCert())
+    //         })
+    //     );
+    //     vm.stopPrank();
 
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], guardian1Enclave),
-            "bad enclave address"
-        );
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[1], guardian2Enclave),
-            "bad enclave address"
-        );
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[2], guardian3Enclave),
-            "bad enclave address"
-        );
+    //     assertTrue(
+    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], guardian1Enclave),
+    //         "bad enclave address"
+    //     );
+    //     assertTrue(
+    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[1], guardian2Enclave),
+    //         "bad enclave address"
+    //     );
+    //     assertTrue(
+    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[2], guardian3Enclave),
+    //         "bad enclave address"
+    //     );
 
-        return (guardianAccount, owners);
-    }
+    //     return (guardianAccount, owners);
+    // }
 }

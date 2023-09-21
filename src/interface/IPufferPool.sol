@@ -2,12 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
-import { IEigenPodProxy } from "puffer/interface/IEigenPodProxy.sol";
 import { IERC20Upgradeable } from "openzeppelin-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
+import { AVSParams } from "puffer/struct/AVSParams.sol";
+import { Status } from "puffer/struct/Status.sol";
+import { Validator } from "puffer/struct/Validator.sol";
 
 /**
  * @title IPufferPool
@@ -15,71 +17,6 @@ import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
  * @notice IPufferPool TODO:
  */
 interface IPufferPool is IERC20Upgradeable {
-    /**
-     * TODO: figure out what we need here
-     */
-    struct EigenPodProxyInformation {
-        address creator;
-        bytes32 mrenclave;
-        mapping(bytes32 => ValidatorInfo) validatorInformation; // pubKeyHash -> info
-    }
-
-    enum Status {
-        PENDING,
-        BOND_WITHDRAWN,
-        VALIDATING
-    }
-
-    struct ValidatorInfo {
-        uint256 bond;
-        Status status;
-    }
-    // TODO: the rest
-
-    /**
-     * @dev Validator Key data struct
-     */
-    struct ValidatorKeyData {
-        bytes blsPubKey;
-        bytes signature;
-        bytes32 depositDataRoot;
-        bytes[] blsEncryptedPrivKeyShares;
-        bytes[] blsPubKeyShares;
-        uint256 blockNumber;
-        RaveEvidence evidence;
-    }
-
-    struct ValidatorRaveData {
-        bytes pubKey;
-        bytes signature;
-        bytes32 depositDataRoot;
-        bytes[] blsEncryptedPrivKeyShares;
-        bytes[] blsPubKeyShares;
-    }
-
-    /**
-     * @dev AVS Parameters
-     */
-    struct AVSParams {
-        uint256 podAVSCommission;
-        uint256 minReputationScore; // experimental... TODO: figure out
-        uint8 minBondRequirement;
-        bool enabled;
-    }
-
-    /**
-     * @notice Thrown then the user tries to register a bls public key that is
-     * already active
-     * @dev Signature "0x7d1a5966"
-     */
-    error PublicKeyIsAlreadyActive();
-
-    /**
-     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
-     * @dev Signature "0x14236792"
-     */
-    error CouldNotVerifyCustody();
-
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
      * @dev Signature "0x6a12f104"
@@ -93,54 +30,10 @@ interface IPufferPool is IERC20Upgradeable {
     error InvalidAmount();
 
     /**
-     * @notice Thrown when creation of Eigen Pod Proxy fails
-     * @dev Signature "0x04a5b3ee"
-     */
-    error Create2Failed();
-
-    /**
-     * @notice Thrown when validator is not in valid status for withdrawing bond
-     * @dev Signature "0xa36c527f"
-     */
-    error InvalidValidatorStatus();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
-
-    /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians number
-     * @dev Signature "0x9a5bbd69"
-     */
-    error InvalidBLSPublicKeyShares();
-
-    /**
      * @notice Thrown when the user is not authorized
      * @dev Signature "0x82b42900"
      */
     error Unauthorized();
-
-    /**
-     * @notice Thrown if the Guardians {Safe} wallet already exists
-     * @dev Signature "0xb8c56ff1"
-     */
-    error GuardiansAlreadyExist();
-
-    /**
-     * @notice Emitted when the Validator key is registered
-     * @param eigenPodProxy is the address of Eigen Pod Proxy
-     * @param pubKey is the validator public key
-     * @dev Signature "0x7f2d1d961b4cbafff19f21d113114b516b5f1e6c4737e4ecf361d8ab019574a6"
-     */
-    event ValidatorKeyRegistered(address eigenPodProxy, bytes pubKey);
 
     /**
      * @notice Emitted when the EigenLayer AVS status is changed
@@ -151,42 +44,19 @@ interface IPufferPool is IERC20Upgradeable {
     event AVSConfigurationChanged(address avs, AVSParams configuration);
 
     /**
-     * @param safeProxyFactory is the address of the new {Safe} proxy factory
-     * @dev Signature "0xc3e8c5c8f40ba3a4be3207f225f804c87a3d7e6316ee9b32dfa383f87f51c800"
-     */
-    event SafeProxyFactoryChanged(address safeProxyFactory);
-
-    /**
-     * @param safeImplementation is the address of the new {Safe} implementation contract
-     * @dev Signature "0x7deed74ce611e6c4a95846634fcd60af15a02e80c78e4692fb5455f094f60d43"
-     */
-    event SafeImplementationChanged(address safeImplementation);
-
-    /**
      * @param enclaveVerifier is the address of Enclave verifier contract
      * @dev Signature "0x60e300c919f110ebd183109296d6cd03856a84f64cb7acb91abde69baefd0d7e"
      */
     event EnclaveVerifierChanged(address enclaveVerifier);
 
     /**
-     * @notice Emitted when the remaining 30 ETH is provisioned to the Validator
-     * @param eigenPodProxy is the address of the EigenPod proxy contract
-     * @param blsPubKey is the public key of the Validator
-     * @param timestamp is the unix timestamp in seconds
-     * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
-     */
-    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
-
-    /**
      * @notice Emitted when ETH is deposited to PufferPool
-     * @param depositor is the depositor address
-     * @param pufETHRecipient is the recipient address
      * @param pufETHRecipient is the recipient address
      * @param ethAmountDeposited is the ETH amount deposited
      * @param pufETHAmount is the pufETH amount received in return
-     * @dev Signature "0xf5681f9d0db1b911ac18ee83d515a1cf1051853a9eae418316a2fdf7dea427c5"
+     * @dev Signature "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
      */
-    event Deposited(address depositor, address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
+    event Deposited(address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
     /**
      * @notice Emitted when pufETH is burned
@@ -197,22 +67,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev Signature "0x91fb9d98b786c57d74c099ccd2beca1739e9f6a81fb49001ca465c4b7591bbe2"
      */
     event Withdrawn(address withdrawer, address ETHRecipient, uint256 pufETHAmount, uint256 ETHAmount);
-
-    /**
-     * @notice Emitted when Guardians create an account
-     * @param account {Safe} account address
-     * @dev Signature "0xffe8d6a65a1c220ce5b076d70345efdb48fc5e84f233acf312d6587505946dec"
-     */
-    event GuardianAccountCreated(address account);
-
-    /**
-     * @notice Emitted when Pod owners create an account
-     * @param creator Creator address
-     * @param account {Safe} account address
-     * @param eigenPodProxy is the Eigen Pod Proxy address
-     * @dev Signature "0xa5eedecb358fe000da5d6bc51490f507146398db895d143ac20c6d91b261e116"
-     */
-    event PodAccountAndEigenPodProxyCreated(address creator, address account, address eigenPodProxy);
 
     /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
@@ -233,11 +87,6 @@ interface IPufferPool is IERC20Upgradeable {
     event AvsCommissionChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the Commission Denominator is changed from `oldValue` to `newValue`
-     */
-    event CommissionDenominatorChanged(uint256 oldValue, uint256 newValue);
-
-    /**
      * @notice Emitted when the non custodial bond requirement is changed from `oldValue` to `newValue`
      * @dev Signature "0x6f3499c1b9157d1e13e411188703fd40af51fe6d3c3b95f325af2db41ad452e8"
      */
@@ -248,14 +97,6 @@ interface IPufferPool is IERC20Upgradeable {
      * @dev signature "0x50e3aad3fe58c0addb7f600531ccc21d0790dd329e85d820dfe7a6dfc615f59d"
      */
     event NonEnclaveBondRequirementChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the enclave measurements are changed
-     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
-     */
-    event NodeEnclaveMeasurementsChanged(
-        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
-    );
 
     /**
      * @notice Emitted when the Guaridan enclave measurements are changed
@@ -278,23 +119,23 @@ interface IPufferPool is IERC20Upgradeable {
     event TreasuryChanged(address oldTreasury, address newTreasury);
 
     /**
+     * @notice Emitted when the guardians address changes from `oldGuardians` to `newGuardians`
+     * @dev Signature "0x6ec152e1a709322ea96ec4d6e8c6acc29aeba80455657f617b6ac837b100654a"
+     */
+    event GuardiansChanged(address oldGuardians, address newGuardians);
+
+    /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
      * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
      */
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the deposit rate changes from `oldValue` to `newValue`
-     * @dev Signature "0x7aaf6e876013942206286cfff5091af2fa84c63a6f07b849acdc1e7eb91780c0"
-     */
-    event DepositRateChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Deposits ETH and `recipient` receives pufETH in return
+     * @notice Deposits ETH and `msg.sender` receives pufETH in return
      * @return pufETH amount minted
-     * @dev Signature "0x2d2da806"
+     * @dev Signature "0xf6326fb3"
      */
-    function depositETH(address recipient) external payable returns (uint256);
+    function depositETH() external payable returns (uint256);
 
     /**
      *
@@ -322,7 +163,7 @@ interface IPufferPool is IERC20Upgradeable {
     /**
      * @notice Returns the treasury address
      */
-    function getTreasury() external view returns (address);
+    function TREASURY() external view returns (address payable);
 
     /**
      * @notice Returns the ETH rewards amount from the last update
@@ -330,14 +171,19 @@ interface IPufferPool is IERC20Upgradeable {
     function getNewRewardsETHAmount() external view returns (uint256);
 
     /**
-     * @notice Returns {Safe} implementation address
+     * @notice Returns the address of the Withdrawal pool
      */
-    function getSafeImplementation() external view returns (address);
+    function getWithdrawalPool() external view returns (address);
 
     /**
-     * @notice Returns {Safe} proxy factory address
+     * @notice Returns the address of the Consensus vault
      */
-    function getSafeProxyFactory() external view returns (address);
+    function getConsensusVault() external view returns (address);
+
+    /**
+     * @notice Returns the address of the Execution rewards vault
+     */
+    function getExecutionRewardsVault() external view returns (address);
 
     /**
      * @notice Returns the Puffer Avs address
@@ -365,11 +211,6 @@ interface IPufferPool is IERC20Upgradeable {
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
-     * @notice Distributes all ETH to the pool and PodProxyOwner upon protocol exit
-     */
-    function withdrawFromProtocol(uint256 pufETHAmount, address podRewardsRecipient) external payable;
-
-    /**
      * @notice Returns AVS Commission
      */
     function getAvsCommission() external view returns (uint256);
@@ -385,110 +226,14 @@ interface IPufferPool is IERC20Upgradeable {
     function getExecutionCommission() external view returns (uint256);
 
     /**
-     * @notice Returns the index of the Beacon Chain ETH Strategy
-     */
-    function getBeaconChainETHStrategyIndex() external view returns (uint256);
-
-    /**
-     * @notice Returns the Beacon ETH Strategy
-     */
-    function getBeaconChainETHStrategy() external view returns (IStrategy);
-
-    /**
      * @notice Returns the Strategy Manager
      */
     function STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
-     * @notice Returns the withdrawal credentials with "0x01" prefix in bytes32 format
-     *
-     */
-    function getValidatorWithdrawalCredentials(address eigenPodProxy) external view returns (bytes32);
-
-    /**
-     * @notice Creates a pod's {Safe} multisig wallet
-     * @param podAccountOwners is a Pod's wallet owner addresses
-     * @param threshold is a number of required confirmations for a {Safe} transaction
-     * @param podRewardsRecipient is the recipient of pod rewards
-     * @return EigenPod
-     * @return EigenPodProxy
-     */
-    function createPodAccount(
-        address[] calldata podAccountOwners,
-        uint256 threshold,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external returns (Safe, IEigenPodProxy);
-
-    /**
-     * @notice Creates a Pod and registers a validator key
-     * @param podAccountOwners Pod's wallet owner addresses
-     * @param podAccountThreshold Number of required confirmations for a {Safe} transaction
-     * @param data is a validator key data
-     * @param podRewardsRecipient is the address of the Rewards recipient
-     * @return Safe is a newly created {Safe} multisig instance
-     * @return IEigenPodProxy is an address of a newly created Eigen Pod Proxy
-     */
-    function createPodAccountAndRegisterValidatorKey(
-        address[] calldata podAccountOwners,
-        uint256 podAccountThreshold,
-        ValidatorKeyData calldata data,
-        address podRewardsRecipient,
-        bytes calldata emptyData
-    ) external payable returns (Safe, IEigenPodProxy);
-
-    /**
-     * @notice Registers a validator key for a `podAccount`
-     * @dev Sender is expected to send the correct ETH amount
-     * @param eigenPodProxy is the address of the Eigen Pod Proxy
-     * @param data is a validator key data
-     */
-    function registerValidatorKey(IEigenPodProxy eigenPodProxy, ValidatorKeyData calldata data) external payable;
-
-    /**
-     * @notice Stops the validator registration
-     * @dev Can only be called by EigenPodProxy, and Validator must be in `Pending` state
-     */
-    function stopRegistration(bytes32 publicKeyHash) external;
-
-    /**
-     * @notice Creates a guardian {Safe} multisig wallet
-     * @param guardiansWallets Guardian's wallet addresses
-     * @param threshold Number of required confirmations for a {Safe} transaction
-     */
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
-        external
-        returns (Safe account);
-
-    /**
-     * @notice Calculates and returns EigenPodProxy and EigenPod addresses based on `msg.sender`
-     * @dev Creation of EigenPodProxy and EigenPod is done via `create2` opcode.
-     *      For EigenPodProxy the salt is keccak256(msg.sender), and for EigenPod it is the `msg.sender`.
-     *      In our case that will be EigenPodProxy.
-     *      If we know address of the EigenPodProxy, we can calculate address of the EigenPod
-     * @return EigenPodProxy address (Puffer Finance)
-     * @return Eigen Pod Address (Eigen Layer)
-     */
-    function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
-        external
-        view
-        returns (address, address);
-
-    /**
      * @notice Returns the Enclave verifier
      */
     function getEnclaveVerifier() external view returns (IEnclaveVerifier);
-
-    /**
-     * @notice Returns validator information for `eigenPodProxy` and `pubKeyHash`
-     * @return Validator info struct
-     */
-    function getValidatorInfo(address eigenPodProxy, bytes32 pubKeyHash) external view returns (ValidatorInfo memory);
-
-    /**
-     * @notice Returns the `mrenclave` and `mrsigner` values
-     */
-    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 
     /**
      * @notice Returns the `mrenclave` and `mrsigner` values
@@ -501,17 +246,6 @@ interface IPufferPool is IERC20Upgradeable {
     function getProtocolFeeRate() external view returns (uint256);
 
     // ==== Only Guardians ====
-
-    /**
-     * @notice Verifies the deposit of the Validator, provides the remaining 30 ETH and starts the staking via EigenLayer
-     */
-    function provisionPodETH(
-        address eigenPodProxy,
-        bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
-    ) external;
 
     function updateETHBackingAmount(uint256 amount) external;
 
