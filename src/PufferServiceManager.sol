@@ -17,6 +17,8 @@ import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgrad
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { IServiceManager } from "eigenlayer/interfaces/IServiceManager.sol";
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 
 /**
  * @title PufferServiceManager
@@ -25,6 +27,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferServiceManager is
+    IServiceManager,
     IPufferServiceManager,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -52,6 +55,11 @@ contract PufferServiceManager is
     IStrategyManager public immutable EIGEN_STRATEGY_MANAGER;
 
     /**
+     * @dev EigenLayer's Slasher
+     */
+    ISlasher public immutable SLASHER;
+
+    /**
      * @dev Allow a call from guardians multisig
      */
     modifier onlyGuardians() {
@@ -59,10 +67,11 @@ contract PufferServiceManager is
         _;
     }
 
-    constructor(Safe guardians, address payable treasury, IStrategyManager eigenStrategyManager) {
+    constructor(Safe guardians, address payable treasury, IStrategyManager eigenStrategyManager, ISlasher slasher) {
         TREASURY = treasury;
         guardians = guardians;
         EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
+        SLASHER = slasher;
         _disableInitializers();
     }
 
@@ -83,6 +92,38 @@ contract PufferServiceManager is
         $.consensusVault = consensusVault;
         $.guardianModule = GuardianModule(guardianSafeModule);
     }
+
+    function owner() public view override(OwnableUpgradeable, IServiceManager) returns (address) {
+        return this.owner();
+    }
+
+    // Cheyenne TODO: Implement
+    function taskNumber() external view returns (uint32) { }
+
+    function freezeOperator(address operator) external onlyGuardians {
+        SLASHER.freezeOperator(operator);
+    }
+
+    function recordFirstStakeUpdate(address operator, uint32 serveUntilBlock) external onlyGuardians {
+        SLASHER.recordFirstStakeUpdate(operator, serveUntilBlock);
+    }
+
+    /**
+     * @dev Unused, but exposing for interface compatibility
+     */
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntilBlock, uint256 prevElement)
+        external
+    { }
+
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntilBlock)
+        external
+        onlyGuardians
+    {
+        SLASHER.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntilBlock);
+    }
+
+    // Cheyenne TODO: Implement
+    function latestServeUntilBlock() external view returns (uint32) { }
 
     function setProtocolFeeRate(uint256 protocolFeeRate) external onlyOwner {
         _setProtocolFeeRate(protocolFeeRate);

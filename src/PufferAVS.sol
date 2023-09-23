@@ -13,18 +13,9 @@ contract PufferAVS is IPufferAVS, PufferServiceManager {
     ISlasher internal _slasher;
 
     constructor(Safe guardians, address payable treasury, IStrategyManager eigenStrategyManager, ISlasher slasher)
-        PufferServiceManager(guardians, treasury, eigenStrategyManager)
+        PufferServiceManager(guardians, treasury, eigenStrategyManager, slasher)
     {
         _slasher = ISlasher(slasher);
-    }
-
-    function haltOperator(address operator) external onlyGuardians {
-        _slasher.freezeOperator(operator);
-    }
-
-    // TODO: This is called within either registerValidatorKey function. Consider just putting this in PufferServiceManager contract?
-    function recordInitialStakeUpdate(address operator, uint32 serveUntil) external onlyGuardians {
-        _slasher.recordFirstStakeUpdate(operator, serveUntil);
     }
 
     // TODO: Check that NoOp is actually currently registered
@@ -34,13 +25,4 @@ contract PufferAVS is IPufferAVS, PufferServiceManager {
     function cancelRegistration() external {
         _slasher.recordLastStakeUpdateAndRevokeSlashingAbility(msg.sender, uint32(block.number));
     }
-
-    function recordFinalStakeUpdateRevokeSlashing(address operator, uint32 serveUntil) external onlyGuardians() {
-        _slasher.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntil);
-    }
-
-    /**
-     * @dev Unused, but exposing for interface compatibility
-     */
-    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external { }
 }

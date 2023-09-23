@@ -15,6 +15,7 @@ import { GuardianModule } from "../src/GuardianModule.sol";
 import { console } from "forge-std/console.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 
 
 /**
@@ -47,7 +48,7 @@ contract DeployPuffer is BaseScript {
             address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
 
             // Puffer Service implementation
-            serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager));
+            serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager), ISlasher(eigenSlasher));
         }
         
         // UUPS proxy for PufferServiceManager

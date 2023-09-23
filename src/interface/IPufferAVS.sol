@@ -5,14 +5,5 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { ValidatorEnclaveKeyData } from "puffer/struct/ValidatorEnclaveKeyData.sol";
 
 interface IPufferAVS {
-    /// @notice Freezes operator,
-    function haltOperator(address operator) external;
-
-    function recordInitialStakeUpdate(address operator, uint32 serveUntil) external;
-
     function cancelRegistration() external;
-
-    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external;
-
-    function recordFinalStakeUpdateRevokeSlashing(address operator, uint32 serveUntil) external;
 }
