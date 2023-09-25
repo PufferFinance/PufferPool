@@ -6,7 +6,6 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
 import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { BeaconMock } from "../mocks/BeaconMock.sol";
@@ -22,6 +21,7 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
     event ValidatorDequeued(bytes pubKey, uint256 validatorIndex);
 
     bytes zeroPubKey = new bytes(48);
+    bytes32 zeroPubKeyPart;
 
     function setUp() public override {
         super.setUp();
@@ -38,12 +38,13 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         fuzzedAddressMapping[address(serviceManager)] = true;
     }
 
-    function testRegisterInvalidValidatorKeyShouldRevert(bytes memory pubKey) public {
-        vm.assume(pubKey.length != 48);
+    // Invalid BLS pub key length
+    function testRegisterInvalidValidatorKeyShouldRevert() public {
         vm.expectRevert(IPufferServiceManager.InvalidBLSPubKey.selector);
-        serviceManager.registerValidatorKey(_getMockValidatorKeyData(pubKey));
+        serviceManager.registerValidatorKey(_getMockValidatorKeyData(new bytes(33)));
     }
 
+    // Invalid pub key shares length
     function testRegisterInvalidPubKeyShares() public {
         ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48));
         data.blsPubKeyShares = new bytes[](2);
@@ -52,6 +53,7 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         serviceManager.registerValidatorKey(data);
     }
 
+    // Invalid private key shares length
     function testRegisterInvalidPrivKeyShares() public {
         ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48));
         data.blsEncryptedPrivKeyShares = new bytes[](2);
@@ -74,15 +76,14 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         assertEq(serviceManager.getProtocolFeeRate(), rate, "new rate");
     }
 
-    function testRegisterValidatorKey(bytes memory pubKey) public {
-        vm.assume(pubKey.length == 48);
+    function testRegisterValidatorKey(bytes32 pubKeyPart) public {
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, serviceManager.getPendingValidatorIndex());
-        serviceManager.registerValidatorKey(_getMockValidatorKeyData(pubKey));
+        emit ValidatorKeyRegistered(_getPubKey(pubKeyPart), serviceManager.getPendingValidatorIndex());
+        serviceManager.registerValidatorKey(_getMockValidatorKeyData(_getPubKey(pubKeyPart)));
     }
 
     function testStopRegistration() public {
-        testRegisterValidatorKey(zeroPubKey);
+        testRegisterValidatorKey(zeroPubKeyPart);
 
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(IPufferServiceManager.Unauthorized.selector);
@@ -106,33 +107,31 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         serviceManager.stopRegistration(0);
     }
 
-    function testRegisterMultipleValidatorKeysAndDequeue() public {
+    function testRegisterMultipleValidatorKeysAndDequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
         address bob = makeAddr("bob");
         address alice = makeAddr("alice");
 
-        bytes memory bobPubKey =
-            hex"99131eddc46538c04d75a3c9c8d52ea22d089c7f28b7d24b973eb40148eb07174dbcfecf2b4ebdee14044778300a1dba";
-        bytes memory alicePubKey =
-            hex"8ff11ee87341660e4915dd060564d43b68c1d27ea5c2dca423d246641f3eacd781a000470ba3d2ea333d82c4a8eb0cc2";
+        bytes memory bobPubKey = _getPubKey(bobPubKeyPart);
+        bytes memory alicePubKey = _getPubKey(alicePubKeyPart);
 
         // 1. validator
-        testRegisterValidatorKey(zeroPubKey);
+        testRegisterValidatorKey(zeroPubKeyPart);
 
         // 2. validator
         vm.startPrank(bob);
-        testRegisterValidatorKey(bobPubKey);
+        testRegisterValidatorKey(bobPubKeyPart);
         vm.stopPrank();
 
         // 3. validator
         vm.startPrank(alice);
-        testRegisterValidatorKey(alicePubKey);
+        testRegisterValidatorKey(alicePubKeyPart);
         vm.stopPrank();
 
         // 4. validator
-        testRegisterValidatorKey(zeroPubKey);
+        testRegisterValidatorKey(zeroPubKeyPart);
 
         // 5. Validator
-        testRegisterValidatorKey(zeroPubKey);
+        testRegisterValidatorKey(zeroPubKeyPart);
 
         assertEq(serviceManager.getPendingValidatorIndex(), 5, "next pending validator index");
 
@@ -262,5 +261,9 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         });
 
         return validatorData;
+    }
+
+    function _getPubKey(bytes32 pubKeypart) internal pure returns (bytes memory) {
+        return bytes.concat(abi.encodePacked(pubKeypart), bytes16(""));
     }
 }
