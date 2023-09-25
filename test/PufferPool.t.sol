@@ -5,18 +5,11 @@ import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "./helpers/TestHelper.sol";
-import { console } from "forge-std/console.sol";
 import { TestBase } from "./TestBase.t.sol";
-
-contract BeaconMock {
-    function deposit(bytes calldata, bytes calldata, bytes calldata, bytes32) public payable { }
-}
+import { BeaconMock } from "./mocks/BeaconMock.sol";
 
 contract PufferPoolTest is TestHelper, TestBase {
     using ECDSA for bytes32;

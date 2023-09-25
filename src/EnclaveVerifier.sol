@@ -12,6 +12,7 @@ import { Ownable } from "openzeppelin/access/Ownable.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
+
 contract EnclaveVerifier is IEnclaveVerifier, Ownable, RAVE {
     /**
      * @dev RSA Public key for Intel: https://api.portal.trustedservices.intel.com/documentation

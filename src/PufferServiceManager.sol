@@ -3,12 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { ValidatorRaveData } from "puffer/struct/ValidatorRaveData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
 import { PufferServiceManagerStorage } from "puffer/PufferServiceManagerStorage.sol";
 import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
@@ -46,6 +44,11 @@ contract PufferServiceManager is
     address payable public immutable TREASURY;
 
     /**
+     * @notice Guardians {Safe} multisig
+     */
+    Safe public immutable GUARDIANS;
+
+    /**
      * @dev EigenLayer's Strategy Manager
      */
     IStrategyManager public immutable EIGEN_STRATEGY_MANAGER;
@@ -60,7 +63,7 @@ contract PufferServiceManager is
 
     constructor(Safe guardians, address payable treasury, IStrategyManager eigenStrategyManager) {
         TREASURY = treasury;
-        guardians = guardians;
+        GUARDIANS = guardians;
         EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
         _disableInitializers();
     }
@@ -87,16 +90,6 @@ contract PufferServiceManager is
         _setProtocolFeeRate(protocolFeeRate);
     }
 
-    function setGuardianEnclaveMeasurements(bytes32 guardianMrenclave, bytes32 guardianMrsigner) external onlyOwner {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-
-        bytes32 oldMrenclave = $.guardianMrenclave;
-        bytes32 oldMrsigner = $.guardianMrsigner;
-        $.guardianMrenclave = guardianMrenclave;
-        $.guardianMrsigner = guardianMrsigner;
-        emit GuardianNodeEnclaveMeasurementsChanged(oldMrenclave, guardianMrenclave, oldMrsigner, guardianMrsigner);
-    }
-
     function _setProtocolFeeRate(uint256 protocolFee) internal {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
@@ -116,45 +109,42 @@ contract PufferServiceManager is
     function registerValidatorKey(ValidatorKeyData calldata data) external {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
-        // Sanity check on blsPubKey
         if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
             revert InvalidBLSPubKey();
         }
 
-        // Verify enclave remote attestation evidence
-        if (data.evidence.report.length > 0) {
-            // Validate enough keyshares supplied for all guardians
-            uint256 numGuardians = $.guardians.getOwners().length;
+        uint256 numGuardians = GUARDIANS.getOwners().length;
 
-            if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
-                revert InvalidBLSPrivateKeyShares();
-            }
-
-            if (data.blsPubKeyShares.length != numGuardians) {
-                revert InvalidBLSPublicKeyShares();
-            }
+        if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
+            revert InvalidBLSPrivateKeyShares();
         }
 
-        uint256 validatorBondRequirement = data.evidence.report.length > 0 ? _4_ETHER : _2_ETHER;
-        // TODO: check if the msg.sender has enough ETH as a bond
+        if (data.blsPubKeyShares.length != numGuardians) {
+            revert InvalidBLSPublicKeyShares();
+        }
 
-        // To prevent spamming the queue
-        // PufferAVS.isEligibleForRegisteringValidatorKey(msg.sender, data);
+        uint256 validatorBondRequirement = data.raveEvidence.length > 0 ? _4_ETHER : _2_ETHER;
 
-        // PufferAVS logic
-
+        //@todo AVS logic
         // 1. make sure that the node operator is opted to our AVS
         // 2. make sure that he has enough WETH delegated
 
         Validator memory validator;
         validator.pubKey = data.blsPubKey;
+        validator.status = Status.PENDING;
         validator.node = msg.sender;
 
-        $.validators[$.pendingValidatorIndex] = validator;
+        uint256 validatorIndex = $.pendingValidatorIndex;
+        $.validators[validatorIndex] = validator;
 
         ++$.pendingValidatorIndex;
 
-        emit ValidatorKeyRegistered(data.blsPubKey);
+        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex);
+    }
+
+    function getPendingValidatorIndex() external view returns (uint256) {
+        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
+        return $.pendingValidatorIndex;
     }
 
     /**
@@ -173,10 +163,16 @@ contract PufferServiceManager is
 
         Validator memory validator = $.validators[index];
 
-        try this.provisionNodeETH(index, validator, signature, depositDataRoot, guardianEnclaveSignatures) {
-            emit SuccesfullyProvisioned(validator.pubKey);
+        try this.provisionNodeETH({
+            index: index,
+            validator: validator,
+            signature: signature,
+            depositDataRoot: depositDataRoot,
+            guardianEnclaveSignatures: guardianEnclaveSignatures
+        }) {
+            emit SuccesfullyProvisioned(validator.pubKey, index);
         } catch {
-            emit FailedToProvision(validator.pubKey);
+            emit FailedToProvision(validator.pubKey, index);
         }
     }
 
@@ -212,7 +208,7 @@ contract PufferServiceManager is
 
         $.pool.createValidator({
             pubKey: validator.pubKey,
-            withdrawalCredentials: _getWithdrawalCredentials(),
+            withdrawalCredentials: getWithdrawalCredentials(),
             signature: signature,
             depositDataRoot: depositDataRoot
         });
@@ -221,11 +217,11 @@ contract PufferServiceManager is
     function getValidators() external view returns (bytes[] memory) {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
-        uint256 numOfValidators = $.validatorIndexToBeProvisionedNext + 1;
+        uint256 numOfValidators = $.validatorIndexToBeProvisionedNext;
 
         bytes[] memory validators = new bytes[](numOfValidators);
 
-        for (uint256 i = numOfValidators; i > 0; i--) {
+        for (uint256 i = 0; i < numOfValidators; i++) {
             validators[i] = bytes($.validators[i].pubKey);
         }
 
@@ -235,11 +231,11 @@ contract PufferServiceManager is
     function getValidatorsAddresses() external view returns (address[] memory) {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
-        uint256 numOfValidators = $.validatorIndexToBeProvisionedNext + 1;
+        uint256 numOfValidators = $.validatorIndexToBeProvisionedNext;
 
         address[] memory addresses = new address[](numOfValidators);
 
-        for (uint256 i = numOfValidators; i > 0; i--) {
+        for (uint256 i = 0; i < numOfValidators; i++) {
             addresses[i] = $.validators[i].node;
         }
 
@@ -260,36 +256,16 @@ contract PufferServiceManager is
             revert Unauthorized();
         }
 
-        emit ValidatorDequeued(validator.pubKey);
+        // Update the status to DEQUEUED
+        validator.status = Status.DEQUEUED;
 
-        delete validator.node;
-        delete validator.pubKey;
-    }
-
-    /**
-     * @inheritdoc IPufferServiceManager
-     */
-    function getNodeEnclaveMeasurements() public view returns (bytes32, bytes32) {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-
-        return ($.mrenclave, $.mrsigner);
+        emit ValidatorDequeued(validator.pubKey, validatorIndex);
     }
 
     function getValidatorInfo(uint256 validatorIndex) external view returns (Validator memory) {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
         return $.validators[validatorIndex];
-    }
-
-    function setNodeEnclaveMeasurements(bytes32 mrenclave, bytes32 mrsigner) external {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-
-        // TODO: onlyowner
-        bytes32 oldMrenclave = $.mrenclave;
-        bytes32 oldMrsigner = $.mrsigner;
-        $.mrenclave = mrenclave;
-        $.mrsigner = mrsigner;
-        emit NodeEnclaveMeasurementsChanged(oldMrenclave, mrenclave, oldMrsigner, mrsigner);
     }
 
     /**
@@ -322,15 +298,10 @@ contract PufferServiceManager is
         emit ConsensusCommissionChanged(oldValue, newValue);
     }
 
-    function _getWithdrawalCredentials() internal view returns (bytes memory) {
+    function getWithdrawalCredentials() public view returns (bytes memory) {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.withdrawalPool);
-    }
-
-    // checks that enough encrypted private keyshares + public keyshares were supplied for each guardian to receive one. Also verify that the raveEvidence is valid and contained the expected and fresh raveCommitment.
-    function _verifyKeyRequirements(ValidatorKeyData calldata data) internal view {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
     }
 
     /**
@@ -372,15 +343,6 @@ contract PufferServiceManager is
     /**
      * @inheritdoc IPufferServiceManager
      */
-    function getGuardianEnclaveMeasurements() external view returns (bytes32, bytes32) {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-
-        return ($.guardianMrenclave, $.guardianMrsigner);
-    }
-
-    /**
-     * @inheritdoc IPufferServiceManager
-     */
     function getGuardianModule() external view returns (GuardianModule) {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
@@ -397,8 +359,7 @@ contract PufferServiceManager is
     }
 
     function getGuardians() external view returns (Safe) {
-        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-        return $.guardians;
+        return GUARDIANS;
     }
 
     /**
