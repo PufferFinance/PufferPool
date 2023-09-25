@@ -7,7 +7,7 @@ import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { MockEvidence } from "rave-test/mocks/MockEvidence.sol";
 import {
     Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence
-} from "./helpers/GuardiansRaveEvidence.sol";
+} from "../helpers/GuardiansRaveEvidence.sol";
 
 contract EnclaveVerifierTest is Test {
     event AddedPubKey(bytes32 pubKeyHash);

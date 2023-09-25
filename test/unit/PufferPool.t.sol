@@ -7,9 +7,9 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestHelper } from "./helpers/TestHelper.sol";
-import { TestBase } from "./TestBase.t.sol";
-import { BeaconMock } from "./mocks/BeaconMock.sol";
+import { TestHelper } from "../helpers/TestHelper.sol";
+import { TestBase } from "../TestBase.t.sol";
+import { BeaconMock } from "../mocks/BeaconMock.sol";
 
 contract PufferPoolTest is TestHelper, TestBase {
     using ECDSA for bytes32;

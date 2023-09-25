@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferServiceManagerMockUpgrade } from "./mocks/PufferServiceManagerMockUpgrade.sol";
-import { TestHelper } from "./helpers/TestHelper.sol";
+import { PufferServiceManagerMockUpgrade } from "../mocks/PufferServiceManagerMockUpgrade.sol";
+import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestBase } from "./TestBase.t.sol";
+import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { BeaconMock } from "./mocks/BeaconMock.sol";
+import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 
@@ -61,11 +61,11 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
     }
 
     function testGetConsensusCommission() public {
-        uint256 comission = 10 * FixedPointMathLib.WAD;
+        uint256 commission = 10 * FixedPointMathLib.WAD;
 
-        assertEq(serviceManager.getConsensusCommission(), 0, "zero comission");
-        serviceManager.setConsensusCommission(comission);
-        assertEq(serviceManager.getConsensusCommission(), comission, "non zero comission");
+        assertEq(serviceManager.getConsensusCommission(), 0, "zero commission");
+        serviceManager.setConsensusCommission(commission);
+        assertEq(serviceManager.getConsensusCommission(), commission, "non zero commission");
     }
 
     function testSetProtocolFeeRate() public {
