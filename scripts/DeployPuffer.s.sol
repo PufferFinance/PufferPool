@@ -34,10 +34,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
 contract DeployPuffer is BaseScript {   
-    function run() broadcast public returns(PufferServiceManager, PufferPool) {
-        address eigenSlasher = vm.envOr("EIGEN_SLASHER", address(0));
-        address eigenStrategyManager = vm.envOr("EIGEN_STRATEGY_MANAGER", address(0));
-
+    function run() broadcast public returns(PufferServiceManager, PufferPool, AccessManager) {
         string memory guardiansDeployment = vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
         PufferServiceManager serviceManagerImpl;
@@ -48,6 +45,9 @@ contract DeployPuffer is BaseScript {
             // PufferTreasury
             address payable treasury = payable(vm.envOr("TREASURY", address(1337)));            
             address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
+
+            address eigenStrategyManager = vm.envOr("EIGEN_STRATEGY_MANAGER", address(0));
+            address eigenSlasher = vm.envOr("EIGEN_SLASHER", address(0));
 
             // Puffer Service implementation
             serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager));
@@ -70,7 +70,7 @@ contract DeployPuffer is BaseScript {
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
         // Initialize the Pool
-        serviceManager.initialize({pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
+        serviceManager.initialize({accessManager: address(accessManager), pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
         
         string memory obj = "";
         vm.serializeAddress(obj, "pufferServiceManagerImplementation", address(serviceManagerImpl));
@@ -88,6 +88,6 @@ contract DeployPuffer is BaseScript {
         // console.log(address(pool), "<-- Puffer pool");
         // console.log(address(proxy), "<-- PufferServiceManager (main contract)");
 
-        return (serviceManager, pool);
+        return (serviceManager, pool, accessManager);
     }
 }

@@ -41,8 +41,7 @@ contract GuardianModule is Ownable, IGuardianModule {
         GUARDIANS = guardians;
     }
 
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) public onlyOwner {
-        // GuardianStorage storage $ = _getGuardianStorage();
+    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) public { //@audit don't forget owner modifier
         bytes32 previousMrEnclave = mrenclave;
         bytes32 previousMrsigner = mrsigner;
         mrenclave = newMrenclave;

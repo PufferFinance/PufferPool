@@ -9,7 +9,7 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferServiceManager } from "puffer/interface/IPufferServiceManager.sol";
 import { PufferServiceManagerStorage } from "puffer/PufferServiceManagerStorage.sol";
-import { OwnableUpgradeable } from "openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
+import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
@@ -23,7 +23,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
  */
 contract PufferServiceManager is
     IPufferServiceManager,
-    OwnableUpgradeable,
+    AccessManagedUpgradeable,
     UUPSUpgradeable,
     PufferServiceManagerStorage
 {
@@ -69,6 +69,7 @@ contract PufferServiceManager is
     }
 
     function initialize(
+        address accessManager,
         PufferPool pool,
         address withdrawalPool,
         address executionRewardsVault,
@@ -76,7 +77,7 @@ contract PufferServiceManager is
         address guardianSafeModule
     ) external initializer {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-        __Ownable_init(msg.sender);
+        __AccessManaged_init(accessManager);
         _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
         $.pool = pool;
         $.withdrawalPool = withdrawalPool;
@@ -85,7 +86,14 @@ contract PufferServiceManager is
         $.guardianModule = GuardianModule(guardianSafeModule);
     }
 
-    function setProtocolFeeRate(uint256 protocolFeeRate) external onlyOwner {
+    function setExecutionRewardsCommitment(uint256 ethAmount) external {
+        ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
+        uint256 oldCommitment = $.executionRewardsCommitment;
+        $.executionRewardsCommitment = ethAmount;
+        emit ExecutionRewardsCommitmentChanged(oldCommitment, ethAmount);
+    }
+
+    function setProtocolFeeRate(uint256 protocolFeeRate) external restricted {
         _setProtocolFeeRate(protocolFeeRate);
     }
 
@@ -105,12 +113,15 @@ contract PufferServiceManager is
         }
     }
 
-    function registerValidatorKey(ValidatorKeyData calldata data) external {
+    function registerValidatorKey(ValidatorKeyData calldata data) external payable {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
         if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
             revert InvalidBLSPubKey();
         }
+
+        // Forward ETH to PufferPool
+        $.pool.depositETHWithoutMinting{value: msg.value}();
 
         uint256 numGuardians = GUARDIANS.getOwners().length;
 
@@ -123,6 +134,11 @@ contract PufferServiceManager is
         }
 
         uint256 validatorBondRequirement = data.raveEvidence.length > 0 ? _4_ETHER : _2_ETHER;
+
+        if (msg.value != $.executionRewardsCommitment) {
+            revert InvalidETHAmount();
+        }
+
 
         //@todo AVS logic
         // 1. make sure that the node operator is opted to our AVS
@@ -270,14 +286,14 @@ contract PufferServiceManager is
     /**
      * @inheritdoc IPufferServiceManager
      */
-    function setExecutionCommission(uint256 newValue) external onlyOwner {
+    function setExecutionCommission(uint256 newValue) external restricted {
         _setExecutionCommission(newValue);
     }
 
     /**
      * @inheritdoc IPufferServiceManager
      */
-    function setConsensusCommission(uint256 newValue) external onlyOwner {
+    function setConsensusCommission(uint256 newValue) external restricted {
         _setConsensusCommission(newValue);
     }
 
@@ -370,5 +386,5 @@ contract PufferServiceManager is
         return $.protocolFeeRate;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
+    function _authorizeUpgrade(address newImplementation) internal virtual override restricted {}
 }

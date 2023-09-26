@@ -83,6 +83,10 @@ contract PufferPool is IPufferPool, ERC20Permit {
         return pufETHAmount;
     }
 
+    function depositETHWithoutMinting() external payable {
+        emit ETHReceived(msg.value);
+    }
+
     /**
      * @inheritdoc IPufferPool
      */

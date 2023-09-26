@@ -18,6 +18,8 @@ abstract contract PufferServiceManagerStorage {
      */
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
+    uint256 public constant BURST_THRESHOLD = 20;
+
     bytes32 private constant PUFFER_SERVICE_MANAGER_STORAGE =
         0x8a621627e30e4413ec3f43697d54d247cd8f0b626fb01f95c529b13b5b511300;
 
@@ -57,11 +59,20 @@ abstract contract PufferServiceManagerStorage {
          * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
         uint256 executionCommission;
+
+        /**
+         * @dev Guardian module
+         */
         GuardianModule guardianModule;
         /**
          * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
         uint256 protocolFeeRate;
+        
+        /**
+         * @dev Execution rewards commitment amount (in wei)
+         */
+        uint256 executionRewardsCommitment;
         /**
          * @dev Next validator index for provisioning queue
          */
@@ -70,6 +81,7 @@ abstract contract PufferServiceManagerStorage {
          * @dev Index of the validator that will be provisioned next
          */
         uint256 validatorIndexToBeProvisionedNext;
+        
         mapping(uint256 => Validator) validators;
     }
 
