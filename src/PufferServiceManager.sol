@@ -76,8 +76,7 @@ contract PufferServiceManager is
         address guardianSafeModule
     ) external initializer {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
-
-        __Ownable_init();
+        __Ownable_init(msg.sender);
         _setProtocolFeeRate(5 * FixedPointMathLib.WAD); // 5%
         $.pool = pool;
         $.withdrawalPool = withdrawalPool;

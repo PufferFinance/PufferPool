@@ -218,7 +218,7 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         uint256 result = PufferServiceManagerMockUpgrade(payable(address(pool))).returnSomething();
 
         PufferServiceManagerMockUpgrade newImplementation = new PufferServiceManagerMockUpgrade(address(beacon));
-        serviceManager.upgradeTo(address(newImplementation));
+        serviceManager.upgradeToAndCall(address(newImplementation), "");
 
         result = PufferServiceManagerMockUpgrade(payable(address(serviceManager))).returnSomething();
 
