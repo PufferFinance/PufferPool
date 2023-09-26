@@ -5,7 +5,7 @@ import { PufferPool } from "puffer/PufferPool.sol";
 // import { PufferPoolHandler } from "./handlers/PufferPoolHandler.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { TestHelper } from "./helpers/TestHelper.sol";
+import { TestHelper } from "../helpers/TestHelper.sol";
 
 // contract PufferPoolInvariants is GuardianHelper {
 //     PufferPoolHandler handler;

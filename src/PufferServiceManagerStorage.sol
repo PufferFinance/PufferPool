@@ -62,10 +62,6 @@ abstract contract PufferServiceManagerStorage {
          * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
         uint256 protocolFeeRate;
-        bytes32 mrenclave;
-        bytes32 mrsigner;
-        bytes32 guardianMrenclave;
-        bytes32 guardianMrsigner;
         /**
          * @dev Next validator index for provisioning queue
          */

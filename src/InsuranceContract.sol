@@ -23,8 +23,8 @@ contract InsuranceContract {
         require(msg.sender == owner, "Only insurance owner allowed");
         pufi.transferFrom(msg.sender, address(this), _numPufi);
         lockedPufi += _numPufi;
-        PufiDeposit memory deposit = PufiDeposit(_numPufi, block.timestamp + _lockupDuration);
-        pufiDeposits.push(deposit);
+        PufiDeposit memory depositInfo = PufiDeposit(_numPufi, block.timestamp + _lockupDuration);
+        pufiDeposits.push(depositInfo);
     }
 
     // TODO: Implement pulling rewards from EL rewards contract

@@ -25,13 +25,9 @@ contract DeployGuardians is BaseScript {
 
         EnclaveVerifier verifier = new EnclaveVerifier(100);
 
-        // Deploy module
-        GuardianModule module = new GuardianModule(verifier);
+        Safe guardiansSafe = this.deploySafe(guardians, threshold, address(0), "");
 
-        // calldata to enable guardian module
-        bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
-
-        Safe guardiansSafe = this.deploySafe(guardians, threshold, address(module), data);
+        GuardianModule module = new GuardianModule(verifier, guardiansSafe);
 
         // console.log(address(guardiansSafe), "<-- Guardians multisig deployed");
 

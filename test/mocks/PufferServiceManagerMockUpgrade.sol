@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
-import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 
 contract PufferServiceManagerMockUpgrade is PufferServiceManager {
     function returnSomething() external pure returns (uint256) {
@@ -15,8 +14,7 @@ contract PufferServiceManagerMockUpgrade is PufferServiceManager {
         PufferServiceManager(
             Safe(payable(address(0))),
             payable(address(0)),
-            IStrategyManager(address(0)),
-            ISlasher(address(0))
+            IStrategyManager(address(0))
         )
     { }
 

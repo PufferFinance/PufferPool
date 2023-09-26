@@ -10,9 +10,9 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestHelper } from "./helpers/TestHelper.sol";
+import { TestHelper } from "../helpers/TestHelper.sol";
 import { console } from "forge-std/console.sol";
-import { TestBase } from "./TestBase.t.sol";
+import { TestBase } from "../TestBase.t.sol";
 
 contract WithdrawalPoolTest is TestHelper, TestBase {
     bytes32 private constant _PERMIT_TYPEHASH =

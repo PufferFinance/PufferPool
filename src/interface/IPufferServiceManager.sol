@@ -12,12 +12,6 @@ import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
  */
 interface IPufferServiceManager {
     /**
-     * @notice Thrown if the EnclaveVerifier could not verify Rave evidence of custody
-     * @dev Signature "0x14236792"
-     */
-    error CouldNotVerifyCustody();
-
-    /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
      */
@@ -48,12 +42,6 @@ interface IPufferServiceManager {
     error InvalidValidatorState();
 
     /**
-     * @notice Emitted when validator is not in valid status
-     * @dev Signature "0xd16d73a340074473a3bf3144bb6bd4304a0bd8691e555d51bf07356c2521c50d"
-     */
-    event InvalidValidatorStatus(bytes pubKey);
-
-    /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
      * @dev Signature "0x27449eb3aaae64a55d5d46a9adbcc8e1e38857748959a38693d78c36b74eacff"
      */
@@ -66,56 +54,42 @@ interface IPufferServiceManager {
     event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the treasury address changes from `oldTreasury` to `newTreasury`
-     * @dev Signature "0x8c3aa5f43a388513435861bf27dfad7829cd248696fed367c62d441f62954496"
-     */
-    event TreasuryChanged(address oldTreasury, address newTreasury);
-
-    /**
-     * @notice Emitted when the Guaridan enclave measurements are changed
-     * @dev signature "0x9a538ef1307d6ba0812109ae1345331f1a76ba6a7ed805a0b450c7d198c389ce"
-     */
-    event GuardianNodeEnclaveMeasurementsChanged(
-        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
-    );
-
-    /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
      * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
      */
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the guardians address changes from `oldGuardians` to `newGuardians`
-     * @dev Signature "0x6ec152e1a709322ea96ec4d6e8c6acc29aeba80455657f617b6ac837b100654a"
-     */
-    event GuardiansChanged(address oldGuardians, address newGuardians);
-
-    /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
-     * @dev Signature "0x4627afae6730ccc8148672cbdd43af9f21bc62e234cd6267fd80a0d7395e53b0"
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @dev Signature "0x164db4cd8a48da2fe13aa432976a2b2ec884239bb8e411b135d280eb0192a84d"
      */
-    event ValidatorKeyRegistered(bytes pubKey);
-
-    event SuccesfullyProvisioned(bytes pubKey);
-
-    event FailedToProvision(bytes pubKey);
+    event ValidatorKeyRegistered(bytes pubKey, uint256 validatorIndex);
 
     /**
-     * @notice Emitted when the enclave measurements are changed
-     * @dev signature "0xe7bb9721183c30b64a866f4684c4b1a3fed5728dc61aec1cfa5de2237e64f1db"
+     * @notice Emitted when the Validator is provisioned
+     * @param pubKey is the validator public key
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @dev Signature "0x316b88e106e79895c25a960158d125957aaf3ab3520d6151fbbec5108e19a435"
      */
-    event NodeEnclaveMeasurementsChanged(
-        bytes32 oldMrenclave, bytes32 mrenclave, bytes32 oldMrsigner, bytes32 mrsigner
-    );
+    event SuccesfullyProvisioned(bytes pubKey, uint256 validatorIndex);
+
+    /**
+     * @notice Emitted when the Validator key is failed to be provisioned
+     * @param pubKey is the validator public key
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @dev Signature "0x8570512b93af33936e8fa6bfcd755f2c72c42c90569dc288b2e38e839943f0cd"
+     */
+    event FailedToProvision(bytes pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the validator is dequeued by the Node operator
      * @param pubKey is the public key of the Validator
-     * @dev Signature "0xcb54ff5ec05355289c7faf3481c52a526f0e00e75484584dc9cbb72e5a7ed4cf"
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @dev Signature "0x3805d456ec5395c4fa60d9ef7579bee46dad389285d99cfaa00fab5e92e64009"
      */
-    event ValidatorDequeued(bytes pubKey);
+    event ValidatorDequeued(bytes pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the validator is provisioned
@@ -139,16 +113,6 @@ interface IPufferServiceManager {
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
     function stopRegistration(uint256 validatorIndex) external;
-
-    /**
-     * @notice Returns the `mrenclave` and `mrsigner` values
-     */
-    function getNodeEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
-
-    /**
-     * @notice Returns the `mrenclave` and `mrsigner` values
-     */
-    function getGuardianEnclaveMeasurements() external returns (bytes32 mrenclave, bytes32 mrsigner);
 
     /**
      * @notice Returns the Strategy Manager

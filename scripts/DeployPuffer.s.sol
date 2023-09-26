@@ -48,7 +48,7 @@ contract DeployPuffer is BaseScript {
             address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
 
             // Puffer Service implementation
-            serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager), ISlasher(eigenSlasher));
+            serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager));
         }
         
         // UUPS proxy for PufferServiceManager

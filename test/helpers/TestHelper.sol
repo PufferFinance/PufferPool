@@ -7,16 +7,13 @@ import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { DeploySafe } from "scripts/DeploySafe.s.sol";
-import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
-import { console } from "forge-std/console.sol";
 
 contract TestHelper is Test, BaseScript {
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
@@ -75,99 +72,61 @@ contract TestHelper is Test, BaseScript {
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(serviceManager), "PufferServiceManager");
+
+        Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
+        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
+        Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
+
+        // mrenclave and mrsigner are the same for all evidences
+        vm.startPrank(_broadcaster); // broadcaster is the owner od Guardian Module
+        module.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+        vm.stopPrank();
+
+        // Add a valid certificate to verifier
+        IEnclaveVerifier verifier = module.enclaveVerifier();
+        verifier.addLeafX509(guardian1Rave.signingCert());
+
+        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
+
+        // Register enclave keys for guardians
+        vm.startPrank(guardians[0]);
+        module.rotateGuardianKey(
+            0,
+            guardian1EnclavePubKey,
+            RaveEvidence({
+                report: guardian1Rave.report(),
+                signature: guardian1Rave.sig(),
+                leafX509CertDigest: keccak256(guardian1Rave.signingCert())
+            })
+        );
+        vm.stopPrank();
+
+        vm.startPrank(guardians[1]);
+        module.rotateGuardianKey(
+            0,
+            guardian2EnclavePubKey,
+            RaveEvidence({
+                report: guardian2Rave.report(),
+                signature: guardian2Rave.sig(),
+                leafX509CertDigest: keccak256(guardian2Rave.signingCert())
+            })
+        );
+        vm.stopPrank();
+
+        vm.startPrank(guardians[2]);
+        module.rotateGuardianKey(
+            0,
+            guardian3EnclavePubKey,
+            RaveEvidence({
+                report: guardian3Rave.report(),
+                signature: guardian3Rave.sig(),
+                leafX509CertDigest: keccak256(guardian3Rave.signingCert())
+            })
+        );
+        vm.stopPrank();
+
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
     }
-
-    // Internal function to create guardian account and register enclave addresses
-    // function _createGuardians() internal returns (Safe, address[] memory) {
-    //     // Register 3 guardians
-    //     address[] memory owners = new address[](3);
-    //     owners[0] = guardian1;
-    //     owners[1] = guardian2;
-    //     owners[2] = guardian3;
-
-    //     bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
-
-    //     Safe guardianAccount =
-    //         pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
-
-    //     // Assert 3 guardians
-    //     assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
-    //     assertTrue(guardianAccount.isOwner(owners[1]), "bad owner 2");
-    //     assertTrue(guardianAccount.isOwner(owners[2]), "bad owner 3");
-    //     assertEq(guardianAccount.getThreshold(), 3, "threshold");
-
-    //     GuardianModule module = pool.getGuardianModule();
-    //     assertEq(address(module.pool()), address(pool), "module pool address is wrong");
-
-    //     vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
-    //     pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
-
-    //     Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
-    //     Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
-    //     Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
-
-    //     // mrenclave and mrsigner are the same for all evidences
-    //     pool.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
-
-    //     // Add a valid certificate to verifier
-    //     IEnclaveVerifier verifier = pool.getEnclaveVerifier();
-    //     verifier.addLeafX509(guardian1Rave.signingCert());
-
-    //     require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
-
-    //     // Register enclave keys for guardians
-    //     vm.startPrank(owners[0]);
-    //     module.rotateGuardianKey(
-    //         address(guardianAccount),
-    //         0,
-    //         guardian1EnclavePubKey,
-    //         RaveEvidence({
-    //             report: guardian1Rave.report(),
-    //             signature: guardian1Rave.sig(),
-    //             leafX509CertDigest: keccak256(guardian1Rave.signingCert())
-    //         })
-    //     );
-    //     vm.stopPrank();
-
-    //     vm.startPrank(owners[1]);
-    //     module.rotateGuardianKey(
-    //         address(guardianAccount),
-    //         0,
-    //         guardian2EnclavePubKey,
-    //         RaveEvidence({
-    //             report: guardian2Rave.report(),
-    //             signature: guardian2Rave.sig(),
-    //             leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-    //         })
-    //     );
-    //     vm.stopPrank();
-
-    //     vm.startPrank(owners[2]);
-    //     module.rotateGuardianKey(
-    //         address(guardianAccount),
-    //         0,
-    //         guardian3EnclavePubKey,
-    //         RaveEvidence({
-    //             report: guardian3Rave.report(),
-    //             signature: guardian3Rave.sig(),
-    //             leafX509CertDigest: keccak256(guardian3Rave.signingCert())
-    //         })
-    //     );
-    //     vm.stopPrank();
-
-    //     assertTrue(
-    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], guardian1Enclave),
-    //         "bad enclave address"
-    //     );
-    //     assertTrue(
-    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[1], guardian2Enclave),
-    //         "bad enclave address"
-    //     );
-    //     assertTrue(
-    //         module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[2], guardian3Enclave),
-    //         "bad enclave address"
-    //     );
-
-    //     return (guardianAccount, owners);
-    // }
 }
