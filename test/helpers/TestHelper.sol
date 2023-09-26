@@ -5,18 +5,17 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
-import { DeployBeacon } from "scripts/DeployBeacon.s.sol";
-import { DeploySafe } from "scripts/DeploySafe.s.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { BaseScript } from "scripts/BaseScript.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { DeployPufferPool } from "scripts/DeployPufferPool.s.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
+import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 
-contract GuardianHelper is Test {
+contract TestHelper is Test, BaseScript {
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -40,10 +39,12 @@ contract GuardianHelper is Test {
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
     PufferPool pool;
+    PufferServiceManager serviceManager;
     WithdrawalPool withdrawalPool;
-    SafeProxyFactory proxyFactory;
-    Safe safeImplementation;
     UpgradeableBeacon beacon;
+
+    Safe guardiansSafe;
+    GuardianModule module;
 
     function setUp() public virtual {
         // Create Guardian wallets
@@ -57,55 +58,39 @@ contract GuardianHelper is Test {
         (guardian3Enclave, guardian3SKEnclave) = makeAddrAndKey("guardian3enclave");
         guardiansEnclavePks.push(guardian3SKEnclave);
 
-        (, beacon) = new DeployBeacon().run(true);
-        (proxyFactory, safeImplementation) = new DeploySafe().run();
-        (pool, withdrawalPool) =
-            new DeployPufferPool().run(address(beacon), address(proxyFactory), address(safeImplementation));
+        address[] memory guardians = new address[](3);
+        guardians[0] = guardian1;
+        guardians[1] = guardian2;
+        guardians[2] = guardian3;
+
+        // 1. Deploy guardians safe
+        (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
+
+        (serviceManager, pool) = new DeployPuffer().run();
+
+        withdrawalPool = WithdrawalPool(serviceManager.getWithdrawalPool());
+
         vm.label(address(pool), "PufferPool");
-    }
-
-    // Internal function to create guardian account and register enclave addresses
-    function _createGuardians() internal returns (Safe, address[] memory) {
-        // Register 3 guardians
-        address[] memory owners = new address[](3);
-        owners[0] = guardian1;
-        owners[1] = guardian2;
-        owners[2] = guardian3;
-
-        bytes memory data = abi.encodeCall(GuardianModule.enableMyself, ());
-
-        Safe guardianAccount =
-            pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
-
-        // Assert 3 guardians
-        assertTrue(guardianAccount.isOwner(owners[0]), "bad owner 1");
-        assertTrue(guardianAccount.isOwner(owners[1]), "bad owner 2");
-        assertTrue(guardianAccount.isOwner(owners[2]), "bad owner 3");
-        assertEq(guardianAccount.getThreshold(), 3, "threshold");
-
-        GuardianModule module = pool.getGuardianModule();
-        assertEq(address(module.pool()), address(pool), "module pool address is wrong");
-
-        vm.expectRevert(IPufferPool.GuardiansAlreadyExist.selector);
-        pool.createGuardianAccount({ guardiansWallets: owners, threshold: owners.length, data: data });
+        vm.label(address(serviceManager), "PufferServiceManager");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
         Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
 
         // mrenclave and mrsigner are the same for all evidences
-        pool.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+        vm.startPrank(_broadcaster); // broadcaster is the owner od Guardian Module
+        module.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+        vm.stopPrank();
 
         // Add a valid certificate to verifier
-        IEnclaveVerifier verifier = pool.getEnclaveVerifier();
+        IEnclaveVerifier verifier = module.enclaveVerifier();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
         require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
 
         // Register enclave keys for guardians
-        vm.startPrank(owners[0]);
+        vm.startPrank(guardians[0]);
         module.rotateGuardianKey(
-            address(guardianAccount),
             0,
             guardian1EnclavePubKey,
             RaveEvidence({
@@ -116,9 +101,8 @@ contract GuardianHelper is Test {
         );
         vm.stopPrank();
 
-        vm.startPrank(owners[1]);
+        vm.startPrank(guardians[1]);
         module.rotateGuardianKey(
-            address(guardianAccount),
             0,
             guardian2EnclavePubKey,
             RaveEvidence({
@@ -129,9 +113,8 @@ contract GuardianHelper is Test {
         );
         vm.stopPrank();
 
-        vm.startPrank(owners[2]);
+        vm.startPrank(guardians[2]);
         module.rotateGuardianKey(
-            address(guardianAccount),
             0,
             guardian3EnclavePubKey,
             RaveEvidence({
@@ -142,19 +125,8 @@ contract GuardianHelper is Test {
         );
         vm.stopPrank();
 
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[0], guardian1Enclave),
-            "bad enclave address"
-        );
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[1], guardian2Enclave),
-            "bad enclave address"
-        );
-        assertTrue(
-            module.isGuardiansEnclaveAddress(payable(address(guardianAccount)), owners[2], guardian3Enclave),
-            "bad enclave address"
-        );
-
-        return (guardianAccount, owners);
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
+        assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
     }
 }

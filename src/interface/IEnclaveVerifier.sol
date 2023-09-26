@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { RaveEvidence } from "puffer/interface/RaveEvidence.sol";
+import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 
 /**
  * @title IEnclaveVerifier interface
@@ -35,11 +35,6 @@ interface IEnclaveVerifier {
      * @notice Emitted when the `pubKeyHash` is removed from valid pubKeys
      */
     event RemovedPubKey(bytes32 pubKeyHash);
-
-    /**
-     * @notice Returns the PufferPool's address
-     */
-    function POOL() external view returns (address);
 
     /**
      * @notice Getter for intelRootCAPubKey

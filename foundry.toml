@@ -5,7 +5,6 @@ runs = 10_000
 # Skip gas tests on CI
 # Run them in development manually by commenting `no_match_path` line and running "forge test --mc ETHTransferTest -vvvv"
 # don't forget to turn on the optimizer :)
-no_match_path = "test/gas-tests/*.sol"
 fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports=[
     "PufferPool",
@@ -30,6 +29,7 @@ bracket_spacing = true
 [rpc_endpoints]
 # mainnet="https://eth-mainnet-public.unifra.io"
 mainnet="https://eth.llamarpc.com"
+goerli="https://ethereum-goerli-archive.allthatnode.com"
 
 [invariant]
 # fail_on_revert=true
