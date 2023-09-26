@@ -7,6 +7,7 @@ import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 import { Ownable } from "openzeppelin/access/Ownable.sol";
 
 /**
@@ -17,6 +18,7 @@ import { Ownable } from "openzeppelin/access/Ownable.sol";
  */
 contract GuardianModule is Ownable, IGuardianModule {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     /**
      * @dev Uncompressed ECDSA keys are 65 bytes long
@@ -34,7 +36,7 @@ contract GuardianModule is Ownable, IGuardianModule {
      */
     mapping(address => address) internal _guardianEnclaves;
 
-    constructor(IEnclaveVerifier verifier, Safe guardians) {
+    constructor(IEnclaveVerifier verifier, Safe guardians) Ownable(msg.sender) {
         enclaveVerifier = verifier;
         GUARDIANS = guardians;
     }

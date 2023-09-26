@@ -15,6 +15,7 @@ import { GuardianModule } from "../src/GuardianModule.sol";
 import { console } from "forge-std/console.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 
 /**
@@ -40,6 +41,8 @@ contract DeployPuffer is BaseScript {
         string memory guardiansDeployment = vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
         PufferServiceManager serviceManagerImpl;
+
+        AccessManager accessManager = new AccessManager(_broadcaster);
 
         {
             // PufferTreasury

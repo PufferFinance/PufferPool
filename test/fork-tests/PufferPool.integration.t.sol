@@ -3,11 +3,16 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { StrategyManager } from "eigenlayer/core/StrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { console } from "forge-std/console.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
+
+interface MissingInInterface {
+    function DEPOSIT_TYPEHASH() external view returns (bytes32);
+    function nonces(address) external view returns (uint256);
+}
 
 contract PufferPoolIntegrationTest is IntegrationTestHelper {
     address bob; // bob address is -> 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e
@@ -15,7 +20,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
 
     uint256 erc20MockMinterSK = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
-    StrategyManager eigenStrategyManager = StrategyManager(0x3D2b8adb7970D6201025638B7Db41ad7f85373c2);
+    IStrategyManager eigenStrategyManager = IStrategyManager(0x3D2b8adb7970D6201025638B7Db41ad7f85373c2);
     address eigenERC20Mock = 0x0F2961A3ded5806C6eEB3159Fd2f433eDf7e6FeE;
     address eigenStrategy = 0xaaC95d2e9724e52181fF0eFa626088E68B1b356b;
     IDelegationManager eigenDelegationManager = IDelegationManager(0x7A76C4E691b18B66c05574c4f6A46462F5EEd4CB);
@@ -67,7 +72,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
             allowFailure: false,
             value: 0,
             callData: abi.encodeCall(
-                StrategyManager.depositIntoStrategyWithSignature,
+                IStrategyManager.depositIntoStrategyWithSignature,
                 (IStrategy(eigenStrategy), IERC20(eigenERC20Mock), tokenAmount, vm.addr(bobSK), expiry, signature)
                 )
         });
@@ -123,15 +128,24 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
     }
 
     function _getSignature(uint256 stakerSK, uint256 amount, uint256 expiry) internal returns (bytes memory) {
-        uint256 nonceBefore = eigenStrategyManager.nonces(vm.addr(stakerSK));
+        // uint256 nonceBefore = 0;
+        // uint256 nonceBefore = MissingInInterface(address(eigenStrategyManager)).nonces(vm.addr(stakerSK)); // how to get real nonce
+        uint256 nonceBefore = 0;
         bytes memory signature;
 
         {
             bytes32 structHash = keccak256(
                 abi.encode(
-                    eigenStrategyManager.DEPOSIT_TYPEHASH(), eigenStrategy, eigenERC20Mock, amount, nonceBefore, expiry
+                    bytes32(hex"0a564d4cfe5cb0d4ee082aab2ca54b8c48e129485a8f7c77766ab5ef0c3566f1"),
+                    eigenStrategy,
+                    eigenERC20Mock,
+                    amount,
+                    nonceBefore,
+                    expiry
                 )
             );
+            // MissingInInterface(address(eigenStrategyManager)).DEPOSIT_TYPEHASH(), eigenStrategy, eigenERC20Mock, amount, nonceBefore, expiry
+
             bytes32 digestHash = keccak256(
                 abi.encodePacked(
                     "\x19\x01", hex"281f991d05c6bb236e1c42c6db5f0e3f5fa29b3ee39a86f5a0842e3e7f0b9676", structHash
