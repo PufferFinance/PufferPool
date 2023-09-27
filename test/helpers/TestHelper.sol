@@ -14,8 +14,10 @@ import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
 import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
+    uint64 constant ROLE_ID_DAO = 77;
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -46,6 +48,8 @@ contract TestHelper is Test, BaseScript {
     Safe guardiansSafe;
     GuardianModule module;
 
+    AccessManager accessManager;
+
     function setUp() public virtual {
         // Create Guardian wallets
         (guardian1, guardian1SK) = makeAddrAndKey("guardian1");
@@ -66,7 +70,7 @@ contract TestHelper is Test, BaseScript {
         // 1. Deploy guardians safe
         (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
 
-        (serviceManager, pool) = new DeployPuffer().run();
+        (serviceManager, pool, accessManager) = new DeployPuffer().run();
 
         withdrawalPool = WithdrawalPool(serviceManager.getWithdrawalPool());
 

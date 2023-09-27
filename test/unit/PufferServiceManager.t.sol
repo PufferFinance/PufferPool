@@ -11,6 +11,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
+import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
 
 contract PufferServiceManagerTest is TestHelper, TestBase {
     using ECDSA for bytes32;
@@ -26,9 +27,18 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
     function setUp() public override {
         super.setUp();
 
+        // Setup roles
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = PufferServiceManager.setProtocolFeeRate.selector;
+        selectors[1] = PufferServiceManager.setExecutionCommission.selector;
+        selectors[2] = PufferServiceManager.setConsensusCommission.selector;
+        selectors[3] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
+
         // For simplicity transfer ownership to this contract
-        vm.prank(_broadcaster);
-        serviceManager.transferOwnership(address(this));
+        vm.startPrank(_broadcaster);
+        accessManager.setTargetFunctionRole(address(serviceManager), selectors, ROLE_ID_DAO);
+        accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
+        vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
 
@@ -218,7 +228,7 @@ contract PufferServiceManagerTest is TestHelper, TestBase {
         uint256 result = PufferServiceManagerMockUpgrade(payable(address(pool))).returnSomething();
 
         PufferServiceManagerMockUpgrade newImplementation = new PufferServiceManagerMockUpgrade(address(beacon));
-        serviceManager.upgradeTo(address(newImplementation));
+        serviceManager.upgradeToAndCall(address(newImplementation), "");
 
         result = PufferServiceManagerMockUpgrade(payable(address(serviceManager))).returnSomething();
 

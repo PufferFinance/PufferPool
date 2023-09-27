@@ -31,7 +31,7 @@ contract EnclaveVerifier is IEnclaveVerifier, Ownable, RAVE {
      */
     mapping(bytes32 => RSAPubKey) internal _validLeafX509s;
 
-    constructor(uint256 freshnessBlocks) {
+    constructor(uint256 freshnessBlocks) Ownable(msg.sender) {
         FRESHNESS_BLOCKS = freshnessBlocks;
     }
 

@@ -42,6 +42,12 @@ interface IPufferServiceManager {
     error InvalidValidatorState();
 
     /**
+     * @notice Thrown if the sender did not send enough ETH in the transaction
+     * @dev Signature "0x242b035c"
+     */
+    error InvalidETHAmount();
+
+    /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
      * @dev Signature "0x27449eb3aaae64a55d5d46a9adbcc8e1e38857748959a38693d78c36b74eacff"
      */
@@ -52,6 +58,12 @@ interface IPufferServiceManager {
      * @dev Signature "0x9066ee0e03e4694bb525f39a319a26ed219db1f8045f1aa5d3d8ee5d826f8b0e"
      */
     event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
+    
+    /**
+     * @notice Emitted when the Execution rewards commitment amounts is changed changed from `oldValue` to `newValue`
+     * @dev Signature "0x7cf6042ae9b3bb2eecdbbb1050f16c75f96746fd9d18fe2a8e2171ab7086cf6a"
+     */
+    event ExecutionRewardsCommitmentChanged(uint256 oldValue, uint256 newValue);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`

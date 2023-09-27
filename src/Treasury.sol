@@ -33,7 +33,7 @@ contract Treasury is ERC20, Ownable {
         uint256 _referralsCommission,
         uint256 _insuranceCommission,
         uint256 _minLockupDuration
-    ) ERC20(name_, symbol_) {
+    ) ERC20(name_, symbol_) Ownable(msg.sender){
         _mint(msg.sender, 1e27);
         grantsCommission = _grantsCommission;
         referralsCommission = _referralsCommission;
