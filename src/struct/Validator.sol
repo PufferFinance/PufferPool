@@ -8,6 +8,8 @@ import { Status } from "puffer/struct/Status.sol";
  */
 struct Validator {
     address node;
+    address strategy;
+    uint256 pufETHBond;
     Status status;
     bytes pubKey;
 }

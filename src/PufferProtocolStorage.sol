@@ -6,13 +6,14 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
+import { PufferStrategy } from "puffer/PufferStrategy.sol";
 
 /**
- * @title PufferServiceManagerStorage
+ * @title PufferProtocolStorage
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-abstract contract PufferServiceManagerStorage {
+abstract contract PufferProtocolStorage {
     /**
      * @dev Constant representing 100%
      */
@@ -20,13 +21,13 @@ abstract contract PufferServiceManagerStorage {
 
     uint256 public constant BURST_THRESHOLD = 20;
 
-    bytes32 private constant PUFFER_SERVICE_MANAGER_STORAGE =
-        0x8a621627e30e4413ec3f43697d54d247cd8f0b626fb01f95c529b13b5b511300;
+    bytes32 private constant PUFFER_PROTOCOL_STORAGE =
+        0xb8d3716136db480afe9a80da6be84f994509ecf9515ed14d03024589b5f2bd00;
 
     /**
-     * @custom:storage-location erc7201:PufferServiceManagerStorage.storage
+     * @custom:storage-location erc7201:PufferProtocol.storage
      */
-    struct ServiceManagerStorage {
+    struct ProtocolStorage {
         /**
          * @notice Puffer Pool
          */
@@ -35,6 +36,10 @@ abstract contract PufferServiceManagerStorage {
          * @dev Guardians multisig wallet
          */
         Safe guardians;
+        /**
+         * @dev Default strategy
+         */
+        PufferStrategy noRestakingStrategy;
         /**
          * @dev Consensus rewards and withdrawals pool address
          */
@@ -59,7 +64,6 @@ abstract contract PufferServiceManagerStorage {
          * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
         uint256 executionCommission;
-
         /**
          * @dev Guardian module
          */
@@ -68,7 +72,6 @@ abstract contract PufferServiceManagerStorage {
          * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
         uint256 protocolFeeRate;
-        
         /**
          * @dev Execution rewards commitment amount (in wei)
          */
@@ -81,13 +84,16 @@ abstract contract PufferServiceManagerStorage {
          * @dev Index of the validator that will be provisioned next
          */
         uint256 validatorIndexToBeProvisionedNext;
-        
         mapping(uint256 => Validator) validators;
+        /**
+         * Mapping representing Strategies
+         */
+        mapping(bytes32 => PufferStrategy) strategies;
     }
 
-    function _getPufferServiceManagerStorage() internal pure returns (ServiceManagerStorage storage $) {
+    function _getPufferProtocolStorage() internal pure returns (ProtocolStorage storage $) {
         assembly {
-            $.slot := PUFFER_SERVICE_MANAGER_STORAGE
+            $.slot := PUFFER_PROTOCOL_STORAGE
         }
     }
 }

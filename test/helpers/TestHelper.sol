@@ -5,7 +5,7 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
@@ -41,7 +41,7 @@ contract TestHelper is Test, BaseScript {
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
     PufferPool pool;
-    PufferServiceManager serviceManager;
+    PufferProtocol pufferProtocol;
     WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
 
@@ -70,12 +70,12 @@ contract TestHelper is Test, BaseScript {
         // 1. Deploy guardians safe
         (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
 
-        (serviceManager, pool, accessManager) = new DeployPuffer().run();
+        (pufferProtocol, pool, accessManager) = new DeployPuffer().run();
 
-        withdrawalPool = WithdrawalPool(serviceManager.getWithdrawalPool());
+        withdrawalPool = WithdrawalPool(pufferProtocol.getWithdrawalPool());
 
         vm.label(address(pool), "PufferPool");
-        vm.label(address(serviceManager), "PufferServiceManager");
+        vm.label(address(pufferProtocol), "PufferProtocol");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();

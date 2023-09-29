@@ -2,9 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ExecutionRewardsVault } from "puffer/ExecutionRewardsVault.sol";
+import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { ConsensusVault } from "puffer/ConsensusVault.sol";
 import { Script } from "forge-std/Script.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -12,11 +13,13 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
+import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { console } from "forge-std/console.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-
+import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 
 /**
  * @title DeployPuffer
@@ -34,10 +37,11 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
 contract DeployPuffer is BaseScript {   
-    function run() broadcast public returns(PufferServiceManager, PufferPool, AccessManager) {
+    function run() broadcast public returns(PufferProtocol, PufferPool, AccessManager) {
         string memory guardiansDeployment = vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+        string memory obj = "";
 
-        PufferServiceManager serviceManagerImpl;
+        PufferProtocol pufferProtocolImpl;
 
         AccessManager accessManager = new AccessManager(_broadcaster);
 
@@ -49,35 +53,42 @@ contract DeployPuffer is BaseScript {
             address eigenStrategyManager = vm.envOr("EIGEN_STRATEGY_MANAGER", address(0));
             address eigenSlasher = vm.envOr("EIGEN_SLASHER", address(0));
 
+            address eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
+
+            PufferStrategy strategyImplementation = new PufferStrategy(IEigenPodManager(eigenPodManager));
+
+            UpgradeableBeacon beacon = new UpgradeableBeacon(address(strategyImplementation), address(accessManager));
+            vm.serializeAddress(obj, "PufferStrategyBeacon", address(beacon));
+
             // Puffer Service implementation
-            serviceManagerImpl = new PufferServiceManager(Safe(guardians), treasury, IStrategyManager(eigenStrategyManager));
+            pufferProtocolImpl = new PufferProtocol({guardians: Safe(guardians), treasury: treasury, eigenStrategyManager: IStrategyManager(eigenStrategyManager), strategyBeacon: address(beacon)});
         }
         
-        // UUPS proxy for PufferServiceManager
-        ERC1967Proxy proxy = new ERC1967Proxy(address(serviceManagerImpl), "");
+        // UUPS proxy for PufferProtocol
+        ERC1967Proxy proxy = new ERC1967Proxy(address(pufferProtocolImpl), "");
 
-        PufferServiceManager serviceManager = PufferServiceManager(payable(address(proxy)));
+        PufferProtocol pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        PufferPool pool = new PufferPool(serviceManager);
+        PufferPool pool = new PufferPool(pufferProtocol);
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
-        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(serviceManager);
+        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(pufferProtocol);
         
-        ConsensusVault consensusVault = new ConsensusVault(serviceManager);
+        ConsensusVault consensusVault = new ConsensusVault(pufferProtocol);
 
         // Read guardians module variable
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
         // Initialize the Pool
-        serviceManager.initialize({accessManager: address(accessManager), pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
+        pufferProtocol.initialize({accessManager: address(accessManager), pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
         
-        string memory obj = "";
-        vm.serializeAddress(obj, "pufferServiceManagerImplementation", address(serviceManagerImpl));
+        vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "executionRewardsVault", address(executionRewardsVault));
         vm.serializeAddress(obj, "consensusVault", address(consensusVault));
+        vm.serializeAddress(obj, "PufferProtocol", address(proxy));
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
@@ -86,8 +97,8 @@ contract DeployPuffer is BaseScript {
         // console.log(address(executionRewardsVault), "<-- ExecutionRewardsVault");
         // console.log(address(withdrawalPool), "<-- WithdrawalPool");
         // console.log(address(pool), "<-- Puffer pool");
-        // console.log(address(proxy), "<-- PufferServiceManager (main contract)");
+        // console.log(address(proxy), "<-- PufferProtocol (main contract)");
 
-        return (serviceManager, pool, accessManager);
+        return (pufferProtocol, pool, accessManager);
     }
 }
