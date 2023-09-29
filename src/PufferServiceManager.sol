@@ -38,6 +38,8 @@ contract PufferServiceManager is
 
     uint256 internal constant _2_ETHER = 2 ether;
 
+    uint32 internal constant _MAX_UINT_32 = ~uint32(0);
+
     /**
      * @dev Puffer finance treasury
      */
