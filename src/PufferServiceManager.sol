@@ -44,6 +44,8 @@ contract PufferServiceManager is
 
     uint256 internal constant _2_ETHER = 2 ether;
 
+    uint32 internal constant _MAX_UINT_32 = ~uint32(0);
+
     /**
      * @dev Puffer finance treasury
      */
@@ -97,8 +99,9 @@ contract PufferServiceManager is
         return this.owner();
     }
 
-    // Cheyenne TODO: Implement
-    function taskNumber() external view returns (uint32) { }
+    function taskNumber() external view returns (uint32) {
+        return 0;
+    }
 
     function freezeOperator(address operator) external onlyGuardians {
         SLASHER.freezeOperator(operator);
@@ -122,8 +125,9 @@ contract PufferServiceManager is
         SLASHER.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntilBlock);
     }
 
-    // Cheyenne TODO: Implement
-    function latestServeUntilBlock() external view returns (uint32) { }
+    function latestServeUntilBlock() external view returns (uint32) {
+        return _MAX_UINT_32;
+    }
 
     function setProtocolFeeRate(uint256 protocolFeeRate) external onlyOwner {
         _setProtocolFeeRate(protocolFeeRate);
@@ -155,6 +159,7 @@ contract PufferServiceManager is
         }
     }
 
+    // Cheyenne TODO: Finish implementation
     function registerValidatorKey(ValidatorKeyData calldata data) external {
         ServiceManagerStorage storage $ = _getPufferServiceManagerStorage();
 
@@ -177,7 +182,9 @@ contract PufferServiceManager is
             }
         }
 
-        uint256 validatorBondRequirement = data.evidence.report.length > 0 ? _4_ETHER : _2_ETHER;
+        // Non-enclave requirement is 4 ether
+        uint256 validatorBondRequirement = 4 ether;
+
         // TODO: check if the msg.sender has enough ETH as a bond
 
         // To prevent spamming the queue
