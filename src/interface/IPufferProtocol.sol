@@ -6,11 +6,11 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 /**
- * @title IPufferServiceManager
+ * @title IPufferProtocol
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferServiceManager {
+interface IPufferProtocol {
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
@@ -58,7 +58,7 @@ interface IPufferServiceManager {
      * @dev Signature "0x9066ee0e03e4694bb525f39a319a26ed219db1f8045f1aa5d3d8ee5d826f8b0e"
      */
     event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
-    
+
     /**
      * @notice Emitted when the Execution rewards commitment amounts is changed changed from `oldValue` to `newValue`
      * @dev Signature "0x7cf6042ae9b3bb2eecdbbb1050f16c75f96746fd9d18fe2a8e2171ab7086cf6a"

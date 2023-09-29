@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
@@ -34,9 +34,9 @@ contract PufferPool is IPufferPool, ERC20Permit {
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
 
     /**
-     * @notice PufferServiceManager
+     * @notice PufferProtocol
      */
-    PufferServiceManager public immutable PUFFER_SERVICE_MANAGER;
+    PufferProtocol public immutable PUFFER_PROTOCOL;
 
     /**
      * @dev Locked ETH amount in Beacon Chain
@@ -48,15 +48,15 @@ contract PufferPool is IPufferPool, ERC20Permit {
      */
     uint256 internal _newETHRewardsAmount;
 
-    modifier onlyPufferServiceManager() {
-        if (msg.sender != address(PUFFER_SERVICE_MANAGER)) {
+    modifier onlyPufferProtocol() {
+        if (msg.sender != address(PUFFER_PROTOCOL)) {
             revert Unauthorized();
         }
         _;
     }
 
-    constructor(PufferServiceManager serviceManager) payable ERC20("Puffer ETH", "pufETH") ERC20Permit("pufETH") {
-        PUFFER_SERVICE_MANAGER = serviceManager;
+    constructor(PufferProtocol protocol) payable ERC20("Puffer ETH", "pufETH") ERC20Permit("pufETH") {
+        PUFFER_PROTOCOL = protocol;
     }
 
     /**
@@ -99,7 +99,7 @@ contract PufferPool is IPufferPool, ERC20Permit {
         bytes calldata withdrawalCredentials,
         bytes calldata signature,
         bytes32 depositDataRoot
-    ) external onlyPufferServiceManager {
+    ) external onlyPufferProtocol {
         BEACON_DEPOSIT_CONTRACT.deposit{ value: _32_ETHER }({
             pubkey: pubKey,
             withdrawal_credentials: withdrawalCredentials,
@@ -161,9 +161,11 @@ contract PufferPool is IPufferPool, ERC20Permit {
         }
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
         uint256 exchangeRate = FixedPointMathLib.divWad(
-            getLockedETHAmount() + getNewRewardsETHAmount() + PUFFER_SERVICE_MANAGER.getWithdrawalPool().balance
-                + PUFFER_SERVICE_MANAGER.getExecutionRewardsVault().balance
-                + PUFFER_SERVICE_MANAGER.getConsensusVault().balance + (address(this).balance - ethDepositedAmount),
+            (
+                getLockedETHAmount() + getNewRewardsETHAmount() + PUFFER_PROTOCOL.getWithdrawalPool().balance
+                    + PUFFER_PROTOCOL.getExecutionRewardsVault().balance + PUFFER_PROTOCOL.getConsensusVault().balance
+                    + (address(this).balance - ethDepositedAmount)
+            ),
             pufETHSupply
         );
 

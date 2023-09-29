@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AbstractVault } from "puffer/AbstractVault.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 
 /**
  * @title ConsensusVault
@@ -11,5 +11,5 @@ import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract ConsensusVault is AbstractVault {
-    constructor(PufferServiceManager serviceManager) payable AbstractVault(serviceManager) { }
+    constructor(PufferProtocol pufferProtocol) payable AbstractVault(pufferProtocol) { }
 }

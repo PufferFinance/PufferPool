@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IERC1155Receiver } from "openzeppelin/token/ERC1155/IERC1155Receiver.sol";
 import { IERC1155 } from "openzeppelin/token/ERC1155/IERC1155.sol";
@@ -17,10 +17,10 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
     using SafeTransferLib for address;
 
-    PufferServiceManager public immutable SERVICE_MANAGER;
+    PufferProtocol public immutable PUFFER_PROTOCOL;
 
-    constructor(PufferServiceManager serviceManager) payable {
-        SERVICE_MANAGER = serviceManager;
+    constructor(PufferProtocol pufferProtocol) payable {
+        PUFFER_PROTOCOL = pufferProtocol;
     }
 
     /**
@@ -28,28 +28,28 @@ abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
      */
     function transferETH() external virtual {
         // TODO: authorization?
-        SERVICE_MANAGER.getWithdrawalPool().safeTransferETH(address(this).balance);
+        PUFFER_PROTOCOL.getWithdrawalPool().safeTransferETH(address(this).balance);
     }
 
     /**
      * @notice Transfers ERC20 `token`'s balance to treasury
      */
     function recoverERC20(address token) external virtual {
-        token.safeTransferAll(SERVICE_MANAGER.TREASURY());
+        token.safeTransferAll(PUFFER_PROTOCOL.TREASURY());
     }
 
     /**
      * @notice Transfers ERC721 `token` with `tokenId` to treasury
      */
     function recoverERC721(address token, uint256 tokenId) external virtual {
-        IERC721(token).safeTransferFrom(address(this), SERVICE_MANAGER.TREASURY(), tokenId);
+        IERC721(token).safeTransferFrom(address(this), PUFFER_PROTOCOL.TREASURY(), tokenId);
     }
 
     /**
      * @notice Transfers ERC1155 `token` with `tokenId` and `tokenAmount` to treasury
      */
     function recoverERC1155(address token, uint256 tokenId, uint256 tokenAmount) external virtual {
-        IERC1155(token).safeTransferFrom(address(this), SERVICE_MANAGER.TREASURY(), tokenId, tokenAmount, "");
+        IERC1155(token).safeTransferFrom(address(this), PUFFER_PROTOCOL.TREASURY(), tokenId, tokenAmount, "");
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external virtual returns (bytes4) {

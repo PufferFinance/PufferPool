@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
@@ -41,7 +41,8 @@ contract GuardianModule is Ownable, IGuardianModule {
         GUARDIANS = guardians;
     }
 
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) public { //@audit don't forget owner modifier
+    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) public {
+        //@audit don't forget owner modifier
         bytes32 previousMrEnclave = mrenclave;
         bytes32 previousMrsigner = mrsigner;
         mrenclave = newMrenclave;
@@ -56,11 +57,11 @@ contract GuardianModule is Ownable, IGuardianModule {
         bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
-        PufferServiceManager serviceManager = PufferServiceManager(msg.sender);
+        PufferProtocol pufferProtocol = PufferProtocol(msg.sender);
 
-        bytes32 msgToBeSigned = getMessageToBeSigned(serviceManager, pubKey, signature, depositDataRoot);
+        bytes32 msgToBeSigned = getMessageToBeSigned(pufferProtocol, pubKey, signature, depositDataRoot);
 
-        Safe guardians = serviceManager.getGuardians();
+        Safe guardians = pufferProtocol.getGuardians();
 
         address[] memory enclaveAddresses = getGuardiansEnclaveAddresses();
         uint256 validSignatures = 0;
@@ -85,12 +86,12 @@ contract GuardianModule is Ownable, IGuardianModule {
     }
 
     function getMessageToBeSigned(
-        PufferServiceManager serviceManager,
+        PufferProtocol pufferProtocol,
         bytes memory pubKey,
         bytes calldata signature,
         bytes32 depositDataRoot
     ) public view returns (bytes32) {
-        return keccak256(abi.encode(pubKey, serviceManager.getWithdrawalPool(), signature, depositDataRoot))
+        return keccak256(abi.encode(pubKey, pufferProtocol.getWithdrawalPool(), signature, depositDataRoot))
             .toEthSignedMessageHash();
     }
 

@@ -20,8 +20,8 @@ contract DeployGuardians is BaseScript {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
-        console.log(safeProxy, "<-- Safe proxy factory");
-        console.log(safeImplementation, "<-- Safe implementation");
+        // console.log(safeProxy, "<-- Safe proxy factory");
+        // console.log(safeImplementation, "<-- Safe implementation");
 
         EnclaveVerifier verifier = new EnclaveVerifier(100);
 
