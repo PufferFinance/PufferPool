@@ -11,6 +11,8 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { TestBase } from "../TestBase.t.sol";
 import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { console } from "forge-std/console.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 
 contract PufferPoolTest is TestHelper, TestBase {
     using ECDSA for bytes32;
@@ -112,7 +114,14 @@ contract PufferPoolTest is TestHelper, TestBase {
         uint256 minted = pool.depositETH{ value: 1 ether }();
         assertEq(minted, 1 ether, "minted amount");
 
+        // Simulate rewards of 1 ETH
         pool.depositETHWithoutMinting{ value: 1 ether }();
+
+        // Fast forward 1801 blocks ~ 6 hours
+        vm.roll(1801);
+
+        vm.prank(address(guardiansSafe));
+        pufferProtocol.updateBacking({ ethAmount: 2 ether, lockedETH: 0, pufETHTotalSupply: 1 ether, blockNumber: 1 });
 
         // total supply is 1
         // total eth = 2
@@ -170,5 +179,10 @@ contract PufferPoolTest is TestHelper, TestBase {
             "attacker is in profit"
         );
         // assertApproxEqRel(attacker.balance, 10 ether, 1e16, "balance is bad"); // diff 1%
+    }
+
+    function testStorageS() public {
+        PufferProtocolStorage.PufferPoolStorage memory data = pufferProtocol.getPuferPoolStorage();
+        assertEq(data.lastUpdate, 0, "last update");
     }
 }

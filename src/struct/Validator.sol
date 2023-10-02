@@ -7,9 +7,10 @@ import { Status } from "puffer/struct/Status.sol";
  * @dev Validator struct
  */
 struct Validator {
-    address node;
-    address strategy;
-    uint256 pufETHBond;
-    Status status;
-    bytes pubKey;
+    address node; // Address of the Node operator
+    address strategy; // In which strategy is the Validator participating
+    uint256 commitmentAmount; // Last commitment amount
+    uint256 date; // Date when the last commitment was paid
+    Status status; // Validator status
+    bytes pubKey; // Validator public key
 }

@@ -8,6 +8,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
+import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 
 /**
  * @title PufferPool
@@ -29,6 +30,11 @@ contract PufferPool is IPufferPool, ERC20Permit {
     uint256 internal constant _32_ETHER = 32 ether;
 
     /**
+     * @dev Number of blocks for oracle freshness update
+     */
+    uint256 internal constant _FRESHNESS_BLOCKS = 3600;
+
+    /**
      * @dev Minimum deposit amount in ETH
      */
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
@@ -37,11 +43,6 @@ contract PufferPool is IPufferPool, ERC20Permit {
      * @notice PufferProtocol
      */
     PufferProtocol public immutable PUFFER_PROTOCOL;
-
-    /**
-     * @dev Locked ETH amount in Beacon Chain
-     */
-    uint256 internal _lockedETHAmount;
 
     /**
      * @dev New rewards amount
@@ -113,11 +114,6 @@ contract PufferPool is IPufferPool, ERC20Permit {
         _newETHRewardsAmount = amount;
     }
 
-    function updateETHBackingAmount(uint256 amount) external {
-        // TODO: only guardians
-        _lockedETHAmount = amount;
-    }
-
     /**
      * @inheritdoc IPufferPool
      */
@@ -135,13 +131,6 @@ contract PufferPool is IPufferPool, ERC20Permit {
     /**
      * @inheritdoc IPufferPool
      */
-    function getLockedETHAmount() public view returns (uint256) {
-        return _lockedETHAmount;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
     function getNewRewardsETHAmount() public view returns (uint256) {
         return _newETHRewardsAmount;
     }
@@ -154,20 +143,29 @@ contract PufferPool is IPufferPool, ERC20Permit {
     }
 
     function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
-        uint256 pufETHSupply = totalSupply();
+        PufferProtocolStorage.PufferPoolStorage memory data = PUFFER_PROTOCOL.getPuferPoolStorage();
         // slither-disable-next-line incorrect-equality
-        if (pufETHSupply == 0) {
+        if (data.pufETHTotalSupply == 0) {
             return FixedPointMathLib.WAD;
         }
+
+        if (data.lastUpdate != 0) {
+            if (block.number - data.lastUpdate > _FRESHNESS_BLOCKS) {
+                revert StaleOracle();
+            }
+        }
+
+        uint256 exchangeRate = FixedPointMathLib.divWad((data.lockedETH + data.ethAmount), data.pufETHTotalSupply);
+
         // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
-        uint256 exchangeRate = FixedPointMathLib.divWad(
-            (
-                getLockedETHAmount() + getNewRewardsETHAmount() + PUFFER_PROTOCOL.getWithdrawalPool().balance
-                    + PUFFER_PROTOCOL.getExecutionRewardsVault().balance + PUFFER_PROTOCOL.getConsensusVault().balance
-                    + (address(this).balance - ethDepositedAmount)
-            ),
-            pufETHSupply
-        );
+        // uint256 exchangeRate = FixedPointMathLib.divWad(
+        //     (
+        //         getNewRewardsETHAmount() + PUFFER_PROTOCOL.getWithdrawalPool().balance
+        //             + PUFFER_PROTOCOL.getExecutionRewardsVault().balance + PUFFER_PROTOCOL.getConsensusVault().balance
+        //             + (address(this).balance - ethDepositedAmount)
+        //     ),
+        //     pufETHSupply
+        // );
 
         return exchangeRate;
     }

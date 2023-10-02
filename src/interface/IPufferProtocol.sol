@@ -48,6 +48,29 @@ interface IPufferProtocol {
     error InvalidETHAmount();
 
     /**
+     * @notice Thrown if the oracle tries to submit invalid data
+     */
+    error InvalidData();
+
+    /**
+     * @notice Thrown if the Creation of new strategy failed
+     * @dev Signature "0x04a5b3ee"
+     */
+    error Create2Failed();
+
+    /**
+     * @notice Thrown if the Node operator tries to register with invalid startegy
+     * @dev Signature "0x60ac6d15"
+     */
+    error InvalidPufferStrategy();
+
+    /**
+     * @notice Emitted when the new Puffer strategy is created
+     * @dev Signature "0x1670437ca2eb58efedc6de6646babe75e13b3ef73af5174bd55db63efeaf41c7"
+     */
+    event NewPufferStrategyCreated(address strategy);
+
+    /**
      * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
      * @dev Signature "0x27449eb3aaae64a55d5d46a9adbcc8e1e38857748959a38693d78c36b74eacff"
      */
@@ -60,10 +83,23 @@ interface IPufferProtocol {
     event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
 
     /**
-     * @notice Emitted when the Execution rewards commitment amounts is changed changed from `oldValue` to `newValue`
-     * @dev Signature "0x7cf6042ae9b3bb2eecdbbb1050f16c75f96746fd9d18fe2a8e2171ab7086cf6a"
+     * @notice Emitted when the Guardians update state of the protocol
+     * @param ethAmount is the ETH amount that is not locked in Beacon chain
+     * @param lockedETH is the locked ETH amount in Beacon chain
+     * @param pufETHTotalSupply is the total supply of the pufETH
      */
-    event ExecutionRewardsCommitmentChanged(uint256 oldValue, uint256 newValue);
+    event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
+
+    /**
+     * @notice Emitted when the Commitment amounts are changed
+     * @dev Signature "0x211db5bdb5e62814f0365f74c24e5aa8d694a2764844d2b3a9bc833e5d0427ad"
+     */
+    event CommitmentChanged(
+        uint256 oldExecutionCommitment,
+        uint256 executionRewardsCommitment,
+        uint256 oldConsensusCommitment,
+        uint256 consensusRewardsCommitment
+    );
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -151,8 +187,14 @@ interface IPufferProtocol {
      */
     function getExecutionCommission() external view returns (uint256);
 
+    /**
+     * @notice Returns the guardian module
+     */
     function getGuardianModule() external view returns (GuardianModule);
 
+    /**
+     * @notice Returns the protocol fee rate
+     */
     function getProtocolFeeRate() external view returns (uint256);
 
     /**

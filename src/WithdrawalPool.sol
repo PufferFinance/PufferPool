@@ -43,6 +43,10 @@ contract WithdrawalPool {
         bytes32 s;
     }
 
+    receive() external payable {
+        // @todo
+    }
+
     /**
      * @notice Burns `pufETHAmount` and sends the ETH to `to`
      * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
