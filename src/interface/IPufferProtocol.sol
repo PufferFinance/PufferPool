@@ -59,7 +59,7 @@ interface IPufferProtocol {
     error Create2Failed();
 
     /**
-     * @notice Thrown if the Node operator tries to register with invalid startegy
+     * @notice Thrown if the Node operator tries to register with invalid strategy
      * @dev Signature "0x60ac6d15"
      */
     error InvalidPufferStrategy();
