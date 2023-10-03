@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 
 // Sends ETH to receiver from the env var PK
 contract TransferEth is BaseScript {
-	function run(address receiver, uint256 amount) external broadcast {
-		receiver.call{ value: amount }("");
-	}
+    function run(address receiver, uint256 amount) external broadcast {
+        receiver.call{ value: amount }("");
+    }
 }

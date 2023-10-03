@@ -34,12 +34,11 @@ contract PufferProtocolTest is TestHelper, TestBase {
         vm.deal(address(this), 1000 ether);
 
         // Setup roles
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](4);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
         selectors[1] = PufferProtocol.setCommitment.selector;
-        selectors[2] = PufferProtocol.setConsensusCommission.selector;
-        selectors[3] = PufferProtocol.createPufferStrategy.selector;
-        selectors[4] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
+        selectors[2] = PufferProtocol.createPufferStrategy.selector;
+        selectors[3] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
 
         // For simplicity transfer ownership to this contract
         vm.startPrank(_broadcaster);
@@ -47,7 +46,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         vm.stopPrank();
 
-        pufferProtocol.setCommitment(executionRewardsCommitment, consensusRewardsCommitment);
+        pufferProtocol.setCommitment(executionRewardsCommitment + consensusRewardsCommitment);
 
         _skipDefaultFuzzAddresses();
 
@@ -79,14 +78,6 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPrivateKeyShares.selector);
         pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING);
-    }
-
-    function testGetConsensusCommission() public {
-        uint256 commission = 10 * FixedPointMathLib.WAD;
-
-        assertEq(pufferProtocol.getConsensusCommission(), 0, "zero commission");
-        pufferProtocol.setConsensusCommission(commission);
-        assertEq(pufferProtocol.getConsensusCommission(), commission, "non zero commission");
     }
 
     function testSetProtocolFeeRate() public {
@@ -231,8 +222,13 @@ contract PufferProtocolTest is TestHelper, TestBase {
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        bytes32 digest =
-            (pufferProtocol.getGuardianModule()).getMessageToBeSigned(pufferProtocol, pubKey, new bytes(0), bytes32(""));
+        uint256 pendindIdx = pufferProtocol.getPendingValidatorIndex();
+        Validator memory validator = pufferProtocol.getValidatorInfo(pendindIdx - 1); // -1 because we are in the middle of provisioning
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
+
+        bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
+            pubKey, new bytes(0), withdrawalCredentials, bytes32("")
+        );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.

@@ -11,7 +11,6 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-
 contract WithdrawalPool {
     using SafeTransferLib for address;
 

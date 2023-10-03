@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { Safe } from "safe-contracts/Safe.sol";
 
 /**
  * @title IPufferProtocol
@@ -71,18 +72,6 @@ interface IPufferProtocol {
     event NewPufferStrategyCreated(address strategy);
 
     /**
-     * @notice Emitted when the Execution rewards split rate in changed from `oldValue` to `newValue`
-     * @dev Signature "0x27449eb3aaae64a55d5d46a9adbcc8e1e38857748959a38693d78c36b74eacff"
-     */
-    event ExecutionCommissionChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the Consensus rewards split rate in changed from `oldValue` to `newValue`
-     * @dev Signature "0x9066ee0e03e4694bb525f39a319a26ed219db1f8045f1aa5d3d8ee5d826f8b0e"
-     */
-    event ConsensusCommissionChanged(uint256 oldValue, uint256 newValue);
-
-    /**
      * @notice Emitted when the Guardians update state of the protocol
      * @param ethAmount is the ETH amount that is not locked in Beacon chain
      * @param lockedETH is the locked ETH amount in Beacon chain
@@ -91,15 +80,10 @@ interface IPufferProtocol {
     event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
 
     /**
-     * @notice Emitted when the Commitment amounts are changed
-     * @dev Signature "0x211db5bdb5e62814f0365f74c24e5aa8d694a2764844d2b3a9bc833e5d0427ad"
+     * @notice Emitted when the smoothing commitment amount is changed
+     * @dev Signature "0xd8db7b2b5edfec0479579af44419e071d7c4d7f876bd60dd1c229a08757a0d95"
      */
-    event CommitmentChanged(
-        uint256 oldExecutionCommitment,
-        uint256 executionRewardsCommitment,
-        uint256 oldConsensusCommitment,
-        uint256 consensusRewardsCommitment
-    );
+    event CommitmentChanged(uint256 oldSmoothingCommitment, uint256 smoothingCommitment);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -168,26 +152,6 @@ interface IPufferProtocol {
     function EIGEN_STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
-     * @notice Sets the execution rewards split to `newValue`
-     */
-    function setExecutionCommission(uint256 newValue) external;
-
-    /**
-     * @notice Sets the consensus rewards split to `newValue`
-     */
-    function setConsensusCommission(uint256 newValue) external;
-
-    /**
-     * @notice Returns Consensus Commission
-     */
-    function getConsensusCommission() external view returns (uint256);
-
-    /**
-     * @notice Returns Execution Commission
-     */
-    function getExecutionCommission() external view returns (uint256);
-
-    /**
      * @notice Returns the guardian module
      */
     function getGuardianModule() external view returns (GuardianModule);
@@ -203,17 +167,34 @@ interface IPufferProtocol {
     function getWithdrawalPool() external view returns (address);
 
     /**
-     * @notice Returns the address of the Consensus vault
+     * @notice Returns the next validator in line to be provisioned
      */
-    function getConsensusVault() external view returns (address);
+    function getPendingValidatorIndex() external view returns (uint256);
 
     /**
-     * @notice Returns the address of the Execution rewards vault
+     * @notice Returns the array of Puffer validators
+     * @dev Not to be used on chain
      */
-    function getExecutionRewardsVault() external view returns (address);
+    function getValidators() external view returns (bytes[] memory);
+
+    /**
+     * @notice Returns the array of Node operator's addresses (it uses the same ordering as getValidators())
+     * @dev Not to be used on chain
+     */
+    function getValidatorsAddresses() external view returns (address[] memory);
+
+    /**
+     * @notice Returns the default straetgy (no restaking)
+     */
+    function getDefaultStrategy() external view returns (address);
 
     /**
      * @notice Returns the treasury address
      */
     function TREASURY() external view returns (address payable);
+
+    /**
+     * @notice Returns the Guardians {Safe} multisig wallet
+     */
+    function GUARDIANS() external view returns (Safe);
 }

@@ -55,13 +55,12 @@ contract GuardianModule is Ownable, IGuardianModule {
         bytes memory pubKey,
         bytes calldata signature,
         bytes32 depositDataRoot,
+        bytes calldata withdrawalCredentials,
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
-        PufferProtocol pufferProtocol = PufferProtocol(msg.sender);
+        Safe guardians = PufferProtocol(msg.sender).GUARDIANS();
 
-        bytes32 msgToBeSigned = getMessageToBeSigned(pufferProtocol, pubKey, signature, depositDataRoot);
-
-        Safe guardians = pufferProtocol.getGuardians();
+        bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
 
         address[] memory enclaveAddresses = getGuardiansEnclaveAddresses();
         uint256 validSignatures = 0;
@@ -86,13 +85,12 @@ contract GuardianModule is Ownable, IGuardianModule {
     }
 
     function getMessageToBeSigned(
-        PufferProtocol pufferProtocol,
         bytes memory pubKey,
         bytes calldata signature,
+        bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot
-    ) public view returns (bytes32) {
-        return keccak256(abi.encode(pubKey, pufferProtocol.getWithdrawalPool(), signature, depositDataRoot))
-            .toEthSignedMessageHash();
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(pubKey, withdrawalCredentials, signature, depositDataRoot)).toEthSignedMessageHash();
     }
 
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {

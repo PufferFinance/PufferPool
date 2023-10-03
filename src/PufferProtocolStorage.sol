@@ -37,37 +37,13 @@ abstract contract PufferProtocolStorage {
          */
         PufferPool pool;
         /**
-         * @dev Guardians multisig wallet
-         */
-        Safe guardians;
-        /**
          * @dev Default strategy
          */
         PufferStrategy noRestakingStrategy;
         /**
-         * @dev Consensus rewards and withdrawals pool address
+         * @dev Withdrawal pool address
          */
         address withdrawalPool;
-        /**
-         * @dev Execution rewards vault's address
-         */
-        address executionRewardsVault;
-        /**
-         * @dev Vault for handling consensus rewards and withdrawals
-         */
-        address consensusVault;
-        /**
-         * @dev Contract responsible for RAVE attestation
-         */
-        IEnclaveVerifier enclaveVerifier;
-        /**
-         * @dev Consensus rewards commission, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         */
-        uint256 consensusCommission;
-        /**
-         * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         */
-        uint256 executionCommission;
         /**
          * @dev Guardian module
          */
@@ -85,13 +61,9 @@ abstract contract PufferProtocolStorage {
          */
         uint256 guardiansFeeRate;
         /**
-         * @dev Execution rewards commitment amount (in wei)
+         * @dev Smoothing commitment amount (in wei)
          */
-        uint256 executionRewardsCommitment;
-        /**
-         * @dev Consensus rewards commitment amount (in wei)
-         */
-        uint256 consensusRewardsCommitment;
+        uint256 smoothingCommitment;
         /**
          * @dev Next validator index for provisioning queue
          */
@@ -100,6 +72,10 @@ abstract contract PufferProtocolStorage {
          * @dev Index of the validator that will be provisioned next
          */
         uint256 validatorIndexToBeProvisionedNext;
+        /**
+         * @dev Mapping of idx => Validator
+         * Index is incrementing starting from 0
+         */
         mapping(uint256 => Validator) validators;
         /**
          * Mapping representing Strategies

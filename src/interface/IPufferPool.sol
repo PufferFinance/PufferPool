@@ -14,12 +14,6 @@ interface IPufferPool {
     error InsufficientETH();
 
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
      *
      * @notice Thrown when the last oracle update is not recent
      * @dev Signature "0x88cce429"

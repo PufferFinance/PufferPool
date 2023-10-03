@@ -9,13 +9,14 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
+import { AbstractVault } from "puffer/AbstractVault.sol";
 
 /**
  * @title PufferPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferPool is IPufferPool, ERC20Permit {
+contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
     using SafeTransferLib for address;
 
     /**
@@ -40,25 +41,16 @@ contract PufferPool is IPufferPool, ERC20Permit {
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
 
     /**
-     * @notice PufferProtocol
-     */
-    PufferProtocol public immutable PUFFER_PROTOCOL;
-
-    /**
      * @dev New rewards amount
      */
     uint256 internal _newETHRewardsAmount;
 
-    modifier onlyPufferProtocol() {
-        if (msg.sender != address(PUFFER_PROTOCOL)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    constructor(PufferProtocol protocol) payable ERC20("Puffer ETH", "pufETH") ERC20Permit("pufETH") {
-        PUFFER_PROTOCOL = protocol;
-    }
+    constructor(PufferProtocol protocol)
+        payable
+        AbstractVault(protocol)
+        ERC20("Puffer ETH", "pufETH")
+        ERC20Permit("pufETH")
+    { }
 
     /**
      * @notice no calldata automatically triggers the depositETH for `msg.sender`
@@ -84,7 +76,7 @@ contract PufferPool is IPufferPool, ERC20Permit {
         return pufETHAmount;
     }
 
-    function depositETHWithoutMinting() external payable {
+    function paySmoothingCommitment() external payable {
         emit ETHReceived(msg.value);
     }
 
