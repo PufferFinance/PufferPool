@@ -18,8 +18,9 @@ contract WithdrawalPool {
 
     uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
-    //@todo Figure out if we want a setter or a constant
-    uint256 internal constant _withdrawalFee = 5e16; // 0.05%
+    // @todo Figure out if we want a setter or a constant
+    uint256 internal constant _withdrawalFee = FixedPointMathLib.WAD; // 1%
+    // uint256 internal constant _withdrawalFee = 0;
 
     constructor(PufferPool pufferPool) payable {
         POOL = pufferPool;
@@ -39,6 +40,10 @@ contract WithdrawalPool {
         uint8 v;
         bytes32 r;
         bytes32 s;
+    }
+
+    receive() external payable {
+        // @todo
     }
 
     /**

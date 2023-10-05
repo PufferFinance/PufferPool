@@ -85,6 +85,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
         returns (address, address)
     { }
 
+    function getGuardians() external view returns (Safe) { }
+
     function getEnclaveVerifier() external view returns (IEnclaveVerifier) { }
 
     function getConsensusVault() external view returns (address) { }

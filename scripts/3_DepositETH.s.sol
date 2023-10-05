@@ -20,6 +20,6 @@ contract DepositETH is BaseScript {
         string memory pufferDeployment = vm.readFile("./output/puffer.json");
         address payable pool = payable(stdJson.readAddress(pufferDeployment, ".pufferPool"));
 
-        IPufferPool(pool).depositETH{value: ethAmount}();
+        IPufferPool(pool).depositETH{ value: ethAmount }();
     }
 }

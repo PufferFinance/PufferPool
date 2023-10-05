@@ -5,7 +5,7 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { PufferServiceManager } from "puffer/PufferServiceManager.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { BaseScript } from "scripts/BaseScript.s.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
@@ -14,8 +14,12 @@ import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
 import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
+    uint64 constant ROLE_ID_DAO = 77;
+    uint64 constant ROLE_ID_GUARDIANS = 88;
+
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -39,12 +43,14 @@ contract TestHelper is Test, BaseScript {
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
     PufferPool pool;
-    PufferServiceManager serviceManager;
+    PufferProtocol pufferProtocol;
     WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
 
     Safe guardiansSafe;
     GuardianModule module;
+
+    AccessManager accessManager;
 
     function setUp() public virtual {
         // Create Guardian wallets
@@ -66,12 +72,12 @@ contract TestHelper is Test, BaseScript {
         // 1. Deploy guardians safe
         (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
 
-        (serviceManager, pool) = new DeployPuffer().run();
+        (pufferProtocol, pool, accessManager) = new DeployPuffer().run();
 
-        withdrawalPool = WithdrawalPool(serviceManager.getWithdrawalPool());
+        withdrawalPool = WithdrawalPool(payable(pufferProtocol.getWithdrawalPool()));
 
         vm.label(address(pool), "PufferPool");
-        vm.label(address(serviceManager), "PufferServiceManager");
+        vm.label(address(pufferProtocol), "PufferProtocol");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
@@ -128,5 +134,15 @@ contract TestHelper is Test, BaseScript {
         assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
         assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
         assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
+
+        // Setup roles
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferProtocol.proofOfReserve.selector;
+
+        // For simplicity transfer ownership to this contract
+        vm.startPrank(_broadcaster);
+        accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_GUARDIANS);
+        accessManager.grantRole(ROLE_ID_GUARDIANS, address(guardiansSafe), 0);
+        vm.stopPrank();
     }
 }

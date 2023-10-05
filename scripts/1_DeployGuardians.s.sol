@@ -11,12 +11,11 @@ import { console } from "forge-std/console.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 
 // forge script scripts/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
-contract DeployGuardians is BaseScript {   
-
+contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold) broadcast public returns(Safe, GuardianModule) {
+    function run(address[] calldata guardians, uint256 threshold) public broadcast returns (Safe, GuardianModule) {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
@@ -45,12 +44,10 @@ contract DeployGuardians is BaseScript {
         return (guardiansSafe, module);
     }
 
-    function deploySafe(
-        address[] calldata owners,
-        uint256 threshold,
-        address to,
-        bytes calldata data
-    ) public returns (Safe) {
+    function deploySafe(address[] calldata owners, uint256 threshold, address to, bytes calldata data)
+        public
+        returns (Safe)
+    {
         address zeroAddress = address(0);
 
         SafeProxy proxy = SafeProxyFactory(safeProxy).createProxyWithNonce({

@@ -5,7 +5,6 @@ import { Script } from "forge-std/Script.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
-
 /**
  * @title DeploySafe script
  * @author Puffer finance
