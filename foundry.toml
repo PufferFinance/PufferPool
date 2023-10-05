@@ -5,7 +5,7 @@ runs = 10_000
 # Skip gas tests on CI
 # Run them in development manually by commenting `no_match_path` line and running "forge test --mc ETHTransferTest -vvvv"
 # don't forget to turn on the optimizer :)
-fs_permissions = [{ access = "read-write", path = "./"}, { access = "read", path = "./test/data/proof_of_rewards.json"}]
+fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports=[
     "PufferPool",
     "EigenPodProxy",
