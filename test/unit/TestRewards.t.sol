@@ -13,11 +13,7 @@ contract MerkleProofVerifier {
         merkleRoot = _merkleRoot;
     }
 
-    function verifyProof(
-        address account,
-        uint256 rewards_eth_wei,
-        bytes32[] memory proof
-    ) public view returns (bool) { 
+    function verifyProof(address account, uint256 rewards_eth_wei, bytes32[] memory proof) public view returns (bool) {
         // Construct the leaf from the account address and rewards
         bytes32 leaf = keccak256(abi.encode(account, rewards_eth_wei));
 
@@ -25,17 +21,12 @@ contract MerkleProofVerifier {
         return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 
-    function checkProof(
-        bytes32[] memory proof,
-        bytes32 leaf
-    ) public view returns (bool)
-    {
+    function checkProof(bytes32[] memory proof, bytes32 leaf) public view returns (bool) {
         return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 }
 
 contract MerkleProofVerifierTest is TestHelper, TestBase {
-
     function setUp() public override {
         super.setUp();
     }
@@ -50,12 +41,17 @@ contract MerkleProofVerifierTest is TestHelper, TestBase {
 
         address validatorAddress = address(0x0000000000000000000000000000000000000003);
         assertTrue(validatorAddress == 0x0000000000000000000000000000000000000003);
-        uint256 rewards = vm.parseJsonUint(fileData, ".merkle_proofs.0000000000000000000000000000000000000003.rewards_eth_wei");
-        assertTrue(rewards == 300); 
-        bytes32[] memory proof = vm.parseJsonBytes32Array(fileData, ".merkle_proofs.0000000000000000000000000000000000000003.merkle_proof");
+
+        uint256 rewards = vm.parseJsonUint(
+            fileData,
+            string(abi.encodePacked(".merkle_proofs.", "0000000000000000000000000000000000000003", ".rewards_eth_wei"))
+        );
+        assertTrue(rewards == 300);
+        bytes32[] memory proof = vm.parseJsonBytes32Array(
+            fileData,
+            string(abi.encodePacked(".merkle_proofs.", "0000000000000000000000000000000000000003", ".merkle_proof"))
+        );
 
         assertTrue(verifier.verifyProof(validatorAddress, rewards, proof));
     }
-
-
 }
