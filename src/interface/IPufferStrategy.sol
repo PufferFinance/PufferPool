@@ -20,7 +20,7 @@ interface IPufferStrategy {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Collets the staking rewards only if the validator is not restaking
+     * @notice Collects the staking rewards only if the validator is not restaking
      */
     function collectRewardsIfNotRestaking() external;
 
