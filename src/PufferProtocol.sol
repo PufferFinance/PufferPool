@@ -101,20 +101,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         __AccessManaged_init(accessManager);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
+        bytes32[] memory weights = new bytes32[](1);
+        weights[0] = _NO_RESTAKING;
+        _setStrategyWeights(weights);
         $.noRestakingStrategy = PufferStrategy(payable(_createPufferStrategy(_NO_RESTAKING)));
-        $.strategyWeights = [_NO_RESTAKING];
         $.pool = pool;
         $.withdrawalPool = withdrawalPool;
         $.guardianModule = GuardianModule(guardianSafeModule);
         $.guardiansFeeRate = 5 * 1e17; // 0.5 %
         $.withdrawalPoolRate = 10 * FixedPointMathLib.WAD; // 10 %
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function createPufferStrategy(bytes32 strategyName) external restricted returns (address) {
-        return _createPufferStrategy(strategyName);
     }
 
     /**
@@ -182,10 +177,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         (bytes32 strategyName, uint256 index) = getNextValidatorToProvision();
 
-        ++$.strategySelectIndex;
-        ++$.nextToBeProvisioned[strategyName];
-
         Validator memory validator = $.validators[strategyName][index];
+
+        // If the strategy is zero address, don't increase the counter
+        // This means that the queue for that strategyName is empty
+        if (validator.strategy != address(0)) {
+            ++$.strategySelectIndex;
+            ++$.nextToBeProvisioned[strategyName];
+        }
 
         try this.provisionNodeETH({
             strategyName: strategyName,
@@ -303,6 +302,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit BackingUpdated(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function createPufferStrategy(bytes32 strategyName) external restricted returns (address) {
+        return _createPufferStrategy(strategyName);
+    }
+
+    function setStrategyWeights(bytes32[] calldata newStrategyWeights) external restricted {
+        _setStrategyWeights(newStrategyWeights);
+    }
+
     function setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) external restricted {
         _setSmoothingCommitment(strategyName, smoothingCommitment);
     }
@@ -334,6 +344,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         return addresses;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getSmoothingCommitment(bytes32 strategyName) external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.smoothingCommitments[strategyName];
     }
 
     /**
@@ -437,6 +455,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         return amount;
+    }
+
+    function _setStrategyWeights(bytes32[] memory newStrategyWeights) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        bytes32[] memory oldStrategyWeights = $.strategyWeights;
+        $.strategyWeights = newStrategyWeights;
+        emit StrategyWeightsChanged(oldStrategyWeights, newStrategyWeights);
     }
 
     function _setProtocolFeeRate(uint256 protocolFee) internal {

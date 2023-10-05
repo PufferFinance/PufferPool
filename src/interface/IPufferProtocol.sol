@@ -105,6 +105,12 @@ interface IPufferProtocol {
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
 
     /**
+     * @notice Emitted when the strategy weights changes from `olgWeights` to `newWeights`
+     * @dev Signature "0x651ca4f91cd6509c3bd83f4eae79f7b55bf243d8b0dc5fc648d6002b06873afe"
+     */
+    event StrategyWeightsChanged(bytes32[] olgWeights, bytes32[] newWeights);
+
+    /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
@@ -198,6 +204,11 @@ interface IPufferProtocol {
      * @dev It will revert if you try to create two strategies with the same name
      */
     function createPufferStrategy(bytes32 strategyName) external returns (address);
+
+    /**
+     * @notice Returns the smoothing commitment for a `strategyName` (in wei)
+     */
+    function getSmoothingCommitment(bytes32 strategyName) external view returns (uint256);
 
     /**
      * @notice Registers a new validator in a `strategyName` queue
