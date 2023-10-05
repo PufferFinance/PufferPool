@@ -5,6 +5,7 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -13,11 +14,13 @@ import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializabl
  * @notice PufferStartegy TODO:
  * @custom:security-contact security@puffer.fi
  */
-contract PufferStrategy is Initializable, AccessManagedUpgradeable {
+contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradeable {
+    error Unauthorized();
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IEigenPodManager internal immutable EIGEN_POD_MANAGER;
+
+    IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
     // keccak256(abi.encode(uint256(keccak256("PufferStrategyBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
     bytes32 private constant PUFFER_STRATEGY_BASE_STORAGE =
@@ -27,6 +30,7 @@ contract PufferStrategy is Initializable, AccessManagedUpgradeable {
      * @custom:storage-location erc7201:PufferStrategyBase.storage
      */
     struct PufferStrategyBase {
+        bytes32 strategyName;
         PufferProtocol pufferProtocol;
         IEigenPod eigenPod;
     }
@@ -35,9 +39,19 @@ contract PufferStrategy is Initializable, AccessManagedUpgradeable {
         EIGEN_POD_MANAGER = eigenPodManager;
     }
 
-    function initialize(PufferProtocol protocol) public initializer {
+    modifier onlyPufferProtocol() {
+        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+
+        if (msg.sender != address($.pufferProtocol)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    function initialize(PufferProtocol protocol, bytes32 strategyName) public initializer {
         PufferStrategyBase storage $ = _getPufferProtocolStorage();
         $.pufferProtocol = protocol;
+        $.strategyName = strategyName;
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.ownerToPod(address(this))));
     }
 
@@ -46,7 +60,7 @@ contract PufferStrategy is Initializable, AccessManagedUpgradeable {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
         payable
-        restricted
+        onlyPufferProtocol
     {
         // EigenPod is deployed in this call
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);

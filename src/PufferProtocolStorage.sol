@@ -61,26 +61,34 @@ abstract contract PufferProtocolStorage {
          */
         uint256 guardiansFeeRate;
         /**
-         * @dev Smoothing commitment amount (in wei)
+         * @dev Strategy weights
          */
-        uint256 smoothingCommitment;
+        bytes32[] strategyWeights;
         /**
-         * @dev Next validator index for provisioning queue
+         * @dev Select strategy index
          */
-        uint256 pendingValidatorIndex;
+        uint256 strategySelectIndex;
         /**
-         * @dev Index of the validator that will be provisioned next
+         * @dev Mapping of strategy name to pending validator index for that strategy
          */
-        uint256 validatorIndexToBeProvisionedNext;
+        mapping(bytes32 strategyName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
         /**
-         * @dev Mapping of idx => Validator
-         * Index is incrementing starting from 0
+         * @dev Mapping of a strategy name to validator queue
          */
-        mapping(uint256 => Validator) validators;
+        mapping(bytes32 strategyName => uint256 nextInLineToBeProvisionedIndex) nextToBeProvisioned;
         /**
-         * Mapping representing Strategies
+         * @dev Mapping of Strategy name => idx => Validator
+         * Index is incrementing starting from 0, not to be mistaken with Beacon Chain Validator Index
          */
-        mapping(bytes32 => PufferStrategy) strategies;
+        mapping(bytes32 strategyName => mapping(uint256 index => Validator validator)) validators;
+        /**
+         * @dev Mapping between strategy name and a strategy
+         */
+        mapping(bytes32 strategyName => PufferStrategy strategyAddress) strategies;
+        /**
+         * @dev Mapping between strategy name and smoothing commitment amount (in wei)
+         */
+        mapping(bytes32 strategyName => uint256 amount) smoothingCommitments;
     }
 
     struct PufferPoolStorage {

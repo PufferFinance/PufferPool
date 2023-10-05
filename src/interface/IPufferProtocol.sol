@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "puffer/struct/Validator.sol";
+import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -17,6 +18,8 @@ interface IPufferProtocol {
      * @dev Signature "0x9a5bbd69"
      */
     error InvalidBLSPublicKeyShares();
+
+    error InvalidRaveEvidence();
 
     /**
      * @notice Thrown when the number of BLS private key shares doesn't match guardians number
@@ -72,6 +75,12 @@ interface IPufferProtocol {
     event NewPufferStrategyCreated(address strategy);
 
     /**
+     * @notice Emitted when the smoothing commitment is paid
+     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     */
+    event SmoothingCommitmentPaid(bytes pubKey, uint256 timestamp, uint256 amountPaid);
+
+    /**
      * @notice Emitted when the Guardians update state of the protocol
      * @param ethAmount is the ETH amount that is not locked in Beacon chain
      * @param lockedETH is the locked ETH amount in Beacon chain
@@ -81,9 +90,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when the smoothing commitment amount is changed
-     * @dev Signature "0xd8db7b2b5edfec0479579af44419e071d7c4d7f876bd60dd1c229a08757a0d95"
+     * @dev Signature "0xde1839594da67886999083403f9eae77aa4bc77d812f5d2434899d0f69882885"
      */
-    event CommitmentChanged(uint256 oldSmoothingCommitment, uint256 smoothingCommitment);
+    event CommitmentChanged(bytes32 indexed strategyName, uint256 oldSmoothingCommitment, uint256 smoothingCommitment);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -134,17 +143,19 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns validator information
+     * @param strategyName is the staking Strategy
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @return Validator info struct
      */
-    function getValidatorInfo(uint256 validatorIndex) external view returns (Validator memory);
+    function getValidatorInfo(bytes32 strategyName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
      * @notice Stops the registration
+     * @param strategyName is the staking Strategy
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
-    function stopRegistration(uint256 validatorIndex) external;
+    function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
 
     /**
      * @notice Returns the Strategy Manager
@@ -167,21 +178,45 @@ interface IPufferProtocol {
     function getWithdrawalPool() external view returns (address);
 
     /**
-     * @notice Returns the next validator in line to be provisioned
-     */
-    function getPendingValidatorIndex() external view returns (uint256);
-
-    /**
      * @notice Returns the array of Puffer validators
      * @dev Not to be used on chain
      */
-    function getValidators() external view returns (bytes[] memory);
+    function getValidators(bytes32 strategyName) external view returns (bytes[] memory);
 
     /**
      * @notice Returns the array of Node operator's addresses (it uses the same ordering as getValidators())
      * @dev Not to be used on chain
      */
-    function getValidatorsAddresses() external view returns (address[] memory);
+    function getValidatorsAddresses(bytes32 strategyName) external view returns (address[] memory);
+
+    /**
+     * @notice Creates a new Puffer strategy with `strategyName`
+     * @dev It will revert if you try to create two strategies with the same name
+     */
+    function createPufferStrategy(bytes32 strategyName) external returns (address);
+
+    /**
+     * @notice Registers a new validator in a `strategyName` queue
+     * @dev There is a queue per strategyName and it is FIFO
+     */
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName) external payable;
+
+    /**
+     * @notice Returns the pending validator index for `strategyName`
+     */
+    function getPendingValidatorIndex(bytes32 strategyName) external view returns (uint256);
+
+    /**
+     * @notice Returns the next validator index for provisioning for `strategyName`
+     */
+    function getNextValidatorToBeProvisionedIndex(bytes32 strategyName) external view returns (uint256);
+
+    /**
+     * @notice Returns the next in line for provisioning
+     * @dev The order in which the strategies are selected is based on Strategy Weights
+     * Every strategy has its own FIFO queue for provisioning
+     */
+    function getNextValidatorToProvision() external view returns (bytes32 strategyName, uint256 indexToBeProvisioned);
 
     /**
      * @notice Returns the default straetgy (no restaking)

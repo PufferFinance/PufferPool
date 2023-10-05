@@ -78,17 +78,6 @@ contract PufferPoolTest is TestHelper, TestBase {
         assertEq(pool.balanceOf(alice), 10 ether, "alice balance");
     }
 
-    // Create validator with Mock beacon chain deposit contract
-    function testCreateValidator() public {
-        BeaconMock mock = new BeaconMock();
-
-        vm.deal(address(pool), 32 ether);
-        vm.etch(address(pool.BEACON_DEPOSIT_CONTRACT()), address(mock).code);
-
-        vm.startPrank(address(pufferProtocol));
-        pool.createValidator("", "", "", "");
-    }
-
     // Test burning of pufETH
     function testBurn(address depositor) public fuzzedAddress(depositor) {
         uint256 amount = 5 ether;
@@ -117,11 +106,16 @@ contract PufferPoolTest is TestHelper, TestBase {
         // Simulate rewards of 1 ETH
         pool.paySmoothingCommitment{ value: 1 ether }();
 
-        // Fast forward 1801 blocks ~ 6 hours
-        vm.roll(1801);
+        // Fast forward 50400 blocks ~ 7 days
+        vm.roll(50401);
 
         vm.prank(address(guardiansSafe));
-        pufferProtocol.updateBacking({ ethAmount: 2 ether, lockedETH: 0, pufETHTotalSupply: 1 ether, blockNumber: 1 });
+        pufferProtocol.proofOfReserve({
+            ethAmount: 2 ether,
+            lockedETH: 0,
+            pufETHTotalSupply: 1 ether,
+            blockNumber: 50401
+        });
 
         // total supply is 1
         // total eth = 2

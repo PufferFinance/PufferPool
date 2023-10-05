@@ -7,7 +7,6 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
-import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
 
@@ -20,17 +19,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
     using SafeTransferLib for address;
 
     /**
-     * @notice Address of the Beacon Chain Deposit Contract
-     */
-    IBeaconDepositContract public constant BEACON_DEPOSIT_CONTRACT =
-        IBeaconDepositContract(0x00000000219ab540356cBB839Cbe05303d7705Fa);
-
-    /**
-     * @dev ETH Amount required for becoming a Validator
-     */
-    uint256 internal constant _32_ETHER = 32 ether;
-
-    /**
      * @dev Number of blocks for oracle freshness update
      */
     uint256 internal constant _FRESHNESS_BLOCKS = 3600;
@@ -39,11 +27,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      * @dev Minimum deposit amount in ETH
      */
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
-
-    /**
-     * @dev New rewards amount
-     */
-    uint256 internal _newETHRewardsAmount;
 
     constructor(PufferProtocol protocol)
         payable
@@ -87,23 +70,8 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
         _burn(msg.sender, pufETHAmount);
     }
 
-    function createValidator(
-        bytes calldata pubKey,
-        bytes calldata withdrawalCredentials,
-        bytes calldata signature,
-        bytes32 depositDataRoot
-    ) external onlyPufferProtocol {
-        BEACON_DEPOSIT_CONTRACT.deposit{ value: _32_ETHER }({
-            pubkey: pubKey,
-            withdrawal_credentials: withdrawalCredentials,
-            signature: signature,
-            deposit_data_root: depositDataRoot
-        });
-    }
-
-    function setNewRewardsETHAmount(uint256 amount) external {
-        // TODO: everything
-        _newETHRewardsAmount = amount;
+    function transferETH(address to, uint256 ethAmount) external onlyPufferProtocol {
+        to.safeTransferETH(ethAmount);
     }
 
     /**
@@ -123,13 +91,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
     /**
      * @inheritdoc IPufferPool
      */
-    function getNewRewardsETHAmount() public view returns (uint256) {
-        return _newETHRewardsAmount;
-    }
-
-    /**
-     * @inheritdoc IPufferPool
-     */
     function getPufETHtoETHExchangeRate() public view returns (uint256) {
         return _getPufETHtoETHExchangeRate(0);
     }
@@ -142,24 +103,13 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
         }
 
         if (data.lastUpdate != 0) {
+            //@audit figure if we want this?
             if (block.number - data.lastUpdate > _FRESHNESS_BLOCKS) {
                 revert StaleOracle();
             }
         }
 
-        uint256 exchangeRate = FixedPointMathLib.divWad((data.lockedETH + data.ethAmount), data.pufETHTotalSupply);
-
-        // address(this).balance - ethDepositedAmount is actually balance of this contract before the deposit
-        // uint256 exchangeRate = FixedPointMathLib.divWad(
-        //     (
-        //         getNewRewardsETHAmount() + PUFFER_PROTOCOL.getWithdrawalPool().balance
-        //             + PUFFER_PROTOCOL.getExecutionRewardsVault().balance + PUFFER_PROTOCOL.getConsensusVault().balance
-        //             + (address(this).balance - ethDepositedAmount)
-        //     ),
-        //     pufETHSupply
-        // );
-
-        return exchangeRate;
+        return FixedPointMathLib.divWad((data.lockedETH + data.ethAmount), data.pufETHTotalSupply);
     }
 
     /**

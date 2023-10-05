@@ -39,9 +39,6 @@ contract PufferStrategyTest is TestHelper, TestBase {
 
         _skipDefaultFuzzAddresses();
 
-        BeaconMock mock = new BeaconMock();
-        vm.etch(address(pool.BEACON_DEPOSIT_CONTRACT()), address(mock).code);
-
         fuzzedAddressMapping[address(pufferProtocol)] = true;
     }
 

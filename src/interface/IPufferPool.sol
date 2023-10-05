@@ -71,11 +71,6 @@ interface IPufferPool {
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
 
     /**
-     * @notice Returns the ETH rewards amount from the last update
-     */
-    function getNewRewardsETHAmount() external view returns (uint256);
-
-    /**
      * @notice Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);

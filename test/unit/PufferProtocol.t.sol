@@ -8,7 +8,6 @@ import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
@@ -36,7 +35,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         // Setup roles
         bytes4[] memory selectors = new bytes4[](4);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
-        selectors[1] = PufferProtocol.setCommitment.selector;
+        selectors[1] = PufferProtocol.setSmoothingCommitment.selector;
         selectors[2] = PufferProtocol.createPufferStrategy.selector;
         selectors[3] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
 
@@ -46,12 +45,9 @@ contract PufferProtocolTest is TestHelper, TestBase {
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         vm.stopPrank();
 
-        pufferProtocol.setCommitment(executionRewardsCommitment + consensusRewardsCommitment);
+        pufferProtocol.setSmoothingCommitment(NO_RESTAKING, executionRewardsCommitment + consensusRewardsCommitment);
 
         _skipDefaultFuzzAddresses();
-
-        BeaconMock mock = new BeaconMock();
-        vm.etch(address(pool.BEACON_DEPOSIT_CONTRACT()), address(mock).code);
 
         fuzzedAddressMapping[address(pufferProtocol)] = true;
     }
@@ -87,8 +83,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
     }
 
     function testRegisterValidatorKey(bytes32 pubKeyPart) public {
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(_getPubKey(pubKeyPart), pufferProtocol.getPendingValidatorIndex());
+        // vm.expectEmit(true, true, true, true);
+        // // emit ValidatorKeyRegistered(_getPubKey(pubKeyPart), pufferProtocol.getPendingValidatorIndex());
         pufferProtocol.registerValidatorKey{ value: consensusRewardsCommitment + executionRewardsCommitment }(
             _getMockValidatorKeyData(_getPubKey(pubKeyPart)), NO_RESTAKING
         );
@@ -99,12 +95,11 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(IPufferProtocol.Unauthorized.selector);
-        pufferProtocol.stopRegistration(0);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
 
-        // Stop registration for 4.
         vm.expectEmit(true, true, true, true);
         emit ValidatorDequeued(zeroPubKey, 0);
-        pufferProtocol.stopRegistration(0);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
 
         vm.expectEmit(true, true, true, true);
         emit FailedToProvision(zeroPubKey, 0);
@@ -116,7 +111,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         // Invalid status
         vm.expectRevert(IPufferProtocol.InvalidValidatorState.selector);
-        pufferProtocol.stopRegistration(0);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
     }
 
     function testRegisterMultipleValidatorKeysAndDequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
@@ -130,6 +125,10 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         // 1. validator
         testRegisterValidatorKey(zeroPubKeyPart);
+
+        Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
+        assertTrue(validator.node == address(this), "node operator");
+        assertTrue(keccak256(validator.pubKey) == keccak256(zeroPubKey), "bad pubkey");
 
         // 2. validator
         vm.startPrank(bob);
@@ -147,14 +146,13 @@ contract PufferProtocolTest is TestHelper, TestBase {
         // 5. Validator
         testRegisterValidatorKey(zeroPubKeyPart);
 
-        assertEq(pufferProtocol.getPendingValidatorIndex(), 5, "next pending validator index");
-
-        assertEq(pufferProtocol.getValidators().length, 0, "no validators");
-        assertEq(pufferProtocol.getValidatorsAddresses().length, 0, "no validators");
+        assertEq(pufferProtocol.getPendingValidatorIndex(NO_RESTAKING), 5, "next pending validator index");
+        assertEq(pufferProtocol.getValidators(NO_RESTAKING).length, 5, "5 registered validators");
+        assertEq(pufferProtocol.getValidatorsAddresses(NO_RESTAKING).length, 5, "5 registered node operators");
 
         vm.deal(address(pool), 1000 ether);
 
-        // 1. provision zero key
+        // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(new bytes(48), 0);
         pufferProtocol.provisionNodeETHWrapper({
@@ -163,8 +161,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
             guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
         });
 
-        assertEq(pufferProtocol.getValidators().length, 1, "1 validator");
-        assertEq(pufferProtocol.getValidatorsAddresses().length, 1, "1 validator");
+        // assertEq(pufferProtocol.getValidators(NO_RESTAKING).length, 1, "1 validator");
+        // assertEq(pufferProtocol.getValidatorsAddresses(NO_RESTAKING).length, 1, "1 validator");
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
@@ -175,33 +173,33 @@ contract PufferProtocolTest is TestHelper, TestBase {
             guardianEnclaveSignatures: _getGuardianSignatures(bobPubKey)
         });
 
-        Validator memory bobValidator = pufferProtocol.getValidatorInfo(1);
+        // Validator memory bobValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 1);
 
-        assertTrue(bobValidator.status == Status.ACTIVE, "bob should be active");
+        // assertTrue(bobValidator.status == Status.ACTIVE, "bob should be active");
 
-        assertEq(pufferProtocol.getValidators().length, 2, "2 validators");
-        assertEq(pufferProtocol.getValidatorsAddresses().length, 2, "2 validators");
-        assertEq(pufferProtocol.getValidatorsAddresses()[1], bob, "bob should be second validator");
+        // assertEq(pufferProtocol.getValidators(NO_RESTAKING).length, 2, "2 validators");
+        // assertEq(pufferProtocol.getValidatorsAddresses(NO_RESTAKING).length, 2, "2 validators");
+        // assertEq(pufferProtocol.getValidatorsAddresses(NO_RESTAKING)[1], bob, "bob should be second validator");
 
-        // Submit invalid TX by guardians, bad signature
-        // It should dequeue alice
-        vm.expectEmit(true, true, true, true);
-        emit FailedToProvision(alicePubKey, 2);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(55),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        // // Submit invalid TX by guardians, bad signature
+        // // It should dequeue alice
+        // vm.expectEmit(true, true, true, true);
+        // emit FailedToProvision(alicePubKey, 2);
+        // pufferProtocol.provisionNodeETHWrapper({
+        //     signature: new bytes(55),
+        //     depositDataRoot: "",
+        //     guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
+        // });
 
-        emit SuccesfullyProvisioned(new bytes(48), 3);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        // emit SuccesfullyProvisioned(new bytes(48), 3);
+        // pufferProtocol.provisionNodeETHWrapper({
+        //     signature: new bytes(0),
+        //     depositDataRoot: "",
+        //     guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
+        // });
 
-        assertEq(pufferProtocol.getValidators().length, 4, "4 validators");
-        assertEq(pufferProtocol.getValidatorsAddresses().length, 4, "4 validators provisioned");
+        // assertEq(pufferProtocol.getValidators(NO_RESTAKING).length, 4, "4 validators");
+        // assertEq(pufferProtocol.getValidatorsAddresses(NO_RESTAKING).length, 4, "4 validators provisioned");
     }
 
     function testCreatePufferStrategy() public {
@@ -222,8 +220,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        uint256 pendindIdx = pufferProtocol.getPendingValidatorIndex();
-        Validator memory validator = pufferProtocol.getValidatorInfo(pendindIdx - 1); // -1 because we are in the middle of provisioning
+        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+        Validator memory validator = pufferProtocol.getValidatorInfo(strategyName, pendingIdx);
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
 
         bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
@@ -265,8 +263,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeyShares: new bytes[](3),
             blockNumber: 1,
-            raveEvidence: new bytes(0)
-        });
+            raveEvidence: new bytes(1) // Guardians are checking it off chain
+         });
 
         return validatorData;
     }

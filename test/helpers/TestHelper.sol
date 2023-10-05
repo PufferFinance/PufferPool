@@ -137,7 +137,7 @@ contract TestHelper is Test, BaseScript {
 
         // Setup roles
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferProtocol.updateBacking.selector;
+        selectors[0] = PufferProtocol.proofOfReserve.selector;
 
         // For simplicity transfer ownership to this contract
         vm.startPrank(_broadcaster);
