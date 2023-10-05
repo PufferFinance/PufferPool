@@ -15,10 +15,11 @@ import { Strings } from "openzeppelin/utils/Strings.sol";
  */
 contract SetEnclaveMeasurements is BaseScript {
     function run(bytes32 mrenclave, bytes32 mrsigner) external broadcast {
-        string memory guardiansDeployment = vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+        string memory guardiansDeployment =
+            vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
         address payable module = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
-        GuardianModule(module).setGuardianEnclaveMeasurements({newMrenclave: mrenclave, newMrsigner: mrsigner});
+        GuardianModule(module).setGuardianEnclaveMeasurements({ newMrenclave: mrenclave, newMrsigner: mrsigner });
     }
 }

@@ -10,25 +10,32 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 
 /**
  * @title AbstractVault
- * @notice Inherited by Consensus Pool and ExecutionRewardsPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
 abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
     using SafeTransferLib for address;
 
+    /**
+     * @notice Thrown when the user is not authorized
+     * @dev Signature "0x82b42900"
+     */
+    error Unauthorized();
+
+    /**
+     * @notice Address of the Puffer Protocol
+     */
     PufferProtocol public immutable PUFFER_PROTOCOL;
+
+    modifier onlyPufferProtocol() {
+        if (msg.sender != address(PUFFER_PROTOCOL)) {
+            revert Unauthorized();
+        }
+        _;
+    }
 
     constructor(PufferProtocol pufferProtocol) payable {
         PUFFER_PROTOCOL = pufferProtocol;
-    }
-
-    /**
-     * @notice Transfers all ETH to WithdrawalPool
-     */
-    function transferETH() external virtual {
-        // TODO: authorization?
-        PUFFER_PROTOCOL.getWithdrawalPool().safeTransferETH(address(this).balance);
     }
 
     /**

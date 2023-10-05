@@ -4,9 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { ExecutionRewardsVault } from "puffer/ExecutionRewardsVault.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
-import { ConsensusVault } from "puffer/ConsensusVault.sol";
 import { Script } from "forge-std/Script.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -25,20 +23,21 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
  * @title DeployPuffer
  * @author Puffer finance
  * @notice Deploys PufferPool Contracts
- * @dev    
- * 
- * 
- *         NOTE: 
- * 
+ * @dev
+ *
+ *
+ *         NOTE:
+ *
  *         If you ran the deployment script, but did not `--broadcast` the transaction, it will still update your local chainId-deployment.json file.
  *         Other scripts will fail because addresses will be updated in deployments file, but the deployment never happened.
- * 
- * 
+ *
+ *
  *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
-contract DeployPuffer is BaseScript {   
-    function run() broadcast public returns(PufferProtocol, PufferPool, AccessManager) {
-        string memory guardiansDeployment = vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+contract DeployPuffer is BaseScript {
+    function run() public broadcast returns (PufferProtocol, PufferPool, AccessManager) {
+        string memory guardiansDeployment =
+            vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
         string memory obj = "";
 
         PufferProtocol pufferProtocolImpl;
@@ -47,7 +46,7 @@ contract DeployPuffer is BaseScript {
 
         {
             // PufferTreasury
-            address payable treasury = payable(vm.envOr("TREASURY", address(1337)));            
+            address payable treasury = payable(vm.envOr("TREASURY", address(1337)));
             address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
 
             address eigenStrategyManager = vm.envOr("EIGEN_STRATEGY_MANAGER", address(0));
@@ -61,9 +60,10 @@ contract DeployPuffer is BaseScript {
             vm.serializeAddress(obj, "PufferStrategyBeacon", address(beacon));
 
             // Puffer Service implementation
-            pufferProtocolImpl = new PufferProtocol({guardians: Safe(guardians), treasury: treasury, eigenStrategyManager: IStrategyManager(eigenStrategyManager), strategyBeacon: address(beacon)});
+            pufferProtocolImpl =
+            new PufferProtocol({guardians: Safe(guardians), treasury: treasury, eigenStrategyManager: IStrategyManager(eigenStrategyManager), strategyBeacon: address(beacon)});
         }
-        
+
         // UUPS proxy for PufferProtocol
         ERC1967Proxy proxy = new ERC1967Proxy(address(pufferProtocolImpl), "");
 
@@ -73,28 +73,26 @@ contract DeployPuffer is BaseScript {
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
-        ExecutionRewardsVault executionRewardsVault = new ExecutionRewardsVault(pufferProtocol);
-        
-        ConsensusVault consensusVault = new ConsensusVault(pufferProtocol);
-
         // Read guardians module variable
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
         // Initialize the Pool
-        pufferProtocol.initialize({accessManager: address(accessManager), pool: pool, withdrawalPool: address(withdrawalPool), executionRewardsVault: address(executionRewardsVault), consensusVault: address(consensusVault), guardianSafeModule: guardiansModule});
-        
+        pufferProtocol.initialize({
+            accessManager: address(accessManager),
+            pool: pool,
+            withdrawalPool: address(withdrawalPool),
+            guardianSafeModule: guardiansModule
+        });
+
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
-        vm.serializeAddress(obj, "executionRewardsVault", address(executionRewardsVault));
-        vm.serializeAddress(obj, "consensusVault", address(consensusVault));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
         vm.writeJson(finalJson, "./output/puffer.json");
 
-        // console.log(address(executionRewardsVault), "<-- ExecutionRewardsVault");
         // console.log(address(withdrawalPool), "<-- WithdrawalPool");
         // console.log(address(pool), "<-- Puffer pool");
         // console.log(address(proxy), "<-- PufferProtocol (main contract)");

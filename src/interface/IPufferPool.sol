@@ -14,10 +14,11 @@ interface IPufferPool {
     error InsufficientETH();
 
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
+     *
+     * @notice Thrown when the last oracle update is not recent
+     * @dev Signature "0x88cce429"
      */
-    error Unauthorized();
+    error StaleOracle();
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool
@@ -70,11 +71,6 @@ interface IPufferPool {
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
 
     /**
-     * @notice Returns the amount of ETH locked in Validators
-     */
-    function getLockedETHAmount() external view returns (uint256);
-
-    /**
      * @notice Returns the ETH rewards amount from the last update
      */
     function getNewRewardsETHAmount() external view returns (uint256);
@@ -83,10 +79,4 @@ interface IPufferPool {
      * @notice Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
-
-    // ==== Only Guardians ====
-
-    function updateETHBackingAmount(uint256 amount) external;
-
-    // ==== Only Guardians end ====
 }

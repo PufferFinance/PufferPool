@@ -18,6 +18,8 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
     uint64 constant ROLE_ID_DAO = 77;
+    uint64 constant ROLE_ID_GUARDIANS = 88;
+
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -72,7 +74,7 @@ contract TestHelper is Test, BaseScript {
 
         (pufferProtocol, pool, accessManager) = new DeployPuffer().run();
 
-        withdrawalPool = WithdrawalPool(pufferProtocol.getWithdrawalPool());
+        withdrawalPool = WithdrawalPool(payable(pufferProtocol.getWithdrawalPool()));
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
@@ -132,5 +134,15 @@ contract TestHelper is Test, BaseScript {
         assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
         assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
         assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
+
+        // Setup roles
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferProtocol.updateBacking.selector;
+
+        // For simplicity transfer ownership to this contract
+        vm.startPrank(_broadcaster);
+        accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_GUARDIANS);
+        accessManager.grantRole(ROLE_ID_GUARDIANS, address(guardiansSafe), 0);
+        vm.stopPrank();
     }
 }

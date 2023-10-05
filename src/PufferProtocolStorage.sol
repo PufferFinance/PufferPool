@@ -7,6 +7,7 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
+import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 
 /**
  * @title PufferProtocolStorage
@@ -24,6 +25,9 @@ abstract contract PufferProtocolStorage {
     bytes32 private constant PUFFER_PROTOCOL_STORAGE =
         0xb8d3716136db480afe9a80da6be84f994509ecf9515ed14d03024589b5f2bd00;
 
+    bytes32 private constant PUFFER_POOL_STORAGE = 0x3d9197675aec7b7f62441149aba7986872b7337d003616efa547249bb6c43900;
+
+    //@audit optimize storage struct
     /**
      * @custom:storage-location erc7201:PufferProtocol.storage
      */
@@ -33,37 +37,13 @@ abstract contract PufferProtocolStorage {
          */
         PufferPool pool;
         /**
-         * @dev Guardians multisig wallet
-         */
-        Safe guardians;
-        /**
          * @dev Default strategy
          */
         PufferStrategy noRestakingStrategy;
         /**
-         * @dev Consensus rewards and withdrawals pool address
+         * @dev Withdrawal pool address
          */
         address withdrawalPool;
-        /**
-         * @dev Execution rewards vault's address
-         */
-        address executionRewardsVault;
-        /**
-         * @dev Vault for handling consensus rewards and withdrawals
-         */
-        address consensusVault;
-        /**
-         * @dev Contract responsible for RAVE attestation
-         */
-        IEnclaveVerifier enclaveVerifier;
-        /**
-         * @dev Consensus rewards commission, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         */
-        uint256 consensusCommission;
-        /**
-         * @dev Execution rewards, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         */
-        uint256 executionCommission;
         /**
          * @dev Guardian module
          */
@@ -73,9 +53,17 @@ abstract contract PufferProtocolStorage {
          */
         uint256 protocolFeeRate;
         /**
-         * @dev Execution rewards commitment amount (in wei)
+         * @dev WithdrawalPool rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          */
-        uint256 executionRewardsCommitment;
+        uint256 withdrawalPoolRate;
+        /**
+         * @dev Guardians fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
+         */
+        uint256 guardiansFeeRate;
+        /**
+         * @dev Smoothing commitment amount (in wei)
+         */
+        uint256 smoothingCommitment;
         /**
          * @dev Next validator index for provisioning queue
          */
@@ -84,11 +72,49 @@ abstract contract PufferProtocolStorage {
          * @dev Index of the validator that will be provisioned next
          */
         uint256 validatorIndexToBeProvisionedNext;
+        /**
+         * @dev Mapping of idx => Validator
+         * Index is incrementing starting from 0
+         */
         mapping(uint256 => Validator) validators;
         /**
          * Mapping representing Strategies
          */
         mapping(bytes32 => PufferStrategy) strategies;
+    }
+
+    struct PufferPoolStorage {
+        /**
+         * @dev Unlocked ETH amount
+         */
+        uint256 ethAmount;
+        /**
+         * @dev Locked ETH amount in Beacon Chain
+         */
+        uint256 lockedETH;
+        /**
+         * @dev pufETH total token supply
+         */
+        uint256 pufETHTotalSupply;
+        /**
+         * @dev Block number for when the values were updated
+         */
+        uint256 lastUpdate;
+    }
+
+    function getPuferPoolStorage() external pure returns (PufferPoolStorage memory) {
+        PufferPoolStorage storage $;
+        assembly {
+            $.slot := PUFFER_POOL_STORAGE
+        }
+
+        return $;
+    }
+
+    function _getPuferPoolStorage() internal pure returns (PufferPoolStorage storage $) {
+        assembly {
+            $.slot := PUFFER_POOL_STORAGE
+        }
     }
 
     function _getPufferProtocolStorage() internal pure returns (ProtocolStorage storage $) {
