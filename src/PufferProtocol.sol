@@ -8,6 +8,7 @@ import { Status } from "puffer/struct/Status.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -185,7 +186,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ++$.strategySelectIndex;
         ++$.nextToBeProvisioned[strategyName];
 
-        Validator storage validator = $.validators[strategyName][index];
+        Validator memory validator = $.validators[strategyName][index];
 
         try this.provisionNodeETH({
             strategyName: strategyName,
@@ -472,8 +473,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return PufferStrategy(payable(address(strategy)));
     }
 
-    function getWithdrawalCredentials(address strategy) public pure returns (bytes memory) {
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), strategy);
+    function getWithdrawalCredentials(address strategy) public view returns (bytes memory) {
+        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getEigenPod());
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
