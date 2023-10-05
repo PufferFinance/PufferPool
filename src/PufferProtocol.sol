@@ -138,7 +138,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         uint256 smoothingCommitment = $.smoothingCommitments[strategyName];
-
         uint256 numGuardians = GUARDIANS.getOwners().length;
 
         if (data.blsEncryptedPrivKeyShares.length != numGuardians) {

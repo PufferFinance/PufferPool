@@ -19,6 +19,10 @@ interface IPufferProtocol {
      */
     error InvalidBLSPublicKeyShares();
 
+    /**
+     * @notice Thrown when the RAVE evidence is not valid
+     * @dev Signature "0x14807c47"
+     */
     error InvalidRaveEvidence();
 
     /**
@@ -78,7 +82,7 @@ interface IPufferProtocol {
      * @notice Emitted when the smoothing commitment is paid
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
-    event SmoothingCommitmentPaid(bytes pubKey, uint256 timestamp, uint256 amountPaid);
+    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 timestamp, uint256 amountPaid);
 
     /**
      * @notice Emitted when the Guardians update state of the protocol
@@ -106,7 +110,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x164db4cd8a48da2fe13aa432976a2b2ec884239bb8e411b135d280eb0192a84d"
      */
-    event ValidatorKeyRegistered(bytes pubKey, uint256 validatorIndex);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -114,7 +118,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x316b88e106e79895c25a960158d125957aaf3ab3520d6151fbbec5108e19a435"
      */
-    event SuccesfullyProvisioned(bytes pubKey, uint256 validatorIndex);
+    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the Validator key is failed to be provisioned
@@ -122,7 +126,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x8570512b93af33936e8fa6bfcd755f2c72c42c90569dc288b2e38e839943f0cd"
      */
-    event FailedToProvision(bytes pubKey, uint256 validatorIndex);
+    event FailedToProvision(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the validator is dequeued by the Node operator
@@ -130,16 +134,16 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x3805d456ec5395c4fa60d9ef7579bee46dad389285d99cfaa00fab5e92e64009"
      */
-    event ValidatorDequeued(bytes pubKey, uint256 validatorIndex);
+    event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the validator is provisioned
      * @param nodeOperator is the address of the Node Operator
-     * @param blsPubKey is the public key of the Validator
+     * @param pubKey is the public key of the Validator
      * @param timestamp is the unix timestamp in seconds
      * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
      */
-    event ETHProvisioned(address nodeOperator, bytes blsPubKey, uint256 timestamp);
+    event ETHProvisioned(address nodeOperator, bytes indexed pubKey, uint256 timestamp);
 
     /**
      * @notice Returns validator information
