@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "start_epoch": 62,
+  "end_epoch": 64,
+  "consensus_rewards": {
+    "total": "1000000000000000000",
+    "validator_amount": "1000000000000000000",
+    "puffer_pool_amount": "100",
+    "guardian_amount": "300",
+    "treasury_amount": "200"
+  },
+  "full_withdrawal_amount": "32000000000000000000",
+  "merkle_root": "0x5cddc8552d0e8468b627c884cd0b00d69a90de02af1387d57595e9e83eec4ac5",
+  "merkle_proofs": {
+    "0000000000000000000000000000000000000003": {
+      "rewards_eth_wei": "300",
+      "merkle_proof": [
+        "0x7c2f692e7556e0c2b696852d85cc1220d02a4fed78a7d1bbfe299c0fcb8416ad",
+        "0x0ace2c5c091048af6795ed5f3369786be26da5fbd62d0fe384b1c9b474901e57",
+        "0x0ee5d79909ef0867d7e7160e9468c64ecf6f33907982bf09c36e8c8bd47ccb61"
+      ]
+    },
+    "0000000000000000000000000000000000000001": {
+      "rewards_eth_wei": "100",
+      "merkle_proof": [
+        "0xa9c419c9055ccba595db527e726cc4aec99e59d83a49a13380ecfe988906283e",
+        "0x3197d3e99546a3006e358ae24df89fbbd7723b68699fa04cdaa887ec11322dd0",
+        "0x0ee5d79909ef0867d7e7160e9468c64ecf6f33907982bf09c36e8c8bd47ccb61"
+      ]
+    },
+    "0000000000000000000000000000000000000002": {
+      "rewards_eth_wei": "200",
+      "merkle_proof": [
+        "0x4524f0e45243421c144d4511f181f06209e696ee8a3d8f12ad37d61eb89a019b",
+        "0x0ace2c5c091048af6795ed5f3369786be26da5fbd62d0fe384b1c9b474901e57",
+        "0x0ee5d79909ef0867d7e7160e9468c64ecf6f33907982bf09c36e8c8bd47ccb61"
+      ]
+    },
+    "0000000000000000000000000000000000000010": {
+      "rewards_eth_wei": "1000000000000000000",
+      "merkle_proof": [
+        "0x84d38288bfc2d0dbffb953282e4834a72a7fd5e9f8000d46139e8490d63b1338",
+        "0x3197d3e99546a3006e358ae24df89fbbd7723b68699fa04cdaa887ec11322dd0",
+        "0x0ee5d79909ef0867d7e7160e9468c64ecf6f33907982bf09c36e8c8bd47ccb61"
+      ]
+    },
+    "0000000000000000000000000000000000000004": {
+      "rewards_eth_wei": "32000000000000000000",
+      "merkle_proof": [
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5",
+        "0x2c08326ac1567ad58898b7bec117cff1e86223e7d2dcfba6c3b74315f8f5668a"
+      ]
+    }
+  }
+}
