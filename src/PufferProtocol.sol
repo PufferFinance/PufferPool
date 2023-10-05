@@ -182,9 +182,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // If the strategy is zero address, don't increase the counter
         // This means that the queue for that strategyName is empty
         if (validator.strategy != address(0)) {
-            ++$.strategySelectIndex;
             ++$.nextToBeProvisioned[strategyName];
         }
+        // Increment strategy selection index
+        ++$.strategySelectIndex;
 
         try this.provisionNodeETH({
             strategyName: strategyName,

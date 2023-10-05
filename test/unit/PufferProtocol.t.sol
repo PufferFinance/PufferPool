@@ -265,14 +265,39 @@ contract PufferProtocolTest is TestHelper, TestBase {
         assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
         assertTrue(nextId == 1, "strategy id");
 
-        //@todo continue here, test the case where one queue is empty
-        // vm.expectEmit(true, true, true, true);
-        // emit FailedToProvision(zeroPubKey, 1);
-        // pufferProtocol.provisionNodeETHWrapper({
-        //     signature: new bytes(0),
-        //     depositDataRoot: "",
-        //     guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("random")))
-        // });
+        vm.expectEmit(true, true, true, true);
+        emit FailedToProvision("", 1);
+        pufferProtocol.provisionNodeETHWrapper({
+            signature: new bytes(0),
+            depositDataRoot: "",
+            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
+        });
+
+        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
+        assertTrue(nextId == 0, "strategy id");
+
+        vm.expectEmit(true, true, true, true);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("rocky")), 0);
+        pufferProtocol.provisionNodeETHWrapper({
+            signature: new bytes(0),
+            depositDataRoot: "",
+            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("rocky")))
+        });
+
+        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
+        assertTrue(nextId == 1, "strategy id");
+
+        vm.expectEmit(true, true, true, true);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1);
+        pufferProtocol.provisionNodeETHWrapper({
+            signature: new bytes(0),
+            depositDataRoot: "",
+            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("alice")))
+        });
     }
 
     // Test smart contract upgradeability (UUPS)
