@@ -172,7 +172,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes calldata signature,
         bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
-    ) external {
+    ) external onlyGuardians {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 strategyName, uint256 index) = getNextValidatorToProvision();

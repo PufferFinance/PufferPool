@@ -112,11 +112,13 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.expectEmit(true, true, true, true);
         emit FailedToProvision(zeroPubKey, 0);
+        vm.startPrank(address(guardiansSafe));
         pufferProtocol.provisionNodeETHWrapper({
             signature: new bytes(0),
             depositDataRoot: "",
             guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
         });
+        vm.stopPrank();
 
         // Invalid status
         vm.expectRevert(IPufferProtocol.InvalidValidatorState.selector);
@@ -161,6 +163,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.deal(address(pool), 1000 ether);
 
+        vm.startPrank(address(guardiansSafe));
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(zeroPubKey, 0);
@@ -240,6 +243,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0);
+        vm.startPrank(address(guardiansSafe));
         pufferProtocol.provisionNodeETHWrapper({
             signature: new bytes(0),
             depositDataRoot: "",
