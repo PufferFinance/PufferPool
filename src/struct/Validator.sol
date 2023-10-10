@@ -13,4 +13,5 @@ struct Validator {
     uint40 lastCommitmentPayment; // Date when the last commitment was paid
     Status status; // Validator status
     bytes pubKey; // Validator public key
+    bytes signature; // Signature of deposit data
 }

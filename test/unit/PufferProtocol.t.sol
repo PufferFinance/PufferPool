@@ -102,12 +102,14 @@ contract PufferProtocolTest is TestHelper, TestBase {
     // Invalid BLS pub key length
     function testRegisterInvalidValidatorKeyShouldRevert() public {
         vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(_getMockValidatorKeyData(new bytes(33)), NO_RESTAKING);
+        pufferProtocol.registerValidatorKey{ value: 4 ether }(
+            _getMockValidatorKeyData(new bytes(33), NO_RESTAKING), NO_RESTAKING
+        );
     }
 
     // Invalid pub key shares length
     function testRegisterInvalidPubKeyShares() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48));
+        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), NO_RESTAKING);
         data.blsPubKeyShares = new bytes[](2);
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPublicKeyShares.selector);
@@ -116,7 +118,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
     // Invalid private key shares length
     function testRegisterInvalidPrivKeyShares() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48));
+        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), NO_RESTAKING);
         data.blsEncryptedPrivKeyShares = new bytes[](2);
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPrivateKeyShares.selector);
@@ -127,7 +129,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
     function testRegisterToInvalidStrategy() public {
         uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(bytes32("imaginary strategy"));
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.InvalidPufferStrategy.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorKeyData, bytes32("imaginary strategy")
@@ -137,7 +139,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
     // Try registering with invalid amount paid
     function testRegisterWithInvalidAmountPaid() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
         pufferProtocol.registerValidatorKey{ value: 5 ether }(validatorKeyData, NO_RESTAKING);
     }
@@ -249,7 +251,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         // Third one should revert
         uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(NO_RESTAKING);
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.ValidatorLimitPerIntervalReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorKeyData, NO_RESTAKING);
     }
@@ -265,7 +267,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, strategyName);
 
         uint256 idx = pufferProtocol.getPendingValidatorIndex(strategyName);
 
@@ -377,6 +379,86 @@ contract PufferProtocolTest is TestHelper, TestBase {
             depositDataRoot: "",
             guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
         });
+    }
+
+    function testProvisionNode() public {
+        pufferProtocol.createPufferStrategy(EIGEN_DA);
+        pufferProtocol.createPufferStrategy(CRAZY_GAINS);
+
+        bytes32[] memory oldWeights = new bytes32[](1);
+        oldWeights[0] = NO_RESTAKING;
+
+        bytes32[] memory newWeights = new bytes32[](4);
+        newWeights[0] = NO_RESTAKING;
+        newWeights[1] = EIGEN_DA;
+        newWeights[2] = EIGEN_DA;
+        newWeights[3] = CRAZY_GAINS;
+
+        vm.expectEmit(true, true, true, true);
+        emit StrategyWeightsChanged(oldWeights, newWeights);
+        pufferProtocol.setStrategyWeights(newWeights);
+
+        vm.deal(address(pool), 10000 ether);
+
+        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("david"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("emma"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("benjamin"), EIGEN_DA);
+        _registerValidatorKey(bytes32("jason"), EIGEN_DA);
+        _registerValidatorKey(bytes32("rocky"), CRAZY_GAINS);
+
+        (bytes32 nextStrategy, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
+        assertTrue(nextId == 0, "strategy selection");
+
+        vm.startPrank(address(guardiansSafe));
+
+        // Provision Bob that is not zero pubKey
+        vm.expectEmit(true, true, true, true);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0);
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+
+        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
+        // Id is zero, because that is the first in this queue
+        assertTrue(nextId == 0, "strategy id");
+
+        vm.expectEmit(true, true, true, true);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0);
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("benjamin"))));
+
+        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
+        assertTrue(nextId == 0, "strategy id");
+
+        pufferProtocol.skipProvisioning(EIGEN_DA);
+
+        // (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        // assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
+        // assertTrue(nextId == 2, "strategy id");
+
+        // vm.expectEmit(true, true, true, true);
+        // emit SuccesfullyProvisioned(_getPubKey(bytes32("rocky")), 0);
+        // pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("rocky"))));
+
+        // (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        // assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
+        // assertTrue(nextId == 1, "strategy id");
+
+        // assertEq(
+        //     pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking strategy"
+        // );
+
+        // vm.expectEmit(true, true, true, true);
+        // emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 0);
+        // pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
     }
 
     function testCreatePufferStrategy() public {
@@ -506,7 +588,14 @@ contract PufferProtocolTest is TestHelper, TestBase {
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
 
         bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
-            pubKey, new bytes(0), withdrawalCredentials, bytes32("")
+            pubKey,
+            validator.signature,
+            withdrawalCredentials,
+            pufferProtocol.getDepositDataRoot({
+                pubKey: pubKey,
+                signature: validator.signature,
+                withdrawalCredentials: withdrawalCredentials
+            })
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
@@ -529,7 +618,11 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
     // Tests setter for enclave measurements
 
-    function _getMockValidatorKeyData(bytes memory pubKey) internal pure returns (ValidatorKeyData memory) {
+    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 strategyName)
+        internal
+        view
+        returns (ValidatorKeyData memory)
+    {
         bytes[] memory newSetOfPubKeys = new bytes[](3);
 
         // we have 3 guardians in TestHelper.sol
@@ -537,10 +630,22 @@ contract PufferProtocolTest is TestHelper, TestBase {
         newSetOfPubKeys[0] = bytes("key2");
         newSetOfPubKeys[0] = bytes("key3");
 
+        address strategy = pufferProtocol.getStrategyAddress(strategyName);
+
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(strategy);
+
+        bytes memory randomSignature =
+            hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
+
         ValidatorKeyData memory validatorData = ValidatorKeyData({
             blsPubKey: pubKey, // key length must be 48 byte
-            signature: new bytes(0),
-            depositDataRoot: bytes32(""),
+            // mock signature copied from some random deposit transaction
+            signature: randomSignature,
+            depositDataRoot: pufferProtocol.getDepositDataRoot({
+                pubKey: pubKey,
+                signature: randomSignature,
+                withdrawalCredentials: withdrawalCredentials
+            }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeyShares: new bytes[](3),
             blockNumber: 1,
