@@ -9,6 +9,7 @@ enum Status {
     PREREGISTRATION,
     PENDING,
     DEQUEUED,
+    SKIPPED,
     ACTIVE,
     FROZEN,
     EXITED

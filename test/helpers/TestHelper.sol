@@ -53,6 +53,10 @@ contract TestHelper is Test, BaseScript {
     AccessManager accessManager;
 
     function setUp() public virtual {
+        _testRave();
+    }
+
+    function _testRave() public {
         // Create Guardian wallets
         (guardian1, guardian1SK) = makeAddrAndKey("guardian1");
         (guardian1Enclave, guardian1SKEnclave) = makeAddrAndKey("guardian1enclave");
