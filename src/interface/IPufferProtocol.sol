@@ -91,6 +91,12 @@ interface IPufferProtocol {
     event IntervalReset();
 
     /**
+     * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
+     * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
+     */
+    event TransferredETH(address indexed to, uint256 amount);
+
+    /**
      * @notice Emitted when the smoothing commitment is paid
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
@@ -266,6 +272,11 @@ interface IPufferProtocol {
      * @notice Returns the validator limit per interval
      */
     function getValidatorLimitPerInterval() external view returns (uint256);
+
+    /**
+     * @notice Returns the withdrawal credentials for a `strategy`
+     */
+    function getWithdrawalCredentials(address strategy) external view returns (bytes memory);
 
     /**
      * @notice Returns the treasury address

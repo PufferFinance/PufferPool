@@ -7,6 +7,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
@@ -61,6 +62,25 @@ contract PufferProtocolTest is TestHelper, TestBase {
         assertTrue(pufferProtocol.getWithdrawalPool() != address(0), "non zero address");
     }
 
+    function testEmptyQueue() public {
+        (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+
+        assertEq(strategyName, bytes32("NO_VALIDATORS"), "name");
+        assertEq(idx, type(uint256).max, "name");
+    }
+
+    function testGuardianSignatureZeroAddress() public {
+        bytes memory signature = hex"1234";
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
+
+        vm.expectRevert(IGuardianModule.Unauthorized.selector);
+        pufferProtocol.provisionNode(signatures);
+    }
+
     // Test Skipping the validator
     function testSkipProvisioning() public {
         vm.deal(address(pool), 1000 ether);
@@ -86,25 +106,13 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("bob")))
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
     }
 
     // Create an existing strategy should revert
     function testCreateExistingStrategyShouldFail() public {
         vm.expectRevert(IPufferProtocol.Create2Failed.selector);
         pufferProtocol.createPufferStrategy(NO_RESTAKING);
-    }
-
-    // Invalid BLS pub key length
-    function testRegisterInvalidValidatorKeyShouldRevert() public {
-        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(
-            _getMockValidatorKeyData(new bytes(33), NO_RESTAKING), NO_RESTAKING
-        );
     }
 
     // Invalid pub key shares length
@@ -277,25 +285,39 @@ contract PufferProtocolTest is TestHelper, TestBase {
     }
 
     function testStopRegistration() public {
-        _registerValidatorKey(zeroPubKeyPart, NO_RESTAKING);
+        vm.deal(address(pool), 100 ether);
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(IPufferProtocol.Unauthorized.selector);
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
 
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorDequeued(zeroPubKey, 0);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+        (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+
+        assertEq(strategyName, NO_RESTAKING, "startegy");
+        assertEq(0, idx, "startegy");
+
+        bytes memory alicePubKey = _getPubKey(bytes32("alice"));
 
         vm.expectEmit(true, true, true, true);
-        emit FailedToProvision(zeroPubKey, 0);
-        vm.startPrank(address(guardiansSafe));
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
-        vm.stopPrank();
+        emit ValidatorDequeued(alicePubKey, 0);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+
+        (strategyName, idx) = pufferProtocol.getNextValidatorToProvision();
+
+        assertEq(strategyName, NO_RESTAKING, "startegy after");
+        assertEq(1, idx, "startegy after");
+
+        bytes[] memory signatures = _getGuardianSignatures(alicePubKey);
+
+        // Unauthorized, because the protocol is expecting signature for bob
+        vm.expectRevert(IPufferProtocol.Unauthorized.selector);
+        pufferProtocol.provisionNode(signatures);
+
+        // Bob should be provisioned next
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
 
         // Invalid status
         vm.expectRevert(IPufferProtocol.InvalidValidatorState.selector);
@@ -344,41 +366,21 @@ contract PufferProtocolTest is TestHelper, TestBase {
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(zeroPubKey, 0);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(bobPubKey, 1);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(bobPubKey)
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(bobPubKey));
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 1);
 
         assertTrue(bobValidator.status == Status.ACTIVE, "bob should be active");
 
-        // Submit invalid TX by guardians, bad signature
-        // It should dequeue alice
-        vm.expectEmit(true, true, true, true);
-        emit FailedToProvision(alicePubKey, 2);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(55),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        pufferProtocol.skipProvisioning(NO_RESTAKING);
 
         emit SuccesfullyProvisioned(zeroPubKey, 3);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
     }
 
     function testProvisionNode() public {
@@ -406,7 +408,6 @@ contract PufferProtocolTest is TestHelper, TestBase {
         _registerValidatorKey(bytes32("david"), NO_RESTAKING);
         _registerValidatorKey(bytes32("emma"), NO_RESTAKING);
         _registerValidatorKey(bytes32("benjamin"), EIGEN_DA);
-        _registerValidatorKey(bytes32("jason"), EIGEN_DA);
         _registerValidatorKey(bytes32("rocky"), CRAZY_GAINS);
 
         (bytes32 nextStrategy, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -433,119 +434,33 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
+        // // Because the EIGEN_DA queue is empty, the next for provisioning is from CRAZY_GAINS
         assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
         assertTrue(nextId == 0, "strategy id");
 
-        pufferProtocol.skipProvisioning(EIGEN_DA);
+        // Now jason registers to EIGEN_DA
+        _registerValidatorKey(bytes32("jason"), EIGEN_DA);
 
-        // (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
-
-        // assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
-        // assertTrue(nextId == 2, "strategy id");
-
-        // vm.expectEmit(true, true, true, true);
-        // emit SuccesfullyProvisioned(_getPubKey(bytes32("rocky")), 0);
-        // pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("rocky"))));
-
-        // (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
-
-        // assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
-        // assertTrue(nextId == 1, "strategy id");
-
-        // assertEq(
-        //     pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking strategy"
-        // );
-
-        // vm.expectEmit(true, true, true, true);
-        // emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 0);
-        // pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
-    }
-
-    function testCreatePufferStrategy() public {
-        pufferProtocol.createPufferStrategy(bytes32("LEVERAGED_RESTAKING"));
-    }
-
-    function testSetStrategyWeights() public {
-        pufferProtocol.createPufferStrategy(EIGEN_DA);
-        pufferProtocol.createPufferStrategy(CRAZY_GAINS);
-
-        bytes32[] memory oldWeights = new bytes32[](1);
-        oldWeights[0] = NO_RESTAKING;
-
-        bytes32[] memory newWeights = new bytes32[](4);
-        newWeights[0] = NO_RESTAKING;
-        newWeights[1] = EIGEN_DA;
-        newWeights[2] = EIGEN_DA;
-        newWeights[3] = CRAZY_GAINS;
-
-        vm.expectEmit(true, true, true, true);
-        emit StrategyWeightsChanged(oldWeights, newWeights);
-        pufferProtocol.setStrategyWeights(newWeights);
-
-        vm.deal(address(pool), 10000 ether);
-
-        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("david"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("emma"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("benjamin"), EIGEN_DA);
-        _registerValidatorKey(bytes32("rocky"), CRAZY_GAINS);
-
-        (bytes32 nextStrategy, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
-
-        assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
-        assertTrue(nextId == 0, "strategy selection");
-
-        // Provision Bob that is not zero pubKey
-        vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0);
-        vm.startPrank(address(guardiansSafe));
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("bob")))
-        });
-
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
-
-        assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
-        // Id is zero, because that is the first in this queue
-        assertTrue(nextId == 0, "strategy id");
-
-        vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("benjamin")))
-        });
-
+        // If we query next validator, it should switch back to EIGEN_DA (because of the weighted selection)
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
         assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
         assertTrue(nextId == 1, "strategy id");
 
-        vm.expectEmit(true, true, true, true);
-        emit FailedToProvision("", 1);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(zeroPubKey)
-        });
+        // Provisioning of rocky should fail, because jason is next in line
+        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
+        vm.expectRevert(IPufferProtocol.Unauthorized.selector);
+        pufferProtocol.provisionNode(signatures);
+
+        // Provision Jason
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("jason"))));
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
+        // Rocky is now in line
         assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
         assertTrue(nextId == 0, "strategy id");
-
-        vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("rocky")), 0);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("rocky")))
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("rocky"))));
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -558,11 +473,11 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1);
-        pufferProtocol.provisionNodeETHWrapper({
-            signature: new bytes(0),
-            depositDataRoot: "",
-            guardianEnclaveSignatures: _getGuardianSignatures(_getPubKey(bytes32("alice")))
-        });
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
+    }
+
+    function testCreatePufferStrategy() public {
+        pufferProtocol.createPufferStrategy(bytes32("LEVERAGED_RESTAKING"));
     }
 
     // Test smart contract upgradeability (UUPS)
