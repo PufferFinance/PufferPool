@@ -284,8 +284,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, NO_RESTAKING, "startegy");
-        assertEq(0, idx, "startegy");
+        assertEq(strategyName, NO_RESTAKING, "strategy");
+        assertEq(0, idx, "strategy");
 
         bytes memory alicePubKey = _getPubKey(bytes32("alice"));
 
@@ -295,8 +295,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         (strategyName, idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, NO_RESTAKING, "startegy after");
-        assertEq(1, idx, "startegy after");
+        assertEq(strategyName, NO_RESTAKING, "strategy after");
+        assertEq(1, idx, "strategy after");
 
         bytes[] memory signatures = _getGuardianSignatures(alicePubKey);
 
