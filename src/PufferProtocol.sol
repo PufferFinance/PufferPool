@@ -135,7 +135,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
         $.validators[strategyName][validatorIndex] = validator;
 
-        // Increment indicies for this strategy and number of validators registered
+        // Increment indices for this strategy and number of validators registered
         ++$.pendingValidatorIndicies[strategyName];
         ++$.numberOfValidatorsRegisteredInThisInterval;
 
