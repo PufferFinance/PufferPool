@@ -21,6 +21,12 @@ interface IGuardianModule {
     error InvalidECDSAPubKey();
 
     /**
+     * @notice Thrown when the RAVE evidence is not valid
+     * @dev Signature "0x2b3c629b"
+     */
+    error InvalidRAVE();
+
+    /**
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address

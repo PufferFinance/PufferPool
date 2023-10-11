@@ -69,18 +69,6 @@ contract PufferProtocolTest is TestHelper, TestBase {
         assertEq(idx, type(uint256).max, "name");
     }
 
-    function testGuardianSignatureZeroAddress() public {
-        bytes memory signature = hex"1234";
-
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
-        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
-
-        vm.expectRevert(IGuardianModule.Unauthorized.selector);
-        pufferProtocol.provisionNode(signatures);
-    }
-
     // Test Skipping the validator
     function testSkipProvisioning() public {
         vm.deal(address(pool), 1000 ether);

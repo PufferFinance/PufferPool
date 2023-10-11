@@ -114,7 +114,7 @@ contract GuardianModule is Ownable, IGuardianModule {
         });
 
         if (!isValid) {
-            revert Unauthorized();
+            revert InvalidRAVE();
         }
 
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address

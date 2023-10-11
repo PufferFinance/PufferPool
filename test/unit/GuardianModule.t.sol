@@ -7,6 +7,7 @@ import { TestBase } from "../TestBase.t.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { Guardian2RaveEvidence } from "../helpers/GuardiansRaveEvidence.sol";
 
 contract GuardianModuleTest is TestHelper, TestBase {
     function setUp() public override {
@@ -23,5 +24,29 @@ contract GuardianModuleTest is TestHelper, TestBase {
         RaveEvidence memory evidence;
         vm.expectRevert(IGuardianModule.Unauthorized.selector);
         module.rotateGuardianKey(0, new bytes(55), evidence);
+    }
+
+    function testRoateGuardianToInvalidPubKeyReverts() public {
+        RaveEvidence memory evidence;
+
+        vm.startPrank(guardian1);
+
+        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+        module.rotateGuardianKey(0, new bytes(55), evidence);
+    }
+
+    function testRoateGuardianKeyWithInvalidRaveReverts() public {
+        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
+
+        vm.startPrank(guardian1);
+
+        RaveEvidence memory rave = RaveEvidence({
+            report: guardian2Rave.report(),
+            signature: guardian2Rave.sig(),
+            leafX509CertDigest: keccak256(guardian2Rave.signingCert())
+        });
+
+        vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
+        module.rotateGuardianKey(1, guardian3EnclavePubKey, rave);
     }
 }
