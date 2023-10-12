@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "scripts/BaseScript.s.sol";
+import { BaseScript } from "script/BaseScript.s.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 
@@ -10,7 +10,7 @@ import { stdJson } from "forge-std/StdJson.sol";
  * @author Puffer finance
  * @notice Calls the `depositETH` function on PufferPool
  * @dev Example on how to run the script
- *      forge script scripts/3_DepositETH.s.sol:DepositETH --rpc-url=$EPHEMERY_RPC_URL --broadcast --sig "run(uint256)" -vvvv 1000000000000000000
+ *      forge script script/3_DepositETH.s.sol:DepositETH --rpc-url=$EPHEMERY_RPC_URL --broadcast --sig "run(uint256)" -vvvv 1000000000000000000
  */
 contract DepositETH is BaseScript {
     /**

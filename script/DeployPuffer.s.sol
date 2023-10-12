@@ -8,7 +8,7 @@ import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { Script } from "forge-std/Script.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import { BaseScript } from "scripts/BaseScript.s.sol";
+import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
@@ -32,7 +32,7 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
  *         Other scripts will fail because addresses will be updated in deployments file, but the deployment never happened.
  *
  *
- *         forge script scripts/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
+ *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
 contract DeployPuffer is BaseScript {
     function run() public broadcast returns (PufferProtocol, PufferPool, AccessManager) {
