@@ -68,9 +68,6 @@ contract GuardianModule is Ownable, IGuardianModule {
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i = 0; i < enclaveAddresses.length;) {
             address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
-            if (currentSigner == address(0)) {
-                revert Unauthorized();
-            }
             if (currentSigner == enclaveAddresses[i]) {
                 validSignatures++;
             }
@@ -117,7 +114,7 @@ contract GuardianModule is Ownable, IGuardianModule {
         });
 
         if (!isValid) {
-            revert Unauthorized();
+            revert InvalidRAVE();
         }
 
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address

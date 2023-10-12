@@ -26,6 +26,12 @@ interface IPufferProtocol {
     error InvalidRaveEvidence();
 
     /**
+     * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
+     * @dev Signature "0xd9873182"
+     */
+    error ValidatorLimitPerIntervalReached();
+
+    /**
      * @notice Thrown when the number of BLS private key shares doesn't match guardians number
      * @dev Signature "0x2c8f9aa3"
      */
@@ -79,10 +85,28 @@ interface IPufferProtocol {
     event NewPufferStrategyCreated(address strategy);
 
     /**
+     * @notice Emitted when the validator interval gets reset
+     * @dev Signature "0xf147f5fea5809d6be90362da029bbc2ab19828fbd38e0e426eccc76ae7bba618"
+     */
+    event IntervalReset();
+
+    /**
+     * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
+     * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
+     */
+    event TransferredETH(address indexed to, uint256 amount);
+
+    /**
      * @notice Emitted when the smoothing commitment is paid
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
     event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 timestamp, uint256 amountPaid);
+
+    /**
+     * @notice Emitted when the guardians decide to skip validator provisioning for `strategyName`
+     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     */
+    event ValidatorSkipped(bytes32 indexed strategyName, uint256 skippedValidatorIndex);
 
     /**
      * @notice Emitted when the Guardians update state of the protocol
@@ -103,6 +127,12 @@ interface IPufferProtocol {
      * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
      */
     event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Emitted when the validator limit per interval is changed from `oldLimit` to `newLimit`
+     * @dev Signature "0xd6c37e61a7f770549c535431a7a63b047395ebed26acefc1cab277cbbeb1d8b7"
+     */
+    event ValidatorLimitPerIntervalChanged(uint256 oldLimit, uint256 newLimit);
 
     /**
      * @notice Emitted when the strategy weights changes from `olgWeights` to `newWeights`
@@ -237,6 +267,16 @@ interface IPufferProtocol {
      * @notice Returns the default straetgy (no restaking)
      */
     function getDefaultStrategy() external view returns (address);
+
+    /**
+     * @notice Returns the validator limit per interval
+     */
+    function getValidatorLimitPerInterval() external view returns (uint256);
+
+    /**
+     * @notice Returns the withdrawal credentials for a `strategy`
+     */
+    function getWithdrawalCredentials(address strategy) external view returns (bytes memory);
 
     /**
      * @notice Returns the treasury address
