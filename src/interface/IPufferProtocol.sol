@@ -79,6 +79,12 @@ interface IPufferProtocol {
     error InvalidPufferStrategy();
 
     /**
+     * @notice Thrown if Guardians try to re-submit the backing data
+     * @dev Signature "0xf93417f7"
+     */
+    error OutsideUpdateWindow();
+
+    /**
      * @notice Emitted when the new Puffer strategy is created
      * @dev Signature "0x1670437ca2eb58efedc6de6646babe75e13b3ef73af5174bd55db63efeaf41c7"
      */

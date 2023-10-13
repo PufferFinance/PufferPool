@@ -2,13 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Safe } from "safe-contracts/Safe.sol";
+import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
-import { Ownable } from "openzeppelin/access/Ownable.sol";
 
 /**
  * @title Guardian module
@@ -16,7 +16,7 @@ import { Ownable } from "openzeppelin/access/Ownable.sol";
  * @dev This contract is both {Safe} module, and a logic contract to be called via `delegatecall` from {Safe} (GuardianAccount)
  * @custom:security-contact security@puffer.fi
  */
-contract GuardianModule is Ownable, IGuardianModule {
+contract GuardianModule is AccessManaged, IGuardianModule {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
@@ -25,24 +25,44 @@ contract GuardianModule is Ownable, IGuardianModule {
      */
     uint256 internal constant _ECDSA_KEY_LENGTH = 65;
 
+    /**
+     * @notice Enclave Verifier smart contract
+     */
     IEnclaveVerifier public immutable enclaveVerifier;
-    Safe public immutable GUARDIANS;
-
-    bytes32 mrsigner;
-    bytes32 mrenclave;
 
     /**
-     * @dev Mapping from guardian address => enclave address
+     * @notice Guardians {Safe}
      */
-    mapping(address => address) internal _guardianEnclaves;
+    Safe public immutable GUARDIANS;
 
-    constructor(IEnclaveVerifier verifier, Safe guardians) Ownable(msg.sender) {
+    /**
+     * @dev MRSIGNER value for SGX
+     */
+    bytes32 mrsigner;
+    /**
+     * @dev MRENCLAVE value for SGX
+     */
+    bytes32 mrenclave;
+
+    struct GuardianData {
+        bytes enclavePubKey;
+        address enclaveAddress;
+    }
+
+    mapping(address guardian => GuardianData data) internal _guardianEnclaves;
+
+    constructor(IEnclaveVerifier verifier, Safe guardians, address pufferAuthority) AccessManaged(pufferAuthority) {
+        require(address(verifier) != address(0));
+        require(address(guardians) != address(0));
+        require(address(pufferAuthority) != address(0));
         enclaveVerifier = verifier;
         GUARDIANS = guardians;
     }
 
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) public {
-        //@audit don't forget owner modifier
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
         bytes32 previousMrEnclave = mrenclave;
         bytes32 previousMrsigner = mrsigner;
         mrenclave = newMrenclave;
@@ -51,8 +71,11 @@ contract GuardianModule is Ownable, IGuardianModule {
         emit MrSignerChanged(previousMrsigner, newMrsigner);
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function validateGuardianSignatures(
-        bytes memory pubKey,
+        bytes calldata pubKey,
         bytes calldata signature,
         bytes32 depositDataRoot,
         bytes calldata withdrawalCredentials,
@@ -63,13 +86,13 @@ contract GuardianModule is Ownable, IGuardianModule {
         bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
 
         address[] memory enclaveAddresses = getGuardiansEnclaveAddresses();
-        uint256 validSignatures = 0;
+        uint256 validSignatures;
 
         // Iterate through guardian enclave addresses and make sure that the signers match
-        for (uint256 i = 0; i < enclaveAddresses.length;) {
+        for (uint256 i; i < enclaveAddresses.length;) {
             address currentSigner = ECDSA.recover(msgToBeSigned, guardianEnclaveSignatures[i]);
             if (currentSigner == enclaveAddresses[i]) {
-                validSignatures++;
+                ++validSignatures;
             }
             unchecked {
                 ++i;
@@ -81,6 +104,9 @@ contract GuardianModule is Ownable, IGuardianModule {
         }
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function getMessageToBeSigned(
         bytes memory pubKey,
         bytes calldata signature,
@@ -90,13 +116,16 @@ contract GuardianModule is Ownable, IGuardianModule {
         return keccak256(abi.encode(pubKey, withdrawalCredentials, signature, depositDataRoot)).toEthSignedMessageHash();
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
         address guardian = msg.sender;
 
         // Because this is called from the safe via .delegateCall
         // address(this) equals to {Safe}
         // This will revert if the caller is not one of the {Safe} owners
-        if (!GUARDIANS.isOwner(msg.sender)) {
+        if (!GUARDIANS.isOwner(guardian)) {
             revert Unauthorized();
         }
 
@@ -120,27 +149,51 @@ contract GuardianModule is Ownable, IGuardianModule {
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
         address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
 
-        _guardianEnclaves[guardian] = computedAddress;
+        _guardianEnclaves[guardian].enclaveAddress = computedAddress;
+        _guardianEnclaves[guardian].enclavePubKey = pubKey;
 
         emit RotatedGuardianKey(guardian, computedAddress, pubKey);
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool) {
         // Assert if the stored enclaveAddress equals enclave
-        return _guardianEnclaves[guardian] == enclave;
+        return _guardianEnclaves[guardian].enclaveAddress == enclave;
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function getGuardiansEnclaveAddresses() public view returns (address[] memory) {
         address[] memory guardians = GUARDIANS.getOwners();
         address[] memory enclaveAddresses = new address[](guardians.length);
 
-        for (uint256 i = 0; i < guardians.length;) {
-            enclaveAddresses[i] = _guardianEnclaves[guardians[i]];
+        for (uint256 i; i < guardians.length;) {
+            enclaveAddresses[i] = _guardianEnclaves[guardians[i]].enclaveAddress;
             unchecked {
                 ++i;
             }
         }
 
         return enclaveAddresses;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getGuardiansEnclavePubkeys() public view returns (bytes[] memory) {
+        address[] memory guardians = GUARDIANS.getOwners();
+        bytes[] memory enclavePubkeys = new bytes[](guardians.length);
+
+        for (uint256 i; i < guardians.length;) {
+            enclavePubkeys[i] = _guardianEnclaves[guardians[i]].enclavePubKey;
+            unchecked {
+                ++i;
+            }
+        }
+
+        return enclavePubkeys;
     }
 }

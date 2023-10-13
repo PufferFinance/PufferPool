@@ -267,7 +267,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         if (block.number - $.lastUpdate < _UPDATE_INTERVAL) {
-            revert InvalidData();
+            revert OutsideUpdateWindow();
         }
         $.ethAmount = ethAmount;
         $.lockedETH = lockedETH;
@@ -451,6 +451,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function getWithdrawalCredentials(address strategy) public view returns (bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getEigenPod());
+    }
+
+    function getPayload(bytes32 strategyName) external view returns (bytes[] memory, bytes memory, uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        bytes[] memory pubKeys = $.guardianModule.getGuardiansEnclavePubkeys();
+        bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.strategies[strategyName]));
+        uint256 threshold = GUARDIANS.getThreshold();
+
+        return (pubKeys, withdrawalCredentials, threshold);
     }
 
     function _setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) internal {

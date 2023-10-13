@@ -1,39 +1,25 @@
-# <h1 align="center"> Forge Template </h1>
+# <h1 align="center"> Puffer Protocol </h1> 
+[![Github Actions][gha-badge]][gha] [![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
+  [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
-**Template repository for getting started quickly with Foundry projects**
+[Website-badge]: https://img.shields.io/badge/WEBSITE-8A2BE2
+[Website]: https://www.puffer.fi
+[X-badge]: https://img.shields.io/twitter/follow/puffer_finance
+[X]: https://twitter.com/puffer_finance
+[discord]: https://discord.gg/pufferfi
+[docs-badge]: https://img.shields.io/badge/DOCS-8A2BE2
+[docs]: https://docs.puffer.fi/
+[discord-badge]: https://dcbadge.vercel.app/api/server/pufferfi?style=flat
+[gha]: https://github.com/PufferFinance/PufferPool/actions
+[gha-badge]: https://github.com/PufferFinance/PufferPool/actions/workflows/ci.yml/badge.svg
+[foundry]: https://getfoundry.sh
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-![Github Actions](https://github.com/foundry-rs/forge-template/workflows/CI/badge.svg)
+![PUFFERS](image.png) 
 
-## Getting Started
+# Tests
 
-Click "Use this template" on [GitHub](https://github.com/foundry-rs/forge-template) to create a new repository with this repo as the initial state.
-
-Or, if your repo already exists, run:
-```sh
-forge init
-forge build
-forge test
+Installing dependancies and running tests can be executed running:
 ```
-
-## Writing your first test
-
-All you need is to `import forge-std/Test.sol` and then inherit it from your test contract. Forge-std's Test contract comes with a pre-instatiated [cheatcodes environment](https://book.getfoundry.sh/cheatcodes/), the `vm`. It also has support for [ds-test](https://book.getfoundry.sh/reference/ds-test.html)-style logs and assertions. Finally, it supports Hardhat's [console.log](https://github.com/brockelmore/forge-std/blob/master/src/console.sol). The logging functionalities require `-vvvv`.
-
-```solidity
-pragma solidity 0.8.10;
-
-import "forge-std/Test.sol";
-
-contract ContractTest is Test {
-    function testExample() public {
-        vm.roll(100);
-        console.log(1);
-        emit log("hi");
-        assertTrue(true);
-    }
-}
+forge test -vvv --match-path './test/unit/*'
 ```
-
-## Development
-
-This project uses [Foundry](https://getfoundry.sh). See the [book](https://book.getfoundry.sh/getting-started/installation.html) for instructions on how to install and use Foundry.

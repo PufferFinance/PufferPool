@@ -179,7 +179,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         });
 
         // Second update should revert as it has not passed enough time between two updates
-        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        vm.expectRevert(IPufferProtocol.OutsideUpdateWindow.selector);
         pufferProtocol.proofOfReserve({
             ethAmount: 2 ether,
             lockedETH: 0,
@@ -231,6 +231,45 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         vm.expectRevert(IPufferProtocol.InvalidRaveEvidence.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorData, NO_RESTAKING);
+    }
+
+    // Try registering with invalid BLS key length
+    function testRegisterWithInvalidBLSPubKey() public {
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(NO_RESTAKING);
+
+        bytes memory pubKey = hex"aeaa";
+
+        bytes[] memory newSetOfPubKeys = new bytes[](3);
+
+        // we have 3 guardians in TestHelper.sol
+        newSetOfPubKeys[0] = bytes("key1");
+        newSetOfPubKeys[0] = bytes("key2");
+        newSetOfPubKeys[0] = bytes("key3");
+
+        ValidatorKeyData memory validatorData = ValidatorKeyData({
+            blsPubKey: pubKey, // key length is small
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            blsEncryptedPrivKeyShares: new bytes[](3),
+            blsPubKeyShares: new bytes[](3),
+            blockNumber: 1,
+            raveEvidence: new bytes(1)
+        });
+
+        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorData, NO_RESTAKING);
+    }
+
+    function testGetPayload() public {
+        (bytes[] memory guardianPubKeys, bytes memory withdrawalCredentials, uint256 threshold) =
+            pufferProtocol.getPayload(NO_RESTAKING);
+
+        assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
+        assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
+        assertEq(guardianPubKeys[2], guardian3EnclavePubKey, "guardian3");
+
+        assertEq(guardianPubKeys.length, 3, "pubkeys len");
+        assertEq(threshold, 1, "threshold");
     }
 
     // Try registering more validators than the allowed number

@@ -148,5 +148,10 @@ contract TestHelper is Test, BaseScript {
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_GUARDIANS);
         accessManager.grantRole(ROLE_ID_GUARDIANS, address(guardiansSafe), 0);
         vm.stopPrank();
+
+        bytes[] memory pubKeys = module.getGuardiansEnclavePubkeys();
+        assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
+        assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
+        assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
     }
 }
