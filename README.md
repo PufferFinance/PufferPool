@@ -19,7 +19,7 @@
 
 # Tests
 
-Installing dependancies and running tests can be executed running:
+Installing dependencies and running tests can be executed running:
 ```
 forge test -vvv --match-path './test/unit/*'
 ```
