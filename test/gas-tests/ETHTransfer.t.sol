@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { Safe } from "safe-contracts/Safe.sol";
-import { DeploySafe } from "scripts/DeploySafe.s.sol";
+import { DeploySafe } from "script/DeploySafe.s.sol";
 import { console } from "forge-std/console.sol";
 
 contract FirstVersion {

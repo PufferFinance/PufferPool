@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "scripts/BaseScript.s.sol";
+import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -10,7 +10,7 @@ import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { console } from "forge-std/console.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 
-// forge script scripts/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
+// forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
 contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;

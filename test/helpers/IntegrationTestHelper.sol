@@ -2,9 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import { DeployPuffer } from "scripts/DeployPuffer.s.sol";
+import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { DeployGuardians } from "scripts/1_DeployGuardians.s.sol";
+import { DeployGuardians } from "script/1_DeployGuardians.s.sol";
 
 contract IntegrationTestHelper is Test {
     address safeProxyFactory = 0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2; // mainnet
