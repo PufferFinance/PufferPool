@@ -19,8 +19,8 @@ contract WithdrawalPool {
     uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
     // @todo Figure out if we want a setter or a constant
-    uint256 internal constant _withdrawalFee = FixedPointMathLib.WAD; // 1%
-    // uint256 internal constant _withdrawalFee = 0;
+    // uint256 internal constant _withdrawalFee = FixedPointMathLib.WAD; // 1%
+    uint256 internal constant _withdrawalFee = 0;
 
     constructor(PufferPool pufferPool) payable {
         POOL = pufferPool;
@@ -49,9 +49,10 @@ contract WithdrawalPool {
     /**
      * @notice Burns `pufETHAmount` and sends the ETH to `to`
      * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
+     * @return ETH Amount redeemed
      */
-    function withdrawETH(address to, uint256 pufETHAmount) external {
-        _withdrawETH(msg.sender, to, pufETHAmount);
+    function withdrawETH(address to, uint256 pufETHAmount) external returns (uint256) {
+        return _withdrawETH(msg.sender, to, pufETHAmount);
     }
 
     /**
@@ -79,7 +80,7 @@ contract WithdrawalPool {
         _withdrawETH(permit.owner, to, permit.amount);
     }
 
-    function _withdrawETH(address from, address to, uint256 pufETHAmount) internal {
+    function _withdrawETH(address from, address to, uint256 pufETHAmount) internal returns (uint256) {
         // Transfer pufETH from the owner to this contract
         // pufETH contract reverts, no need to check for return value
         // slither-disable-start arbitrary-send-erc20-permit
@@ -97,6 +98,10 @@ contract WithdrawalPool {
         // Burn PufETH
         POOL.burn(pufETHAmount);
 
-        to.safeTransferETH(ethAmount - fee);
+        uint256 amount = ethAmount - fee;
+
+        to.safeTransferETH(amount);
+
+        return amount;
     }
 }

@@ -80,7 +80,7 @@ contract DeployPuffer is BaseScript {
         pufferProtocol.initialize({
             accessManager: address(accessManager),
             pool: pool,
-            withdrawalPool: address(withdrawalPool),
+            withdrawalPool: withdrawalPool,
             guardianSafeModule: guardiansModule
         });
 

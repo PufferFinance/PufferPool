@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
@@ -52,7 +53,7 @@ abstract contract PufferProtocolStorage {
          * @dev Withdrawal pool address
          * Slot 2
          */
-        address withdrawalPool;
+        WithdrawalPool withdrawalPool;
         /**
          * @dev Guardian module
          * Slot 3

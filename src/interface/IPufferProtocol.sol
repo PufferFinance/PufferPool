@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
@@ -221,7 +222,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the address of the Withdrawal pool
      */
-    function getWithdrawalPool() external view returns (address);
+    function getWithdrawalPool() external view returns (WithdrawalPool);
 
     /**
      * @notice Returns the array of Puffer validators
