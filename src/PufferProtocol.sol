@@ -220,6 +220,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
 
         // Transfer pufETH to that node operator
+        // slither-disable-next-line unchecked-transfer
         $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
 
         ++$.nextToBeProvisioned[strategyName];
