@@ -28,8 +28,9 @@ bracket_spacing = true
 
 [rpc_endpoints]
 # mainnet="https://eth-mainnet-public.unifra.io"
-mainnet="https://eth.llamarpc.com"
-goerli="https://ethereum-goerli-archive.allthatnode.com"
+# mainnet="https://eth.llamarpc.com"
+# goerli="https://ethereum-goerli-archive.allthatnode.com"
+goerli="${GOERLI_RPC_URL}"
 
 [invariant]
 # fail_on_revert=true

@@ -16,7 +16,7 @@ contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold) public broadcast returns (Safe, GuardianModule) {
+    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData) public broadcast returns (Safe, GuardianModule) {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
@@ -27,7 +27,7 @@ contract DeployGuardians is BaseScript {
 
         AccessManager accessManager = new AccessManager(_broadcaster);
 
-        Safe guardiansSafe = this.deploySafe(guardians, threshold, address(0), "");
+        Safe guardiansSafe = deploySafe(guardians, threshold, address(0), emptyData);
 
         GuardianModule module = new GuardianModule(verifier, guardiansSafe, address(accessManager));
 
@@ -49,7 +49,7 @@ contract DeployGuardians is BaseScript {
     }
 
     function deploySafe(address[] calldata owners, uint256 threshold, address to, bytes calldata data)
-        public
+        internal
         returns (Safe)
     {
         address zeroAddress = address(0);

@@ -74,7 +74,7 @@ contract TestHelper is Test, BaseScript {
         guardians[2] = guardian3;
 
         // 1. Deploy guardians safe
-        (guardiansSafe, module) = new DeployGuardians().run(guardians, 1);
+        (guardiansSafe, module) = new DeployGuardians().run(guardians, 1, "");
 
         (pufferProtocol, pool, accessManager) = new DeployPuffer().run();
 
