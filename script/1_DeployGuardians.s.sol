@@ -16,16 +16,22 @@ contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData) public broadcast returns (Safe, GuardianModule) {
+    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData)
+        public
+        broadcast
+        returns (Safe, GuardianModule)
+    {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
         // console.log(safeProxy, "<-- Safe proxy factory");
         // console.log(safeImplementation, "<-- Safe implementation");
 
-        EnclaveVerifier verifier = new EnclaveVerifier(100);
-
+        // Broadcaster is the deployer
         AccessManager accessManager = new AccessManager(_broadcaster);
+        vm.label(address(accessManager), "AccessManager");
+
+        EnclaveVerifier verifier = new EnclaveVerifier(100, address(accessManager));
 
         Safe guardiansSafe = deploySafe(guardians, threshold, address(0), emptyData);
 

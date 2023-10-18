@@ -78,16 +78,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     IStrategyManager public immutable EIGEN_STRATEGY_MANAGER;
 
-    /**
-     * @dev Allow a call from guardians multisig
-     */
-    modifier onlyGuardians() {
-        if (msg.sender != address(GUARDIANS)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
     constructor(
         Safe guardians,
         address payable treasury,
@@ -101,10 +91,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
-    function initialize(address accessManager, PufferPool pool, WithdrawalPool withdrawalPool, address guardianSafeModule)
-        external
-        initializer
-    {
+    function initialize(
+        address accessManager,
+        PufferPool pool,
+        WithdrawalPool withdrawalPool,
+        address guardianSafeModule,
+        address noRestakingStrategy
+    ) external initializer {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         __AccessManaged_init(accessManager);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
@@ -112,7 +105,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _NO_RESTAKING;
         _setStrategyWeights(weights);
-        $.noRestakingStrategy = PufferStrategy(payable(_createPufferStrategy(_NO_RESTAKING)));
+        _changeStrategy(_NO_RESTAKING, IPufferStrategy(noRestakingStrategy));
         $.pool = pool;
         $.withdrawalPool = withdrawalPool;
         $.guardianModule = GuardianModule(guardianSafeModule);
@@ -137,7 +130,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.status = Status.PENDING;
         validator.strategy = address($.strategies[strategyName]);
         validator.bond = pufETHReceived;
-        validator.commitmentExpiration = uint40(block.timestamp + 30 days);
+        validator.commitmentStartDate = uint40(block.timestamp);
         validator.node = msg.sender;
 
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
@@ -204,40 +197,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // @todo decide what we want to emit
         emit ETHProvisioned(validator.node, validator.pubKey, block.timestamp);
 
-        PufferStrategy strategy = $.strategies[strategyName];
+        IPufferStrategy strategy = $.strategies[strategyName];
 
         $.pool.transferETH(address(strategy), _32_ETHER);
 
         emit SuccesfullyProvisioned(validator.pubKey, index);
 
         strategy.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });
-    }
-
-    function skipProvisioning(bytes32 strategyName) external onlyGuardians {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 skippedIndex = $.nextToBeProvisioned[strategyName];
-        // Change the status of that validator
-        $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
-
-        // Transfer pufETH to that node operator
-        // slither-disable-next-line unchecked-transfer
-        $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
-
-        ++$.nextToBeProvisioned[strategyName];
-        emit ValidatorSkipped(strategyName, skippedIndex);
-    }
-
-    function stopValidator(bytes32 strategyName, uint256 idx) external onlyGuardians {
-        // @todo logic for this..
-
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        Validator storage validator = $.validators[strategyName][idx];
-        validator.status = Status.EXITED;
-
-        uint256 pufETHAmount = validator.bond;
-
-        // uint256 ethAmount = $.withdrawalPool.withdrawETH(address(this), pufETHAmount);
     }
 
     function extendCommitment(bytes32 strategyName, uint256 validatorIndex) external payable {
@@ -253,7 +219,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 timePaidInDays = (msg.value / smoothingCommitment) * 30 days;
 
-        validator.commitmentExpiration = uint40(block.timestamp + timePaidInDays);
+        validator.commitmentStartDate = uint40(block.timestamp);
+        //@todo save commitment amount
 
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
@@ -283,6 +250,46 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorDequeued(validator.pubKey, validatorIndex);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function skipProvisioning(bytes32 strategyName) external restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        uint256 skippedIndex = $.nextToBeProvisioned[strategyName];
+        // Change the status of that validator
+        $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
+
+        // Transfer pufETH to that node operator
+        // slither-disable-next-line unchecked-transfer
+        $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
+
+        ++$.nextToBeProvisioned[strategyName];
+        emit ValidatorSkipped(strategyName, skippedIndex);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external restricted {
+        _changeStrategy(strategyName, newStrategy);
+    }
+
+    function stopValidator(bytes32 strategyName, uint256 idx) external restricted {
+        // @todo logic for this..
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        Validator storage validator = $.validators[strategyName][idx];
+        validator.status = Status.EXITED;
+
+        uint256 pufETHAmount = validator.bond;
+
+        // uint256 ethAmount = $.withdrawalPool.withdrawETH(address(this), pufETHAmount);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber)
         external
         restricted
@@ -313,14 +320,23 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return _createPufferStrategy(strategyName);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function setStrategyWeights(bytes32[] calldata newStrategyWeights) external restricted {
         _setStrategyWeights(newStrategyWeights);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function setValidatorLimitPerInterval(uint256 newLimit) external restricted {
         _setValidatorLimitPerInterval(newLimit);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) external restricted {
         _setSmoothingCommitment(strategyName, smoothingCommitment);
     }
@@ -334,13 +350,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return uint256($.validatorLimitPerInterval);
     }
 
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getDefaultStrategy() external view returns (address) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return address($.noRestakingStrategy);
-    }
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -477,7 +486,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getWithdrawalCredentials(address strategy) public view returns (bytes memory) {
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getEigenPod());
+        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getWithdrawalCredentials());
     }
 
     function getPayload(bytes32 strategyName) external view returns (bytes[] memory, bytes memory, uint256) {
@@ -542,6 +551,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _createPufferStrategy(bytes32 strategyName) internal returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        if (address($.strategies[strategyName]) != address(0)) {
+            revert StrategyAlreadyExists();
+        }
         PufferStrategy strategy = _createNewPufferStrategy(strategyName);
         $.strategies[strategyName] = strategy;
         emit NewPufferStrategyCreated(address(strategy));
@@ -551,7 +563,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function _createNewPufferStrategy(bytes32 strategyName) internal returns (PufferStrategy strategy) {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
-            abi.encode(PUFFER_STRATEGY_BEACON, abi.encodeCall(PufferStrategy.initialize, (this, strategyName)))
+            abi.encode(
+                PUFFER_STRATEGY_BEACON, abi.encodeCall(PufferStrategy.initialize, (this, strategyName, authority()))
+            )
         );
 
         // solhint-disable-next-line no-inline-assembly
@@ -619,6 +633,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (msg.value != (smoothingCommitment + _VALIDATOR_BOND)) {
             revert InvalidETHAmount();
         }
+    }
+
+    function _changeStrategy(bytes32 strategyName, IPufferStrategy newStrategy) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        IPufferStrategy oldStrategy = $.strategies[strategyName];
+        $.strategies[strategyName] = newStrategy;
+        emit StrategyChanged(strategyName, address(oldStrategy), address(newStrategy));
     }
 
     function _toLittleEndian64(uint64 value) internal pure returns (bytes memory ret) {

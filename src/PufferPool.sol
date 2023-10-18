@@ -9,13 +9,14 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
+import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
  * @title PufferPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
+contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
     using SafeTransferLib for address;
 
     /**
@@ -28,11 +29,12 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      */
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
 
-    constructor(PufferProtocol protocol)
+    constructor(PufferProtocol protocol, address initialAuthority)
         payable
         AbstractVault(protocol)
         ERC20("Puffer ETH", "pufETH")
         ERC20Permit("pufETH")
+        AccessManaged(initialAuthority)
     { }
 
     /**
@@ -70,7 +72,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
         _burn(msg.sender, pufETHAmount);
     }
 
-    function transferETH(address to, uint256 ethAmount) external onlyPufferProtocol {
+    function transferETH(address to, uint256 ethAmount) external restricted {
         to.safeTransferETH(ethAmount);
     }
 

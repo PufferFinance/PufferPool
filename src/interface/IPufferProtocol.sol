@@ -6,6 +6,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
 /**
@@ -19,6 +20,12 @@ interface IPufferProtocol {
      * @dev Signature "0x9a5bbd69"
      */
     error InvalidBLSPublicKeyShares();
+
+    /**
+     * @notice Thrown when the strategy name already exists
+     * @dev Signature "0xc45546f7"
+     */
+    error StrategyAlreadyExists();
 
     /**
      * @notice Thrown when the RAVE evidence is not valid
@@ -90,6 +97,12 @@ interface IPufferProtocol {
      * @dev Signature "0x1670437ca2eb58efedc6de6646babe75e13b3ef73af5174bd55db63efeaf41c7"
      */
     event NewPufferStrategyCreated(address strategy);
+
+    /**
+     * @notice Emitted when the new Puffer `strategyName` is changed to a new strategy
+     * @dev Signature "0x38488ea225f6b4bcf21060e716ea744fa5c99fd5de9ea2f8d1b257e1060f9ee1"
+     */
+    event StrategyChanged(bytes32 indexed strategyName, address oldStrategy, address newStrategy);
 
     /**
      * @notice Emitted when the validator interval gets reset
@@ -205,6 +218,43 @@ interface IPufferProtocol {
     function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
 
     /**
+     * @notice Skips the next validator for `strategyName`
+     * @dev Restricted to Guardians
+     */
+    function skipProvisioning(bytes32 strategyName) external;
+
+    /**
+     * @notice Sets the strategy weights array to `newStrategyWeights`
+     * @dev Restricted to DAO
+     */
+    function setStrategyWeights(bytes32[] calldata newStrategyWeights) external;
+
+    /**
+     * @notice Sets the validator limit per interval to `newLimit`
+     * @dev Restricted to DAO
+     */
+    function setValidatorLimitPerInterval(uint256 newLimit) external;
+
+    /**
+     * @notice Sets the smmothing commitment amount for `strategyName` to `smoothingCommitment`
+     * @dev Restricted to DAO
+     */
+    function setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) external;
+
+    /**
+     * @notice Updates the reserves amounts
+     * @dev Restricted to Guardians
+     */
+    function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber)
+        external;
+
+    /**
+     * @notice Changes the `strategyName` with `newStrategy`
+     * @dev Restricted to DAO
+     */
+    function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external;
+
+    /**
      * @notice Returns the Strategy Manager
      */
     function EIGEN_STRATEGY_MANAGER() external view returns (IStrategyManager);
@@ -269,11 +319,6 @@ interface IPufferProtocol {
      * Every strategy has its own FIFO queue for provisioning
      */
     function getNextValidatorToProvision() external view returns (bytes32 strategyName, uint256 indexToBeProvisioned);
-
-    /**
-     * @notice Returns the default straetgy (no restaking)
-     */
-    function getDefaultStrategy() external view returns (address);
 
     /**
      * @notice Returns the validator limit per interval

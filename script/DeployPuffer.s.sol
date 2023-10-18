@@ -5,6 +5,7 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
+import { NoRestakingStrategy } from "puffer/NoRestakingStrategy.sol";
 import { Script } from "forge-std/Script.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -69,22 +70,26 @@ contract DeployPuffer is BaseScript {
 
         PufferProtocol pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        PufferPool pool = new PufferPool(pufferProtocol);
+        PufferPool pool = new PufferPool(pufferProtocol, address(accessManager));
 
         WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
 
         // Read guardians module variable
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
+        NoRestakingStrategy noRestaking = new NoRestakingStrategy(address(accessManager));
+
         // Initialize the Pool
         pufferProtocol.initialize({
             accessManager: address(accessManager),
             pool: pool,
             withdrawalPool: withdrawalPool,
-            guardianSafeModule: guardiansModule
+            guardianSafeModule: guardiansModule,
+            noRestakingStrategy: address(noRestaking)
         });
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
+        vm.serializeAddress(obj, "noRestakingStrategy", address(noRestaking));
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));

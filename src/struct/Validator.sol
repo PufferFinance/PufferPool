@@ -9,7 +9,7 @@ import { Status } from "puffer/struct/Status.sol";
 struct Validator {
     address node; // Address of the Node operator
     address strategy; // In which strategy is the Validator participating
-    uint40 commitmentExpiration; // Date when the smoothing commitment ends
+    uint40 commitmentStartDate; // Date when the smoothing commitment was paid
     uint256 bond; // Validator bond (in pufETH)
     Status status; // Validator status
     bytes pubKey; // Validator public key

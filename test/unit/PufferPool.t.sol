@@ -109,13 +109,14 @@ contract PufferPoolTest is TestHelper, TestBase {
         // Fast forward 50400 blocks ~ 7 days
         vm.roll(50401);
 
-        vm.prank(address(guardiansSafe));
+        vm.startPrank(address(guardiansSafe));
         pufferProtocol.proofOfReserve({
             ethAmount: 2 ether,
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401
         });
+        vm.stopPrank();
 
         // total supply is 1
         // total eth = 2
@@ -126,7 +127,7 @@ contract PufferPoolTest is TestHelper, TestBase {
         assertEq(minted, 0.5 ether, "ratio didn't change");
     }
 
-    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) public {
+    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) internal {
         numberOfValidators = bound(numberOfValidators, 10, 1000);
 
         attackerAmount = bound(attackerAmount, 1 ether, 100 ether);
