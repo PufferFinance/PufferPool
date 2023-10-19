@@ -85,7 +85,7 @@ contract TestHelper is Test, BaseScript {
         new SetupAccess().run(DAO);
 
         withdrawalPool = WithdrawalPool(payable(pufferProtocol.getWithdrawalPool()));
-        verifier = module.enclaveVerifier();
+        verifier = module.ENCLAVE_VERIFIER();
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
@@ -99,8 +99,11 @@ contract TestHelper is Test, BaseScript {
         module.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
         vm.stopPrank();
 
+        assertEq(module.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
+        assertEq(module.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
+
         // Add a valid certificate to verifier
-        verifier = module.enclaveVerifier();
+        verifier = module.ENCLAVE_VERIFIER();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
         require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");

@@ -13,7 +13,6 @@ import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";

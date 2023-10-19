@@ -28,7 +28,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @notice Enclave Verifier smart contract
      */
-    IEnclaveVerifier public immutable enclaveVerifier;
+    IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
 
     /**
      * @notice Guardians {Safe}
@@ -38,11 +38,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @dev MRSIGNER value for SGX
      */
-    bytes32 mrsigner;
+    bytes32 internal _mrsigner;
     /**
      * @dev MRENCLAVE value for SGX
      */
-    bytes32 mrenclave;
+    bytes32 internal _mrenclave;
 
     struct GuardianData {
         bytes enclavePubKey;
@@ -55,7 +55,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         require(address(verifier) != address(0));
         require(address(guardians) != address(0));
         require(address(pufferAuthority) != address(0));
-        enclaveVerifier = verifier;
+        ENCLAVE_VERIFIER = verifier;
         GUARDIANS = guardians;
     }
 
@@ -63,10 +63,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
-        bytes32 previousMrEnclave = mrenclave;
-        bytes32 previousMrsigner = mrsigner;
-        mrenclave = newMrenclave;
-        mrsigner = newMrsigner;
+        bytes32 previousMrEnclave = _mrenclave;
+        bytes32 previousMrsigner = _mrsigner;
+        _mrenclave = newMrenclave;
+        _mrsigner = newMrsigner;
         emit MrEnclaveChanged(previousMrEnclave, newMrenclave);
         emit MrSignerChanged(previousMrsigner, newMrsigner);
     }
@@ -134,11 +134,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
 
         // slither-disable-next-line uninitialized-state-variables
-        bool isValid = enclaveVerifier.verifyEvidence({
+        bool isValid = ENCLAVE_VERIFIER.verifyEvidence({
             blockNumber: blockNumber,
             raveCommitment: keccak256(pubKey),
-            mrenclave: mrenclave,
-            mrsigner: mrsigner,
+            mrenclave: _mrenclave,
+            mrsigner: _mrsigner,
             evidence: evidence
         });
 
@@ -195,5 +195,19 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
 
         return enclavePubkeys;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getMrenclave() external view returns (bytes32) {
+        return _mrenclave;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getMrsigner() external view returns (bytes32) {
+        return _mrsigner;
     }
 }
