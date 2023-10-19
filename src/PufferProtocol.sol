@@ -73,21 +73,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     Safe public immutable GUARDIANS;
 
-    /**
-     * @dev EigenLayer's Strategy Manager
-     */
-    IStrategyManager public immutable EIGEN_STRATEGY_MANAGER;
-
-    constructor(
-        Safe guardians,
-        address payable treasury,
-        IStrategyManager eigenStrategyManager,
-        address strategyBeacon
-    ) {
+    constructor(Safe guardians, address payable treasury, address strategyBeacon) {
         PUFFER_STRATEGY_BEACON = strategyBeacon;
         TREASURY = treasury;
         GUARDIANS = guardians;
-        EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
         _disableInitializers();
     }
 
@@ -100,17 +89,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) external initializer {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         __AccessManaged_init(accessManager);
+        $.pool = pool;
+        $.withdrawalPool = withdrawalPool;
+        $.guardianModule = GuardianModule(guardianSafeModule);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
+        _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
+        _setGuardiansFeeRate(5 * 1e17); // 0.5 %
         _setValidatorLimitPerInterval(20);
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _NO_RESTAKING;
         _setStrategyWeights(weights);
         _changeStrategy(_NO_RESTAKING, IPufferStrategy(noRestakingStrategy));
-        $.pool = pool;
-        $.withdrawalPool = withdrawalPool;
-        $.guardianModule = GuardianModule(guardianSafeModule);
-        $.guardiansFeeRate = 5 * 1e17; // 0.5 %
-        $.withdrawalPoolRate = uint64(10 * FixedPointMathLib.WAD); // 10 %
     }
 
     /**
@@ -129,8 +118,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.signature = data.signature;
         validator.status = Status.PENDING;
         validator.strategy = address($.strategies[strategyName]);
-        validator.bond = pufETHReceived;
-        validator.commitmentStartDate = uint40(block.timestamp);
+        validator.bond = SafeCastLib.toUint64(pufETHReceived);
+        validator.commitmentStartDate = SafeCastLib.toUint40(block.timestamp);
+        validator.commitmentAmount = SafeCastLib.toUint64(msg.value);
         validator.node = msg.sender;
 
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
@@ -220,7 +210,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 timePaidInDays = (msg.value / smoothingCommitment) * 30 days;
 
         validator.commitmentStartDate = uint40(block.timestamp);
-        //@todo save commitment amount
+        validator.commitmentAmount = uint64(msg.value);
 
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
@@ -343,6 +333,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function setProtocolFeeRate(uint256 protocolFeeRate) external restricted {
         _setProtocolFeeRate(protocolFeeRate);
+    }
+
+    function setGuardiansFeeRate(uint256 newRate) external restricted {
+        _setGuardiansFeeRate(newRate);
     }
 
     function getValidatorLimitPerInterval() external view returns (uint256) {
@@ -517,6 +511,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.pool.paySmoothingCommitment{ value: poolAmount }();
     }
 
+    function _setGuardiansFeeRate(uint256 newRate) internal {
+        // @todo decide constraints
+        // Revert if the new rate is bigger than 5%
+        if (newRate > (5 * FixedPointMathLib.WAD)) {
+            revert InvalidData();
+        }
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        uint256 oldRate = $.guardiansFeeRate;
+        $.guardiansFeeRate = SafeCastLib.toUint72(newRate);
+        emit GuardiansFeeRateChanged(oldRate, newRate);
+    }
+
     function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
         toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
 
@@ -537,10 +543,27 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _setProtocolFeeRate(uint256 protocolFee) internal {
+        // @todo decide constraints
+        // Revert if the new rate is bigger than 10%
+        if (protocolFee > (10 * FixedPointMathLib.WAD)) {
+            revert InvalidData();
+        }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 oldProtocolFee = $.protocolFeeRate;
         $.protocolFeeRate = SafeCastLib.toUint72(protocolFee);
         emit ProtocolFeeRateChanged(oldProtocolFee, protocolFee);
+    }
+
+    function _setWithdrawalPoolRate(uint256 withdrawalPoolRate) internal {
+        // @todo decide constraints
+        // Revert if the new rate is bigger than 10%
+        if (withdrawalPoolRate > (10 * FixedPointMathLib.WAD)) {
+            revert InvalidData();
+        }
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        uint256 oldWithdrawalPoolRate = $.withdrawalPoolRate;
+        $.withdrawalPoolRate = SafeCastLib.toUint64(withdrawalPoolRate);
+        emit WithdrawalPoolRateChanged(oldWithdrawalPoolRate, withdrawalPoolRate);
     }
 
     function _resetInterval() internal {

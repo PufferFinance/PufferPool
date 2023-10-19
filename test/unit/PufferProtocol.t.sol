@@ -306,8 +306,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
     }
 
     function testSetProtocolFeeRate() public {
-        uint256 rate = 20 * FixedPointMathLib.WAD;
-        pufferProtocol.setProtocolFeeRate(rate); // 20%
+        uint256 rate = 10 * FixedPointMathLib.WAD;
+        pufferProtocol.setProtocolFeeRate(rate); // 10%
         assertEq(pufferProtocol.getProtocolFeeRate(), rate, "new rate");
     }
 

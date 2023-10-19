@@ -62,7 +62,7 @@ contract DeployPuffer is BaseScript {
 
             // Puffer Service implementation
             pufferProtocolImpl =
-            new PufferProtocol({guardians: Safe(guardians), treasury: treasury, eigenStrategyManager: IStrategyManager(eigenStrategyManager), strategyBeacon: address(beacon)});
+                new PufferProtocol({guardians: Safe(guardians), treasury: treasury, strategyBeacon: address(beacon)});
         }
 
         // UUPS proxy for PufferProtocol

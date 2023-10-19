@@ -5,7 +5,6 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
@@ -103,6 +102,18 @@ interface IPufferProtocol {
      * @dev Signature "0x38488ea225f6b4bcf21060e716ea744fa5c99fd5de9ea2f8d1b257e1060f9ee1"
      */
     event StrategyChanged(bytes32 indexed strategyName, address oldStrategy, address newStrategy);
+
+    /**
+     * @notice Emitted when the Guardians fee rate is changed from `oldRate` to `newRate`
+     * @dev Signature "0xdc450026d966b67c62d26cf532d9a568be6c73c01251576c5d6a71bb19463d2f"
+     */
+    event GuardiansFeeRateChanged(uint256 oldRate, uint256 newRate);
+
+    /**
+     * @notice Emitted when the Withdrawal Pool rate is changed from `oldRate` to `newRate`
+     * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
+     */
+    event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
 
     /**
      * @notice Emitted when the validator interval gets reset
@@ -253,11 +264,6 @@ interface IPufferProtocol {
      * @dev Restricted to DAO
      */
     function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external;
-
-    /**
-     * @notice Returns the Strategy Manager
-     */
-    function EIGEN_STRATEGY_MANAGER() external view returns (IStrategyManager);
 
     /**
      * @notice Returns the guardian module

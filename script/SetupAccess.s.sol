@@ -79,7 +79,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferProtocolRoles() internal {
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
         selectors[1] = PufferProtocol.setSmoothingCommitment.selector;
         selectors[2] = PufferProtocol.createPufferStrategy.selector;
@@ -87,6 +87,7 @@ contract SetupAccess is BaseScript {
         selectors[4] = PufferProtocol.setValidatorLimitPerInterval.selector;
         selectors[5] = PufferProtocol.changeStrategy.selector;
         selectors[6] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
+        selectors[7] = PufferProtocol.setGuardiansFeeRate.selector;
 
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
 
