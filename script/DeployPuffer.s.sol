@@ -77,7 +77,7 @@ contract DeployPuffer is BaseScript {
         // Read guardians module variable
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
-        NoRestakingStrategy noRestaking = new NoRestakingStrategy(address(accessManager));
+        NoRestakingStrategy noRestaking = new NoRestakingStrategy(address(accessManager), pufferProtocol);
 
         // Initialize the Pool
         pufferProtocol.initialize({

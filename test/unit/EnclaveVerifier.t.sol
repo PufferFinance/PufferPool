@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { MockEvidence } from "rave-test/mocks/MockEvidence.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
@@ -59,6 +60,31 @@ contract EnclaveVerifierTest is TestHelper, TestBase {
 
     function testRaveEvidence3() public {
         _verifyValidatorPubKey(new Guardian3RaveEvidence());
+    }
+
+    function testVerifyingStaleEvidence() public {
+        Guardian3RaveEvidence raveEvidence = new Guardian3RaveEvidence();
+
+        vm.roll(5000);
+
+        RaveEvidence memory evidence = RaveEvidence({
+            report: raveEvidence.report(),
+            signature: raveEvidence.sig(),
+            leafX509CertDigest: keccak256(raveEvidence.signingCert())
+        });
+
+        bytes32 mrenclave = raveEvidence.mrenclave();
+        bytes32 mrsigner = raveEvidence.mrsigner();
+        bytes32 commitment = keccak256(raveEvidence.payload());
+
+        vm.expectRevert(IEnclaveVerifier.StaleEvidence.selector);
+        verifier.verifyEvidence({
+            blockNumber: 0,
+            evidence: evidence,
+            raveCommitment: commitment,
+            mrenclave: mrenclave,
+            mrsigner: mrsigner
+        });
     }
 
     // Verify rave evidence

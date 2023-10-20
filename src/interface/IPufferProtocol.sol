@@ -241,6 +241,30 @@ interface IPufferProtocol {
     function setStrategyWeights(bytes32[] calldata newStrategyWeights) external;
 
     /**
+     * @notice Sets the protocol fee rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setProtocolFeeRate(uint256 protocolFeeRate) external;
+
+    /**
+     * @notice Sets the withdrawl pool rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setWithdrawalPoolRate(uint256 newRate) external;
+
+    /**
+     * @notice Sets guardians fee rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setGuardiansFeeRate(uint256 newRate) external;
+
+    /**
      * @notice Sets the validator limit per interval to `newLimit`
      * @dev Restricted to DAO
      */

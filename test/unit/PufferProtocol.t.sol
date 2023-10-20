@@ -12,6 +12,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { console } from "forge-std/console.sol";
 import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
 
@@ -65,6 +66,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
     // Setup
     function testSetup() public {
         assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
+        address strat = pufferProtocol.getStrategyAddress(NO_RESTAKING);
+        assertEq(PufferStrategy(payable(strat)).NAME(), NO_RESTAKING, "bad name");
     }
 
     function testEmptyQueue() public {
@@ -309,6 +312,31 @@ contract PufferProtocolTest is TestHelper, TestBase {
         uint256 rate = 10 * FixedPointMathLib.WAD;
         pufferProtocol.setProtocolFeeRate(rate); // 10%
         assertEq(pufferProtocol.getProtocolFeeRate(), rate, "new rate");
+    }
+
+    function testSetGuardiansFeeRateOverTheLimit() public {
+        uint256 rate = 30 * FixedPointMathLib.WAD;
+        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        pufferProtocol.setGuardiansFeeRate(rate);
+    }
+
+    function testSetProtocolFeeRateOverTheLimit() public {
+        uint256 rate = 30 * FixedPointMathLib.WAD;
+        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        pufferProtocol.setProtocolFeeRate(rate);
+    }
+
+    function testSetWithdrawalPoolRateOverTheLimit() public {
+        uint256 rate = 30 * FixedPointMathLib.WAD;
+        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        pufferProtocol.setWithdrawalPoolRate(rate);
+    }
+
+    function testChangeStrategy() public {
+        address strategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
+        pufferProtocol.changeStrategy(NO_RESTAKING, PufferStrategy(payable(address(5))));
+        address strategyAfterChange = pufferProtocol.getStrategyAddress(NO_RESTAKING);
+        assertTrue(strategy != strategyAfterChange, "straetgy did not change");
     }
 
     function _registerValidatorKey(bytes32 pubKeyPart, bytes32 strategyName) internal {

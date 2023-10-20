@@ -3,6 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { AbstractVault } from "puffer/AbstractVault.sol";
 
 /**
  * @title NoRestakingStrategy
@@ -10,7 +12,7 @@ import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
  * @notice NoRestakingStrategy
  * @custom:security-contact security@puffer.fi
  */
-contract NoRestakingStrategy is IPufferStrategy, AccessManaged {
+contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     /**
      * @notice Beacon chain deposit contract
      */
@@ -21,7 +23,11 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged {
      */
     bytes32 public constant NAME = bytes32("NO_RESTAKING");
 
-    constructor(address initialAuthority) AccessManaged(initialAuthority) { }
+    constructor(address initialAuthority, PufferProtocol puffer)
+        payable
+        AccessManaged(initialAuthority)
+        AbstractVault(puffer)
+    { }
 
     /**
      * @notice Can Receive ETH donations

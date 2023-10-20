@@ -35,7 +35,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         IEigenPod eigenPod;
     }
 
-    constructor(IEigenPodManager eigenPodManager) {
+    constructor(IEigenPodManager eigenPodManager) payable {
         EIGEN_POD_MANAGER = eigenPodManager;
     }
 
