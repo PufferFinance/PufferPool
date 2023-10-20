@@ -249,7 +249,7 @@ interface IPufferProtocol {
     function setProtocolFeeRate(uint256 protocolFeeRate) external;
 
     /**
-     * @notice Sets the withdrawl pool rate
+     * @notice Sets the withdrawal pool rate
      * @dev 1% equals `1 * FixedPointMathLib.WAD`
      *
      * Restricted to DAO

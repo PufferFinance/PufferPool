@@ -66,8 +66,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
     // Setup
     function testSetup() public {
         assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
-        address strat = pufferProtocol.getStrategyAddress(NO_RESTAKING);
-        assertEq(PufferStrategy(payable(strat)).NAME(), NO_RESTAKING, "bad name");
+        address strategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
+        assertEq(PufferStrategy(payable(strategy)).NAME(), NO_RESTAKING, "bad name");
     }
 
     function testEmptyQueue() public {
