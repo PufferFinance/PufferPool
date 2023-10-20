@@ -46,16 +46,62 @@ interface IGuardianModule {
     event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
 
     /**
-     * @notice Rotates guardian key
-     * @dev If the msg.sender is one of the owners of the `guardianAccount`, the transaction will be executed.
-     *      It executes a delegatecall to this smart contract and calls `rotateKeys`
-     *      It will update the guardian's enclave key to address derived from the `pubKey`
-     */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata raveEvidence)
-        external;
-
-    /**
      * @notice Returns `true` if the `enclave` is registered to `guardian`
      */
     function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool);
+
+    /**
+     * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
+     */
+    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
+
+    /**
+     * @notice Validates that the guardians enclaves signed on the data.
+     * @dev If the signatures are invalid / guardians threshold is not reached the tx will revert
+     * @param pubKey is the node operator's public key
+     * @param signature is the BLS signature of the deposit data
+     * @param depositDataRoot is the hash of the deposit data
+     * @param withdrawalCredentials are the withdrawal credentials for this validator
+     * @param guardianEnclaveSignatures array of enclave signatures that we are validating
+     */
+    function validateGuardianSignatures(
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        bytes calldata withdrawalCredentials,
+        bytes[] calldata guardianEnclaveSignatures
+    ) external view;
+
+    /**
+     * @notice Returns the message that the guardian's enclave needs to sign
+     * @param signature is the BLS signature of the deposit data
+     * @param withdrawalCredentials are the withdrawal credentials for this validator
+     * @param depositDataRoot is the hash of the deposit data
+     * @return hash of the data
+     */
+    function getMessageToBeSigned(
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes calldata withdrawalCredentials,
+        bytes32 depositDataRoot
+    ) external pure returns (bytes32);
+
+    /**
+     * @notice Rotates guardian's key
+     * @dev If he caller is not a valid guardian or if the RAVE evidence is not valid the tx will revert
+     * @param blockNumber is the block number
+     * @param pubKey is the public key of the new signature
+     * @param evidence is the RAVE evidence
+     */
+    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external;
+
+    /**
+     * @notice Returns the guarardians enclave addresses
+     */
+    function getGuardiansEnclaveAddresses() external view returns (address[] memory);
+
+    /**
+     * @notice Returns the guarardians enclave public keys
+     */
+    function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
 }

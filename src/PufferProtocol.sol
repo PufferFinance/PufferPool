@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
@@ -39,6 +40,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev ETH Amount required for becoming a Validator
      */
     uint256 internal constant _32_ETHER = 32 ether;
+
+    /**
+     * @dev ETH Amount required to be deposited as a bond by node operator
+     */
+    uint256 internal constant _VALIDATOR_BOND = 1 ether;
 
     /**
      * @dev Default "NO_RESTAKING" strategy
@@ -95,7 +101,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
-    function initialize(address accessManager, PufferPool pool, address withdrawalPool, address guardianSafeModule)
+    function initialize(address accessManager, PufferPool pool, WithdrawalPool withdrawalPool, address guardianSafeModule)
         external
         initializer
     {
@@ -122,14 +128,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _checkValidatorRegistrationInputs(data, strategyName, $);
 
+        uint256 pufETHReceived = $.pool.depositETH{ value: _VALIDATOR_BOND }();
+
         // Save the validator data to storage
         Validator memory validator;
         validator.pubKey = data.blsPubKey;
         validator.signature = data.signature;
         validator.status = Status.PENDING;
         validator.strategy = address($.strategies[strategyName]);
-        validator.commitmentAmount = uint72($.smoothingCommitments[strategyName]);
-        validator.lastCommitmentPayment = uint40(block.timestamp);
+        validator.bond = pufETHReceived;
+        validator.commitmentExpiration = uint40(block.timestamp + 30 days);
         validator.node = msg.sender;
 
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
@@ -211,8 +219,25 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Change the status of that validator
         $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
 
+        // Transfer pufETH to that node operator
+        // slither-disable-next-line unchecked-transfer
+        $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
+
         ++$.nextToBeProvisioned[strategyName];
         emit ValidatorSkipped(strategyName, skippedIndex);
+    }
+
+    function stopValidator(bytes32 strategyName, uint256 idx) external onlyGuardians {
+        // @todo logic for this..
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        Validator storage validator = $.validators[strategyName][idx];
+        validator.status = Status.EXITED;
+
+        uint256 pufETHAmount = validator.bond;
+
+        // uint256 ethAmount = $.withdrawalPool.withdrawETH(address(this), pufETHAmount);
     }
 
     function extendCommitment(bytes32 strategyName, uint256 validatorIndex) external payable {
@@ -221,12 +246,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 smoothingCommitment = $.smoothingCommitments[strategyName];
 
-        if (msg.value != smoothingCommitment) {
+        // Node operator can purchase commitment for multiple months
+        if ((msg.value % smoothingCommitment) != 0) {
             revert InvalidETHAmount();
         }
 
-        validator.lastCommitmentPayment = uint40(block.timestamp);
-        validator.commitmentAmount = uint72(smoothingCommitment);
+        uint256 timePaidInDays = (msg.value / smoothingCommitment) * 30 days;
+
+        validator.commitmentExpiration = uint40(block.timestamp + timePaidInDays);
 
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
@@ -267,7 +294,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         if (block.number - $.lastUpdate < _UPDATE_INTERVAL) {
-            revert InvalidData();
+            revert OutsideUpdateWindow();
         }
         $.ethAmount = ethAmount;
         $.lockedETH = lockedETH;
@@ -425,7 +452,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getWithdrawalPool() external view returns (address) {
+    function getWithdrawalPool() external view returns (WithdrawalPool) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.withdrawalPool;
     }
@@ -453,6 +480,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getEigenPod());
     }
 
+    function getPayload(bytes32 strategyName) external view returns (bytes[] memory, bytes memory, uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        bytes[] memory pubKeys = $.guardianModule.getGuardiansEnclavePubkeys();
+        bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.strategies[strategyName]));
+        uint256 threshold = GUARDIANS.getThreshold();
+
+        return (pubKeys, withdrawalCredentials, threshold);
+    }
+
     function _setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 oldSmoothingCommitment = $.smoothingCommitments[strategyName];
@@ -461,24 +498,26 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _transferFunds(ProtocolStorage storage $) internal {
-        uint256 treasuryAmount = _sendETH(TREASURY, $.protocolFeeRate);
-        uint256 withdrawalPoolAmount = _sendETH($.withdrawalPool, $.withdrawalPoolRate);
-        uint256 guardiansAmount = _sendETH(address(GUARDIANS), $.guardiansFeeRate);
+        uint256 amount = msg.value - _VALIDATOR_BOND;
 
-        uint256 poolAmount = msg.value - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
+        uint256 treasuryAmount = _sendETH(TREASURY, amount, $.protocolFeeRate);
+        uint256 withdrawalPoolAmount = _sendETH(address($.withdrawalPool), amount, $.withdrawalPoolRate);
+        uint256 guardiansAmount = _sendETH(address(GUARDIANS), amount, $.guardiansFeeRate);
+
+        uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
         $.pool.paySmoothingCommitment{ value: poolAmount }();
     }
 
-    function _sendETH(address to, uint256 rate) internal returns (uint256 amount) {
-        amount = FixedPointMathLib.fullMulDiv(msg.value, rate, _ONE_HUNDRED_WAD);
+    function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
+        toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
 
-        if (amount != 0) {
-            to.safeTransferETH(amount);
+        if (toSend != 0) {
+            to.safeTransferETH(toSend);
         }
 
-        emit TransferredETH(to, amount);
+        emit TransferredETH(to, toSend);
 
-        return amount;
+        return toSend;
     }
 
     function _setStrategyWeights(bytes32[] memory newStrategyWeights) internal {
@@ -577,7 +616,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 smoothingCommitment = $.smoothingCommitments[strategyName];
 
-        if (msg.value != smoothingCommitment) {
+        if (msg.value != (smoothingCommitment + _VALIDATOR_BOND)) {
             revert InvalidETHAmount();
         }
     }

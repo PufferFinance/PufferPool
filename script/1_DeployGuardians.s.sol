@@ -8,6 +8,7 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { console } from "forge-std/console.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 
 // forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
@@ -15,7 +16,7 @@ contract DeployGuardians is BaseScript {
     address safeProxy;
     address safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold) public broadcast returns (Safe, GuardianModule) {
+    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData) public broadcast returns (Safe, GuardianModule) {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
@@ -24,14 +25,17 @@ contract DeployGuardians is BaseScript {
 
         EnclaveVerifier verifier = new EnclaveVerifier(100);
 
-        Safe guardiansSafe = this.deploySafe(guardians, threshold, address(0), "");
+        AccessManager accessManager = new AccessManager(_broadcaster);
 
-        GuardianModule module = new GuardianModule(verifier, guardiansSafe);
+        Safe guardiansSafe = deploySafe(guardians, threshold, address(0), emptyData);
+
+        GuardianModule module = new GuardianModule(verifier, guardiansSafe, address(accessManager));
 
         // console.log(address(guardiansSafe), "<-- Guardians multisig deployed");
 
         string memory obj = "";
         vm.serializeAddress(obj, "guardians", address(guardiansSafe));
+        vm.serializeAddress(obj, "accessManager", address(accessManager));
         vm.serializeAddress(obj, "guardianModule", address(module));
         vm.serializeAddress(obj, "safeProxyFactory", address(safeProxy));
         vm.serializeAddress(obj, "safeImplementation", address(safeImplementation));
@@ -45,7 +49,7 @@ contract DeployGuardians is BaseScript {
     }
 
     function deploySafe(address[] calldata owners, uint256 threshold, address to, bytes calldata data)
-        public
+        internal
         returns (Safe)
     {
         address zeroAddress = address(0);

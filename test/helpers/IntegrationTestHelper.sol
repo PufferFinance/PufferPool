@@ -19,7 +19,7 @@ contract IntegrationTestHelper is Test {
         guardians[0] = address(this);
 
         // 1. Deploy guardians safe
-        new DeployGuardians().run(guardians, 1);
+        new DeployGuardians().run(guardians, 1, "");
 
         new DeployPuffer().run();
         // vm.label(address(pool), "PufferPool");
@@ -31,7 +31,7 @@ contract IntegrationTestHelper is Test {
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);
 
-        new DeployGuardians().run(guardians, 1);
+        new DeployGuardians().run(guardians, 1, "");
         new DeployPuffer().run();
         // vm.label(address(pool), "PufferPool");
     }

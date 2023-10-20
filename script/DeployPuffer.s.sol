@@ -42,7 +42,7 @@ contract DeployPuffer is BaseScript {
 
         PufferProtocol pufferProtocolImpl;
 
-        AccessManager accessManager = new AccessManager(_broadcaster);
+        AccessManager accessManager = AccessManager(stdJson.readAddress(guardiansDeployment, ".accessManager"));
 
         {
             // PufferTreasury
@@ -80,7 +80,7 @@ contract DeployPuffer is BaseScript {
         pufferProtocol.initialize({
             accessManager: address(accessManager),
             pool: pool,
-            withdrawalPool: address(withdrawalPool),
+            withdrawalPool: withdrawalPool,
             guardianSafeModule: guardiansModule
         });
 

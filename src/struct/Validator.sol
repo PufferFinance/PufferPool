@@ -9,8 +9,8 @@ import { Status } from "puffer/struct/Status.sol";
 struct Validator {
     address node; // Address of the Node operator
     address strategy; // In which strategy is the Validator participating
-    uint72 commitmentAmount; // Last commitment amount (uint72 max value is 4722 ETH)
-    uint40 lastCommitmentPayment; // Date when the last commitment was paid
+    uint40 commitmentExpiration; // Date when the smoothing commitment ends
+    uint256 bond; // Validator bond (in pufETH)
     Status status; // Validator status
     bytes pubKey; // Validator public key
     bytes signature; // Signature of deposit data

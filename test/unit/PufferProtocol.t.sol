@@ -51,6 +51,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
         vm.stopPrank();
 
         pufferProtocol.setSmoothingCommitment(NO_RESTAKING, 1.5 ether);
+        pufferProtocol.setSmoothingCommitment(EIGEN_DA, 1 ether);
+        pufferProtocol.setSmoothingCommitment(CRAZY_GAINS, 3 ether);
 
         _skipDefaultFuzzAddresses();
 
@@ -59,7 +61,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
     // Setup
     function testSetup() public {
-        assertTrue(pufferProtocol.getWithdrawalPool() != address(0), "non zero address");
+        assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
     }
 
     function testEmptyQueue() public {
@@ -81,8 +83,13 @@ contract PufferProtocolTest is TestHelper, TestBase {
         assertEq(strategyName, NO_RESTAKING, "strategy");
         assertEq(idx, 0, "idx");
 
+        assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
+
         vm.prank(address(guardiansSafe));
         pufferProtocol.skipProvisioning(NO_RESTAKING);
+
+        // This contract shluld receive pufETH because of the skipProvisioning
+        assertTrue(pool.balanceOf(address(this)) != 0, "non zero pufETH");
 
         Validator memory aliceValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
         assertTrue(aliceValidator.status == Status.SKIPPED, "did not update status");
@@ -147,19 +154,22 @@ contract PufferProtocolTest is TestHelper, TestBase {
         Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
         assertTrue(validator.node == address(this), "node operator");
 
-        uint256 firstPayment = validator.lastCommitmentPayment;
-        assertEq(firstPayment, block.timestamp, "lastPayment");
+        uint256 firstPayment = validator.commitmentExpiration;
+        assertEq(firstPayment, block.timestamp + 30 days, "lastPayment");
 
         vm.warp(1000);
 
-        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
+        vm.expectRevert();
         pufferProtocol.extendCommitment{ value: 0 }(NO_RESTAKING, 0);
+
+        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
+        pufferProtocol.extendCommitment{ value: 5 ether }(NO_RESTAKING, 0);
 
         pufferProtocol.extendCommitment{ value: pufferProtocol.getSmoothingCommitment(NO_RESTAKING) }(NO_RESTAKING, 0);
 
         validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
-        assertTrue(validator.lastCommitmentPayment == block.timestamp, "lastPayment");
+        assertTrue(validator.commitmentExpiration == block.timestamp + 30 days, "lastPayment");
     }
 
     // Try updating for future block
@@ -179,7 +189,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
         });
 
         // Second update should revert as it has not passed enough time between two updates
-        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        vm.expectRevert(IPufferProtocol.OutsideUpdateWindow.selector);
         pufferProtocol.proofOfReserve({
             ethAmount: 2 ether,
             lockedETH: 0,
@@ -233,6 +243,45 @@ contract PufferProtocolTest is TestHelper, TestBase {
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorData, NO_RESTAKING);
     }
 
+    // Try registering with invalid BLS key length
+    function testRegisterWithInvalidBLSPubKey() public {
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(NO_RESTAKING);
+
+        bytes memory pubKey = hex"aeaa";
+
+        bytes[] memory newSetOfPubKeys = new bytes[](3);
+
+        // we have 3 guardians in TestHelper.sol
+        newSetOfPubKeys[0] = bytes("key1");
+        newSetOfPubKeys[0] = bytes("key2");
+        newSetOfPubKeys[0] = bytes("key3");
+
+        ValidatorKeyData memory validatorData = ValidatorKeyData({
+            blsPubKey: pubKey, // key length is small
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            blsEncryptedPrivKeyShares: new bytes[](3),
+            blsPubKeyShares: new bytes[](3),
+            blockNumber: 1,
+            raveEvidence: new bytes(1)
+        });
+
+        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorData, NO_RESTAKING);
+    }
+
+    function testGetPayload() public {
+        (bytes[] memory guardianPubKeys, bytes memory withdrawalCredentials, uint256 threshold) =
+            pufferProtocol.getPayload(NO_RESTAKING);
+
+        assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
+        assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
+        assertEq(guardianPubKeys[2], guardian3EnclavePubKey, "guardian3");
+
+        assertEq(guardianPubKeys.length, 3, "pubkeys len");
+        assertEq(threshold, 1, "threshold");
+    }
+
     // Try registering more validators than the allowed number
     function testRegisterMoreValidatorsThanTheLimit() public {
         uint256 previousInterval = pufferProtocol.getValidatorLimitPerInterval();
@@ -267,9 +316,11 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         uint256 idx = pufferProtocol.getPendingValidatorIndex(strategyName);
 
+        uint256 bond = 1 ether;
+
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, idx);
-        pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorKeyData, strategyName);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName);
     }
 
     function testStopRegistration() public {
@@ -426,8 +477,12 @@ contract PufferProtocolTest is TestHelper, TestBase {
         assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
         assertTrue(nextId == 0, "strategy id");
 
+        vm.stopPrank();
+
         // Now jason registers to EIGEN_DA
         _registerValidatorKey(bytes32("jason"), EIGEN_DA);
+
+        vm.startPrank(address(guardiansSafe));
 
         // If we query next validator, it should switch back to EIGEN_DA (because of the weighted selection)
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
