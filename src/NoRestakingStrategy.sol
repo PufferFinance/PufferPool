@@ -14,6 +14,12 @@ import { AbstractVault } from "puffer/AbstractVault.sol";
  */
 contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     /**
+     * @notice Thrown if the deposit to beacon chain contract failed
+     * @dev Signature "0x4f4a4e8e"
+     */
+    error FailedDeposit();
+
+    /**
      * @notice Beacon chain deposit contract
      */
     address public immutable BEACON_CHAIN_DEPOSIT_CONTRACT;
@@ -53,8 +59,10 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
                 "deposit(bytes,bytes,bytes,bytes32)", pubKey, getWithdrawalCredentials(), signature, depositDataRoot
             )
         );
+        // if (!success) {
+        //     revert FailedDeposit();
+        // }
         // @todo more logic, events
-        // require(success);
     }
 
     /**

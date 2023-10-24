@@ -13,7 +13,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 /**
  * @title Guardian module
  * @author Puffer finance
- * @dev This contract is responsible for stroing enclave data and validation of guardian signatures
+ * @dev This contract is responsible for storing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -61,8 +61,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         if (address(verifier) == address(0)) {
             revert InvalidAddress();
         }
-        require(address(guardians) != address(0));
-        require(address(pufferAuthority) != address(0));
+        if (address(guardians) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(pufferAuthority) == address(0)) {
+            revert InvalidAddress();
+        }
         ENCLAVE_VERIFIER = verifier;
         GUARDIANS = guardians;
     }
