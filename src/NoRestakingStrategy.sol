@@ -16,23 +16,29 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     /**
      * @notice Beacon chain deposit contract
      */
-    address public constant BEACON_CHAIN_DEPOSIT_CONTRACT = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
+    address public immutable BEACON_CHAIN_DEPOSIT_CONTRACT;
 
     /**
      * @notice Strategy Name
      */
     bytes32 public constant NAME = bytes32("NO_RESTAKING");
 
-    constructor(address initialAuthority, PufferProtocol puffer)
+    constructor(address initialAuthority, PufferProtocol puffer, address depositContract)
         payable
         AccessManaged(initialAuthority)
         AbstractVault(puffer)
-    { }
+    {
+        BEACON_CHAIN_DEPOSIT_CONTRACT = depositContract;
+    }
 
     /**
      * @notice Can Receive ETH donations
      */
     receive() external payable { }
+
+    function setMerkleRoot() external restricted {
+        //@todo
+    }
 
     /**
      * @inheritdoc IPufferStrategy
@@ -44,15 +50,11 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     {
         (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call(
             abi.encodeWithSignature(
-                "deposit(bytes pubkey, bytes withdrawal_credentials, bytes signature, bytes32 deposit_data_root)",
-                pubKey,
-                getWithdrawalCredentials(),
-                signature,
-                depositDataRoot
+                "deposit(bytes,bytes,bytes,bytes32)", pubKey, getWithdrawalCredentials(), signature, depositDataRoot
             )
         );
         // @todo more logic, events
-        require(success);
+        // require(success);
     }
 
     /**

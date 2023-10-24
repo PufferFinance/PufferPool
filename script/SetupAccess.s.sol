@@ -17,19 +17,19 @@ uint64 constant ROLE_ID_DAO = 77;
 uint64 constant ROLE_ID_GUARDIANS = 88;
 
 contract SetupAccess is BaseScript {
-    string pufferDeployment = vm.readFile(string.concat("./output/puffer.json"));
+    string internal pufferDeployment = vm.readFile(string.concat("./output/puffer.json"));
 
-    string guardiansDeployment = guardiansDeployment =
+    string internal guardiansDeployment = guardiansDeployment =
         vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
-    AccessManager accessManager = AccessManager(stdJson.readAddress(guardiansDeployment, ".accessManager"));
+    AccessManager internal accessManager = AccessManager(stdJson.readAddress(guardiansDeployment, ".accessManager"));
 
-    address guardians = stdJson.readAddress(guardiansDeployment, ".guardians");
-    address guardianModule = stdJson.readAddress(guardiansDeployment, ".guardianModule");
-    address pufferProtocol = stdJson.readAddress(pufferDeployment, ".PufferProtocol");
-    address noRestakingStrategy = stdJson.readAddress(pufferDeployment, ".noRestakingStrategy");
-    address pufferPool = stdJson.readAddress(pufferDeployment, ".pufferPool");
-    address enclaveVerifier = stdJson.readAddress(guardiansDeployment, ".enclaveVerifier");
+    address internal guardians = stdJson.readAddress(guardiansDeployment, ".guardians");
+    address internal guardianModule = stdJson.readAddress(guardiansDeployment, ".guardianModule");
+    address internal pufferProtocol = stdJson.readAddress(pufferDeployment, ".PufferProtocol");
+    address internal noRestakingStrategy = stdJson.readAddress(pufferDeployment, ".noRestakingStrategy");
+    address internal pufferPool = stdJson.readAddress(pufferDeployment, ".pufferPool");
+    address internal enclaveVerifier = stdJson.readAddress(guardiansDeployment, ".enclaveVerifier");
 
     function run(address DAO) external broadcast {
         _grantRoles(DAO);
@@ -81,7 +81,7 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal {
         bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
-        selectors[1] = PufferProtocol.setSmoothingCommitment.selector;
+        selectors[1] = PufferProtocol.setSmoothingCommitments.selector;
         selectors[2] = PufferProtocol.createPufferStrategy.selector;
         selectors[3] = PufferProtocol.setStrategyWeights.selector;
         selectors[4] = PufferProtocol.setValidatorLimitPerInterval.selector;

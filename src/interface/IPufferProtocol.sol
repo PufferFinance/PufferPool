@@ -18,13 +18,19 @@ interface IPufferProtocol {
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
      */
-    error InvalidBLSPublicKeyShares();
+    error InvalidBLSPublicKeySet();
 
     /**
      * @notice Thrown when the strategy name already exists
      * @dev Signature "0xc45546f7"
      */
     error StrategyAlreadyExists();
+
+    /**
+     * @notice Thrown when the supplied number of months is not valid
+     * @dev Signature "0xa00523fd"
+     */
+    error InvalidNumberOfMonths();
 
     /**
      * @notice Thrown when the RAVE evidence is not valid
@@ -148,10 +154,10 @@ interface IPufferProtocol {
     event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
 
     /**
-     * @notice Emitted when the smoothing commitment amount is changed
-     * @dev Signature "0xde1839594da67886999083403f9eae77aa4bc77d812f5d2434899d0f69882885"
+     * @notice Emitted when the smoothing commitments are changed
+     * @dev Signature "0xa1c728453af1b7abc9e0f6046d262db82ac81ccb163125d0cf365bae5dc94475"
      */
-    event CommitmentChanged(bytes32 indexed strategyName, uint256 oldSmoothingCommitment, uint256 smoothingCommitment);
+    event CommitmentsChanged(uint256[] oldCommitments, uint256[] newCommitments);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -177,7 +183,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x164db4cd8a48da2fe13aa432976a2b2ec884239bb8e411b135d280eb0192a84d"
      */
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 validatorIndex);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -271,10 +277,10 @@ interface IPufferProtocol {
     function setValidatorLimitPerInterval(uint256 newLimit) external;
 
     /**
-     * @notice Sets the smmothing commitment amount for `strategyName` to `smoothingCommitment`
+     * @notice Sets the smmothing commitment amounts
      * @dev Restricted to DAO
      */
-    function setSmoothingCommitment(bytes32 strategyName, uint256 smoothingCommitment) external;
+    function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
 
     /**
      * @notice Updates the reserves amounts
@@ -306,15 +312,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns the array of Puffer validators
-     * @dev Not to be used on chain
+     * @dev OFF-CHAIN function
      */
-    function getValidators(bytes32 strategyName) external view returns (bytes[] memory);
-
-    /**
-     * @notice Returns the array of Node operator's addresses (it uses the same ordering as getValidators())
-     * @dev Not to be used on chain
-     */
-    function getValidatorsAddresses(bytes32 strategyName) external view returns (address[] memory);
+    function getValidators(bytes32 strategyName) external view returns (Validator[] memory);
 
     /**
      * @notice Creates a new Puffer strategy with `strategyName`
@@ -323,15 +323,17 @@ interface IPufferProtocol {
     function createPufferStrategy(bytes32 strategyName) external returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `strategyName` (in wei)
+     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
      */
-    function getSmoothingCommitment(bytes32 strategyName) external view returns (uint256);
+    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
 
     /**
      * @notice Registers a new validator in a `strategyName` queue
      * @dev There is a queue per strategyName and it is FIFO
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName) external payable;
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
+        external
+        payable;
 
     /**
      * @notice Returns the pending validator index for `strategyName`

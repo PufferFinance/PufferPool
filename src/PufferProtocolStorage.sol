@@ -5,9 +5,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
-import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 
 /**
  * @title PufferProtocolStorage
@@ -111,10 +109,10 @@ abstract contract PufferProtocolStorage {
          */
         mapping(bytes32 strategyName => IPufferStrategy strategyAddress) strategies;
         /**
-         * @dev Mapping between strategy name and smoothing commitment amount (in wei)
+         * @dev Array of smoothing commitments for a number of months and smoothing commitment amount (in wei)
          * Slot 10
          */
-        mapping(bytes32 strategyName => uint256 amount) smoothingCommitments;
+        uint256[] smoothingCommitments;
     }
 
     /**
@@ -145,6 +143,7 @@ abstract contract PufferProtocolStorage {
 
     function getPuferPoolStorage() external pure returns (PufferPoolStorage memory) {
         PufferPoolStorage storage $;
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := PUFFER_POOL_STORAGE
         }
@@ -153,12 +152,14 @@ abstract contract PufferProtocolStorage {
     }
 
     function _getPuferPoolStorage() internal pure returns (PufferPoolStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := PUFFER_POOL_STORAGE
         }
     }
 
     function _getPufferProtocolStorage() internal pure returns (ProtocolStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := PUFFER_PROTOCOL_STORAGE
         }

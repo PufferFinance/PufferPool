@@ -145,9 +145,9 @@ contract TestHelper is Test, BaseScript {
         );
         vm.stopPrank();
 
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
+        assertEq(module.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
+        assertEq(module.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
+        assertEq(module.getGuardiansEnclaveAddress(guardians[2]), guardian3Enclave, "bad enclave address3");
 
         bytes[] memory pubKeys = module.getGuardiansEnclavePubkeys();
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");

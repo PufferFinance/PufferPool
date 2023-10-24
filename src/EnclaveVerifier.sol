@@ -30,7 +30,7 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
      * @dev Mapping from keccak'd leaf x509 to RSA pub key components
      * leafHash -> pubKey
      */
-    mapping(bytes32 => RSAPubKey) internal _validLeafX509s;
+    mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s;
 
     constructor(uint256 freshnessBlocks, address accessManager) AccessManaged(accessManager) {
         FRESHNESS_BLOCKS = freshnessBlocks;

@@ -13,7 +13,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 /**
  * @title Guardian module
  * @author Puffer finance
- * @dev This contract is both {Safe} module, and a logic contract to be called via `delegatecall` from {Safe} (GuardianAccount)
+ * @dev This contract is responsible for stroing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -52,7 +52,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
     constructor(IEnclaveVerifier verifier, Safe guardians, address pufferAuthority) AccessManaged(pufferAuthority) {
-        require(address(verifier) != address(0));
+        if (address(verifier) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(guardians) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(verifier) == address(0)) {
+            revert InvalidAddress();
+        }
         require(address(guardians) != address(0));
         require(address(pufferAuthority) != address(0));
         ENCLAVE_VERIFIER = verifier;
@@ -122,9 +130,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
         address guardian = msg.sender;
 
-        // Because this is called from the safe via .delegateCall
-        // address(this) equals to {Safe}
-        // This will revert if the caller is not one of the {Safe} owners
         if (!GUARDIANS.isOwner(guardian)) {
             revert Unauthorized();
         }
@@ -158,9 +163,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool) {
-        // Assert if the stored enclaveAddress equals enclave
-        return _guardianEnclaves[guardian].enclaveAddress == enclave;
+    function getGuardiansEnclaveAddress(address guardian) external view returns (address) {
+        return _guardianEnclaves[guardian].enclaveAddress;
     }
 
     /**

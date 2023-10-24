@@ -28,6 +28,11 @@ interface IGuardianModule {
     error InvalidRAVE();
 
     /**
+     * @notice Thrown if the address supplied is not valid
+     */
+    error InvalidAddress();
+
+    /**
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address
@@ -47,15 +52,18 @@ interface IGuardianModule {
     event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
 
     /**
-     * @notice Returns `true` if the `enclave` is registered to `guardian`
+     * @notice Returns the enclave address registered to `guardian`
      */
-    function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool);
+    function getGuardiansEnclaveAddress(address guardian) external view returns (address);
 
     /**
      * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
+    /**
+     * @notice Returns the enclave verifier
+     */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**

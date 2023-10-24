@@ -106,6 +106,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     }
 
     function _getPufferProtocolStorage() internal pure returns (PufferStrategyBase storage $) {
+        // solhint-disable-next-line
         assembly {
             $.slot := PUFFER_STRATEGY_BASE_STORAGE
         }
