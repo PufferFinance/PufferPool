@@ -668,7 +668,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidBLSPrivateKeyShares();
         }
 
-        if (data.blsPubKeySet.length != numGuardians * _BLS_PUB_KEY_LENGTH) {
+        if (data.blsPubKeySet.length != (GUARDIANS.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
             revert InvalidBLSPublicKeySet();
         }
 

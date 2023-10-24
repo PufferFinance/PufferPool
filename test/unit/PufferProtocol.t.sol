@@ -239,7 +239,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
             blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(144),
+            blsPubKeySet: new bytes(48),
             raveEvidence: new bytes(0) // No rave
          });
 
@@ -636,7 +636,7 @@ contract PufferProtocolTest is TestHelper, TestBase {
                 withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(144),
+            blsPubKeySet: new bytes(48),
             raveEvidence: new bytes(1) // Guardians are checking it off chain
          });
 
