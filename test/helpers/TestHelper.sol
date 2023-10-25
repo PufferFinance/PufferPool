@@ -69,6 +69,15 @@ contract TestHelper is Test, BaseScript {
     modifier assumeEOA(address addr) {
         vm.assume(addr.code.length == 0);
         vm.assume(addr != ADDRESS_ZERO);
+        vm.assume(addr != ADDRESS_ONE);
+        vm.assume(addr != address(2));
+        vm.assume(addr != address(3));
+        vm.assume(addr != address(4));
+        vm.assume(addr != address(5));
+        vm.assume(addr != address(6));
+        vm.assume(addr != address(7));
+        vm.assume(addr != address(8));
+        vm.assume(addr != address(9));
         _;
     }
 
