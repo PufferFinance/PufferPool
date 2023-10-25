@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 
 /**
  * @title IGuardianModule interface
@@ -27,6 +28,11 @@ interface IGuardianModule {
     error InvalidRAVE();
 
     /**
+     * @notice Thrown if the address supplied is not valid
+     */
+    error InvalidAddress();
+
+    /**
      * @notice Emitted when the guardian changes guardian enclave address
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address
@@ -46,14 +52,19 @@ interface IGuardianModule {
     event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
 
     /**
-     * @notice Returns `true` if the `enclave` is registered to `guardian`
+     * @notice Returns the enclave address registered to `guardian`
      */
-    function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool);
+    function getGuardiansEnclaveAddress(address guardian) external view returns (address);
 
     /**
      * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
+
+    /**
+     * @notice Returns the enclave verifier
+     */
+    function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Validates that the guardians enclaves signed on the data.
@@ -104,4 +115,14 @@ interface IGuardianModule {
      * @notice Returns the guarardians enclave public keys
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
+
+    /**
+     * @notice Returns the mrenclave value
+     */
+    function getMrenclave() external view returns (bytes32);
+
+    /**
+     * @notice Returns the mrsigner value
+     */
+    function getMrsigner() external view returns (bytes32);
 }

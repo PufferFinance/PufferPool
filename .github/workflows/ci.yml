@@ -37,6 +37,16 @@ jobs:
         with:
           node-version: 18.15
 
+  solhint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+      - name: Install solhint
+        run: npm i -g solhint
+      - name: Run solhint
+        run: solhint 'src/*.sol'
+
   codespell:
     runs-on: ubuntu-latest
     steps:

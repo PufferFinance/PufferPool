@@ -5,7 +5,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
 /**
@@ -18,7 +18,19 @@ interface IPufferProtocol {
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
      */
-    error InvalidBLSPublicKeyShares();
+    error InvalidBLSPublicKeySet();
+
+    /**
+     * @notice Thrown when the strategy name already exists
+     * @dev Signature "0xc45546f7"
+     */
+    error StrategyAlreadyExists();
+
+    /**
+     * @notice Thrown when the supplied number of months is not valid
+     * @dev Signature "0xa00523fd"
+     */
+    error InvalidNumberOfMonths();
 
     /**
      * @notice Thrown when the RAVE evidence is not valid
@@ -92,6 +104,24 @@ interface IPufferProtocol {
     event NewPufferStrategyCreated(address strategy);
 
     /**
+     * @notice Emitted when the new Puffer `strategyName` is changed to a new strategy
+     * @dev Signature "0x38488ea225f6b4bcf21060e716ea744fa5c99fd5de9ea2f8d1b257e1060f9ee1"
+     */
+    event StrategyChanged(bytes32 indexed strategyName, address oldStrategy, address newStrategy);
+
+    /**
+     * @notice Emitted when the Guardians fee rate is changed from `oldRate` to `newRate`
+     * @dev Signature "0xdc450026d966b67c62d26cf532d9a568be6c73c01251576c5d6a71bb19463d2f"
+     */
+    event GuardiansFeeRateChanged(uint256 oldRate, uint256 newRate);
+
+    /**
+     * @notice Emitted when the Withdrawal Pool rate is changed from `oldRate` to `newRate`
+     * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
+     */
+    event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
+
+    /**
      * @notice Emitted when the validator interval gets reset
      * @dev Signature "0xf147f5fea5809d6be90362da029bbc2ab19828fbd38e0e426eccc76ae7bba618"
      */
@@ -124,10 +154,10 @@ interface IPufferProtocol {
     event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
 
     /**
-     * @notice Emitted when the smoothing commitment amount is changed
-     * @dev Signature "0xde1839594da67886999083403f9eae77aa4bc77d812f5d2434899d0f69882885"
+     * @notice Emitted when the smoothing commitments are changed
+     * @dev Signature "0xa1c728453af1b7abc9e0f6046d262db82ac81ccb163125d0cf365bae5dc94475"
      */
-    event CommitmentChanged(bytes32 indexed strategyName, uint256 oldSmoothingCommitment, uint256 smoothingCommitment);
+    event CommitmentsChanged(uint256[] oldCommitments, uint256[] newCommitments);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -153,7 +183,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @dev Signature "0x164db4cd8a48da2fe13aa432976a2b2ec884239bb8e411b135d280eb0192a84d"
      */
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 validatorIndex);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -205,9 +235,65 @@ interface IPufferProtocol {
     function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
 
     /**
-     * @notice Returns the Strategy Manager
+     * @notice Skips the next validator for `strategyName`
+     * @dev Restricted to Guardians
      */
-    function EIGEN_STRATEGY_MANAGER() external view returns (IStrategyManager);
+    function skipProvisioning(bytes32 strategyName) external;
+
+    /**
+     * @notice Sets the strategy weights array to `newStrategyWeights`
+     * @dev Restricted to DAO
+     */
+    function setStrategyWeights(bytes32[] calldata newStrategyWeights) external;
+
+    /**
+     * @notice Sets the protocol fee rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setProtocolFeeRate(uint256 protocolFeeRate) external;
+
+    /**
+     * @notice Sets the withdrawal pool rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setWithdrawalPoolRate(uint256 newRate) external;
+
+    /**
+     * @notice Sets guardians fee rate
+     * @dev 1% equals `1 * FixedPointMathLib.WAD`
+     *
+     * Restricted to DAO
+     */
+    function setGuardiansFeeRate(uint256 newRate) external;
+
+    /**
+     * @notice Sets the validator limit per interval to `newLimit`
+     * @dev Restricted to DAO
+     */
+    function setValidatorLimitPerInterval(uint256 newLimit) external;
+
+    /**
+     * @notice Sets the smmothing commitment amounts
+     * @dev Restricted to DAO
+     */
+    function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
+
+    /**
+     * @notice Updates the reserves amounts
+     * @dev Restricted to Guardians
+     */
+    function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber)
+        external;
+
+    /**
+     * @notice Changes the `strategyName` with `newStrategy`
+     * @dev Restricted to DAO
+     */
+    function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external;
 
     /**
      * @notice Returns the guardian module
@@ -226,15 +312,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns the array of Puffer validators
-     * @dev Not to be used on chain
+     * @dev OFF-CHAIN function
      */
-    function getValidators(bytes32 strategyName) external view returns (bytes[] memory);
-
-    /**
-     * @notice Returns the array of Node operator's addresses (it uses the same ordering as getValidators())
-     * @dev Not to be used on chain
-     */
-    function getValidatorsAddresses(bytes32 strategyName) external view returns (address[] memory);
+    function getValidators(bytes32 strategyName) external view returns (Validator[] memory);
 
     /**
      * @notice Creates a new Puffer strategy with `strategyName`
@@ -243,15 +323,17 @@ interface IPufferProtocol {
     function createPufferStrategy(bytes32 strategyName) external returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `strategyName` (in wei)
+     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
      */
-    function getSmoothingCommitment(bytes32 strategyName) external view returns (uint256);
+    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
 
     /**
      * @notice Registers a new validator in a `strategyName` queue
      * @dev There is a queue per strategyName and it is FIFO
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName) external payable;
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
+        external
+        payable;
 
     /**
      * @notice Returns the pending validator index for `strategyName`
@@ -269,11 +351,6 @@ interface IPufferProtocol {
      * Every strategy has its own FIFO queue for provisioning
      */
     function getNextValidatorToProvision() external view returns (bytes32 strategyName, uint256 indexToBeProvisioned);
-
-    /**
-     * @notice Returns the default straetgy (no restaking)
-     */
-    function getDefaultStrategy() external view returns (address);
 
     /**
      * @notice Returns the validator limit per interval

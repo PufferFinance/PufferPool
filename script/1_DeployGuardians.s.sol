@@ -7,31 +7,31 @@ import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
-import { console } from "forge-std/console.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 
 // forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
 contract DeployGuardians is BaseScript {
-    address safeProxy;
-    address safeImplementation;
+    address internal safeProxy;
+    address internal safeImplementation;
 
-    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData) public broadcast returns (Safe, GuardianModule) {
+    function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData)
+        public
+        broadcast
+        returns (Safe, GuardianModule)
+    {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
 
-        // console.log(safeProxy, "<-- Safe proxy factory");
-        // console.log(safeImplementation, "<-- Safe implementation");
-
-        EnclaveVerifier verifier = new EnclaveVerifier(100);
-
+        // Broadcaster is the deployer
         AccessManager accessManager = new AccessManager(_broadcaster);
+        vm.label(address(accessManager), "AccessManager");
+
+        EnclaveVerifier verifier = new EnclaveVerifier(100, address(accessManager));
 
         Safe guardiansSafe = deploySafe(guardians, threshold, address(0), emptyData);
 
         GuardianModule module = new GuardianModule(verifier, guardiansSafe, address(accessManager));
-
-        // console.log(address(guardiansSafe), "<-- Guardians multisig deployed");
 
         string memory obj = "";
         vm.serializeAddress(obj, "guardians", address(guardiansSafe));

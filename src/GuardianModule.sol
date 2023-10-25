@@ -13,7 +13,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 /**
  * @title Guardian module
  * @author Puffer finance
- * @dev This contract is both {Safe} module, and a logic contract to be called via `delegatecall` from {Safe} (GuardianAccount)
+ * @dev This contract is responsible for storing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -28,7 +28,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @notice Enclave Verifier smart contract
      */
-    IEnclaveVerifier public immutable enclaveVerifier;
+    IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
 
     /**
      * @notice Guardians {Safe}
@@ -38,11 +38,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @dev MRSIGNER value for SGX
      */
-    bytes32 mrsigner;
+    bytes32 internal _mrsigner;
     /**
      * @dev MRENCLAVE value for SGX
      */
-    bytes32 mrenclave;
+    bytes32 internal _mrenclave;
 
     struct GuardianData {
         bytes enclavePubKey;
@@ -52,10 +52,22 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
     constructor(IEnclaveVerifier verifier, Safe guardians, address pufferAuthority) AccessManaged(pufferAuthority) {
-        require(address(verifier) != address(0));
-        require(address(guardians) != address(0));
-        require(address(pufferAuthority) != address(0));
-        enclaveVerifier = verifier;
+        if (address(verifier) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(guardians) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(verifier) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(guardians) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(pufferAuthority) == address(0)) {
+            revert InvalidAddress();
+        }
+        ENCLAVE_VERIFIER = verifier;
         GUARDIANS = guardians;
     }
 
@@ -63,10 +75,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
-        bytes32 previousMrEnclave = mrenclave;
-        bytes32 previousMrsigner = mrsigner;
-        mrenclave = newMrenclave;
-        mrsigner = newMrsigner;
+        bytes32 previousMrEnclave = _mrenclave;
+        bytes32 previousMrsigner = _mrsigner;
+        _mrenclave = newMrenclave;
+        _mrsigner = newMrsigner;
         emit MrEnclaveChanged(previousMrEnclave, newMrenclave);
         emit MrSignerChanged(previousMrsigner, newMrsigner);
     }
@@ -122,9 +134,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
         address guardian = msg.sender;
 
-        // Because this is called from the safe via .delegateCall
-        // address(this) equals to {Safe}
-        // This will revert if the caller is not one of the {Safe} owners
         if (!GUARDIANS.isOwner(guardian)) {
             revert Unauthorized();
         }
@@ -134,11 +143,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
 
         // slither-disable-next-line uninitialized-state-variables
-        bool isValid = enclaveVerifier.verifyEvidence({
+        bool isValid = ENCLAVE_VERIFIER.verifyEvidence({
             blockNumber: blockNumber,
             raveCommitment: keccak256(pubKey),
-            mrenclave: mrenclave,
-            mrsigner: mrsigner,
+            mrenclave: _mrenclave,
+            mrsigner: _mrsigner,
             evidence: evidence
         });
 
@@ -158,9 +167,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function isGuardiansEnclaveAddress(address guardian, address enclave) external view returns (bool) {
-        // Assert if the stored enclaveAddress equals enclave
-        return _guardianEnclaves[guardian].enclaveAddress == enclave;
+    function getGuardiansEnclaveAddress(address guardian) external view returns (address) {
+        return _guardianEnclaves[guardian].enclaveAddress;
     }
 
     /**
@@ -195,5 +203,19 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
 
         return enclavePubkeys;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getMrenclave() external view returns (bytes32) {
+        return _mrenclave;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getMrsigner() external view returns (bytes32) {
+        return _mrsigner;
     }
 }

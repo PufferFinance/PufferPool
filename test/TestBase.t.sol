@@ -9,7 +9,7 @@ abstract contract TestBase is Test {
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
 
     // Addresses that are supposed to be skipped when fuzzing
-    mapping(address => bool) fuzzedAddressMapping;
+    mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-
 /**
  * @title IPufferStrategy
  * @author Puffer Finance
@@ -10,22 +8,27 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
  */
 interface IPufferStrategy {
     /**
-     * @notice Returns the address of the owned EigenPod
+     * @notice Returns the Withdrawal credentials for that strategy
      */
-    function getEigenPod() external view returns (address);
+    function getWithdrawalCredentials() external view returns (bytes memory);
 
     /**
-     * @notice Starts the validator via EigenLayer
+     * @notice Returns the strategy name
+     */
+    function NAME() external view returns (bytes32);
+
+    /**
+     * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Collects the staking rewards only if the validator is not restaking
+     * @notice Collects the non restaking rewards
      */
-    function collectRewardsIfNotRestaking() external;
+    function collectNonRestakingRewards() external;
 
     /**
-     * @notice Returns the EigenPodManager
+     * @notice Collects the restaking rewards
      */
-    function EIGEN_POD_MANAGER() external view returns (IEigenPodManager);
+    function collectRestakingRewards() external;
 }

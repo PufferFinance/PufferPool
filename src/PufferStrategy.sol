@@ -35,7 +35,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         IEigenPod eigenPod;
     }
 
-    constructor(IEigenPodManager eigenPodManager) {
+    constructor(IEigenPodManager eigenPodManager) payable {
         EIGEN_POD_MANAGER = eigenPodManager;
     }
 
@@ -48,7 +48,8 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         _;
     }
 
-    function initialize(PufferProtocol protocol, bytes32 strategyName) public initializer {
+    function initialize(PufferProtocol protocol, bytes32 strategyName, address initialAuthority) public initializer {
+        __AccessManaged_init(initialAuthority);
         PufferStrategyBase storage $ = _getPufferProtocolStorage();
         $.pufferProtocol = protocol;
         $.strategyName = strategyName;
@@ -57,6 +58,9 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
 
     receive() external payable { }
 
+    /**
+     * @inheritdoc IPufferStrategy
+     */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
         payable
@@ -66,21 +70,43 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
-    function collectRewardsIfNotRestaking() external {
+    /**
+     * @inheritdoc IPufferStrategy
+     */
+    function collectNonRestakingRewards() external {
         // @todo limit it to 1x per day or something?
         // it creates a queued withdrawal via withdrawal router
         PufferStrategyBase storage $ = _getPufferProtocolStorage();
         $.eigenPod.withdrawBeforeRestaking();
     }
 
-    function getEigenPod() external view returns (address) {
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
-        return address($.eigenPod);
+    function collectRestakingRewards() external {
+        //@todo
     }
 
-    // TODO: the restaking
+    // function verifyWithdrawalCredentials() {
+    // save the start date
+    // }
+
+    /**
+     * @inheritdoc IPufferStrategy
+     */
+    function getWithdrawalCredentials() public view returns (bytes memory) {
+        // Withdrawal credentials for EIgenLayer strategies are EigenPods
+        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
+    }
+
+    /**
+     * @inheritdoc IPufferStrategy
+     */
+    function NAME() external view returns (bytes32) {
+        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        return $.strategyName;
+    }
 
     function _getPufferProtocolStorage() internal pure returns (PufferStrategyBase storage $) {
+        // solhint-disable-next-line
         assembly {
             $.slot := PUFFER_STRATEGY_BASE_STORAGE
         }

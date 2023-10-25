@@ -27,13 +27,6 @@ abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
      */
     PufferProtocol public immutable PUFFER_PROTOCOL;
 
-    modifier onlyPufferProtocol() {
-        if (msg.sender != address(PUFFER_PROTOCOL)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
     constructor(PufferProtocol pufferProtocol) payable {
         PUFFER_PROTOCOL = pufferProtocol;
     }

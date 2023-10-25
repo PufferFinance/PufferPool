@@ -2,5 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 contract BeaconMock {
-    function deposit(bytes calldata, bytes calldata, bytes calldata, bytes32) public payable { }
+    event StartedStaking();
+
+    function deposit(
+        bytes calldata pubkey,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signature,
+        bytes32 deposit_data_root
+    ) external payable {
+        emit StartedStaking();
+    }
 }

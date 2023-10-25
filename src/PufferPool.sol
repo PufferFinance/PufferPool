@@ -9,13 +9,14 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
+import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
  * @title PufferPool
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
+contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
     using SafeTransferLib for address;
 
     /**
@@ -27,12 +28,14 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      * @dev Minimum deposit amount in ETH
      */
     uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
+    //@todo see if we can get rid of minimum amount due
 
-    constructor(PufferProtocol protocol)
+    constructor(PufferProtocol protocol, address initialAuthority)
         payable
         AbstractVault(protocol)
         ERC20("Puffer ETH", "pufETH")
         ERC20Permit("pufETH")
+        AccessManaged(initialAuthority)
     { }
 
     /**
@@ -70,7 +73,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
         _burn(msg.sender, pufETHAmount);
     }
 
-    function transferETH(address to, uint256 ethAmount) external onlyPufferProtocol {
+    function transferETH(address to, uint256 ethAmount) external restricted {
         to.safeTransferETH(ethAmount);
     }
 
@@ -78,7 +81,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      * @inheritdoc IPufferPool
      */
     function calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
-        return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate(0));
+        return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate());
     }
 
     /**
@@ -92,10 +95,10 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      * @inheritdoc IPufferPool
      */
     function getPufETHtoETHExchangeRate() public view returns (uint256) {
-        return _getPufETHtoETHExchangeRate(0);
+        return _getPufETHtoETHExchangeRate();
     }
 
-    function _getPufETHtoETHExchangeRate(uint256 ethDepositedAmount) internal view returns (uint256) {
+    function _getPufETHtoETHExchangeRate() internal view returns (uint256) {
         PufferProtocolStorage.PufferPoolStorage memory data = PUFFER_PROTOCOL.getPuferPoolStorage();
         // slither-disable-next-line incorrect-equality
         if (data.pufETHTotalSupply == 0) {
@@ -116,6 +119,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit {
      * @dev Internal function for calculating the ETH to pufETH amount when ETH is being sent in the transaction
      */
     function _calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
-        return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate(amount));
+        return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate());
     }
 }

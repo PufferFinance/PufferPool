@@ -14,6 +14,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
 
 contract PufferStrategyUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -27,40 +28,34 @@ contract PufferStrategyTest is TestHelper, TestBase {
 
         vm.deal(address(this), 1000 ether);
 
-        // Setup roles
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = UpgradeableBeacon.upgradeTo.selector;
-
-        // For simplicity transfer ownership to this contract
-        vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(pufferProtocol.PUFFER_STRATEGY_BEACON(), selectors, ROLE_ID_DAO);
-        accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
-        vm.stopPrank();
-
         _skipDefaultFuzzAddresses();
 
         fuzzedAddressMapping[address(pufferProtocol)] = true;
     }
 
-    function testGetEigenPod() public {
-        assertTrue(
-            PufferStrategy(payable(pufferProtocol.getDefaultStrategy())).getEigenPod() != address(0), "get eigenpod"
-        );
-    }
-
     function testBeaconUpgrade() public {
         address strategyBeacon = pufferProtocol.PUFFER_STRATEGY_BEACON();
 
-        (bool success,) =
-            pufferProtocol.getDefaultStrategy().call(abi.encodeCall(PufferStrategyUpgrade.getMagicValue, ()));
+        vm.startPrank(DAO);
+        pufferProtocol.createPufferStrategy(bytes32("DEGEN"));
+        vm.stopPrank();
+
+        // No restaking is a custom default strategy (non beacon upgradeable)
+        (bool success,) = pufferProtocol.getStrategyAddress(bytes32("DEGEN")).call(
+            abi.encodeCall(PufferStrategyUpgrade.getMagicValue, ())
+        );
+
         assertTrue(!success, "should not succeed");
 
         PufferStrategyUpgrade upgrade = new PufferStrategyUpgrade();
 
+        vm.startPrank(DAO);
         accessManager.execute(strategyBeacon, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade)));
+        vm.stopPrank();
 
-        (bool s, bytes memory data) =
-            pufferProtocol.getDefaultStrategy().call(abi.encodeCall(PufferStrategyUpgrade.getMagicValue, ()));
+        (bool s, bytes memory data) = pufferProtocol.getStrategyAddress(bytes32("DEGEN")).call(
+            abi.encodeCall(PufferStrategyUpgrade.getMagicValue, ())
+        );
         assertTrue(s, "should succeed");
         assertEq(abi.decode(data, (uint256)), 1337, "got the number");
     }

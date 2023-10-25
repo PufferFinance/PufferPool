@@ -12,14 +12,13 @@ import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { DeployGuardians } from "script/1_DeployGuardians.s.sol";
+import { SetupAccess } from "script/SetupAccess.s.sol";
+import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
-    uint64 constant ROLE_ID_DAO = 77;
-    uint64 constant ROLE_ID_GUARDIANS = 88;
-
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -51,6 +50,9 @@ contract TestHelper is Test, BaseScript {
     GuardianModule module;
 
     AccessManager accessManager;
+    IEnclaveVerifier verifier;
+
+    address DAO = makeAddr("DAO");
 
     function setUp() public virtual {
         _testRave();
@@ -76,9 +78,14 @@ contract TestHelper is Test, BaseScript {
         // 1. Deploy guardians safe
         (guardiansSafe, module) = new DeployGuardians().run(guardians, 1, "");
 
+        // Deploy puffer protocol
         (pufferProtocol, pool, accessManager) = new DeployPuffer().run();
 
+        // Setup roles and access
+        new SetupAccess().run(DAO);
+
         withdrawalPool = WithdrawalPool(payable(pufferProtocol.getWithdrawalPool()));
+        verifier = module.ENCLAVE_VERIFIER();
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
@@ -88,12 +95,15 @@ contract TestHelper is Test, BaseScript {
         Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
 
         // mrenclave and mrsigner are the same for all evidences
-        vm.startPrank(_broadcaster); // broadcaster is the owner od Guardian Module
+        vm.startPrank(DAO);
         module.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
         vm.stopPrank();
 
+        assertEq(module.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
+        assertEq(module.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
+
         // Add a valid certificate to verifier
-        IEnclaveVerifier verifier = module.enclaveVerifier();
+        verifier = module.ENCLAVE_VERIFIER();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
         require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
@@ -135,19 +145,9 @@ contract TestHelper is Test, BaseScript {
         );
         vm.stopPrank();
 
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[0], guardian1Enclave), "bad enclave address");
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[1], guardian2Enclave), "bad enclave address");
-        assertTrue(module.isGuardiansEnclaveAddress(guardians[2], guardian3Enclave), "bad enclave address");
-
-        // Setup roles
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferProtocol.proofOfReserve.selector;
-
-        // For simplicity transfer ownership to this contract
-        vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_GUARDIANS);
-        accessManager.grantRole(ROLE_ID_GUARDIANS, address(guardiansSafe), 0);
-        vm.stopPrank();
+        assertEq(module.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
+        assertEq(module.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
+        assertEq(module.getGuardiansEnclaveAddress(guardians[2]), guardian3Enclave, "bad enclave address3");
 
         bytes[] memory pubKeys = module.getGuardiansEnclavePubkeys();
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
