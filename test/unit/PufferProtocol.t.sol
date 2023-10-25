@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -16,7 +15,7 @@ import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { console } from "forge-std/console.sol";
 import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
 
-contract PufferProtocolTest is TestHelper, TestBase {
+contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed);

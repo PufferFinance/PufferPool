@@ -272,6 +272,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.nextToBeProvisioned[strategyName];
         }
 
+        // slither-disable-next-line unchecked-transfer
         $.pool.transfer(validator.node, validator.bond);
     }
 

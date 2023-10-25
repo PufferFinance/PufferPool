@@ -8,14 +8,13 @@ import { Safe } from "safe-contracts/Safe.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { TestBase } from "../TestBase.t.sol";
 import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { console } from "forge-std/console.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 
-contract PufferPoolTest is TestHelper, TestBase {
+contract PufferPoolTest is TestHelper {
     using ECDSA for bytes32;
 
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
@@ -37,7 +36,7 @@ contract PufferPoolTest is TestHelper, TestBase {
     }
 
     // Fuzz test for depositing ETH to PufferPool
-    function testDeposit(address depositor, uint256 depositAmount) public fuzzedAddress(depositor) {
+    function testDeposit(address depositor, uint256 depositAmount) public assumeEOA(depositor) {
         depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
 
         vm.deal(depositor, depositAmount);
@@ -55,6 +54,67 @@ contract PufferPoolTest is TestHelper, TestBase {
 
         assertEq(pool.balanceOf(depositor), depositAmount, "recipient pufETH amount");
         assertEq(expectedAmount, depositAmount, "recipient pufETH calculated amount");
+    }
+
+    // Fuzz test to test rounding error for exchange rate 1:1
+    function testDepositAndRedeemRoundingError(address depositor, uint256 depositAmount) public assumeEOA(depositor) {
+        depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
+
+        // Give out ETH
+        vm.deal(depositor, depositAmount);
+        vm.deal(address(withdrawalPool), 10_000_000 ether);
+
+        vm.startPrank(depositor);
+        assertEq(pool.balanceOf(depositor), 0, "recipient pufETH amount before deposit");
+
+        uint256 minted = pool.depositETH{ value: depositAmount }();
+
+        pool.approve(address(withdrawalPool), type(uint256).max);
+        uint256 withdrawAmount = withdrawalPool.withdrawETH(depositor, minted);
+
+        vm.stopPrank();
+
+        assertTrue(depositAmount >= withdrawAmount, "rounding error");
+    }
+
+    // Fuzz test to test rounding error
+    function testDepositAndRedeemRoundingErrorForDifferentExchangeRate(address depositor, uint256 depositAmount)
+        public
+        assumeEOA(depositor)
+    {
+        vm.roll(50401);
+
+        depositAmount = bound(depositAmount, 0.01 ether, 1_000_000 ether);
+
+        // Give out ETH
+        vm.deal(depositor, depositAmount);
+        vm.deal(address(withdrawalPool), 10_000_000 ether);
+
+        assertEq(pool.getPufETHtoETHExchangeRate(), 1 ether, "exchange rate before");
+
+        vm.startPrank(address(guardiansSafe));
+
+        pufferProtocol.proofOfReserve({
+            ethAmount: 10_000 ether,
+            lockedETH: 320 ether,
+            pufETHTotalSupply: 10_000 ether,
+            blockNumber: 50350
+        });
+        vm.stopPrank();
+
+        assertEq(pool.getPufETHtoETHExchangeRate(), 1.032 ether, "exchange rate after");
+
+        vm.startPrank(depositor);
+        assertEq(pool.balanceOf(depositor), 0, "recipient pufETH amount before deposit");
+
+        uint256 minted = pool.depositETH{ value: depositAmount }();
+
+        pool.approve(address(withdrawalPool), type(uint256).max);
+        uint256 withdrawAmount = withdrawalPool.withdrawETH(depositor, minted);
+
+        vm.stopPrank();
+
+        assertTrue(depositAmount >= withdrawAmount, "rounding error");
     }
 
     // Test Alice and Bob depositing
@@ -80,7 +140,7 @@ contract PufferPoolTest is TestHelper, TestBase {
     }
 
     // Test burning of pufETH
-    function testBurn(address depositor) public fuzzedAddress(depositor) {
+    function testBurn(address depositor) public assumeEOA(depositor) {
         uint256 amount = 5 ether;
         vm.deal(depositor, amount);
 

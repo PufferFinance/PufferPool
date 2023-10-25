@@ -12,9 +12,8 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { console } from "forge-std/console.sol";
-import { TestBase } from "../TestBase.t.sol";
 
-contract WithdrawalPoolTest is TestHelper, TestBase {
+contract WithdrawalPoolTest is TestHelper {
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
