@@ -8,7 +8,8 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+// import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { DeployGuardians } from "script/1_DeployGuardians.s.sol";
@@ -43,7 +44,7 @@ contract TestHelper is Test, BaseScript {
 
     PufferPool pool;
     PufferProtocol pufferProtocol;
-    WithdrawalPool withdrawalPool;
+    IWithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
 
     Safe guardiansSafe;
@@ -84,7 +85,7 @@ contract TestHelper is Test, BaseScript {
         // Setup roles and access
         new SetupAccess().run(DAO);
 
-        withdrawalPool = WithdrawalPool(payable(pufferProtocol.getWithdrawalPool()));
+        withdrawalPool = pufferProtocol.getWithdrawalPool();
         verifier = module.ENCLAVE_VERIFIER();
 
         vm.label(address(pool), "PufferPool");

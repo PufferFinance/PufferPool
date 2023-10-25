@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
@@ -11,7 +12,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract WithdrawalPool {
+contract WithdrawalPool is IWithdrawalPool {
     using SafeTransferLib for address;
 
     PufferPool public immutable POOL;
@@ -26,40 +27,19 @@ contract WithdrawalPool {
         POOL = pufferPool;
     }
 
-    struct Withdrawal {
-        uint256 pufETH;
-        uint256 ETH;
-        uint256 lockedUntil;
-        address recipient;
-    }
-
-    struct Permit {
-        address owner;
-        uint256 deadline;
-        uint256 amount;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
     receive() external payable {
         // @todo
     }
 
     /**
-     * @notice Burns `pufETHAmount` and sends the ETH to `to`
-     * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
-     * @return ETH Amount redeemed
+     * @inheritdoc IWithdrawalPool
      */
     function withdrawETH(address to, uint256 pufETHAmount) external returns (uint256) {
         return _withdrawETH(msg.sender, to, pufETHAmount);
     }
 
     /**
-     *
-     * @notice Burns pufETH and sends ETH to `to`
-     * Permit allows a gasless approval. Owner signs a message giving transfer approval to this contract.
-     * @param permit is the struct required by IERC20Permit-permit
+     * @inheritdoc IWithdrawalPool
      */
     function withdrawETH(address to, Permit calldata permit) external {
         // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner

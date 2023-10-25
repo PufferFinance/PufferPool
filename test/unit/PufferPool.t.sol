@@ -13,6 +13,7 @@ import { BeaconMock } from "../mocks/BeaconMock.sol";
 import { console } from "forge-std/console.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
+import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 
 contract PufferPoolTest is TestHelper, TestBase {
     using ECDSA for bytes32;
@@ -178,7 +179,7 @@ contract PufferPoolTest is TestHelper, TestBase {
     }
 
     function testStorageS() public {
-        PufferProtocolStorage.PufferPoolStorage memory data = pufferProtocol.getPuferPoolStorage();
+        PufferPoolStorage memory data = pufferProtocol.getPuferPoolStorage();
         assertEq(data.lastUpdate, 0, "last update");
     }
 }

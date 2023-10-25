@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IERC1155Receiver } from "openzeppelin/token/ERC1155/IERC1155Receiver.sol";
 import { IERC1155 } from "openzeppelin/token/ERC1155/IERC1155.sol";
@@ -25,9 +25,9 @@ abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
     /**
      * @notice Address of the Puffer Protocol
      */
-    PufferProtocol public immutable PUFFER_PROTOCOL;
+    IPufferProtocol public immutable PUFFER_PROTOCOL;
 
-    constructor(PufferProtocol pufferProtocol) payable {
+    constructor(IPufferProtocol pufferProtocol) payable {
         PUFFER_PROTOCOL = pufferProtocol;
     }
 

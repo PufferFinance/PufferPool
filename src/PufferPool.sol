@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
+import { AbstractVault } from "puffer/AbstractVault.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
-import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
-import { AbstractVault } from "puffer/AbstractVault.sol";
+import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
@@ -99,7 +99,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
     }
 
     function _getPufETHtoETHExchangeRate() internal view returns (uint256) {
-        PufferProtocolStorage.PufferPoolStorage memory data = PUFFER_PROTOCOL.getPuferPoolStorage();
+        PufferPoolStorage memory data = PUFFER_PROTOCOL.getPuferPoolStorage();
         // slither-disable-next-line incorrect-equality
         if (data.pufETHTotalSupply == 0) {
             return FixedPointMathLib.WAD;

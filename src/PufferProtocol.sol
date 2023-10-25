@@ -2,19 +2,21 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
+import { ProtocolStorage } from "puffer/struct/ProtocolStorage.sol";
+import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
@@ -87,7 +89,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function initialize(
         address accessManager,
         PufferPool pool,
-        WithdrawalPool withdrawalPool,
+        IWithdrawalPool withdrawalPool,
         address guardianSafeModule,
         address noRestakingStrategy,
         uint256[] calldata smoothingCommitments
@@ -279,7 +281,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external restricted {
+    function changeStrategy(bytes32 strategyName, IPufferStrategy newStrategy) external restricted {
         _changeStrategy(strategyName, newStrategy);
     }
 
@@ -472,7 +474,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getWithdrawalPool() external view returns (WithdrawalPool) {
+    function getWithdrawalPool() external view returns (IWithdrawalPool) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.withdrawalPool;
     }
@@ -480,7 +482,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getGuardianModule() external view returns (GuardianModule) {
+    function getGuardianModule() external view returns (IGuardianModule) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.guardianModule;
     }
@@ -600,17 +602,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (address($.strategies[strategyName]) != address(0)) {
             revert StrategyAlreadyExists();
         }
-        PufferStrategy strategy = _createNewPufferStrategy(strategyName);
+        IPufferStrategy strategy = _createNewPufferStrategy(strategyName);
         $.strategies[strategyName] = strategy;
         emit NewPufferStrategyCreated(address(strategy));
         return address(strategy);
     }
 
-    function _createNewPufferStrategy(bytes32 strategyName) internal returns (PufferStrategy strategy) {
+    function _createNewPufferStrategy(bytes32 strategyName) internal returns (IPufferStrategy strategy) {
         bytes memory deploymentData = abi.encodePacked(
             type(BeaconProxy).creationCode,
             abi.encode(
-                PUFFER_STRATEGY_BEACON, abi.encodeCall(PufferStrategy.initialize, (this, strategyName, authority()))
+                PUFFER_STRATEGY_BEACON,
+                abi.encodeWithSignature("initialize(address,bytes32,address)", this, strategyName, authority())
             )
         );
 
@@ -623,7 +626,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert Create2Failed();
         }
 
-        return PufferStrategy(payable(address(strategy)));
+        return IPufferStrategy(payable(address(strategy)));
     }
 
     function _setValidatorLimitPerInterval(uint256 newLimit) internal {

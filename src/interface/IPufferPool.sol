@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+
 /**
  * @title IPufferPool
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferPool {
+interface IPufferPool is IERC20 {
     /**
      * @notice Thrown when the user tries to deposit a small amount of ETH
      * @dev Signature "0x6a12f104"
@@ -74,4 +76,14 @@ interface IPufferPool {
      * @notice Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
+
+    /**
+     * @notice Transfers `ethAmount` to `to`
+     */
+    function transferETH(address to, uint256 ethAmount) external;
+
+    /**
+     * @notice Deposits ETH without minting new pufETH
+     */
+    function paySmoothingCommitment() external payable;
 }
