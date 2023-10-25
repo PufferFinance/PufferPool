@@ -550,21 +550,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.pool.paySmoothingCommitment{ value: poolAmount }();
     }
 
-    function _mintPufETHAndTransfer(ProtocolStorage storage $, address to, uint256 amount, uint256 rate)
-        internal
-        returns (uint256 toSend)
-    {
-        toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
-
-        if (toSend != 0) {
-            IPufferPool pool = $.pool;
-            uint256 pufETHMinted = pool.depositETH{ value: toSend }();
-            pool.transfer(to, pufETHMinted);
-        }
-
-        return toSend;
-    }
-
     function _setGuardiansFeeRate(uint256 newRate) internal {
         // @todo decide constraints
         // Revert if the new rate is bigger than 5%
