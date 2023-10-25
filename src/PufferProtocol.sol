@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
@@ -88,7 +88,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function initialize(
         address accessManager,
-        PufferPool pool,
+        IPufferPool pool,
         IWithdrawalPool withdrawalPool,
         address guardianSafeModule,
         address noRestakingStrategy,
@@ -265,6 +265,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.status = Status.DEQUEUED;
 
         emit ValidatorDequeued(validator.pubKey, validatorIndex);
+
+        // If this validator was next in line to be provisioned
+        // Increment the counter
+        if ($.nextToBeProvisioned[strategyName] == validatorIndex) {
+            ++$.nextToBeProvisioned[strategyName];
+        }
+
+        $.pool.transfer(validator.node, validator.bond);
     }
 
     /**
@@ -542,6 +550,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.pool.paySmoothingCommitment{ value: poolAmount }();
     }
 
+    function _mintPufETHAndTransfer(ProtocolStorage storage $, address to, uint256 amount, uint256 rate)
+        internal
+        returns (uint256 toSend)
+    {
+        toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
+
+        if (toSend != 0) {
+            IPufferPool pool = $.pool;
+            uint256 pufETHMinted = pool.depositETH{ value: toSend }();
+            pool.transfer(to, pufETHMinted);
+        }
+
+        return toSend;
+    }
+
     function _setGuardiansFeeRate(uint256 newRate) internal {
         // @todo decide constraints
         // Revert if the new rate is bigger than 5%
@@ -558,10 +581,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
 
         if (toSend != 0) {
+            emit TransferredETH(to, toSend);
             to.safeTransferETH(toSend);
         }
-
-        emit TransferredETH(to, toSend);
 
         return toSend;
     }
