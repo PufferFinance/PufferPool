@@ -23,7 +23,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
     // keccak256(abi.encode(uint256(keccak256("PufferStrategyBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
-    bytes32 private constant PUFFER_STRATEGY_BASE_STORAGE =
+    bytes32 private constant _PUFFER_STRATEGY_BASE_STORAGE =
         0x08d27b0961ee13de37a30c1621e160bf37a3d1fd1fd05ea89d0e3b0b7e4b2000;
 
     /**
@@ -108,7 +108,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     function _getPufferProtocolStorage() internal pure returns (PufferStrategyBase storage $) {
         // solhint-disable-next-line
         assembly {
-            $.slot := PUFFER_STRATEGY_BASE_STORAGE
+            $.slot := _PUFFER_STRATEGY_BASE_STORAGE
         }
     }
 }

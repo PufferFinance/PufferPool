@@ -22,20 +22,20 @@ abstract contract PufferProtocolStorage is IPufferProtocolStorage {
      * @dev Storage slot location for PufferProtocol
      * @custom:storage-location erc7201:PufferProtocol.storage
      */
-    bytes32 private constant PUFFER_PROTOCOL_STORAGE =
+    bytes32 private constant _PUFFER_PROTOCOL_STORAGE =
         0xb8d3716136db480afe9a80da6be84f994509ecf9515ed14d03024589b5f2bd00;
 
     /**
      * @dev Storage slot location for PufferPool
      * @custom:storage-location erc7201:PufferPool.storage
      */
-    bytes32 private constant PUFFER_POOL_STORAGE = 0x3d9197675aec7b7f62441149aba7986872b7337d003616efa547249bb6c43900;
+    bytes32 private constant _PUFFER_POOL_STORAGE = 0x3d9197675aec7b7f62441149aba7986872b7337d003616efa547249bb6c43900;
 
     function getPuferPoolStorage() external pure returns (PufferPoolStorage memory) {
         PufferPoolStorage storage $;
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            $.slot := PUFFER_POOL_STORAGE
+            $.slot := _PUFFER_POOL_STORAGE
         }
 
         return $;
@@ -44,14 +44,14 @@ abstract contract PufferProtocolStorage is IPufferProtocolStorage {
     function _getPuferPoolStorage() internal pure returns (PufferPoolStorage storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            $.slot := PUFFER_POOL_STORAGE
+            $.slot := _PUFFER_POOL_STORAGE
         }
     }
 
     function _getPufferProtocolStorage() internal pure returns (ProtocolStorage storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            $.slot := PUFFER_PROTOCOL_STORAGE
+            $.slot := _PUFFER_PROTOCOL_STORAGE
         }
     }
 }

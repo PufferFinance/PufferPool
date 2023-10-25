@@ -118,7 +118,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
     /**
      * @dev Internal function for calculating the ETH to pufETH amount when ETH is being sent in the transaction
      */
-    function _calculateETHToPufETHAmount(uint256 amount) public view returns (uint256) {
+    function _calculateETHToPufETHAmount(uint256 amount) internal view returns (uint256) {
         return FixedPointMathLib.divWad(amount, _getPufETHtoETHExchangeRate());
     }
 }

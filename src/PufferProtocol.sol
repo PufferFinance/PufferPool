@@ -121,7 +121,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
 
-        _checkValidatorRegistrationInputs($, data, strategyName, validatorBond, numberOfMonths);
+        _checkValidatorRegistrationInputs({
+            $: $,
+            data: data,
+            strategyName: strategyName,
+            validatorBond: validatorBond,
+            numberOfMonths: numberOfMonths
+        });
 
         uint256 pufETHReceived = $.pool.depositETH{ value: validatorBond }();
 

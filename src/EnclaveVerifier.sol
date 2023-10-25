@@ -85,9 +85,14 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
         RSAPubKey memory leafX509 = _validLeafX509s[evidence.leafX509CertDigest];
 
         // Recover a remote attestation payload if everything is valid
-        bytes memory recoveredPayload = verifyRemoteAttestation(
-            evidence.report, evidence.signature, leafX509.modulus, leafX509.exponent, mrenclave, mrsigner
-        );
+        bytes memory recoveredPayload = verifyRemoteAttestation({
+            report: evidence.report,
+            sig: evidence.signature,
+            signingMod: leafX509.modulus,
+            signingExp: leafX509.exponent,
+            mrenclave: mrenclave,
+            mrsigner: mrsigner
+        });
 
         // Remote attestation payloads are expected to be in the form (32B_Commitment || 32B_BlockHash)
         bytes memory expectedPayload = abi.encode(raveCommitment, blockhash(blockNumber));

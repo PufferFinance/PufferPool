@@ -49,7 +49,13 @@ abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
      * @notice Transfers ERC1155 `token` with `tokenId` and `tokenAmount` to treasury
      */
     function recoverERC1155(address token, uint256 tokenId, uint256 tokenAmount) external virtual {
-        IERC1155(token).safeTransferFrom(address(this), PUFFER_PROTOCOL.TREASURY(), tokenId, tokenAmount, "");
+        IERC1155(token).safeTransferFrom({
+            from: address(this),
+            to: PUFFER_PROTOCOL.TREASURY(),
+            id: tokenId,
+            value: tokenAmount,
+            data: ""
+        });
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external virtual returns (bytes4) {
