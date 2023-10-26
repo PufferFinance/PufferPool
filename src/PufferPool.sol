@@ -24,12 +24,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
      */
     uint256 internal constant _FRESHNESS_BLOCKS = 3600;
 
-    /**
-     * @dev Minimum deposit amount in ETH
-     */
-    uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
-    //@todo see if we can get rid of minimum amount due
-
     constructor(PufferProtocol protocol, address initialAuthority)
         payable
         AbstractVault(protocol)
