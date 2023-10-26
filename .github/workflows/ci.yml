@@ -35,7 +35,7 @@ jobs:
 
       - uses: crytic/slither-action@v0.3.0
         with:
-          node-version: 18.15
+          node-version: 16
 
   solhint:
     runs-on: ubuntu-latest
