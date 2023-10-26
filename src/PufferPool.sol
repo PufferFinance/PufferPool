@@ -49,10 +49,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
      * @inheritdoc IPufferPool
      */
     function depositETH() public payable returns (uint256) {
-        if (msg.value < _MINIMUM_DEPOSIT_AMOUNT) {
-            revert InsufficientETH();
-        }
-
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);

@@ -147,6 +147,62 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: 5 ether }(validatorKeyData, NO_RESTAKING, 1);
     }
 
+    function testStrategyDOS() external {
+        vm.deal(address(pool), 1000 ether);
+
+        bytes32[] memory weights = pufferProtocol.getStartegyWeights();
+        assertEq(weights.length, 1, "only one strategy");
+        assertEq(weights[0], NO_RESTAKING, "no restaking");
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("dave"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("emma"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("ford"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("greg"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("hannah"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("ian"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("joan"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("kim"), NO_RESTAKING);
+
+        // If we stop registration for 0, it will advance the counter
+        // Simulate that somebody registered more validators
+        // pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 1);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 2);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 3);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 4);
+        // Skip 5, we want to provision 5
+        pufferProtocol.stopRegistration(NO_RESTAKING, 6);
+        pufferProtocol.stopRegistration(NO_RESTAKING, 7);
+
+        (bytes32 strategy, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(strategy, NO_RESTAKING, "strategy");
+        assertEq(idx, 0, "idx");
+
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
+
+        uint256 next = pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING);
+        assertEq(next, 1, "next idx");
+
+        (strategy, idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(strategy, NO_RESTAKING, "strategy");
+        assertEq(idx, 5, "idx");
+
+        // Provision node updates the idx to current + 1
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("ford"))));
+
+        // That idx is 6
+        next = pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING);
+        assertEq(next, 6, "next idx");
+
+        // From there the counter of '5' starts before we return nothing to provision
+        (strategy, idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(strategy, NO_RESTAKING, "strategy");
+        assertEq(idx, 8, "idx");
+    }
+
     // // Test extending validator commitment
     // function testExtendCommitment() public {
     //     _registerValidatorKey(bytes32("alice"), NO_RESTAKING);

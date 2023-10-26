@@ -313,6 +313,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getWithdrawalPool() external view returns (IWithdrawalPool);
 
     /**
+     * @notice Returns the current strategy weights
+     */
+    function getStartegyWeights() external view returns (bytes32[] memory);
+
+    /**
      * @notice Returns the array of Puffer validators
      * @dev OFF-CHAIN function
      */

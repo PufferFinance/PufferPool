@@ -183,7 +183,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         Validator memory validator = $.validators[strategyName][index];
 
-        _incrementStrategySelectionCounter($, strategyName);
+        _incrementStrategySelectionCounter($, strategyName, index);
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials(validator.strategy);
 
@@ -517,6 +517,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getWithdrawalCredentials());
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getStartegyWeights() external view returns (bytes32[] memory) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.strategyWeights;
+    }
+
     function getPayload(bytes32 strategyName, bool usingEnclave, uint256 numberOfMonths)
         external
         view
@@ -650,9 +658,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorLimitPerIntervalChanged(oldLimit, newLimit);
     }
 
-    function _incrementStrategySelectionCounter(ProtocolStorage storage $, bytes32 strategyName) internal {
+    function _incrementStrategySelectionCounter(
+        ProtocolStorage storage $,
+        bytes32 strategyName,
+        uint256 provisionedIndex
+    ) internal {
         // Increment next validator to be provisioned index
-        ++$.nextToBeProvisioned[strategyName];
+        $.nextToBeProvisioned[strategyName] = provisionedIndex + 1;
         // Increment strategy selection index
         ++$.strategySelectIndex;
     }
