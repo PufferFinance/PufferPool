@@ -14,12 +14,18 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { DeployGuardians } from "script/1_DeployGuardians.s.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
-import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
+    address public constant ADDRESS_ZERO = address(0);
+    address public constant ADDRESS_ONE = address(1);
+    address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+
+    // Addresses that are supposed to be skipped when fuzzing
+    mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
+
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
     uint256[] guardiansEnclavePks;
     address guardian1;
@@ -55,8 +61,43 @@ contract TestHelper is Test, BaseScript {
 
     address DAO = makeAddr("DAO");
 
+    modifier fuzzedAddress(address addr) virtual {
+        vm.assume(fuzzedAddressMapping[addr] == false);
+        _;
+    }
+
+    modifier assumeEOA(address addr) {
+        vm.assume(addr.code.length == 0);
+        vm.assume(addr != ADDRESS_ZERO);
+        vm.assume(addr != ADDRESS_ONE);
+        vm.assume(addr != address(2));
+        vm.assume(addr != address(3));
+        vm.assume(addr != address(4));
+        vm.assume(addr != address(5));
+        vm.assume(addr != address(6));
+        vm.assume(addr != address(7));
+        vm.assume(addr != address(8));
+        vm.assume(addr != address(9));
+        _;
+    }
+
     function setUp() public virtual {
         _testRave();
+        _skipDefaultFuzzAddresses();
+    }
+
+    function _skipDefaultFuzzAddresses() internal {
+        fuzzedAddressMapping[ADDRESS_CHEATS] = true;
+        fuzzedAddressMapping[ADDRESS_ZERO] = true;
+        fuzzedAddressMapping[ADDRESS_ONE] = true;
+        fuzzedAddressMapping[address(withdrawalPool)] = true;
+        fuzzedAddressMapping[address(module)] = true;
+        fuzzedAddressMapping[address(verifier)] = true;
+        fuzzedAddressMapping[address(accessManager)] = true;
+        fuzzedAddressMapping[address(guardiansSafe)] = true;
+        fuzzedAddressMapping[address(beacon)] = true;
+        fuzzedAddressMapping[address(pufferProtocol)] = true;
+        fuzzedAddressMapping[address(pool)] = true;
     }
 
     function _testRave() public {

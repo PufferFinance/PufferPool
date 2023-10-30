@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -16,7 +15,7 @@ import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { console } from "forge-std/console.sol";
 import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
 
-contract PufferProtocolTest is TestHelper, TestBase {
+contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed);
@@ -361,6 +360,8 @@ contract PufferProtocolTest is TestHelper, TestBase {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
+        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "pool should have the bond amount for 2 validators");
+
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(IPufferProtocol.Unauthorized.selector);
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
@@ -369,12 +370,19 @@ contract PufferProtocolTest is TestHelper, TestBase {
 
         assertEq(strategyName, NO_RESTAKING, "strategy");
         assertEq(0, idx, "strategy");
+        assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 0, "zero index is next in line");
 
         bytes memory alicePubKey = _getPubKey(bytes32("alice"));
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorDequeued(alicePubKey, 0);
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+
+        assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "1 index is next in line");
+
+        assertEq(pool.balanceOf(address(pufferProtocol)), 1 ether, "pool should have the bond amount for 1 validators");
+        // Because this contract is msg.sender, it means that it is the node operator
+        assertEq(pool.balanceOf(address(this)), 1 ether, "node operator should get 1 pufETH for Alice");
 
         (strategyName, idx) = pufferProtocol.getNextValidatorToProvision();
 

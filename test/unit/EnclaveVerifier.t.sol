@@ -7,12 +7,11 @@ import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { MockEvidence } from "rave-test/mocks/MockEvidence.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { TestBase } from "../TestBase.t.sol";
 import {
     Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence
 } from "../helpers/GuardiansRaveEvidence.sol";
 
-contract EnclaveVerifierTest is TestHelper, TestBase {
+contract EnclaveVerifierTest is TestHelper {
     event AddedPubKey(bytes32 pubKeyHash);
     event RemovedPubKey(bytes32 pubKeyHash);
 

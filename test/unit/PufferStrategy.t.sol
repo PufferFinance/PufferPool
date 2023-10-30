@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { TestBase } from "../TestBase.t.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -22,7 +21,7 @@ contract PufferStrategyUpgrade {
     }
 }
 
-contract PufferStrategyTest is TestHelper, TestBase {
+contract PufferStrategyTest is TestHelper {
     function setUp() public override {
         super.setUp();
 
