@@ -3,8 +3,8 @@ export PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 export DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 export RPC_URL=http://localhost:8545
 
-export MR_ENCLAVE=""
-export MR_SIGNER=""
+export MR_ENCLAVE=2f1488bd64b2c85fc3fe4fa535a89cfa5282ae960e902664ff5390909333e78c
+export MR_SIGNER=83d719e77deaca1470f6baf62a4d774303c899db69020f9c70ee1dfc08c7ce9e
 
 echo "DEPLOYING GUARDIANS"
 forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256, bytes calldata)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1 "" --broadcast
