@@ -24,6 +24,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getWithdrawalPool() external view returns (address) { }
 
+    function paySmoothingCommitment() external payable { }
+
     function depositETH() external payable returns (uint256) { }
 
     function burn(uint256 pufETHAmount) external { }
@@ -41,6 +43,8 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
     function getSafeImplementation() external view returns (address) { }
 
     function getSafeProxyFactory() external view returns (address) { }
+
+    function transferETH(address, uint256) external { }
 
     function getPufferAvsAddress() external view returns (address) { }
 

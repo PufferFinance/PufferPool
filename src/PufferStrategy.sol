@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
@@ -23,7 +23,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
     // keccak256(abi.encode(uint256(keccak256("PufferStrategyBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
-    bytes32 private constant PUFFER_STRATEGY_BASE_STORAGE =
+    bytes32 private constant _PUFFER_STRATEGY_BASE_STORAGE =
         0x08d27b0961ee13de37a30c1621e160bf37a3d1fd1fd05ea89d0e3b0b7e4b2000;
 
     /**
@@ -31,7 +31,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
      */
     struct PufferStrategyBase {
         bytes32 strategyName;
-        PufferProtocol pufferProtocol;
+        IPufferProtocol pufferProtocol;
         IEigenPod eigenPod;
     }
 
@@ -48,7 +48,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         _;
     }
 
-    function initialize(PufferProtocol protocol, bytes32 strategyName, address initialAuthority) public initializer {
+    function initialize(IPufferProtocol protocol, bytes32 strategyName, address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
         PufferStrategyBase storage $ = _getPufferProtocolStorage();
         $.pufferProtocol = protocol;
@@ -108,7 +108,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     function _getPufferProtocolStorage() internal pure returns (PufferStrategyBase storage $) {
         // solhint-disable-next-line
         assembly {
-            $.slot := PUFFER_STRATEGY_BASE_STORAGE
+            $.slot := _PUFFER_STRATEGY_BASE_STORAGE
         }
     }
 }

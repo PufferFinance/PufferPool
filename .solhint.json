@@ -16,6 +16,12 @@
     "one-contract-per-file": "off",
     "var-name-mixedcase": "off",
     "max-line-length": "off",
-    "reason-string": "off"
+    "reason-string": "off",
+    "func-named-parameters": "error",
+    "func-param-name-mixedcase": "error",
+    "modifier-name-mixedcase": "error",
+    "private-vars-leading-underscore": "error",
+    "code-complexity": "error",
+    "explicit-types": "error"
   }
 }

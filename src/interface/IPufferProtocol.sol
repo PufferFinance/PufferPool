@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { PufferPoolStorage } from "puffer/PufferProtocolStorage.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { GuardianModule } from "puffer/GuardianModule.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { PufferStrategy } from "puffer/PufferStrategy.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
 /**
@@ -13,7 +15,7 @@ import { Safe } from "safe-contracts/Safe.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferProtocol {
+interface IPufferProtocol is IPufferProtocolStorage {
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
@@ -293,12 +295,12 @@ interface IPufferProtocol {
      * @notice Changes the `strategyName` with `newStrategy`
      * @dev Restricted to DAO
      */
-    function changeStrategy(bytes32 strategyName, PufferStrategy newStrategy) external;
+    function changeStrategy(bytes32 strategyName, IPufferStrategy newStrategy) external;
 
     /**
      * @notice Returns the guardian module
      */
-    function getGuardianModule() external view returns (GuardianModule);
+    function getGuardianModule() external view returns (IGuardianModule);
 
     /**
      * @notice Returns the protocol fee rate
@@ -308,7 +310,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the address of the Withdrawal pool
      */
-    function getWithdrawalPool() external view returns (WithdrawalPool);
+    function getWithdrawalPool() external view returns (IWithdrawalPool);
 
     /**
      * @notice Returns the array of Puffer validators

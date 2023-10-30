@@ -5,6 +5,7 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { AbstractVault } from "puffer/AbstractVault.sol";
+import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 
 /**
  * @title NoRestakingStrategy
@@ -55,13 +56,13 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         restricted
     {
         (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call(
-            abi.encodeWithSignature(
-                "deposit(bytes,bytes,bytes,bytes32)", pubKey, getWithdrawalCredentials(), signature, depositDataRoot
+            abi.encodeCall(
+                IBeaconDepositContract.deposit, (pubKey, getWithdrawalCredentials(), signature, depositDataRoot)
             )
         );
-        // if (!success) {
-        //     revert FailedDeposit();
-        // }
+        if (!success) {
+            revert FailedDeposit();
+        }
         // @todo more logic, events
     }
 
@@ -70,6 +71,8 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
      */
     function collectNonRestakingRewards() external restricted {
         // @todo logic, send eth to pools
+        // remove this silly line, just testing out the CI
+        payable(BEACON_CHAIN_DEPOSIT_CONTRACT).transfer(address(this).balance);
     }
 
     function collectRestakingRewards() external {
