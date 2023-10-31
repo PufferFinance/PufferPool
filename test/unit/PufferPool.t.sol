@@ -153,10 +153,9 @@ contract PufferPoolTest is TestHelper {
         assertTrue(0 == pool.balanceOf(depositor));
     }
 
-    // Deposit should revert when trying to deposit too small amount
-    function testDepositRevertsForTooSmallAmount() public {
-        vm.expectRevert(IPufferPool.InsufficientETH.selector);
-        pool.depositETH{ value: 0.005 ether }();
+    function testDepositForOneWei() public {
+        uint256 minted = pool.depositETH{ value: 1 }();
+        assertEq(minted, 1, "minted 1 wei");
     }
 
     function testRatioChange() public {

@@ -24,12 +24,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
      */
     uint256 internal constant _FRESHNESS_BLOCKS = 3600;
 
-    /**
-     * @dev Minimum deposit amount in ETH
-     */
-    uint256 internal constant _MINIMUM_DEPOSIT_AMOUNT = 0.01 ether;
-    //@todo see if we can get rid of minimum amount due
-
     constructor(PufferProtocol protocol, address initialAuthority)
         payable
         AbstractVault(protocol)
@@ -49,10 +43,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
      * @inheritdoc IPufferPool
      */
     function depositETH() public payable returns (uint256) {
-        if (msg.value < _MINIMUM_DEPOSIT_AMOUNT) {
-            revert InsufficientETH();
-        }
-
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);
