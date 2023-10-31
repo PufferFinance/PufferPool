@@ -523,7 +523,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getWithdrawalCredentials(address strategy) public view returns (bytes memory) {
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), IPufferStrategy(strategy).getWithdrawalCredentials());
+        return IPufferStrategy(strategy).getWithdrawalCredentials();
     }
 
     /**
