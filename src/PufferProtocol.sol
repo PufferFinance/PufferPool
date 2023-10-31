@@ -174,7 +174,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return sha256(
             abi.encodePacked(
                 sha256(abi.encodePacked(pubKeyRoot, withdrawalCredentials)),
-                sha256(abi.encodePacked(_toLittleEndian64(uint64(_32_ETHER) / 1 gwei), bytes24(0), signatureRoot))
+                sha256(abi.encodePacked(_toLittleEndian64(uint64(_32_ETHER / 1 gwei)), bytes24(0), signatureRoot))
             )
         );
     }
