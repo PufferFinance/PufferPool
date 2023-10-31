@@ -35,4 +35,4 @@ goerli="${GOERLI_RPC_URL}"
 [invariant]
 # fail_on_revert=true
 depth = 20
-# runs = 10000
+runs = 500

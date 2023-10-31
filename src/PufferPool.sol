@@ -19,11 +19,6 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
     using SafeTransferLib for address;
 
-    /**
-     * @dev Number of blocks for oracle freshness update
-     */
-    uint256 internal constant _FRESHNESS_BLOCKS = 3600;
-
     constructor(PufferProtocol protocol, address initialAuthority)
         payable
         AbstractVault(protocol)
@@ -50,6 +45,10 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
         _mint(msg.sender, pufETHAmount);
 
         return pufETHAmount;
+    }
+
+    function depositRewards() public payable {
+        // Deposit rewards through this function
     }
 
     function paySmoothingCommitment() external payable {
@@ -93,13 +92,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
         // slither-disable-next-line incorrect-equality
         if (data.pufETHTotalSupply == 0) {
             return FixedPointMathLib.WAD;
-        }
-
-        if (data.lastUpdate != 0) {
-            //@audit figure if we want this?
-            if (block.number - data.lastUpdate > _FRESHNESS_BLOCKS) {
-                revert StaleOracle();
-            }
         }
 
         return FixedPointMathLib.divWad((data.lockedETH + data.ethAmount), data.pufETHTotalSupply);

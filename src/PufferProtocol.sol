@@ -59,10 +59,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @dev Number of blocks
-     * 50400 * 12(avg block time) = 604800 seconds
-     * 604800 seconds ~ 7 days
+     * 7141 * 12(avg block time) = 85692 seconds
+     * 85692 seconds ~ 23.8 hours
      */
-    uint256 internal constant _UPDATE_INTERVAL = 50400;
+    uint256 internal constant _UPDATE_INTERVAL = 7141;
 
     /**
      * @notice Address of the PufferStrategy proxy beacon
@@ -150,14 +150,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ++$.pendingValidatorIndicies[strategyName];
         ++$.numberOfValidatorsRegisteredInThisInterval;
 
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex);
+        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, strategyName);
 
         _transferFunds($, validatorBond);
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
         external
-        view
+        pure
         returns (bytes32)
     {
         // Copied from the deposit contract
@@ -171,11 +174,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return sha256(
             abi.encodePacked(
                 sha256(abi.encodePacked(pubKeyRoot, withdrawalCredentials)),
-                sha256(abi.encodePacked(_toLittleEndian64(uint64(_32_ETHER)), bytes24(0), signatureRoot))
+                sha256(abi.encodePacked(_toLittleEndian64(uint64(_32_ETHER) / 1 gwei), bytes24(0), signatureRoot))
             )
         );
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function provisionNode(bytes[] calldata guardianEnclaveSignatures) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -211,7 +217,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.pool.transferETH(address(strategy), _32_ETHER);
 
-        emit SuccesfullyProvisioned(validator.pubKey, index);
+        emit SuccesfullyProvisioned(validator.pubKey, index, strategyName);
 
         strategy.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });
     }
@@ -481,6 +487,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return $.validators[strategyName][validatorIndex];
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function getStrategyAddress(bytes32 strategyName) external view returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return address($.strategies[strategyName]);
@@ -520,9 +529,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getStartegyWeights() external view returns (bytes32[] memory) {
+    function getStrategyWeights() external view returns (bytes32[] memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.strategyWeights;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getStrategySelectIndex() external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.strategySelectIndex;
     }
 
     function getPayload(bytes32 strategyName, bool usingEnclave, uint256 numberOfMonths)
