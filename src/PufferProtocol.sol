@@ -260,7 +260,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         Validator storage validator = $.validators[strategyName][validatorIndex];
 
         if (validator.status != Status.PENDING) {
-            revert InvalidValidatorState();
+            revert InvalidValidatorState(validator.status);
         }
 
         if (msg.sender != validator.node) {
@@ -280,6 +280,33 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // slither-disable-next-line unchecked-transfer
         $.pool.transfer(validator.node, validator.bond);
+    }
+
+    function stopValidator(bytes32 strategyName, uint256 validatorIndex, uint256 burnAmount) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        Validator storage validator = $.validators[strategyName][validatorIndex];
+
+        // Only strategy can call this function
+        if (msg.sender != validator.strategy) {
+            revert Unauthorized();
+        }
+
+        if (validator.status != Status.ACTIVE) {
+            revert InvalidValidatorState(validator.status);
+        }
+
+        uint256 validatorBond = validator.bond;
+
+        validator.status = Status.EXITED;
+        validator.bond = 0;
+
+        if (burnAmount >= validatorBond) {
+            $.pool.burn(validatorBond);
+        } else {
+            $.pool.burn(burnAmount);
+            $.pool.transfer(validator.node, (validatorBond - burnAmount));
+        }
     }
 
     /**
@@ -304,19 +331,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function changeStrategy(bytes32 strategyName, IPufferStrategy newStrategy) external restricted {
         _changeStrategy(strategyName, newStrategy);
-    }
-
-    function stopValidator(bytes32 strategyName, uint256 idx) external restricted {
-        // @todo logic for this..
-
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        Validator storage validator = $.validators[strategyName][idx];
-        validator.status = Status.EXITED;
-
-        // uint256 pufETHAmount = validator.bond;
-
-        // uint256 ethAmount = $.withdrawalPool.withdrawETH(address(this), pufETHAmount);
     }
 
     /**
@@ -501,6 +515,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function getWithdrawalPool() external view returns (IWithdrawalPool) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.withdrawalPool;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getPufferPool() external view returns (IPufferPool) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.pool;
     }
 
     /**

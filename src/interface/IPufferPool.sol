@@ -55,6 +55,11 @@ interface IPufferPool is IERC20 {
     function depositETH() external payable returns (uint256);
 
     /**
+     * @notice Deposits ETH without minting any pufETH
+     */
+    function depositETHWithoutMinting() external payable;
+
+    /**
      *
      * @notice Burns `pufETHAmount` from the transaction sender
      */

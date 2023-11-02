@@ -5,8 +5,10 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
+import { Status } from "puffer/struct/Status.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
 /**
@@ -65,9 +67,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when validator is not in valid state
-     * @dev Signature "0x6d9ba916"
+     * @dev Signature "0x3001591c"
      */
-    error InvalidValidatorState();
+    error InvalidValidatorState(Status status);
 
     /**
      * @notice Thrown if the sender did not send enough ETH in the transaction
@@ -238,6 +240,15 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
 
     /**
+     * @notice Stops the validator
+     * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
+     * @param strategyName is the staking Strategy
+     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
+     * @param burnAmount is the amount of pufETH that we are burning from the node operator
+     */
+    function stopValidator(bytes32 strategyName, uint256 validatorIndex, uint256 burnAmount) external;
+
+    /**
      * @notice Skips the next validator for `strategyName`
      * @dev Restricted to Guardians
      */
@@ -312,6 +323,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the address of the Withdrawal pool
      */
     function getWithdrawalPool() external view returns (IWithdrawalPool);
+
+    /**
+     * @notice Returns the address of the Withdrawal pool
+     */
+    function getPufferPool() external view returns (IPufferPool);
 
     /**
      * @notice Returns the current strategy weights

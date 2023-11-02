@@ -6,7 +6,6 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
@@ -27,7 +26,6 @@ contract PufferProtocolTest is TestHelper {
     bytes zeroPubKey = new bytes(48);
     bytes32 zeroPubKeyPart;
 
-    bytes32 constant NO_RESTAKING = bytes32("NO_RESTAKING");
     bytes32 constant EIGEN_DA = bytes32("EIGEN_DA");
     bytes32 constant CRAZY_GAINS = bytes32("CRAZY_GAINS");
 
@@ -464,7 +462,7 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
 
         // Invalid status
-        vm.expectRevert(IPufferProtocol.InvalidValidatorState.selector);
+        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.DEQUEUED));
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
     }
 

@@ -19,6 +19,7 @@ import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } f
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
+    bytes32 public constant NO_RESTAKING = bytes32("NO_RESTAKING");
     address public constant ADDRESS_ZERO = address(0);
     address public constant ADDRESS_ONE = address(1);
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;

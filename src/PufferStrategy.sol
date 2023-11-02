@@ -70,9 +70,6 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
-    /**
-     * @inheritdoc IPufferStrategy
-     */
     function collectNonRestakingRewards() external {
         // @todo limit it to 1x per day or something?
         // it creates a queued withdrawal via withdrawal router

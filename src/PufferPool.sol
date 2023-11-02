@@ -47,7 +47,7 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
         return pufETHAmount;
     }
 
-    function depositRewards() public payable {
+    function depositETHWithoutMinting() public payable {
         // Deposit rewards through this function
     }
 

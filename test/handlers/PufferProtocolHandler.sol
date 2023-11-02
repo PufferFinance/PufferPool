@@ -144,7 +144,7 @@ contract PufferProtocolHandler is Test {
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
-        pool.depositRewards{ value: stakingRewardsAmount }();
+        pool.depositETHWithoutMinting{ value: stakingRewardsAmount }();
         vm.stopPrank();
 
         ghost_eth_rewards_amount += stakingRewardsAmount;
