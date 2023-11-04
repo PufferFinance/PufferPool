@@ -27,39 +27,39 @@ contract TestHelper is Test, BaseScript {
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
     // In our test setup we have 3 guardians and 3 guaridan enclave keys
-    uint256[] guardiansEnclavePks;
-    address guardian1;
-    uint256 guardian1SK;
-    address guardian2;
-    uint256 guardian2SK;
-    address guardian3;
-    uint256 guardian3SK;
-    address guardian1Enclave;
-    uint256 guardian1SKEnclave;
+    uint256[] public guardiansEnclavePks;
+    address public guardian1;
+    uint256 public guardian1SK;
+    address public guardian2;
+    uint256 public guardian2SK;
+    address public guardian3;
+    uint256 public guardian3SK;
+    address public guardian1Enclave;
+    uint256 public guardian1SKEnclave;
     // PubKey is hardcoded because we are creating guardian enclaves deterministically
-    bytes guardian1EnclavePubKey =
+    bytes public guardian1EnclavePubKey =
         hex"048289b999a1a6bc0cc6550ea018d03adee9bfeae6441e53e2e5eed22232a2b8f2d87cf1619c263971a6ada43f7310f37f473de7262ab63778fe3a859c68dc2e27";
-    address guardian2Enclave;
-    uint256 guardian2SKEnclave;
-    bytes guardian2EnclavePubKey =
+    address public guardian2Enclave;
+    uint256 public guardian2SKEnclave;
+    bytes public guardian2EnclavePubKey =
         hex"0440ba2fa6602bdb09e40d8b400b0c82124c14c8666659c0c78d8e474f3e230d92597cd4811484e1a15d6886745ed6d3fbde7e66f1376e396d8d4e8fa67458a140";
-    address guardian3Enclave;
-    uint256 guardian3SKEnclave;
-    bytes guardian3EnclavePubKey =
+    address public guardian3Enclave;
+    uint256 public guardian3SKEnclave;
+    bytes public guardian3EnclavePubKey =
         hex"049777a708d71e0b211eff7d44acc9d81be7bbd1bffdc14f60e784c86b64037c745b82cc5d9da0e93dd96d2fb955c32239b2d1d56a456681d4cef88bd603b9b407";
 
-    PufferPool pool;
-    PufferProtocol pufferProtocol;
-    IWithdrawalPool withdrawalPool;
-    UpgradeableBeacon beacon;
+    PufferPool public pool;
+    PufferProtocol public pufferProtocol;
+    IWithdrawalPool public withdrawalPool;
+    UpgradeableBeacon public beacon;
 
-    Safe guardiansSafe;
-    GuardianModule module;
+    Safe public guardiansSafe;
+    GuardianModule public module;
 
-    AccessManager accessManager;
-    IEnclaveVerifier verifier;
+    AccessManager public accessManager;
+    IEnclaveVerifier public verifier;
 
-    address DAO = makeAddr("DAO");
+    address public DAO = makeAddr("DAO");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -82,7 +82,7 @@ contract TestHelper is Test, BaseScript {
     }
 
     function setUp() public virtual {
-        _testRave();
+        _deployContractAndSetupGuardians();
         _skipDefaultFuzzAddresses();
     }
 
@@ -100,7 +100,7 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[address(pool)] = true;
     }
 
-    function _testRave() public {
+    function _deployContractAndSetupGuardians() public {
         // Create Guardian wallets
         (guardian1, guardian1SK) = makeAddrAndKey("guardian1");
         (guardian1Enclave, guardian1SKEnclave) = makeAddrAndKey("guardian1enclave");

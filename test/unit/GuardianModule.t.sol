@@ -16,7 +16,7 @@ contract GuardianModuleTest is TestHelper {
     }
 
     function testRave() public {
-        _testRave();
+        _deployContractAndSetupGuardians();
     }
 
     function testRotateGuardianKeyFromNonGuardianReverts() public {

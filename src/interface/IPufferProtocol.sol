@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPoolStorage } from "puffer/PufferProtocolStorage.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -183,17 +182,19 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @dev Signature "0x164db4cd8a48da2fe13aa432976a2b2ec884239bb8e411b135d280eb0192a84d"
+     * @param strategyName is the staking Strategy
+     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
      */
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
 
     /**
      * @notice Emitted when the Validator is provisioned
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @dev Signature "0x316b88e106e79895c25a960158d125957aaf3ab3520d6151fbbec5108e19a435"
+     * @param strategyName is the staking Strategy
+     * @dev Signature "0x09290f1d819767ba40f9616823cb23f1e925c228f0d02e5e4818a4fa05d6c487"
      */
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 validatorIndex);
+    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
 
     /**
      * @notice Emitted when the Validator key is failed to be provisioned
@@ -315,7 +316,35 @@ interface IPufferProtocol is IPufferProtocolStorage {
     /**
      * @notice Returns the current strategy weights
      */
-    function getStartegyWeights() external view returns (bytes32[] memory);
+    function getStrategyWeights() external view returns (bytes32[] memory);
+
+    /**
+     * @notice Returns the strategy select index
+     */
+    function getStrategySelectIndex() external view returns (uint256);
+
+    /**
+     * @notice Returns the address for `strategyName`
+     */
+    function getStrategyAddress(bytes32 strategyName) external view returns (address);
+
+    /**
+     * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
+     */
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures) external;
+
+    /**
+     * @notice Returns the deposit_data_root
+     * @param pubKey is the public key of the validator
+     * @param signature is the validator's signature over deposit data
+     * @param withdrawalCredentials is the withdrawal credentials (one of Puffer Strategies)
+     * @return deposit_data_root
+     */
+    function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
+        external
+        pure
+        returns (bytes32);
 
     /**
      * @notice Returns the array of Puffer validators

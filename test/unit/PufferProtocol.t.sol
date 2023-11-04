@@ -18,8 +18,8 @@ import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed);
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
+    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
     event FailedToProvision(bytes indexed pubKey, uint256);
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
     event StrategyWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
@@ -99,7 +99,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(idx, 1, "idx should be 1");
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
     }
 
@@ -150,7 +150,7 @@ contract PufferProtocolTest is TestHelper {
     function testStrategyDOS() external {
         vm.deal(address(pool), 1000 ether);
 
-        bytes32[] memory weights = pufferProtocol.getStartegyWeights();
+        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
         assertEq(weights.length, 1, "only one strategy");
         assertEq(weights[0], NO_RESTAKING, "no restaking");
 
@@ -252,6 +252,15 @@ contract PufferProtocolTest is TestHelper {
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401
         });
+    }
+
+    // Set validator limit and try registering that many validators
+    function testFuzzRegisterManyValidators(uint8 numberOfValidatorsToProvision) external {
+        pufferProtocol.setValidatorLimitPerInterval(numberOfValidatorsToProvision);
+        for (uint256 i = 0; i < uint256(numberOfValidatorsToProvision); ++i) {
+            vm.deal(address(this), 2 ether);
+            _registerValidatorKey(bytes32(i), NO_RESTAKING);
+        }
     }
 
     // Change smoothing commitment for default strategy
@@ -406,7 +415,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx);
+        emit ValidatorKeyRegistered(pubKey, idx, strategyName);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
     }
 
@@ -499,12 +508,12 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(address(guardiansSafe));
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(zeroPubKey, 0);
+        emit SuccesfullyProvisioned(zeroPubKey, 0, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(bobPubKey, 1);
+        emit SuccesfullyProvisioned(bobPubKey, 1, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(bobPubKey));
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 1);
@@ -513,7 +522,7 @@ contract PufferProtocolTest is TestHelper {
 
         pufferProtocol.skipProvisioning(NO_RESTAKING);
 
-        emit SuccesfullyProvisioned(zeroPubKey, 3);
+        emit SuccesfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
     }
 
@@ -553,7 +562,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -563,7 +572,7 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(nextId == 0, "strategy id");
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("benjamin"))));
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -610,7 +619,7 @@ contract PufferProtocolTest is TestHelper {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1);
+        emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
     }
 
