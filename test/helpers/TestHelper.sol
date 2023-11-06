@@ -80,7 +80,7 @@ contract TestHelper is Test, BaseScript {
         vm.assume(addr != address(8));
         vm.assume(addr != address(9));
         // vm.assumePayable(addr); // don't have it in current foundry version
-        vm.assume(addr != 0x000000000000000000636F6e736F6c652e6c6f67); // console adress
+        vm.assume(addr != 0x000000000000000000636F6e736F6c652e6c6f67); // console address
         _;
     }
 

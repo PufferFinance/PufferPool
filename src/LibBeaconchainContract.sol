@@ -10,7 +10,7 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 library LibBeaconchainContract {
     function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
-        internal
+        external
         pure
         returns (bytes32)
     {
