@@ -310,17 +310,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.status = Status.EXITED;
 
         // Burn everything if the validator was slashed
-        uint256 burnAmount = 0;
         if (wasSlashed) {
-            burnAmount = 2 ether;
-        }
-
-        if (burnAmount >= validatorBond) {
             $.pool.burn(validatorBond);
         } else {
-            $.pool.burn(burnAmount);
-            // slither-disable-next-line unchecked-transfer
-            $.pool.transfer(node, (validatorBond - burnAmount));
+            $.pool.transfer(node, validatorBond);
         }
 
         emit ValidatorExited(pubKey, validatorIndex, strategyName);

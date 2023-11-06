@@ -25,6 +25,12 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     error FailedDeposit();
 
     /**
+     * @notice Thrown if guardians try to post root for an invalid block number
+     * @dev Signature "0x9f4aafbe"
+     */
+    error InvalidBlockNumber(uint256 blockNumber);
+
+    /**
      * @notice Thrown if the rewards are already calimed for a `blockNumber`
      * @dev Signature "0x916ba7f3"
      */
@@ -61,9 +67,10 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
      */
     mapping(uint256 blockNumber => mapping(bytes32 pubKeyHash => bool claimed)) public claimedRewards;
 
+    /**
+     * @dev The last block number for when the rewards root was posted
+     */
     uint256 internal _lastProofOfRewardsBlockNumber;
-
-    error InvalidBlockNumber(uint256 blockNumber);
 
     constructor(address initialAuthority, PufferProtocol puffer, address depositContract)
         payable
@@ -97,8 +104,8 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     }
 
     /**
-     * @notice Submit a valid MerkleProof and the staking rewards will be sent to node operaator
-     * @dev Anybody can claim the rewards for any validator as long as the proofs submitted are valid
+     * @notice Submit a valid MerkleProof and the staking rewards will be sent to node operator
+     * @dev Anybody can trigger a claim of the rewards for any validator as long as the proofs submitted are valid
      *
      * @param node is a node operator's wallet
      * @param pubKeyHash is a keccak256 hash of the validator's public key
@@ -113,7 +120,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
     ) external {
-        // Anybody can submit a valid proof and the ETH will be sent to node
+        // Anybody can submit a valid proof and the ETH will be sent to the node
         uint256 ethToSend = 0;
 
         for (uint256 i = 0; i < amounts.length; ++i) {

@@ -46,7 +46,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @dev Enclave data
-     * The guardian doesn't know the Secret Key of a enclave wallet
+     * The guardian doesn't know the Secret Key of an enclave wallet
      */
     struct GuardianData {
         bytes enclavePubKey;
