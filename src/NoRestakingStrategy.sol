@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
@@ -93,7 +93,8 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         payable
         restricted
     {
-        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call(
+        // slither-disable-next-line arbitrary-send-eth
+        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{value: 32 ether}(
             abi.encodeCall(
                 IBeaconDepositContract.deposit, (pubKey, getWithdrawalCredentials(), signature, depositDataRoot)
             )
