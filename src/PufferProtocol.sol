@@ -313,6 +313,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (wasSlashed) {
             $.pool.burn(validatorBond);
         } else {
+            // slither-disable-next-line unchecked-transfer
             $.pool.transfer(node, validatorBond);
         }
 
