@@ -152,6 +152,9 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         emit RewardsRootPosted(blockNumber, root);
     }
 
+    /**
+     * @inheritdoc IPufferStrategy
+     */
     function call(address to, uint256 amount, bytes calldata data)
         external
         restricted
@@ -161,6 +164,9 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         return to.call{ value: amount }(data);
     }
 
+    /**
+     * @notice Returns the block number of when the latest rewards proof was posted
+     */
     function getLastProofOfRewardsBlock() external view returns (uint256) {
         return _lastProofOfRewardsBlockNumber;
     }

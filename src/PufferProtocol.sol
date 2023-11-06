@@ -6,17 +6,17 @@ import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { ProtocolStorage } from "puffer/struct/ProtocolStorage.sol";
-import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
+import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
@@ -29,7 +29,6 @@ import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
-    using ECDSA for bytes32;
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
 
@@ -164,20 +163,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         pure
         returns (bytes32)
     {
-        // Copied from the deposit contract
-        // https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
-        bytes32 pubKeyRoot = sha256(abi.encodePacked(pubKey, bytes16(0)));
-        bytes32 signatureRoot = sha256(
-            abi.encodePacked(
-                sha256(abi.encodePacked(signature[:64])), sha256(abi.encodePacked(signature[64:], bytes32(0)))
-            )
-        );
-        return sha256(
-            abi.encodePacked(
-                sha256(abi.encodePacked(pubKeyRoot, withdrawalCredentials)),
-                sha256(abi.encodePacked(_toLittleEndian64(uint64(_32_ETHER / 1 gwei)), bytes24(0), signatureRoot))
-            )
-        );
+        return LibBeaconchainContract.getDepositDataRoot(pubKey, signature, withdrawalCredentials);
     }
 
     /**
@@ -211,13 +197,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.validators[strategyName][index].status = Status.ACTIVE;
 
-        // @todo decide what we want to emit
-        emit ETHProvisioned(validator.node, validator.pubKey, block.timestamp);
-
         IPufferStrategy strategy = $.strategies[strategyName];
 
         $.pool.transferETH(address(strategy), _32_ETHER);
 
+        // @todo decide what we want to emit
         emit SuccesfullyProvisioned(validator.pubKey, index, strategyName);
 
         strategy.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });
@@ -642,6 +626,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return $.strategySelectIndex;
     }
 
+    /**
+     * @notice Returns necessary information to make Guardian's life easier
+     */
     function getPayload(bytes32 strategyName, bool usingEnclave, uint256 numberOfMonths)
         external
         view
@@ -834,21 +821,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         $.strategies[strategyName] = newStrategy;
         emit StrategyChanged(strategyName, address(oldStrategy), address(newStrategy));
-    }
-
-    function _toLittleEndian64(uint64 value) internal pure returns (bytes memory ret) {
-        // Copied https://github.com/ethereum/consensus-specs/blob/b04430332ec190774f4dfc039de6e83afe3327ee/solidity_deposit_contract/deposit_contract.sol#L165
-        ret = new bytes(8);
-        bytes8 bytesValue = bytes8(value);
-        // Byteswapping during copying to bytes.
-        ret[0] = bytesValue[7];
-        ret[1] = bytesValue[6];
-        ret[2] = bytesValue[5];
-        ret[3] = bytesValue[4];
-        ret[4] = bytesValue[3];
-        ret[5] = bytesValue[2];
-        ret[6] = bytesValue[1];
-        ret[7] = bytesValue[0];
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

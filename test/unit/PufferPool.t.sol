@@ -3,22 +3,17 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { BeaconMock } from "../mocks/BeaconMock.sol";
-import { console } from "forge-std/console.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 
 contract PufferPoolTest is TestHelper {
     using ECDSA for bytes32;
 
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
-    event ETHProvisioned(address eigenPodProxy, bytes blsPubKey, uint256 timestamp);
 
     address rewardsRecipient = makeAddr("rewardsRecipient");
 

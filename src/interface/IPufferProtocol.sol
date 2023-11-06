@@ -43,12 +43,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidNumberOfMonths();
 
     /**
-     * @notice Thrown when the RAVE evidence is not valid
-     * @dev Signature "0x14807c47"
-     */
-    error InvalidRaveEvidence();
-
-    /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
      * @dev Signature "0xd9873182"
      */
@@ -237,15 +231,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x3805d456ec5395c4fa60d9ef7579bee46dad389285d99cfaa00fab5e92e64009"
      */
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
-
-    /**
-     * @notice Emitted when the validator is provisioned
-     * @param nodeOperator is the address of the Node Operator
-     * @param pubKey is the public key of the Validator
-     * @param timestamp is the unix timestamp in seconds
-     * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
-     */
-    event ETHProvisioned(address nodeOperator, bytes indexed pubKey, uint256 timestamp);
 
     /**
      * @notice Returns validator information
