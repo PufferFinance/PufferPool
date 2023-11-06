@@ -93,6 +93,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         payable
         restricted
     {
+        // slither-disable-next-line arbitrary-send-eth
         (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{value: 32 ether}(
             abi.encodeCall(
                 IBeaconDepositContract.deposit, (pubKey, getWithdrawalCredentials(), signature, depositDataRoot)
