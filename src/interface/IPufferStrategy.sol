@@ -21,4 +21,14 @@ interface IPufferStrategy {
      * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /**
+     * @notice Function callable only by PufferProtocol
+     * @param to is the destination address
+     * @param amount is the ETH amount in wei
+     * @param data is the calldata
+     */
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        returns (bool success, bytes memory response);
 }

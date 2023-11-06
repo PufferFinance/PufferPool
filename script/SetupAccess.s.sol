@@ -96,10 +96,12 @@ contract SetupAccess is BaseScript {
 
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
 
-        bytes4[] memory guardianSelectors = new bytes4[](3);
+        bytes4[] memory guardianSelectors = new bytes4[](4);
         guardianSelectors[0] = PufferProtocol.skipProvisioning.selector;
         guardianSelectors[1] = PufferProtocol.stopValidator.selector;
         guardianSelectors[2] = PufferProtocol.proofOfReserve.selector;
+        guardianSelectors[3] = PufferProtocol.postFullWithdrawalsRoot.selector;
+
         accessManager.setTargetFunctionRole(address(pufferProtocol), guardianSelectors, ROLE_ID_GUARDIANS);
     }
 

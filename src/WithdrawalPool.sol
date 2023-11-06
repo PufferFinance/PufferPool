@@ -15,8 +15,14 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 contract WithdrawalPool is IWithdrawalPool {
     using SafeTransferLib for address;
 
+    /**
+     * @notice PufferPool
+     */
     PufferPool public immutable POOL;
 
+    /**
+     * @dev A constant representing `100%`
+     */
     uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
     // @todo Figure out if we want a setter or a constant
@@ -27,9 +33,7 @@ contract WithdrawalPool is IWithdrawalPool {
         POOL = pufferPool;
     }
 
-    receive() external payable {
-        // @todo
-    }
+    receive() external payable { }
 
     /**
      * @inheritdoc IWithdrawalPool
@@ -47,7 +51,7 @@ contract WithdrawalPool is IWithdrawalPool {
         // @audit-issue frontend hack could cause harm here
 
         // Approve pufETH from owner to this contract
-        POOL.permit({
+        try POOL.permit({
             owner: permit.owner,
             spender: address(this),
             value: permit.amount,
@@ -55,7 +59,7 @@ contract WithdrawalPool is IWithdrawalPool {
             v: permit.v,
             s: permit.s,
             r: permit.r
-        });
+        }) { } catch { }
 
         _withdrawETH(permit.owner, to, permit.amount);
     }

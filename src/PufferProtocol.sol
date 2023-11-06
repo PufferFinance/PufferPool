@@ -21,6 +21,7 @@ import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title PufferProtocol
@@ -150,7 +151,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ++$.pendingValidatorIndicies[strategyName];
         ++$.numberOfValidatorsRegisteredInThisInterval;
 
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, strategyName);
+        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, strategyName, (data.raveEvidence.length > 0));
 
         _transferFunds($, validatorBond);
     }
@@ -282,31 +283,63 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.pool.transfer(validator.node, validator.bond);
     }
 
-    function stopValidator(bytes32 strategyName, uint256 validatorIndex, uint256 burnAmount) external {
+    /**
+     * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
+     * @dev Anybody can trigger a validator exit as long as the proofs submitted are valid
+     */
+    function stopValidator(
+        bytes32 strategyName,
+        uint256 validatorIndex,
+        uint256 blockNumber,
+        uint256 withdrawalAmount,
+        bool wasSlashed,
+        bytes32[] calldata merkleProof
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         Validator storage validator = $.validators[strategyName][validatorIndex];
-
-        // Only strategy can call this function
-        if (msg.sender != validator.strategy) {
-            revert Unauthorized();
-        }
 
         if (validator.status != Status.ACTIVE) {
             revert InvalidValidatorState(validator.status);
         }
 
-        uint256 validatorBond = validator.bond;
+        bytes32 leaf =
+            keccak256(bytes.concat(keccak256(abi.encode(strategyName, validatorIndex, withdrawalAmount, wasSlashed))));
 
+        bytes32 withdrawalRoot = $.fullWithdrawalsRoots[blockNumber];
+
+        if (!MerkleProof.verifyCalldata(merkleProof, withdrawalRoot, leaf)) {
+            revert InvalidMerkleProof();
+        }
+        // Store what we need
+        uint256 validatorBond = validator.bond;
+        address node = validator.node;
+        bytes memory pubKey = validator.pubKey;
+
+        // Remove what we don't
+        delete validator.strategy;
+        delete validator.node;
+        delete validator.monthsCommited;
+        delete validator.bond;
+        delete validator.pubKey;
+        delete validator.signature;
         validator.status = Status.EXITED;
-        validator.bond = 0;
+
+        // Burn everything if the validator was slashed
+        uint256 burnAmount = 0;
+        if (wasSlashed) {
+            burnAmount = 2 ether;
+        }
 
         if (burnAmount >= validatorBond) {
             $.pool.burn(validatorBond);
         } else {
             $.pool.burn(burnAmount);
-            $.pool.transfer(validator.node, (validatorBond - burnAmount));
+            // slither-disable-next-line unchecked-transfer
+            $.pool.transfer(node, (validatorBond - burnAmount));
         }
+
+        emit ValidatorExited(pubKey, validatorIndex, strategyName);
     }
 
     /**
@@ -323,7 +356,52 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
 
         ++$.nextToBeProvisioned[strategyName];
-        emit ValidatorSkipped(strategyName, skippedIndex);
+        emit ValidatorSkipped($.validators[strategyName][skippedIndex].pubKey, skippedIndex, strategyName);
+    }
+
+    /**
+     * @notice Posts the full withdrawals root
+     * @dev Restricted to Guardians
+     * @param root is the Merkle Root hash
+     * @param blockNumber is the block number of a withdrawal root
+     * @param strategies is the array from which strategies we are redestributing ETH
+     * @param amounts is the array of ETH amounts to pull from strategies
+     */
+    function postFullWithdrawalsRoot(
+        bytes32 root,
+        uint256 blockNumber,
+        address[] calldata strategies,
+        uint256[] calldata amounts
+    ) external restricted {
+        if (strategies.length != amounts.length) {
+            revert InvalidData();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        $.fullWithdrawalsRoots[blockNumber] = root;
+
+        // We want to get our hands on ETH as soon as withdrawals happen to use that capital elsewhere
+        for (uint256 i = 0; i < strategies.length; ++i) {
+            uint256 withdrawalPoolAmount =
+                FixedPointMathLib.fullMulDiv(amounts[i], $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
+            uint256 pufferPoolAmount = amounts[i] - withdrawalPoolAmount;
+
+            // slither-disable-next-line calls-loop
+            (bool success,) = IPufferStrategy(strategies[i]).call(address($.withdrawalPool), withdrawalPoolAmount, "");
+            if (!success) {
+                revert Failed();
+            }
+            // slither-disable-next-line calls-loop
+            (success,) = IPufferStrategy(strategies[i]).call(
+                address($.pool), pufferPoolAmount, abi.encodeWithSelector(IPufferPool.depositETHWithoutMinting.selector)
+            );
+            if (!success) {
+                revert Failed();
+            }
+        }
+
+        emit FullWithdrawalsRootPosted(blockNumber, root);
     }
 
     /**
@@ -595,7 +673,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 guardiansAmount = _sendETH(address(GUARDIANS), amount, $.guardiansFeeRate);
 
         uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
-        $.pool.paySmoothingCommitment{ value: poolAmount }();
+        $.pool.depositETHWithoutMinting{ value: poolAmount }();
     }
 
     function _setGuardiansFeeRate(uint256 newRate) internal {
@@ -610,6 +688,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit GuardiansFeeRateChanged(oldRate, newRate);
     }
 
+    // _sendETH is sending ETH to trusted addresses (no reentrancy)
     function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
         toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
 

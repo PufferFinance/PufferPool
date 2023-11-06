@@ -11,13 +11,13 @@ import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
-import { console } from "forge-std/console.sol";
-import { ROLE_ID_DAO } from "script/SetupAccess.s.sol";
+import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
     event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
     event FailedToProvision(bytes indexed pubKey, uint256);
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
@@ -413,7 +413,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, strategyName);
+        emit ValidatorKeyRegistered(pubKey, idx, strategyName, true);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
     }
 
@@ -625,6 +625,82 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.createPufferStrategy(bytes32("LEVERAGED_RESTAKING"));
     }
 
+    function testClaimBackBond() public {
+        // In our test case, we are posting roots and simulating a full withdrawal before the validator registration
+        _setupMerkleRoot();
+
+        // For us to test the withdrawal from the node operator, we must register and provision that validator
+        // In our case we have 2 validators NO_RESTAKING and EIGEN_DA
+
+        address alice = makeAddr("alice");
+        vm.deal(alice, 5 ether);
+        address bob = makeAddr("bob");
+        vm.deal(bob, 5 ether);
+        vm.deal(address(pool), 100 ether);
+
+        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "0 pufETH in protocol");
+
+        // Create validators
+        vm.startPrank(alice);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.startPrank(bob);
+        _registerValidatorKey(bytes32("bob"), EIGEN_DA);
+
+        // PufferProtocol should hold pufETH (bond for 2 validators)
+        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH in protocol");
+
+        // Provision validators
+        vm.startPrank(address(guardiansSafe));
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+
+        bytes32[] memory aliceProof = new bytes32[](1);
+        aliceProof[0] = hex"0e4f14a17378337442fec9c0fe64e67c22f046a5fd1fc973859da0abeb6323e2";
+
+        // Now the node operators submit proofs to get back their bond
+        vm.startPrank(alice);
+        // Invalid block number = invalid proof
+        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
+        pufferProtocol.stopValidator({
+            strategyName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 150,
+            withdrawalAmount: 32.14 ether,
+            wasSlashed: false,
+            merkleProof: aliceProof
+        });
+
+        assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
+
+        // Valid proof
+        pufferProtocol.stopValidator({
+            strategyName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 100,
+            withdrawalAmount: 32.14 ether,
+            wasSlashed: false,
+            merkleProof: aliceProof
+        });
+
+        bytes32[] memory bobProof = new bytes32[](1);
+        bobProof[0] = hex"6df1a3c785f77eb353a2a4c0d38629c4d4088032e8ec0695b9bbbee2bd9d4506";
+
+        assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH");
+
+        // Bob was slashed, bob shouldn't get any pufETH
+        pufferProtocol.stopValidator({
+            strategyName: EIGEN_DA,
+            validatorIndex: 0,
+            blockNumber: 100,
+            withdrawalAmount: 31 ether,
+            wasSlashed: true,
+            merkleProof: bobProof
+        });
+
+        assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH after");
+        assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
+    }
+
     // Test smart contract upgradeability (UUPS)
     function testUpgrade() public {
         vm.expectRevert();
@@ -716,5 +792,68 @@ contract PufferProtocolTest is TestHelper {
 
     function _getPubKey(bytes32 pubKeypart) internal pure returns (bytes memory) {
         return bytes.concat(abi.encodePacked(pubKeypart), bytes16(""));
+    }
+
+    // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
+    function _setupMerkleRoot() public {
+        // Create EIGEN_DA strategy
+        pufferProtocol.createPufferStrategy(EIGEN_DA);
+
+        // Include the EIGEN_DA in strategy selection
+        bytes32[] memory newWeights = new bytes32[](4);
+        newWeights[0] = NO_RESTAKING;
+        newWeights[1] = EIGEN_DA;
+        newWeights[2] = EIGEN_DA;
+        newWeights[3] = CRAZY_GAINS;
+
+        pufferProtocol.setStrategyWeights(newWeights);
+
+        address noRestakingStrategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
+        address eigenDaStrategy = pufferProtocol.getStrategyAddress(EIGEN_DA);
+
+        // Enable PufferProtocol to call `call` function on strategy
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = IPufferStrategy.call.selector;
+        vm.startPrank(_broadcaster);
+        accessManager.setTargetFunctionRole(noRestakingStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        accessManager.setTargetFunctionRole(eigenDaStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        vm.stopPrank();
+
+        // We are simulating 2 full withdrawals
+        address[] memory strategies = new address[](2);
+        strategies[0] = noRestakingStrategy;
+        strategies[1] = eigenDaStrategy;
+
+        // Give funds to strategies
+        vm.deal(strategies[0], 200 ether);
+        vm.deal(strategies[1], 100 ether);
+
+        // Amounts of full withdrawals that we want to move from strategies to pools
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 32.14 ether;
+        amounts[1] = 31 ether;
+
+        // Assert starting state of the pools
+        assertEq(address(pool).balance, 0, "starting pool balance");
+        assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
+
+        // Values are hardcoded and generated using test/unit/FullWithdrawalProofs.js
+        vm.startPrank(address(guardiansSafe));
+        pufferProtocol.postFullWithdrawalsRoot({
+            root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
+            blockNumber: 100,
+            strategies: strategies,
+            amounts: amounts
+        });
+        vm.stopPrank();
+
+        // Total withdrawal eth is 32.14 + 31
+
+        // Default split rate for withdrawal pool is 10%
+        // 10% of 32.14 + 31 = 6.314
+        // The rest is 63.14 - 6.314 = 56.826
+
+        assertEq(address(withdrawalPool).balance, 6.314 ether, "ending withdraawal pool balance");
+        assertEq(address(pool).balance, 56.826 ether, "ending pool balance");
     }
 }

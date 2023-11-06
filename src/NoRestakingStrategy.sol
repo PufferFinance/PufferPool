@@ -31,14 +31,15 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     error AlreadyClaimed(uint256 blockNumber, bytes32 pubKeyHash);
 
     /**
+     * @notice Thrown if the there is nothing to be claimed for the provided information
+     * @dev Signature "0xb9eec102"
+     */
+    error NothingToClaim(bytes32 pubKeyHash);
+
+    /**
      * @notice Emitted when the rewards MerkleRoot `root` for a `blockNumber` is posted
      */
     event RewardsRootPosted(uint256 indexed blockNumber, bytes32 root);
-
-    /**
-     * @notice Emitted when the full withdrawals MerkleRoot `root` for a `blockNumber` is posted
-     */
-    event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
      * @notice Beacon chain deposit contract
@@ -61,12 +62,6 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     mapping(uint256 blockNumber => mapping(bytes32 pubKeyHash => bool claimed)) public claimedRewards;
 
     uint256 internal _lastProofOfRewardsBlockNumber;
-
-    //@todo PART
-    //@todo figure out if we want to have this in our PufferProtocol contract or per strategy?
-    mapping(uint256 blockNumber => bytes32 root) public fullWithdrawalsRoots;
-
-    error InvalidMerkleProof();
 
     error InvalidBlockNumber(uint256 blockNumber);
 
@@ -109,7 +104,6 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
      * @param pubKeyHash is a keccak256 hash of the validator's public key
      * @param blockNumbers is the array of block numbers for which the sender is claiming the rewards
      * @param amounts is the array of amounts to claim
-     * @param wasSlashed is the array indicating if the validator was slashed in that period
      * @param merkleProofs is the array of Merkle proofs
      */
     function collectRewards(
@@ -117,7 +111,6 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         bytes32 pubKeyHash,
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
-        bool[] calldata wasSlashed,
         bytes32[][] calldata merkleProofs
     ) external {
         // Anybody can submit a valid proof and the ETH will be sent to node
@@ -129,7 +122,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
             }
 
             bytes32 rewardsRoot = rewardsRoots[blockNumbers[i]];
-            bytes32 leaf = keccak256(abi.encode(node, amounts[i], wasSlashed[i]));
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(node, pubKeyHash, amounts[i]))));
 
             if (MerkleProof.verifyCalldata(merkleProofs[i], rewardsRoot, leaf)) {
                 claimedRewards[blockNumbers[i]][pubKeyHash] = true;
@@ -137,59 +130,11 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
             }
         }
 
+        if (ethToSend == 0) {
+            revert NothingToClaim(pubKeyHash);
+        }
+
         node.safeTransferETH(ethToSend);
-    }
-
-    /**
-     * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
-     * @dev Anybody can trigger a validator exit as long as the proofs submitted are valid
-     *
-     */
-    function stopValidator(
-        bytes32 startegyName,
-        uint256 validatorIndex,
-        uint256 blockNumber,
-        uint256 withdrawalAmount,
-        bool wasSlashed,
-        bytes32[] calldata merkleProof
-    ) external {
-        bytes32 leaf = keccak256(abi.encode(startegyName, validatorIndex, withdrawalAmount));
-
-        bytes32 withdrawalRoot = fullWithdrawalsRoots[blockNumber];
-
-        if (MerkleProof.verifyCalldata(merkleProof, withdrawalRoot, leaf)) {
-            // Burn everything if the validator was slashed
-            uint256 burnAmount = 0;
-
-            if (wasSlashed) {
-                burnAmount = 2 ether;
-            }
-
-            if (withdrawalAmount < 32 ether) {
-                //@todo ?
-                // Burn everything?
-            }
-
-            PUFFER_PROTOCOL.stopValidator(startegyName, validatorIndex, burnAmount);
-
-            PUFFER_PROTOCOL.getPufferPool().depositETHWithoutMinting{ value: withdrawalAmount }();
-        }
-
-        revert InvalidMerkleProof();
-    }
-
-    /**
-     * @notice Posts the rewards root for this strategy
-     * @dev Restricted to Guardians
-     * @param root is the Merkle Root hash
-     * @param blockNumber is the block number for when the Merkle Proof was generated
-     */
-    function postFullWithdrawalsRoot(bytes32 root, uint256 blockNumber) external restricted {
-        if (blockNumber <= _lastProofOfRewardsBlockNumber) {
-            revert InvalidBlockNumber(blockNumber);
-        }
-        fullWithdrawalsRoots[blockNumber] = root;
-        emit FullWithdrawalsRootPosted(blockNumber, root);
     }
 
     /**
@@ -205,6 +150,15 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         _lastProofOfRewardsBlockNumber = blockNumber;
         rewardsRoots[blockNumber] = root;
         emit RewardsRootPosted(blockNumber, root);
+    }
+
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        restricted
+        returns (bool success, bytes memory)
+    {
+        // slither-disable-next-line arbitrary-send-eth
+        return to.call{ value: amount }(data);
     }
 
     function getLastProofOfRewardsBlock() external view returns (uint256) {

@@ -164,7 +164,7 @@ contract PufferPoolTest is TestHelper {
         assertEq(minted, 1 ether, "minted amount");
 
         // Simulate rewards of 1 ETH
-        pool.paySmoothingCommitment{ value: 1 ether }();
+        pool.depositETHWithoutMinting{ value: 1 ether }();
 
         // Fast forward 50400 blocks ~ 7 days
         vm.roll(50401);

@@ -26,8 +26,6 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function depositETHWithoutMinting() external payable { }
 
-    function paySmoothingCommitment() external payable { }
-
     function depositETH() external payable returns (uint256) { }
 
     function burn(uint256 pufETHAmount) external { }

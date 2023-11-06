@@ -81,9 +81,14 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         //@todo
     }
 
-    // function verifyWithdrawalCredentials() {
-    // save the start date
-    // }
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        restricted
+        returns (bool success, bytes memory)
+    {
+        // slither-disable-next-line arbitrary-send-eth
+        return to.call{ value: amount }(data);
+    }
 
     /**
      * @inheritdoc IPufferStrategy

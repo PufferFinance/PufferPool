@@ -17,11 +17,18 @@ import { Safe } from "safe-contracts/Safe.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol is IPufferProtocolStorage {
+    error Failed();
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
      */
     error InvalidBLSPublicKeySet();
+
+    /**
+     * @notice Thrown when the Merkle Proof for a full withdrawal is not valid
+     * @dev Signature "0xb05e92fa"
+     */
+    error InvalidMerkleProof();
 
     /**
      * @notice Thrown when the strategy name already exists
@@ -146,7 +153,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Emitted when the guardians decide to skip validator provisioning for `strategyName`
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
-    event ValidatorSkipped(bytes32 indexed strategyName, uint256 skippedValidatorIndex);
+    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+
+    /**
+     * @notice Emitted when the full withdrawals MerkleRoot `root` for a `blockNumber` is posted
+     */
+    event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
      * @notice Emitted when the Guardians update state of the protocol
@@ -185,9 +197,21 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param strategyName is the staking Strategy
-     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
+     * @param usingEnclave is indicating if the validator is using secure enclave
+     * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+    event ValidatorKeyRegistered(
+        bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName, bool usingEnclave
+    );
+
+    /**
+     * @notice Emitted when the Validator exited and stopped validating
+     * @param pubKey is the validator public key
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param strategyName is the staking Strategy
+     * @dev Signature "0xec0dc4352d02ab1358d681da59e62a34af18c126565f98d7c4c71da1315f81f5"
+     */
+    event ValidatorExited(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -244,9 +268,18 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
      * @param strategyName is the staking Strategy
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @param burnAmount is the amount of pufETH that we are burning from the node operator
+     * @param withdrawalAmount is the amount of ETH from the full withdrawal
+     * @param wasSlashed is the amount of pufETH that we are burning from the node operator
+     * @param merkleProof is the Merkle Proof for a withdrawal
      */
-    function stopValidator(bytes32 strategyName, uint256 validatorIndex, uint256 burnAmount) external;
+    function stopValidator(
+        bytes32 strategyName,
+        uint256 validatorIndex,
+        uint256 blockNumber,
+        uint256 withdrawalAmount,
+        bool wasSlashed,
+        bytes32[] calldata merkleProof
+    ) external;
 
     /**
      * @notice Skips the next validator for `strategyName`
