@@ -79,6 +79,10 @@ struct ProtocolStorage {
      */
     mapping(bytes32 strategyName => mapping(uint256 index => Validator validator)) validators;
     /**
+     * @dev Mapping of a blockNumber and Merkle Root for full withdrawals
+     */
+    mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots;
+    /**
      * @dev Mapping between strategy name and a strategy
      * Slot 9
      */

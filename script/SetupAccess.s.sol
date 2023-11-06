@@ -69,6 +69,10 @@ contract SetupAccess is BaseScript {
         selectors[0] = IPufferStrategy.callStake.selector;
 
         accessManager.setTargetFunctionRole(noRestakingStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL);
+
+        bytes4[] memory selectorsForGuardians = new bytes4[](1);
+        selectorsForGuardians[0] = bytes4(hex"abfaad62"); // signature for `function postRewardsRoot(bytes32 root, uint256 blockNumber)`
+        accessManager.setTargetFunctionRole(noRestakingStrategy, selectorsForGuardians, ROLE_ID_GUARDIANS);
     }
 
     function _setupEnclaveVerifierRoles() internal {
@@ -92,10 +96,12 @@ contract SetupAccess is BaseScript {
 
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
 
-        bytes4[] memory guardianSelectors = new bytes4[](3);
+        bytes4[] memory guardianSelectors = new bytes4[](4);
         guardianSelectors[0] = PufferProtocol.skipProvisioning.selector;
         guardianSelectors[1] = PufferProtocol.stopValidator.selector;
         guardianSelectors[2] = PufferProtocol.proofOfReserve.selector;
+        guardianSelectors[3] = PufferProtocol.postFullWithdrawalsRoot.selector;
+
         accessManager.setTargetFunctionRole(address(pufferProtocol), guardianSelectors, ROLE_ID_GUARDIANS);
     }
 

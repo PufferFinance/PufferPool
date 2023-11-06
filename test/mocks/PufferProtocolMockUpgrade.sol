@@ -10,11 +10,4 @@ contract PufferProtocolMockUpgrade is PufferProtocol {
     }
 
     constructor(address beacon) PufferProtocol(Safe(payable(address(0))), payable(address(0)), address(0)) { }
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
 }

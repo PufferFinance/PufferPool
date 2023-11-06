@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.0 <0.9.0;
 
+/**
+ * @title IWithdrawalPool
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
 interface IWithdrawalPool {
-    struct Withdrawal {
-        uint256 pufETH;
-        uint256 ETH;
-        uint256 lockedUntil;
-        address recipient;
-    }
-
     struct Permit {
         address owner;
         uint256 deadline;

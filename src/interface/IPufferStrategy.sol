@@ -23,12 +23,12 @@ interface IPufferStrategy {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Collects the non restaking rewards
+     * @notice Function callable only by PufferProtocol
+     * @param to is the destination address
+     * @param amount is the ETH amount in wei
+     * @param data is the calldata
      */
-    function collectNonRestakingRewards() external;
-
-    /**
-     * @notice Collects the restaking rewards
-     */
-    function collectRestakingRewards() external;
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        returns (bool success, bytes memory response);
 }

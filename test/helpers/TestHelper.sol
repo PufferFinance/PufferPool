@@ -19,6 +19,7 @@ import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } f
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract TestHelper is Test, BaseScript {
+    bytes32 public constant NO_RESTAKING = bytes32("NO_RESTAKING");
     address public constant ADDRESS_ZERO = address(0);
     address public constant ADDRESS_ONE = address(1);
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
@@ -78,6 +79,8 @@ contract TestHelper is Test, BaseScript {
         vm.assume(addr != address(7));
         vm.assume(addr != address(8));
         vm.assume(addr != address(9));
+        // vm.assumePayable(addr); // don't have it in current foundry version
+        vm.assume(addr != 0x000000000000000000636F6e736F6c652e6c6f67); // console address
         _;
     }
 

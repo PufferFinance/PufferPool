@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 
 /**
  * @title IPufferPool
@@ -10,17 +11,10 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
  */
 interface IPufferPool is IERC20 {
     /**
-     * @notice Thrown when the user tries to deposit a small amount of ETH
-     * @dev Signature "0x6a12f104"
+     * Thrown if the "rescued" token is pufETH
+     * @dev Signature "0x961c9a4f"
      */
-    error InsufficientETH();
-
-    /**
-     *
-     * @notice Thrown when the last oracle update is not recent
-     * @dev Signature "0x88cce429"
-     */
-    error StaleOracle();
+    error InvalidToken(address token);
 
     /**
      * @notice Emitted when ETH is deposited to PufferPool
@@ -32,20 +26,10 @@ interface IPufferPool is IERC20 {
     event Deposited(address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
     /**
-     * @notice Emitted when pufETH is burned
-     * @param withdrawer is the address that burned pufETH
-     * @param ETHRecipient is the address received ETH
-     * @param pufETHAmount is the pufETH amount burned
-     * @param ETHAmount is the ETH amount received
-     * @dev Signature "0x91fb9d98b786c57d74c099ccd2beca1739e9f6a81fb49001ca465c4b7591bbe2"
+     * @notice Emitted when the PufferPool receives the smoothing commitment ETH
+     * @dev Signature "0xe68c71e5588672ff97ad57a1655ab6e656bf6dab3ce58df127f5c6058f26a431"
      */
-    event Withdrawn(address withdrawer, address ETHRecipient, uint256 pufETHAmount, uint256 ETHAmount);
-
-    /**
-     * @notice Emitted when the PufferPool receives execution commitment ETH / donation
-     * @dev Signature "0x27f12abfe35860a9a927b465bb3d4a9c23c8428174b83f278fe45ed7b4da2662"
-     */
-    event ETHReceived(uint256 ethAmount);
+    event SmoothingCommitmentPaid(uint256 ethAmount);
 
     /**
      * @notice Deposits ETH and `msg.sender` receives pufETH in return
@@ -53,6 +37,11 @@ interface IPufferPool is IERC20 {
      * @dev Signature "0xf6326fb3"
      */
     function depositETH() external payable returns (uint256);
+
+    /**
+     * @notice Deposits ETH without minting any pufETH
+     */
+    function depositETHWithoutMinting() external payable;
 
     /**
      *
@@ -81,9 +70,4 @@ interface IPufferPool is IERC20 {
      * @notice Transfers `ethAmount` to `to`
      */
     function transferETH(address to, uint256 ethAmount) external;
-
-    /**
-     * @notice Deposits ETH without minting new pufETH
-     */
-    function paySmoothingCommitment() external payable;
 }

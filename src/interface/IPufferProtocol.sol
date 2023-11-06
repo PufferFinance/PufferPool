@@ -5,8 +5,10 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
+import { Status } from "puffer/struct/Status.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 
 /**
@@ -15,11 +17,18 @@ import { Safe } from "safe-contracts/Safe.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol is IPufferProtocolStorage {
+    error Failed();
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x9a5bbd69"
      */
     error InvalidBLSPublicKeySet();
+
+    /**
+     * @notice Thrown when the Merkle Proof for a full withdrawal is not valid
+     * @dev Signature "0xb05e92fa"
+     */
+    error InvalidMerkleProof();
 
     /**
      * @notice Thrown when the strategy name already exists
@@ -32,12 +41,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0xa00523fd"
      */
     error InvalidNumberOfMonths();
-
-    /**
-     * @notice Thrown when the RAVE evidence is not valid
-     * @dev Signature "0x14807c47"
-     */
-    error InvalidRaveEvidence();
 
     /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
@@ -65,9 +68,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when validator is not in valid state
-     * @dev Signature "0x6d9ba916"
+     * @dev Signature "0x3001591c"
      */
-    error InvalidValidatorState();
+    error InvalidValidatorState(Status status);
 
     /**
      * @notice Thrown if the sender did not send enough ETH in the transaction
@@ -144,7 +147,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Emitted when the guardians decide to skip validator provisioning for `strategyName`
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
-    event ValidatorSkipped(bytes32 indexed strategyName, uint256 skippedValidatorIndex);
+    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+
+    /**
+     * @notice Emitted when the full withdrawals MerkleRoot `root` for a `blockNumber` is posted
+     */
+    event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
      * @notice Emitted when the Guardians update state of the protocol
@@ -183,9 +191,21 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param strategyName is the staking Strategy
-     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
+     * @param usingEnclave is indicating if the validator is using secure enclave
+     * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+    event ValidatorKeyRegistered(
+        bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName, bool usingEnclave
+    );
+
+    /**
+     * @notice Emitted when the Validator exited and stopped validating
+     * @param pubKey is the validator public key
+     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param strategyName is the staking Strategy
+     * @dev Signature "0xec0dc4352d02ab1358d681da59e62a34af18c126565f98d7c4c71da1315f81f5"
+     */
+    event ValidatorExited(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -213,15 +233,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
-     * @notice Emitted when the validator is provisioned
-     * @param nodeOperator is the address of the Node Operator
-     * @param pubKey is the public key of the Validator
-     * @param timestamp is the unix timestamp in seconds
-     * @dev Signature "0x38d719b1216fcb012b932840fc8d66e25bb95b58137d2f54de7ffd0edfbdc885"
-     */
-    event ETHProvisioned(address nodeOperator, bytes indexed pubKey, uint256 timestamp);
-
-    /**
      * @notice Returns validator information
      * @param strategyName is the staking Strategy
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
@@ -236,6 +247,24 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
     function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
+
+    /**
+     * @notice Stops the validator
+     * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
+     * @param strategyName is the staking Strategy
+     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
+     * @param withdrawalAmount is the amount of ETH from the full withdrawal
+     * @param wasSlashed is the amount of pufETH that we are burning from the node operator
+     * @param merkleProof is the Merkle Proof for a withdrawal
+     */
+    function stopValidator(
+        bytes32 strategyName,
+        uint256 validatorIndex,
+        uint256 blockNumber,
+        uint256 withdrawalAmount,
+        bool wasSlashed,
+        bytes32[] calldata merkleProof
+    ) external;
 
     /**
      * @notice Skips the next validator for `strategyName`
@@ -312,6 +341,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the address of the Withdrawal pool
      */
     function getWithdrawalPool() external view returns (IWithdrawalPool);
+
+    /**
+     * @notice Returns the address of the Withdrawal pool
+     */
+    function getPufferPool() external view returns (IPufferPool);
 
     /**
      * @notice Returns the current strategy weights

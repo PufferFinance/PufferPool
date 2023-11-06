@@ -23,7 +23,7 @@ contract PufferProtocolHandler is Test {
 
     TestHelper testhelper;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
+    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
 
     address DAO = makeAddr("DAO");
 
@@ -144,7 +144,7 @@ contract PufferProtocolHandler is Test {
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
-        pool.depositRewards{ value: stakingRewardsAmount }();
+        pool.depositETHWithoutMinting{ value: stakingRewardsAmount }();
         vm.stopPrank();
 
         ghost_eth_rewards_amount += stakingRewardsAmount;
@@ -446,7 +446,7 @@ contract PufferProtocolHandler is Test {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, strategyName);
+        emit ValidatorKeyRegistered(pubKey, idx, strategyName, true);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
 
         return (smoothingCommitment + bond);

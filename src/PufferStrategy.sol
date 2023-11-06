@@ -70,9 +70,6 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
-    /**
-     * @inheritdoc IPufferStrategy
-     */
     function collectNonRestakingRewards() external {
         // @todo limit it to 1x per day or something?
         // it creates a queued withdrawal via withdrawal router
@@ -84,9 +81,14 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         //@todo
     }
 
-    // function verifyWithdrawalCredentials() {
-    // save the start date
-    // }
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        restricted
+        returns (bool success, bytes memory)
+    {
+        // slither-disable-next-line arbitrary-send-eth
+        return to.call{ value: amount }(data);
+    }
 
     /**
      * @inheritdoc IPufferStrategy

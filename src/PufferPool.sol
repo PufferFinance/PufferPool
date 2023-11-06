@@ -47,12 +47,8 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
         return pufETHAmount;
     }
 
-    function depositRewards() public payable {
+    function depositETHWithoutMinting() public payable {
         // Deposit rewards through this function
-    }
-
-    function paySmoothingCommitment() external payable {
-        emit ETHReceived(msg.value);
     }
 
     /**
@@ -64,6 +60,16 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
 
     function transferETH(address to, uint256 ethAmount) external restricted {
         to.safeTransferETH(ethAmount);
+    }
+
+    /**
+     * @notice Recovers ERC20 with an exception of pufETH
+     */
+    function recoverERC20(address token) external override {
+        if (token == address(this)) {
+            revert InvalidToken(token);
+        }
+        token.safeTransferAll(PUFFER_PROTOCOL.TREASURY());
     }
 
     /**

@@ -9,7 +9,7 @@ import { IERC721Receiver } from "openzeppelin/token/ERC721/IERC721Receiver.sol";
 import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 
 /**
- * @title AbstractVault
+ * @title AbstractVault @todo maybe rename to TokenRescue or or something similar?
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */

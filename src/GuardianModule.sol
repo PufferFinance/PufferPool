@@ -44,11 +44,18 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     bytes32 internal _mrenclave;
 
+    /**
+     * @dev Enclave data
+     * The guardian doesn't know the Secret Key of an enclave wallet
+     */
     struct GuardianData {
         bytes enclavePubKey;
         address enclaveAddress;
     }
 
+    /**
+     * @dev Mapping of a Guardian's EOA to enclave data
+     */
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
     constructor(IEnclaveVerifier verifier, Safe guardians, address pufferAuthority) AccessManaged(pufferAuthority) {
