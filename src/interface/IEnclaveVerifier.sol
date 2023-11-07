@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 
 /**
  * @title IEnclaveVerifier interface
@@ -19,12 +20,6 @@ interface IEnclaveVerifier {
      * @dev Signature "0x5d4ad9a9"
      */
     error StaleEvidence();
-
-    /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
 
     /**
      * @notice Emitted when the `pubKeyHash` is added to valid pubKeys

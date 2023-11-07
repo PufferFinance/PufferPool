@@ -13,6 +13,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -426,7 +427,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "pool should have the bond amount for 2 validators");
 
         vm.prank(address(4123123)); // random sender
-        vm.expectRevert(IPufferProtocol.Unauthorized.selector);
+        vm.expectRevert(Unauthorized.selector);
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
 
         (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
@@ -455,7 +456,7 @@ contract PufferProtocolTest is TestHelper {
         bytes[] memory signatures = _getGuardianSignatures(alicePubKey);
 
         // Unauthorized, because the protocol is expecting signature for bob
-        vm.expectRevert(IPufferProtocol.Unauthorized.selector);
+        vm.expectRevert(Unauthorized.selector);
         pufferProtocol.provisionNode(signatures);
 
         // Bob should be provisioned next
@@ -594,7 +595,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Provisioning of rocky should fail, because jason is next in line
         bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
-        vm.expectRevert(IPufferProtocol.Unauthorized.selector);
+        vm.expectRevert(Unauthorized.selector);
         pufferProtocol.provisionNode(signatures);
 
         // Provision Jason

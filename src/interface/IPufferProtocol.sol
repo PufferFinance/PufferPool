@@ -55,12 +55,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidBLSPrivateKeyShares();
 
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
      * @notice Thrown when the BLS public key is not valid
      * @dev Signature "0x7eef7967"
      */

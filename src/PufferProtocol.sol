@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { Safe } from "safe-contracts/Safe.sol";
-import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
-import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { ProtocolStorage } from "puffer/struct/ProtocolStorage.sol";
-import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
-import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
+import { Safe } from "safe-contracts/Safe.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
+import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
-import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title PufferProtocol
@@ -36,11 +37,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev BLS public keys are 48 bytes long
      */
     uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
-
-    /**
-     * @dev ETH Amount required for becoming a Validator
-     */
-    uint256 internal constant _32_ETHER = 32 ether;
 
     /**
      * @dev ETH Amount required to be deposited as a bond if the node operator uses SGX
@@ -140,7 +136,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.bond = SafeCastLib.toUint64(pufETHReceived);
         validator.monthsCommited = SafeCastLib.toUint40(numberOfMonths);
         validator.commitmentAmount = SafeCastLib.toUint64(msg.value - validatorBond);
-        // @todo validator.startDate = block.timestamp;
         validator.node = msg.sender;
 
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
@@ -199,9 +194,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         IPufferStrategy strategy = $.strategies[strategyName];
 
-        $.pool.transferETH(address(strategy), _32_ETHER);
+        // Transfer 32 ETH to the strategy
+        $.pool.transferETH(address(strategy), 32 ether);
 
-        // @todo decide what we want to emit
         emit SuccesfullyProvisioned(validator.pubKey, index, strategyName);
 
         strategy.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });

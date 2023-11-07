@@ -13,4 +13,4 @@ Depositing ETH through this function will eventually change the exchange rate be
 
 The [Guardians](./Guardians.md) are responsible for reporting the values used for calculation of the exchange rate [PufferPoolStorage](../src//struct/PufferPoolStorage.sol). Those values are stored in the storage of our main [PufferProtocol smart contract](../src/PufferProtocolStorage.sol)
 
-PufferPool inherits from AbstractVault.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.
+PufferPool inherits from TokenRescuer.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.

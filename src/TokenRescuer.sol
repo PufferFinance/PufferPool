@@ -7,20 +7,15 @@ import { IERC1155Receiver } from "openzeppelin/token/ERC1155/IERC1155Receiver.so
 import { IERC1155 } from "openzeppelin/token/ERC1155/IERC1155.sol";
 import { IERC721Receiver } from "openzeppelin/token/ERC721/IERC721Receiver.sol";
 import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 
 /**
- * @title AbstractVault @todo maybe rename to TokenRescue or or something similar?
+ * @title TokenRescuer
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
+abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
     using SafeTransferLib for address;
-
-    /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
 
     /**
      * @notice Address of the Puffer Protocol
@@ -75,6 +70,6 @@ abstract contract AbstractVault is IERC721Receiver, IERC1155Receiver {
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(AbstractVault).interfaceId;
+        return interfaceId == type(TokenRescuer).interfaceId;
     }
 }
