@@ -1,6 +1,6 @@
 # WithdrawalPool
 
-WithdrawalPool is a smart contract that allows stakers to exchange their `pufETH` for ETH by calling one of our two versions:
+WithdrawalPool is a smart contract that allows stakers to exchange their `pufETH` for ETH by calling one of two functions:
 - `withdrawETH(address to, uint256 pufETHAmount)` 
     - To ensure this function doesn't revert, the caller must first approve `pufETHAmount` to the WithdrawalPool smart contract by calling `pufferPool.approve(withdrawalPoolAddress, pufETHAmount)`.
 - `withdrawETH(address to, Permit calldata permit)`

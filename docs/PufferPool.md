@@ -11,6 +11,6 @@ It takes ETH deposits from stakers and mints `pufETH` ERC20 token in return. Thi
 Rewards / donations go through the `depositETHWithoutMinting()` function. This function will not mint any `pufETH` in return.
 Depositing ETH through this function will eventually change the exchange rate between ETH and pufETH, making it so that for 1 pufETH you will be able to get more ETH in return. Withdrawals and exchanging of `pufETH` to ETH is possible through our [WithdrawalPool](./WithdrawalPool.md) smart contract or any third party exchange.
 
-The [Guardians](./Guardians.md) are responsible for reporting the values used for calculation of the exchange rate [PufferPoolStorage](../src//struct/PufferPoolStorage.sol). Those values are stored on-chain within our main [PufferProtocol smart contract](../src/PufferProtocolStorage.sol)
+The [Guardians](./Guardians.md) are responsible for reporting the values used for calculation of the exchange rate: [PufferPoolStorage](../src//struct/PufferPoolStorage.sol). Those values are stored, and can be accessed, on-chain within our main [PufferProtocol smart contract](../src/PufferProtocolStorage.sol)
 
 PufferPool inherits from AbstractVault.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.
