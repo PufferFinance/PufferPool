@@ -1,0 +1,3 @@
+# PufferStrategy
+
+The PufferStrategy contract defines a template for Puffer strategies. A strategy refers to the specific set of AVSs for which all Puffer NoOps participating in the strategy must delegate their funds to running. This set of AVSs may be empty, as in the case of the [NoRestakingStrategy](../src/NoRestakingStrategy.sol), in which the totality of the funds in this contract are committed solely to performing ETH validation, and no funds are delegated to any AVSs.
