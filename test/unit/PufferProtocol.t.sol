@@ -683,6 +683,8 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: aliceProof
         });
 
+        assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
+
         bytes32[] memory bobProof = new bytes32[](1);
         bobProof[0] = hex"6df1a3c785f77eb353a2a4c0d38629c4d4088032e8ec0695b9bbbee2bd9d4506";
 
@@ -699,7 +701,6 @@ contract PufferProtocolTest is TestHelper {
         });
 
         assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH after");
-        assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -713,6 +714,18 @@ contract PufferProtocolTest is TestHelper {
         result = PufferProtocolMockUpgrade(payable(address(pufferProtocol))).returnSomething();
 
         assertEq(result, 1337);
+    }
+
+    function testPause() public {
+        pool.depositETH{ value: 1 ether }();
+
+        vm.startPrank(_broadcaster); // Admin
+        // Pause
+        accessManager.setTargetClosed(address(pool), true);
+        vm.stopPrank();
+
+        vm.expectRevert();
+        pool.depositETH{ value: 1 ether }();
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {

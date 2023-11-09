@@ -27,17 +27,12 @@ contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
         AccessManaged(initialAuthority)
     { }
 
-    /**
-     * @notice no calldata automatically triggers the depositETH for `msg.sender`
-     */
-    receive() external payable {
-        depositETH();
-    }
+    receive() external payable { }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function depositETH() public payable returns (uint256) {
+    function depositETH() public payable restricted returns (uint256) {
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);
@@ -45,10 +40,6 @@ contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
         _mint(msg.sender, pufETHAmount);
 
         return pufETHAmount;
-    }
-
-    function depositETHWithoutMinting() public payable {
-        // Deposit rewards through this function
     }
 
     /**

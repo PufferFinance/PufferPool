@@ -112,6 +112,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
         external
         payable
+        restricted
     {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -223,11 +224,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
         _transferFunds($, 0);
-    }
-
-    function collectRewards() external {
-        // ProtocolStorage storage $ = _getPufferProtocolStorage();
-        //@todo
     }
 
     /**
@@ -366,9 +362,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 revert Failed();
             }
             // slither-disable-next-line calls-loop
-            (success,) = IPufferStrategy(strategies[i]).call(
-                address($.pool), pufferPoolAmount, abi.encodeWithSelector(IPufferPool.depositETHWithoutMinting.selector)
-            );
+            (success,) = IPufferStrategy(strategies[i]).call(address($.pool), pufferPoolAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -649,7 +643,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 guardiansAmount = _sendETH(address(GUARDIANS), amount, $.guardiansFeeRate);
 
         uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
-        $.pool.depositETHWithoutMinting{ value: poolAmount }();
+        address($.pool).safeTransferETH(poolAmount);
     }
 
     function _setGuardiansFeeRate(uint256 newRate) internal {

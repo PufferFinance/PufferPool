@@ -120,7 +120,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external {
+    ) external restricted {
         // Anybody can submit a valid proof and the ETH will be sent to the node
         uint256 ethToSend = 0;
 

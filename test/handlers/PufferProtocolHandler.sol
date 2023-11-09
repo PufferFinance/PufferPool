@@ -16,10 +16,13 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeTransferLib for address;
+    using SafeTransferLib for address payable;
 
     TestHelper testhelper;
 
@@ -144,7 +147,7 @@ contract PufferProtocolHandler is Test {
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
-        pool.depositETHWithoutMinting{ value: stakingRewardsAmount }();
+        address(pool).safeTransferETH(stakingRewardsAmount);
         vm.stopPrank();
 
         ghost_eth_rewards_amount += stakingRewardsAmount;
