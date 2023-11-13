@@ -1,4 +1,6 @@
-# Overview
+# Puffer Protocol Docs
+
+The Puffer Protocol enables anyone to run a validator node with a refundable bond of just 2 ETH and an additional payment for the desired operation time, known as a smoothing commitment. If Intel SGX or another Trusted Execution Environment (TEE) is utilized, the bond requirement is reduced to 1 ETH. The liquidity required to operate these validator nodes is provided by stakers who can stake ETH into the [PufferPool.sol]((../src/PufferPool.sol)) smart contract. In exchange, stakers receive pufETH, an asset that appreciates in value as the protocol generates rewards.
 
 ## Dependencies
 
@@ -36,6 +38,8 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`PufferProtocolStorage.sol`](../src/PufferProtocolStorage.sol) | Singleton | UUPS Proxy | YES | / |
 | [`PufferProtocol.sol`](../src/PufferProtocol.sol) | Singleton | UUPS Proxy | NO | / |
 
+See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
+
 ### [Guardians](./Guardians.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
@@ -46,6 +50,8 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
 | [`{Safe} Guardians`](https://safe.global/) | {Safe} multisig | YES | NO | / |
 
+See full documentation in [./Guardians.md](./Guardians.md)
+
 ### [Strategies](./Strategies.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
@@ -53,6 +59,8 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`IPufferStrategy.sol`](../src/interface/IPufferStrategy.sol) | Singleton | / | YES | / |
 | [`NoRestakingStrategy.sol`](../src/NoRestakingStrategy.sol) | Singleton | NO | NO | / |
 | [`PufferStrategy.sol`](../src/PufferStrategy.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+
+See full documentation in [./PufferStrategy.md](./PufferStrategy.md)
 
 ### [PufferPool](./PufferPool.md)
 
@@ -62,9 +70,13 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`IPufferPool.sol`](../src/interface/IPufferPool.sol) | Singleton | NO | Yes | / |
 | [`PufferPool.sol`](../src/PufferPool.sol) | Singleton | NO | / | / |
 
+See full documentation in [./PufferPool.md](./PufferPool.md)
+
 ### [WithdrawalPool](./WithdrawalPool.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- |  -------- |
 | [`IWithdrawalPool.sol`](../src/interface/IWithdrawalPool.sol) | Singleton | NO | YES | / |
 | [`WithdrawalPool.sol`](../src/WithdrawalPool.sol) | Singleton | NO | / | / |
+
+See full documentation in [./WithdrawalPool.md](./WithdrawalPool.md)
