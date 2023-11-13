@@ -7,7 +7,6 @@ import { IERC1155Receiver } from "openzeppelin/token/ERC1155/IERC1155Receiver.so
 import { IERC1155 } from "openzeppelin/token/ERC1155/IERC1155.sol";
 import { IERC721Receiver } from "openzeppelin/token/ERC721/IERC721Receiver.sol";
 import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
-import { Unauthorized } from "puffer/Errors.sol";
 
 /**
  * @title TokenRescuer

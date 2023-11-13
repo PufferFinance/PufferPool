@@ -134,9 +134,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         validator.signature = data.signature;
         validator.status = Status.PENDING;
         validator.strategy = address($.strategies[strategyName]);
-        validator.bond = SafeCastLib.toUint64(pufETHReceived);
-        validator.monthsCommited = SafeCastLib.toUint40(numberOfMonths);
-        validator.commitmentAmount = SafeCastLib.toUint64(msg.value - validatorBond);
+        // No need for Safecast because of the validations inside of _checkValidatorRegistrationInputs
+        validator.bond = uint64(pufETHReceived);
+        validator.monthsCommitted = uint40(numberOfMonths);
+        validator.lastCommitmentPayment = uint64(block.timestamp);
         validator.node = msg.sender;
 
         uint256 validatorIndex = $.pendingValidatorIndicies[strategyName];
@@ -203,14 +204,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         strategy.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });
     }
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         Validator storage validator = $.validators[strategyName][validatorIndex];
 
-        if (numberOfMonths > 13) {
-            revert InvalidNumberOfMonths();
-        }
-
+        // Causes panic for invalid numberOfMonths
         uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
 
         // Node operator can purchase commitment for multiple months
@@ -218,8 +219,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidETHAmount();
         }
 
-        validator.monthsCommited += uint40(numberOfMonths);
-        validator.commitmentAmount = uint64(msg.value);
+        // No need for Safecast because of the validatrions above
+        validator.monthsCommitted = uint40(numberOfMonths);
+        validator.lastCommitmentPayment = uint64(block.timestamp);
 
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
@@ -294,7 +296,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Remove what we don't
         delete validator.strategy;
         delete validator.node;
-        delete validator.monthsCommited;
+        delete validator.monthsCommitted;
         delete validator.bond;
         delete validator.pubKey;
         delete validator.signature;
@@ -789,6 +791,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidBLSPublicKeySet();
         }
 
+        // panic for invalid `numberOfMonths`
         uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
 
         if (msg.value != (smoothingCommitment + validatorBond)) {

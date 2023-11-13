@@ -400,6 +400,14 @@ interface IPufferProtocol is IPufferProtocolStorage {
         payable;
 
     /**
+     * @notice Extends the commitment for a validator in a specific strategy
+     * @param strategyName The name of the strategy
+     * @param validatorIndex The index of the validator in the strategy
+     * @param numberOfMonths The number of months to extend the commitment for
+     */
+    function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
+
+    /**
      * @notice Returns the pending validator index for `strategyName`
      */
     function getPendingValidatorIndex(bytes32 strategyName) external view returns (uint256);

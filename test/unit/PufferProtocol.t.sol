@@ -58,6 +58,7 @@ contract PufferProtocolTest is TestHelper {
     // Setup
     function testSetup() public {
         assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
+        assertTrue(address(pufferProtocol.getPufferPool()) != address(0), "pufer pool address");
         address strategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
         assertEq(PufferStrategy(payable(strategy)).NAME(), NO_RESTAKING, "bad name");
     }
@@ -77,9 +78,11 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
         (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        uint256 strategySelecitonIdx = pufferProtocol.getStrategySelectIndex();
 
         assertEq(strategyName, NO_RESTAKING, "strategy");
         assertEq(idx, 0, "idx");
+        assertEq(strategySelecitonIdx, 0, "strategy selection idx");
 
         assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
 
@@ -100,6 +103,8 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+        strategySelecitonIdx = pufferProtocol.getStrategySelectIndex();
+        assertEq(strategySelecitonIdx, 1, "strategy idx changed");
     }
 
     // Create an existing strategy should revert
@@ -202,30 +207,27 @@ contract PufferProtocolTest is TestHelper {
         assertEq(idx, 8, "idx");
     }
 
-    // // Test extending validator commitment
-    // function testExtendCommitment() public {
-    //     _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+    // Test extending validator commitment
+    function testExtendCommitment() public {
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
-    //     Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
-    //     assertTrue(validator.node == address(this), "node operator");
+        Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
+        assertTrue(validator.node == address(this), "node operator");
 
-    //     uint256 firstPayment = validator.commitmentExpiration;
-    //     assertEq(firstPayment, block.timestamp + 30 days, "lastPayment");
+        vm.warp(1000);
 
-    //     vm.warp(1000);
+        // Amounts dont match
+        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
+        pufferProtocol.extendCommitment{ value: 5 ether }(NO_RESTAKING, 0, 5);
 
-    //     vm.expectRevert();
-    //     pufferProtocol.extendCommitment{ value: 0 }(NO_RESTAKING, 0);
+        // Should extend
+        pufferProtocol.extendCommitment{ value: pufferProtocol.getSmoothingCommitment(5) }(NO_RESTAKING, 0, 5);
 
-    //     vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-    //     pufferProtocol.extendCommitment{ value: 5 ether }(NO_RESTAKING, 0);
+        validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
-    //     pufferProtocol.extendCommitment{ value: pufferProtocol.getSmoothingCommitment(NO_RESTAKING) }(NO_RESTAKING, 0);
-
-    //     validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
-
-    //     assertTrue(validator.commitmentExpiration == block.timestamp + 30 days, "lastPayment");
-    // }
+        assertTrue(validator.monthsCommitted == 5, "lastPayment");
+        assertTrue(validator.lastCommitmentPayment == block.timestamp, "lastPayment");
+    }
 
     // Try updating for future block
     function testProofOfReserve() external {
@@ -683,6 +685,17 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: aliceProof
         });
 
+        // Try again, now the validator will be in invalid state
+        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.EXITED));
+        pufferProtocol.stopValidator({
+            strategyName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 100,
+            withdrawalAmount: 32.14 ether,
+            wasSlashed: false,
+            merkleProof: aliceProof
+        });
+
         assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
 
         bytes32[] memory bobProof = new bytes32[](1);
@@ -811,7 +824,7 @@ contract PufferProtocolTest is TestHelper {
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(1) // Guardians are checking it off chain
+            raveEvidence: bytes("mock rave") // Guardians are checking it off chain
          });
 
         return validatorData;

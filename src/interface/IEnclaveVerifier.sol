@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { Unauthorized } from "puffer/Errors.sol";
 
 /**
  * @title IEnclaveVerifier interface
