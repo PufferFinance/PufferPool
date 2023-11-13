@@ -38,6 +38,21 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`PufferProtocolStorage.sol`](../src/PufferProtocolStorage.sol) | Singleton | UUPS Proxy | YES | / |
 | [`PufferProtocol.sol`](../src/PufferProtocol.sol) | Singleton | UUPS Proxy | NO | / |
 
+These contracts define the main entry point for the Puffer Protocol. They allow users to:
+
+* Register validator public keys
+* Deposit an ETH bond, which gets converted to pufETH and held within the [`PufferProtocol.sol`](../src/PufferProtocol.sol) contract 
+* Pay the initial smoothing commitment, and also additional smoothing commitments to extend the duration of running their validator node
+* Receive 32 provisioned ETH to run a validator node
+* Stop running their validator node and retrieve their bond
+
+The protocol also utilizes these smart contracts to perform important functions, such as:
+
+* Proof of Reserves, AKA the amount of ETH backing pufETH
+* Proof of Full Withdrawls, required for NoOps to be able to retrieve their bond after they have finished validating
+* Create new Puffer Strategies, which will include various mixes of AVSs that NoOps can decide to opt into, depending on risk/reward preferences
+* Store information about validator nodes and protocol state variables controlled by governance, such as the ratio at which withdrawn ETH is split between the [PufferPool](../src/PufferPool.sol) and [WithdrawalPool](../src/WithdrawalPool.sol) smart contracts
+
 See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
 
 ### [Guardians](./Guardians.md)
