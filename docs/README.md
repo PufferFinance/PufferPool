@@ -65,6 +65,11 @@ See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
 | [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
 | [`{Safe} Guardians`](https://safe.global/) | {Safe} multisig | YES | NO | / |
 
+The Guardians operate a [Safe multisig](https://github.com/safe-global/safe-contracts) and are a collective of respected community members who are deeply aligned with Ethereum's principles and values. They perform some trusted operations for our protocol, including:
+
+* Reporting the amount of ETH backing pufETH
+* Ejecting validators
+
 See full documentation in [./Guardians.md](./Guardians.md)
 
 ### [Strategies](./Strategies.md)
@@ -74,6 +79,8 @@ See full documentation in [./Guardians.md](./Guardians.md)
 | [`IPufferStrategy.sol`](../src/interface/IPufferStrategy.sol) | Singleton | / | YES | / |
 | [`NoRestakingStrategy.sol`](../src/NoRestakingStrategy.sol) | Singleton | NO | NO | / |
 | [`PufferStrategy.sol`](../src/PufferStrategy.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+
+Each Puffer Strategy refers to a specific set of AVSs for which all Puffer NoOps participating in that strategy must delegate their funds to running. Each validator node must choose exactly one Puffer Strategy to participate in, based on desired risk/reward preferences. The safest Puffer Strategy is the [NoRestakingStrategy](../src/NoRestakingStrategy.sol), which includes no AVSs. Validator nodes in this strategy only perform Ethereum consensus.
 
 See full documentation in [./PufferStrategy.md](./PufferStrategy.md)
 
