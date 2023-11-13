@@ -728,6 +728,19 @@ contract PufferProtocolTest is TestHelper {
         pool.depositETH{ value: 1 ether }();
     }
 
+    // Test registering the validator with a huge number of months commited
+    function testRegisterValidatorWithHugeCommitment() external {
+        bytes memory pubKey = _getPubKey(bytes32("alice"));
+
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+
+        // Bond is 2 ether for the mock data
+        uint256 bond = 2 ether;
+
+        vm.expectRevert();
+        pufferProtocol.registerValidatorKey{ value: bond }(validatorKeyData, NO_RESTAKING, type(uint256).max);
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(strategyName, pendingIdx);
