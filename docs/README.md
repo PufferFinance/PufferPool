@@ -92,6 +92,8 @@ See full documentation in [./PufferStrategy.md](./PufferStrategy.md)
 | [`IPufferPool.sol`](../src/interface/IPufferPool.sol) | Singleton | NO | Yes | / |
 | [`PufferPool.sol`](../src/PufferPool.sol) | Singleton | NO | / | / |
 
+The [PufferPool](../src/PufferPool.sol) contract is where the main funds are held before provisioning validators. Stakers deposit ETH into this contract in exchange for pufETH. Protocol rewards may also be sent to this contract, which will ultimately appreciate the value of pufETH.
+
 See full documentation in [./PufferPool.md](./PufferPool.md)
 
 ### [WithdrawalPool](./WithdrawalPool.md)
@@ -100,5 +102,7 @@ See full documentation in [./PufferPool.md](./PufferPool.md)
 | -------- | -------- | -------- | -------- |  -------- |
 | [`IWithdrawalPool.sol`](../src/interface/IWithdrawalPool.sol) | Singleton | NO | YES | / |
 | [`WithdrawalPool.sol`](../src/WithdrawalPool.sol) | Singleton | NO | / | / |
+
+pufETH holders who wish to exchange their holdings for ETH may do so via the [WithdrawalPool](../src/WithdrawalPool.sol) contract, given there is enough liquidity to fulfill the exchange. This contract receives funds when Puffer NoOps discontinue running their validator nodes and return the ETH back to the protocol. Some of this ETH enters the [WithdrawalPool](../src/WithdrawalPool.sol) contract according to a ratio determined by governance. 
 
 See full documentation in [./WithdrawalPool.md](./WithdrawalPool.md)
