@@ -67,7 +67,7 @@ contract TestHelper is Test, BaseScript {
 
     modifier assumeEOA(address addr) {
         assumePayable(addr);
-        assumeNotPrecompile(addr); 
+        assumeNotPrecompile(addr);
         vm.assume(addr.code.length == 0);
         vm.assume(addr != ADDRESS_ZERO);
         vm.assume(addr != ADDRESS_ONE);
