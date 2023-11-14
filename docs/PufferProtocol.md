@@ -46,7 +46,7 @@ This document organizes methods according to the following themes (click each to
 ```solidity
 function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
     external
-    payable;
+    payable
 ```
 
 This function initiates the process of provisioning a new validator node for a NoOp. The NoOp must pay the bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
@@ -63,3 +63,129 @@ This function initiates the process of provisioning a new validator node for a N
 * Caller must provide number of months desired to operate validator node, along with corresponding amount of ETH to cover smoothing commitment
 
 ---
+
+#### `provisionNode`
+
+```solidity
+function provisionNode(bytes[] calldata guardianEnclaveSignatures) external
+```
+
+Provisions the next validator node that is in line for provisioning, given the `guardianEnclaveSignatures` are valid
+
+*Effects*:
+* Sets the next validator node's status to ACTIVE
+* Increments the index of the next node to provision for the strategy this node was provisioned for
+* Increments the strategy selection index
+* Transfers 32 ETH from the pool into the strategy contract address
+* Stakes the 32 ETH on the beacon chain, either directly or via Eigenpod, or any other method defined by the particular strategy contract
+
+*Requirements*
+* The Guardians must have provided valid signatures in order to provision this node
+* The PufferPool contract must have enough ETH to fulfill this request
+
+---
+
+#### `extendCommitment`
+
+```solidity
+function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable
+```
+
+Allows NoOps to pay additional smoothing commitments in order to be able to continue running their validator nodes for additional time
+
+*Effects*:
+* Extends NoOp's allowed time to operate this valdiator by the specified number of months
+* Takes the corresponding amount of ETH from the caller and distributes it amongst the Treasury, PufferPool, WithdrawalPool, and the Guardians by the ratios set by the protocol / governance
+
+*Requirements*
+* Must supply a `numberOfMonths` less than 13
+* Must supply the corresponding amount of ETH for the specified duration of time
+
+---
+
+### Withdrawing from Protocol
+
+#### `stopRegistration`
+
+```solidity
+function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external
+```
+
+Allows a NoOp to stop their pending provisioning of a validator node and exit themselves from the queue
+
+*Effects*:
+* Updates the status of this validator in the queue to DEQUEUED
+* If this validator node was next to be provisioned, increments the counter for next node to be provisioned
+* Transfers the bonded ETH back to the NoOp
+
+*Requirements*:
+* Caller must be the corresponding NoOp for this pending validator
+* Validator node must have pending status in the queue
+
+---
+
+#### `stopValidator`
+
+```solidity
+function stopValidator(
+    bytes32 strategyName,
+    uint256 validatorIndex,
+    uint256 blockNumber,
+    uint256 withdrawalAmount,
+    bool wasSlashed,
+    bytes32[] calldata merkleProof
+) external
+```
+
+Allows anyone to submit a merkle proof proving a validator node's full withdrawal from the beacon chain. If the validator was not slashed, this will return the full amount of the bond back to the NoOp. If the validator was slashed, no bond amount will be returned. If the balance of the validator node is less than 32 ETH, the difference will be taken out of the bond before returning it to the NoOp.
+
+*Effects*:
+* Delete unused information regarding the validator node from on-chain
+* Change the validator node to EXITED status
+* Return the validator's bond to the NoOp, if they were not slashed
+* Remove the corresponding amount from the validator's bond if the validator's balance is less than 32 ETH
+
+*Requirements*:
+* Validator node must be in ACTIVE status
+* Submitted merkle proof must be valid
+
+---
+
+#### `skipProvisioning`
+
+```solidity
+function skipProvisioning(bytes32 strategyName) external
+```
+
+Skips provisioning of a validator node, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
+
+*Effects*:
+* Changes the status of the skipped vaidator node to SKIPPED
+* Transfers the bond back to the NoOp corresponding to this skipped validator node
+* Increments the next to be provisioned node counter for the strategy corresponding to `strategyName`
+
+*Requirements*:
+* May only be called by Guardians
+
+#### `postFullWithdrawalsRoot`
+
+```solidity
+function postFullWithdrawalsRoot(
+    bytes32 root,
+    uint256 blockNumber,
+    address[] calldata strategies,
+    uint256[] calldata amounts
+) external
+```
+
+Allows Guardians to post the merkle root for all full withdrawals that happened from the last time the root was posted up until `blockNumber`. This allows NoOps to prove when they have fully withdrawn their valdiator nodes in order to claim back their bond
+
+*Effects*:
+* Stores the new full withdrawal root on-chain, mapped to `blockNumber`
+* Moves all full withdrawal ETH living on strategy contracts back to the PufferPool and WithdrawalPool, corresponding to the `withdrawalPoolRate`, set by governance
+
+*Requirements*:
+* Must be called by Guardians
+* Must provide a full withdrawal amount per each strategy address passed into this function's parameters
+
+#### `proofOfReserve`
