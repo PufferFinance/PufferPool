@@ -1,6 +1,6 @@
 # Puffer Protocol Docs
 
-The Puffer Protocol enables anyone to run a validator node with a refundable bond of just 2 ETH and an additional payment for the desired operation time, known as a smoothing commitment. If Intel SGX or another Trusted Execution Environment (TEE) is utilized, the bond requirement is reduced to 1 ETH. The liquidity required to operate these validator nodes is provided by stakers who can stake ETH into the [PufferPool.sol]((../src/PufferPool.sol)) smart contract. In exchange, stakers receive pufETH, an asset that appreciates in value as the protocol generates rewards.
+The Puffer Protocol enables anyone to run a validator node with a refundable bond of just 2 ETH and an additional payment for the desired operation time, known as a smoothing commitment. If Intel SGX or another Trusted Execution Environment (TEE) is utilized, the bond requirement is reduced to 1 ETH. The liquidity required to operate these validator nodes is provided by stakers who can stake ETH into the [PufferPool.sol](../src/PufferPool.sol) smart contract. In exchange, stakers receive pufETH, an asset that appreciates in value as the protocol generates rewards.
 
 ## Dependencies
 
