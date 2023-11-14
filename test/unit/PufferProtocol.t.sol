@@ -741,7 +741,7 @@ contract PufferProtocolTest is TestHelper {
         pool.depositETH{ value: 1 ether }();
     }
 
-    // Test registering the validator with a huge number of months commited
+    // Test registering the validator with a huge number of months committed
     function testRegisterValidatorWithHugeCommitment() external {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
 
