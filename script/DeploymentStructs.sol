@@ -28,5 +28,5 @@ struct PufferDeployment {
     address accessManager;
     address enclaveVerifier;
     address pauser;
-    address beacon; // Beacon for Puffer startegies
+    address beacon; // Beacon for Puffer strategies
 }
