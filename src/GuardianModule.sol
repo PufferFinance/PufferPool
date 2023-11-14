@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Safe } from "safe-contracts/Safe.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { Unauthorized } from "puffer/Errors.sol";
@@ -101,8 +100,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes calldata withdrawalCredentials,
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
-        Safe guardians = PufferProtocol(msg.sender).GUARDIANS();
-
         bytes32 msgToBeSigned = getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
 
         address[] memory enclaveAddresses = getGuardiansEnclaveAddresses();
@@ -119,9 +116,36 @@ contract GuardianModule is AccessManaged, IGuardianModule {
             }
         }
 
-        if (validSignatures < guardians.getThreshold()) {
+        if (validSignatures < GUARDIANS.getThreshold()) {
             revert Unauthorized();
         }
+    }
+
+    function validateSkipProvisioning(bytes32 strategyName, uint256 index, bytes[] calldata guardianEOASignatures)
+        external
+        view
+    {
+        address[] memory guardians = GUARDIANS.getOwners();
+        uint256 validSignatures;
+
+        bytes32 msgToBeSigned = getSkipProvisioningMessage(strategyName, index);
+
+        // Iterate through guardian enclave addresses and make sure that the signers match
+        for (uint256 i; i < guardians.length; ++i) {
+            address currentSigner = ECDSA.recover(msgToBeSigned, guardianEOASignatures[i]);
+            if (currentSigner == guardians[i]) {
+                ++validSignatures;
+            }
+        }
+
+        if (validSignatures < GUARDIANS.getThreshold()) {
+            revert Unauthorized();
+        }
+    }
+
+    function getSkipProvisioningMessage(bytes32 strategyName, uint256 index) public pure returns (bytes32) {
+        // All guardians use the same nonce
+        return keccak256(abi.encode(strategyName, index)).toEthSignedMessageHash();
     }
 
     /**

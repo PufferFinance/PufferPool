@@ -264,7 +264,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Skips the next validator for `strategyName`
      * @dev Restricted to Guardians
      */
-    function skipProvisioning(bytes32 strategyName) external;
+    function skipProvisioning(bytes32 strategyName, bytes[] calldata guardianEOASignatures) external;
 
     /**
      * @notice Sets the strategy weights array to `newStrategyWeights`

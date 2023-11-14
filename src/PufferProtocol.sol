@@ -313,12 +313,32 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorExited(pubKey, validatorIndex, strategyName);
     }
 
+    // /**
+    //  * @inheritdoc IPufferProtocol
+    //  */
+    // function skipProvisioning(bytes32 strategyName) external restricted {
+    //     ProtocolStorage storage $ = _getPufferProtocolStorage();
+    //     uint256 skippedIndex = $.nextToBeProvisioned[strategyName];
+    //     // Change the status of that validator
+    //     $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
+
+    //     // Transfer pufETH to that node operator
+    //     // slither-disable-next-line unchecked-transfer
+    //     $.pool.transfer($.validators[strategyName][skippedIndex].node, $.validators[strategyName][skippedIndex].bond);
+
+    //     ++$.nextToBeProvisioned[strategyName];
+    //     emit ValidatorSkipped($.validators[strategyName][skippedIndex].pubKey, skippedIndex, strategyName);
+    // }
+
     /**
      * @inheritdoc IPufferProtocol
      */
-    function skipProvisioning(bytes32 strategyName) external restricted {
+    function skipProvisioning(bytes32 strategyName, bytes[] calldata guardianEOASignatures) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 skippedIndex = $.nextToBeProvisioned[strategyName];
+
+        $.guardianModule.validateSkipProvisioning(strategyName, skippedIndex, guardianEOASignatures);
+
         // Change the status of that validator
         $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
 

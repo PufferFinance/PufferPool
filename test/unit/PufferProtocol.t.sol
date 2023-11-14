@@ -87,7 +87,7 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
 
         vm.prank(address(guardiansSafe));
-        pufferProtocol.skipProvisioning(NO_RESTAKING);
+        pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
         // This contract shluld receive pufETH because of the skipProvisioning
         assertTrue(pool.balanceOf(address(this)) != 0, "non zero pufETH");
@@ -521,7 +521,7 @@ contract PufferProtocolTest is TestHelper {
 
         assertTrue(bobValidator.status == Status.ACTIVE, "bob should be active");
 
-        pufferProtocol.skipProvisioning(NO_RESTAKING);
+        pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
         emit SuccesfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
         pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
@@ -782,6 +782,28 @@ contract PufferProtocolTest is TestHelper {
         bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
+    }
+
+    function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
+        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+
+        bytes32 digest = (pufferProtocol.getGuardianModule()).getSkipProvisioningMessage(strategyName, pendingIdx);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SK, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SK, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         bytes[] memory guardianSignatures = new bytes[](3);

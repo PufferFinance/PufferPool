@@ -56,6 +56,24 @@ interface IGuardianModule {
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
     /**
+     * @notice Validates the skip provisioning for a specific strategy
+     * @param strategyName is the name of the strategy
+     * @param index is the index of the skipped validator
+     * @param guardianEOASignatures are the EOA signatures of the guardians
+     */
+    function validateSkipProvisioning(bytes32 strategyName, uint256 index, bytes[] calldata guardianEOASignatures)
+        external
+        view;
+
+    /**
+     * @notice Returns the message to be signed for skip provisioning
+     * @param strategyName is the name of the strategy
+     * @param index is the index of the skipped validator
+     * @return the message to be signed
+     */
+    function getSkipProvisioningMessage(bytes32 strategyName, uint256 index) external pure returns (bytes32);
+
+    /**
      * @notice Returns the enclave verifier
      */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
