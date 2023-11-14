@@ -36,4 +36,30 @@ This document organizes methods according to the following themes (click each to
 
 #### Helpful definitions
 
-* Strategy: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one strategy per each validator they run, upon entering the Puffer Protocol.
+* Strategy: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one strategy per each validator they run, upon entering the Puffer Protocol
+* Smoothing Commitment: A non-refundable payment NoOps must provide in order to run their validator node for a set period of time. NoOps may make a large smoothing commitment to gain the rights to operate their validator node longer, or can make top-up payments anytime.
+
+### Provisioning a Validator Node
+
+#### `registerValidatorKey`
+
+```solidity
+function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
+    external
+    payable;
+```
+
+This function initiates the process of provisioning a new validator node for a NoOp. The NoOp must pay the bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
+
+*Effects*:
+* ETH bond is taken from the NoOp and deposited into the pool, also minting a corresponding amount of pufETH, which is stored on the `PufferProtocol.sol` smart contract
+* Information about the new validator is saved on-chain
+* The validator is pushed onto an on-chain queue of pending validators, waiting to be provisioned
+
+*Requirements*:
+* Caller must provide a valid public key that is not currently registered with the protocol
+* Caller must submit valid RAVE evidence if using SGX or other TEE
+* Caller must provide valid ETH bond amount (1 ETH with SGX or other TEE, otherwise 2 ETH)
+* Caller must provide number of months desired to operate validator node, along with corresponding amount of ETH to cover smoothing commitment
+
+---
