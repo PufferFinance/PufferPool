@@ -162,7 +162,7 @@ contract NoRestakingStartegyTest is TestHelper {
     }
 
     // Anybody should be able to claim for Charlie, Charlie should get ETH
-    function testRewardsClaimingForAnotherUser(address msgSender) public {
+    function testRewardsClaimingForAnotherUser(address msgSender) public assumeEOA(msg.sender) {
         _setupMerkleRoot();
 
         uint256[] memory blockNumbers = new uint256[](1);
