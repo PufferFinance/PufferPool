@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { Test } from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Safe } from "safe-contracts/Safe.sol";
@@ -66,18 +66,11 @@ contract TestHelper is Test, BaseScript {
     }
 
     modifier assumeEOA(address addr) {
+        assumePayable(addr);
+        assumeNotPrecompile(addr); 
         vm.assume(addr.code.length == 0);
         vm.assume(addr != ADDRESS_ZERO);
         vm.assume(addr != ADDRESS_ONE);
-        vm.assume(addr != address(2));
-        vm.assume(addr != address(3));
-        vm.assume(addr != address(4));
-        vm.assume(addr != address(5));
-        vm.assume(addr != address(6));
-        vm.assume(addr != address(7));
-        vm.assume(addr != address(8));
-        vm.assume(addr != address(9));
-        // vm.assumePayable(addr); // don't have it in current foundry version
         vm.assume(addr != 0x000000000000000000636F6e736F6c652e6c6f67); // console address
         _;
     }

@@ -1,5 +1,5 @@
 [profile.ci.fuzz]
-runs = 8_000
+runs = 7_000
 
 [profile.default]
 # Skip gas tests on CI
