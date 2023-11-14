@@ -9,6 +9,7 @@ import { SafeProxy } from "safe-contracts/proxies/SafeProxy.sol";
 import { SafeProxyFactory } from "safe-contracts/proxies/SafeProxyFactory.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
+import { GuardiansDeployment } from "./DeploymentStructs.sol";
 
 // forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
 contract DeployGuardians is BaseScript {
@@ -18,7 +19,7 @@ contract DeployGuardians is BaseScript {
     function run(address[] calldata guardians, uint256 threshold, bytes calldata emptyData)
         public
         broadcast
-        returns (Safe, GuardianModule)
+        returns (GuardiansDeployment memory)
     {
         safeProxy = vm.envOr("SAFE_PROXY_ADDRESS", address(new SafeProxyFactory()));
         safeImplementation = vm.envOr("SAFE_IMPLEMENTATION_ADDRESS", address(new Safe()));
@@ -46,7 +47,16 @@ contract DeployGuardians is BaseScript {
 
         vm.writeJson(finalJson, string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
-        return (guardiansSafe, module);
+        GuardiansDeployment memory deployment;
+        deployment.guardians = address(guardiansSafe);
+        deployment.accessManager = address(accessManager);
+        deployment.guardianModule = address(module);
+        deployment.safeProxyFactory = address(safeProxy);
+        deployment.safeImplementation = address(safeImplementation);
+        deployment.enclaveVerifier = address(verifier);
+        deployment.pauser = 0x98BDB87fCF3697F4b356C36Cd621ffF94Ee3Aa19;
+
+        return deployment;
     }
 
     function deploySafe(address[] calldata owners, uint256 threshold, address to, bytes calldata data)
