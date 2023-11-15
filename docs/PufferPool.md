@@ -24,7 +24,8 @@ PufferPool inherits from AbstractVault.sol which enables it to transfer any ERC2
 #### High-level Concepts
 
 This document organizes methods according to the following themes (click each to be taken to the relevant section):
-TODO
+* [Depositing ETH](#depositing-eth)
+* [Other Functions](#other-functions)
 
 #### Important state variables
 
