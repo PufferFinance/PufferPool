@@ -38,6 +38,8 @@ The PufferPool accesses state variables within [PufferPoolStorage](../src/struct
 
 #### Helpful definitions
 
+* `pufETH`: A token which is minted upon ETH deposits to the PufferPool. It is an appreciating asset which grows as the protocol earns rewards. NoOp bonds are held in pufETH
+
 ---
 
 ### Depositing ETH
@@ -88,3 +90,17 @@ This function allows Guardians or the Protocol to burn a NoOp's pufETH bond if t
 
 *Requirements*: 
 * Only callable by Guardians or the PufferProtocol smart contracts
+
+#### `recoverERC20`
+
+```solidity
+function recoverERC20(address token) external
+```
+
+Allows tokens which were accidentally sent to the `PufferPool` to be recovered (sent) to the Treasury contract
+
+*Effects*:
+* Sends the totality of the specified token from the `PufferPool` contract to the Treasury contract
+
+*Requirements*:
+* N/A Callable by anyone
