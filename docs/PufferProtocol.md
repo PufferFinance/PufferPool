@@ -13,10 +13,12 @@ Proof of reserves happen through this contract, as well as proof of full withdra
 
 Finally, this contract maintains a queue to provision validators for NoOps, and also stores other various information about NoOps and other variables within the protocol that are maintained by governance, for example, the ratio at which ETH enters the [WithdrawalPool](./WithdrawalPool.md) upon a NoOp withdrawing from the protocol.
 
-
 #### High-level Concepts
 
 This document organizes methods according to the following themes (click each to be taken to the relevant section):
+* [Provisioning a Validator Node](#provisioning-a-validator-node)
+* [Withdrawing from Protocol](#withdrawing-from-protocol)
+* [Protocol Maintenance](#protocol-maintenance)
 
 #### Important state variables
 
