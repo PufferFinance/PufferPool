@@ -39,6 +39,8 @@ This document organizes methods according to the following themes (click each to
 * Strategy: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one strategy per each validator they run, upon entering the Puffer Protocol
 * Smoothing Commitment: A non-refundable payment NoOps must provide in order to run their validator node for a set period of time. NoOps may make a large smoothing commitment to gain the rights to operate their validator node longer, or can make top-up payments anytime.
 
+---
+
 ### Provisioning a Validator Node
 
 #### `registerValidatorKey`
@@ -62,8 +64,6 @@ This function initiates the process of provisioning a new validator node for a N
 * Caller must provide valid ETH bond amount (1 ETH with SGX or other TEE, otherwise 2 ETH)
 * Caller must provide number of months desired to operate validator node, along with corresponding amount of ETH to cover smoothing commitment
 
----
-
 #### `provisionNode`
 
 ```solidity
@@ -82,8 +82,6 @@ Provisions the next validator node that is in line for provisioning, given the `
 *Requirements*
 * The Guardians must have provided valid signatures in order to provision this node
 * The PufferPool contract must have enough ETH to fulfill this request
-
----
 
 #### `extendCommitment`
 
@@ -121,8 +119,6 @@ Allows a NoOp to stop their pending provisioning of a validator node and exit th
 *Requirements*:
 * Caller must be the corresponding NoOp for this pending validator
 * Validator node must have pending status in the queue
-
----
 
 #### `stopValidator`
 
