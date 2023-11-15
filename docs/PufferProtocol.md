@@ -151,6 +151,8 @@ Allows anyone to submit a merkle proof proving a validator node's full withdrawa
 
 ---
 
+### Protocol Maintenance
+
 #### `skipProvisioning`
 
 ```solidity
@@ -189,3 +191,18 @@ Allows Guardians to post the merkle root for all full withdrawals that happened 
 * Must provide a full withdrawal amount per each strategy address passed into this function's parameters
 
 #### `proofOfReserve`
+
+```solidity
+function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber) external
+```
+
+Allows Guardians to post the amount of ETH backing pufETH
+
+*Effects*:
+* Sets the state variables: `ethAmount`, `lockedEth`, `pufETHTotalSupply`, and `lastUpdate`
+* Resets the count of validators that can join our protocol in an interval
+
+*Requirements*:
+* Must be called by Guardians
+* Block number must be a finalized block (>= 64 blocks in the past)
+* The provided block number must be greater than our update interval
