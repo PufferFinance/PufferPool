@@ -7,9 +7,6 @@
 [submodule "lib/eigenlayer-contracts"]
 	path = lib/eigenlayer-contracts
 	url = https://github.com/Layr-Labs/eigenlayer-contracts
-[submodule "lib/safe-contracts"]
-	path = lib/safe-contracts
-	url = https://github.com/safe-global/safe-contracts
 [submodule "lib/rave"]
 	path = lib/rave
 	url = https://github.com/PufferFinance/rave
