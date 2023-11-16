@@ -1,5 +1,13 @@
 # Guardians
 
+| File | Type | Upgradeable | Inherited | Deployed |
+| -------- | -------- | -------- | -------- | -------- |
+| [`IGuardianModule.sol`](../src/interface/IGuardianModule.sol) | Singleton | / | YES | / |
+| [`IEnclaveVerifier.sol`](../src/interface/IEnclaveVerifier.sol) | Singleton | / | YES |/ |
+| [`EnclaveVerifier.sol`](../src/EnclaveVerifier.sol) | Singleton | NO | YES | / |
+| [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
+| [`{Safe} Guardians`](https://safe.global/) | {Safe} multisig | YES | NO | / |
+
 Guardians is a [Safe multisig](https://github.com/safe-global/safe-contracts). They play a crucial role in our system and are a collective of respected community members who are deeply aligned with Ethereum's principles and values.
 
 On top of that, we are deploying and enabling [GuardianModule.sol](../src/GuardianModule.sol).
