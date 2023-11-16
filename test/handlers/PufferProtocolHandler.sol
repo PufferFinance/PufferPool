@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
@@ -30,7 +31,7 @@ contract PufferProtocolHandler is Test {
     uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
     TestHelper testhelper;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
+    address[] public actors;
 
     address DAO = makeAddr("DAO");
 
@@ -73,16 +74,7 @@ contract PufferProtocolHandler is Test {
     mapping(bytes32 queue => ProvisioningData[] validators) _validatorQueue;
     mapping(bytes32 queue => uint256 nextForProvisioning) ghost_nextForProvisioning;
 
-    modifier assumeEOA(address addr) {
-        assumePayable(addr);
-        assumeNotForgeAddress(addr);
-        assumeNotPrecompile(addr);
-        assumeNotZeroAddress(addr);
-        if (addr.code.length != 0) {
-            return;
-        }
-        _;
-    }
+    address internal currentActor;
 
     constructor(
         TestHelper helper,
@@ -91,6 +83,17 @@ contract PufferProtocolHandler is Test {
         PufferProtocol protocol,
         uint256[] memory _guardiansEnclavePks
     ) {
+        // Initialize actors, skip precompiles
+        for (uint256 i = 11; i < 1000; ++i) {
+            address actor = address(uint160(i));
+            if (actor.code.length != 0) {
+                continue;
+            }
+            vm.deal(actor, 1000 ether);
+
+            actors.push(actor);
+        }
+
         testhelper = helper;
         pufferProtocol = protocol;
         pool = _pool;
@@ -106,6 +109,13 @@ contract PufferProtocolHandler is Test {
         pool.depositETH{ value: initialDepositAmount }();
 
         ghost_eth_deposited_amount += initialDepositAmount;
+    }
+
+    modifier useActor(uint256 actorIndexSeed) {
+        currentActor = actors[bound(actorIndexSeed, 0, actors.length - 1)];
+        vm.startPrank(currentActor);
+        _;
+        vm.stopPrank();
     }
 
     // https://github.com/foundry-rs/foundry/issues/5795
@@ -186,9 +196,9 @@ contract PufferProtocolHandler is Test {
     }
 
     // User deposits ETH to get pufETH
-    function depositETH(address depositor, uint256 amount)
+    function depositETH(uint256 depositorSeed, uint256 amount)
         public
-        assumeEOA(depositor)
+        useActor(depositorSeed)
         setCorrectBlockNumber
         recordPreviousBalance
         isETHLeavingThePool
@@ -196,17 +206,15 @@ contract PufferProtocolHandler is Test {
     {
         // bound the result between min deposit amount and uint64.max value ~18.44 ETH
         amount = bound(amount, 0.01 ether, uint256(type(uint64).max));
-        vm.deal(depositor, amount);
+        vm.deal(currentActor, amount);
 
         uint256 expectedPufETHAmount = pool.calculateETHToPufETHAmount(amount);
 
-        uint256 prevBalance = pool.balanceOf(depositor);
+        uint256 prevBalance = pool.balanceOf(currentActor);
 
-        vm.startPrank(depositor);
         uint256 pufETHAmount = pool.depositETH{ value: amount }();
-        vm.stopPrank();
 
-        uint256 afterBalance = pool.balanceOf(depositor);
+        uint256 afterBalance = pool.balanceOf(currentActor);
 
         ghost_eth_deposited_amount += amount;
 
@@ -214,22 +222,21 @@ contract PufferProtocolHandler is Test {
         require(pufETHAmount == expectedPufETHAmount, "amounts dont match");
 
         // Store the depositor and amount of pufETH
-        (, uint256 prevAmount) = _pufETHDepositors.tryGet(depositor);
-        _pufETHDepositors.set(depositor, prevAmount + expectedPufETHAmount);
+        (, uint256 prevAmount) = _pufETHDepositors.tryGet(currentActor);
+        _pufETHDepositors.set(currentActor, prevAmount + expectedPufETHAmount);
     }
 
     // withdraw pufETH for ETH
-    function withdrawETH(uint256 withdrawerSeed, address depositor, uint256 depositAmount)
+    function withdrawETH(uint256 withdrawerSeed)
         public
         setCorrectBlockNumber
-        assumeEOA(depositor)
         recordPreviousBalance
         isETHLeavingThePool
         countCall("withdrawETH")
     {
         // If there are no pufETH holders, deposit ETH
         if (_pufETHDepositors.length() == 0) {
-            return depositETH(depositor, depositAmount);
+            return;
         }
 
         uint256 withdrawerIndex = withdrawerSeed % _pufETHDepositors.length();
@@ -252,10 +259,10 @@ contract PufferProtocolHandler is Test {
     }
 
     // Registers Validator key
-    function registerValidatorKey(address nodeOperator, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+    function registerValidatorKey(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
         public
         setCorrectBlockNumber
-        assumeEOA(nodeOperator)
+        useActor(nodeOperatorSeed)
         recordPreviousBalance
         isETHLeavingThePool
         countCall("registerValidatorKey")
@@ -265,8 +272,7 @@ contract PufferProtocolHandler is Test {
 
         bytes32 moduleName = moduleWeights[moduleIndex];
 
-        vm.deal(nodeOperator, 5 ether);
-        vm.startPrank(nodeOperator);
+        vm.deal(currentActor, 5 ether);
 
         uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(moduleName);
 
@@ -287,7 +293,7 @@ contract PufferProtocolHandler is Test {
         ghost_pufETH_bond_amount += pool.calculateETHToPufETHAmount(1 ether);
 
         // Add node operator to the set
-        _nodeOperators.add(nodeOperator);
+        _nodeOperators.add(currentActor);
     }
 
     // Creates a puffer module and adds it to weights
@@ -316,7 +322,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Starts the validating process
-    function provisionNode(address nodeOperator, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+    function provisionNode()
         public
         setCorrectBlockNumber
         recordPreviousBalance
@@ -325,8 +331,8 @@ contract PufferProtocolHandler is Test {
     {
         // If we don't have proxies, create and register validator key, then call this function again with the same params
         if (_nodeOperators.length() == 0) {
-            registerValidatorKey(nodeOperator, pubKeyPart, moduleSelectorSeed);
-            return provisionNode(nodeOperator, pubKeyPart, moduleSelectorSeed);
+            ethLeavingThePool = false;
+            return ;
         }
 
         // If there is nothing to be provisioned, index returned is max uint256
@@ -459,7 +465,7 @@ contract PufferProtocolHandler is Test {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, 1);
 
         return (smoothingCommitment + bond);
