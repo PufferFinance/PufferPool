@@ -153,7 +153,7 @@ contract PufferProtocolHandler is Test {
         countCall("depositStakingRewards")
     {
         // bound the result between min deposit amount and uint64.max value ~18.44 ETH
-        stakingRewardsAmount = bound(stakingRewardsAmount, 0.01 ether, uint256(type(uint64).max));
+        stakingRewardsAmount = bound(stakingRewardsAmount, 1, uint256(type(uint64).max));
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
@@ -258,6 +258,29 @@ contract PufferProtocolHandler is Test {
         vm.stopPrank();
     }
 
+    // We have three of these to get better call distribution in the invariant tests
+    function registerValidatorKey3(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+        public
+        setCorrectBlockNumber
+        useActor(nodeOperatorSeed)
+        recordPreviousBalance
+        isETHLeavingThePool
+        countCall("registerValidatorKey")
+    {
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
+
+    function registerValidatorKey2(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+        public
+        setCorrectBlockNumber
+        useActor(nodeOperatorSeed)
+        recordPreviousBalance
+        isETHLeavingThePool
+        countCall("registerValidatorKey")
+    {
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
+
     // Registers Validator key
     function registerValidatorKey(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
         public
@@ -267,6 +290,10 @@ contract PufferProtocolHandler is Test {
         isETHLeavingThePool
         countCall("registerValidatorKey")
     {
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
+
+    function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
         bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
         uint256 moduleIndex = moduleSelectorSeed % moduleWeights.length;
 
@@ -274,7 +301,7 @@ contract PufferProtocolHandler is Test {
 
         vm.deal(currentActor, 5 ether);
 
-        uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(moduleName);
+        pufferProtocol.getPendingValidatorIndex(moduleName);
 
         uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, moduleName);
 
@@ -332,7 +359,7 @@ contract PufferProtocolHandler is Test {
         // If we don't have proxies, create and register validator key, then call this function again with the same params
         if (_nodeOperators.length() == 0) {
             ethLeavingThePool = false;
-            return ;
+            return;
         }
 
         // If there is nothing to be provisioned, index returned is max uint256
@@ -342,10 +369,10 @@ contract PufferProtocolHandler is Test {
             return;
         }
 
-        uint256 startegySelectIndex = pufferProtocol.getModuleSelectIndex();
+        uint256 moduleSelectIndex = pufferProtocol.getModuleSelectIndex();
         bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
-        bytes32 moduleName = weights[startegySelectIndex % weights.length];
+        bytes32 moduleName = weights[moduleSelectIndex % weights.length];
 
         uint256 nextIdx = ghost_nextForProvisioning[moduleName];
 
@@ -370,30 +397,38 @@ contract PufferProtocolHandler is Test {
     }
 
     // Stops the validator registration process
-    // function stopRegistration(uint256 eigenPodProxySeed, address podAccountOwner, bytes32 pubKeyPart)
-    //     public
-    //     isETHLeavingThePool
-    //     countCall("stopRegistration")
-    //     recordPreviousBalance
-    // {
-    //     // If we don't have proxies, create and register validator key, then call this function again with the same params
-    //     if (_eigenPodProxies.length() == 0) {
-    //         return registerValidatorKey(podAccountOwner, pubKeyPart);
-    //     }
+    function stopRegistration(uint256 moduleSelectIndex)
+        public
+        setCorrectBlockNumber
+        isETHLeavingThePool
+        recordPreviousBalance
+        countCall("stopRegistration")
+    {
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
+        bytes32 moduleName = weights[moduleSelectIndex % weights.length];
+        uint256 pendingIdx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-    //     uint256 eigePodProxyIndex = eigenPodProxySeed % _eigenPodProxies.length();
+        if (pendingIdx == 0) {
+            return;
+        }
+        // Set skip index to pending index for that module
+        uint256 skipIdx = pendingIdx - 1;
 
-    //     // Fetch EigenPodProxy from the set
-    //     IEigenPodProxy proxy = IEigenPodProxy(_eigenPodProxies.at(eigePodProxyIndex));
+        Validator memory info = pufferProtocol.getValidatorInfo(moduleName, skipIdx);
+        if (info.status == Status.PENDING) {
+            // Accounting in ghost vars
+            ghost_pufETH_bond_amount -= info.bond;
+            ghost_validators -= 1;
 
-    //     Data memory data = _eigenPodProxiesData[address(proxy)];
-
-    //     bytes memory pubKey = _getPubKey(data.pubKeyPart);
-
-    //     vm.startPrank(address(data.owner));
-    //     proxy.stopRegistration(keccak256(pubKey));
-    //     vm.stopPrank();
-    // }
+            uint256 pufETHBalanceBefore = pool.balanceOf(info.node);
+            vm.startPrank(info.node);
+            pufferProtocol.stopRegistration(moduleName, skipIdx);
+            uint256 pufETHBalanceAfter = pool.balanceOf(info.node);
+            assertGt(pufETHBalanceAfter, pufETHBalanceBefore);
+            _validatorQueue[moduleName][skipIdx].status = Status.DEQUEUED;
+            console.log("=== Stopped the registration ===");
+        }
+    }
 
     function callSummary() external view {
         console.log("Call summary:");
@@ -406,6 +441,7 @@ contract PufferProtocolHandler is Test {
         console.log("createPufferModule", calls["createPufferModule"]);
         console.log("provisionNode", calls["provisionNode"]);
         console.log("proofOfReserve", calls["proofOfReserve"]);
+        console.log("stopRegistration", calls["stopRegistration"]);
         console.log("-------------------");
     }
 
@@ -454,7 +490,8 @@ contract PufferProtocolHandler is Test {
         internal
         returns (uint256 depositedETHAmount)
     {
-        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
+        uint256 momths = bound(block.timestamp, 0, 12);
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(momths);
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
@@ -466,7 +503,7 @@ contract PufferProtocolHandler is Test {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, 1);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, momths);
 
         return (smoothingCommitment + bond);
     }

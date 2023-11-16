@@ -11,6 +11,9 @@ contract PufferProtocolInvariants is TestHelper {
     function setUp() public override {
         super.setUp();
 
+        vm.startPrank(DAO);
+        pufferProtocol.setValidatorLimitPerInterval(200);
+        vm.stopPrank();
         handler = new PufferProtocolHandler(this, pool, withdrawalPool, pufferProtocol, guardiansEnclavePks);
 
         // Set handler as a target contract for invariant test
@@ -20,9 +23,9 @@ contract PufferProtocolInvariants is TestHelper {
     function invariant_pufferPoolETHCanOnlyGoUp() public {
         // PufferPool's ETH balance can only grow, unless it is `provisionNode`
         if (handler.ethLeavingThePool()) {
-            assertTrue(address(pool).balance < handler.previousBalance());
+            assertLe(address(pool).balance, handler.previousBalance(), "balance should be smaler");
         } else {
-            assertTrue(address(pool).balance >= handler.previousBalance());
+            assertGe(address(pool).balance, handler.previousBalance(), "balance should go up");
         }
     }
 

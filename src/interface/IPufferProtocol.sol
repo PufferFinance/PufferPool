@@ -16,10 +16,15 @@ import { Status } from "puffer/struct/Status.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol is IPufferProtocolStorage {
+    /**
+     * @notice Thrown when external call failed
+     * @dev Signature "0x625a40e6"
+     */
     error Failed();
+
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
-     * @dev Signature "0x9a5bbd69"
+     * @dev Signature "0x8cdea6a6"
      */
     error InvalidBLSPublicKeySet();
 
@@ -31,7 +36,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when the module name already exists
-     * @dev Signature "0xc45546f7"
+     * @dev Signature "0x2157f2d7"
      */
     error ModuleAlreadyExists();
 
@@ -43,7 +48,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
-     * @dev Signature "0xd9873182"
+     * @dev Signature "0xa00523fd"
      */
     error ValidatorLimitPerIntervalReached();
 
@@ -73,6 +78,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown if the oracle tries to submit invalid data
+     * @dev Signature "0x5cb045db"
      */
     error InvalidData();
 
@@ -84,7 +90,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown if the Node operator tries to register with invalid module
-     * @dev Signature "0x60ac6d15"
+     * @dev Signature "0xf2801d96"
      */
     error InvalidPufferModule();
 
@@ -96,13 +102,13 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Emitted when the new Puffer module is created
-     * @dev Signature "0x1670437ca2eb58efedc6de6646babe75e13b3ef73af5174bd55db63efeaf41c7"
+     * @dev Signature "0xd95c47914545148df84d115c3a83350c2b0044a8efa7dbe2cff795a70fe129a1"
      */
     event NewPufferModuleCreated(address module);
 
     /**
      * @notice Emitted when the new Puffer `moduleName` is changed to a new module
-     * @dev Signature "0x38488ea225f6b4bcf21060e716ea744fa5c99fd5de9ea2f8d1b257e1060f9ee1"
+     * @dev Signature "0x7917c855c3fa228f8999ca691902e81578515c4cce59cb85a993a9b2a26f1faa"
      */
     event ModuleChanged(bytes32 indexed moduleName, address oldModule, address newModule);
 
@@ -175,7 +181,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Emitted when the module weights changes from `olgWeights` to `newWeights`
-     * @dev Signature "0x651ca4f91cd6509c3bd83f4eae79f7b55bf243d8b0dc5fc648d6002b06873afe"
+     * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
      */
     event ModuleWeightsChanged(bytes32[] olgWeights, bytes32[] newWeights);
 
