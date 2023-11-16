@@ -2,12 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
     function returnSomething() external pure returns (uint256) {
         return 1337;
     }
 
-    constructor(address beacon) PufferProtocol(Safe(payable(address(0))), payable(address(0)), address(0)) { }
+    constructor(address beacon) PufferProtocol(payable(address(0)), address(0)) { }
 }

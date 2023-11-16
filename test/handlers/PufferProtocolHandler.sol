@@ -3,11 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
@@ -17,6 +15,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
@@ -24,6 +23,11 @@ contract PufferProtocolHandler is Test {
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
 
+    uint256 guardian1SKEnclave = 81165043675487275545095207072241430673874640255053335052777448899322561824201;
+    address guardian1Enclave = vm.addr(guardian1SKEnclave);
+    uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
+    address guardian2Enclave = vm.addr(guardian2SKEnclave);
+    uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
     TestHelper testhelper;
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
@@ -40,7 +44,7 @@ contract PufferProtocolHandler is Test {
     EnumerableSet.AddressSet _nodeOperators;
 
     struct Data {
-        Safe owner;
+        address owner;
         bytes32 pubKeyPart;
     }
 
@@ -59,6 +63,7 @@ contract PufferProtocolHandler is Test {
 
     // Counter for the calls in the invariant test
     mapping(bytes32 => uint256) public calls;
+    uint256 totalCalls;
 
     struct ProvisioningData {
         Status status;
@@ -69,21 +74,13 @@ contract PufferProtocolHandler is Test {
     mapping(bytes32 queue => uint256 nextForProvisioning) ghost_nextForProvisioning;
 
     modifier assumeEOA(address addr) {
-        console.log(addr.code.length, "code len");
-        console.logBytes32(addr.codehash);
-        console.log("codehash");
-        vm.assume(addr != address(0));
-        vm.assume(addr != address(1));
-        vm.assume(addr != address(2));
-        vm.assume(addr != address(3));
-        vm.assume(addr != address(4));
-        vm.assume(addr != address(5));
-        vm.assume(addr != address(6));
-        vm.assume(addr != address(7));
-        vm.assume(addr != address(8));
-        vm.assume(addr != address(9));
-        vm.assume(addr.code.length == 0);
-        vm.assume(addr.codehash == bytes32(0));
+        assumePayable(addr);
+        assumeNotForgeAddress(addr);
+        assumeNotPrecompile(addr);
+        assumeNotZeroAddress(addr);
+        if (addr.code.length != 0) {
+            return;
+        }
         _;
     }
 
@@ -133,6 +130,7 @@ contract PufferProtocolHandler is Test {
 
     modifier countCall(bytes32 key) {
         calls[key]++;
+        totalCalls++;
         _;
     }
 
@@ -174,12 +172,15 @@ contract PufferProtocolHandler is Test {
         uint256 ethAmount = address(pool).balance + address(withdrawalPool).balance + ghost_eth_rewards_amount;
         uint256 lockedETH = ghost_locked_amount;
 
-        vm.startPrank(address(testhelper.guardiansSafe()));
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHSupply, block.number - 10);
+
         pufferProtocol.proofOfReserve({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHSupply,
-            blockNumber: block.number - 10
+            blockNumber: block.number - 10,
+            guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
         });
         vm.stopPrank();
     }
@@ -187,8 +188,8 @@ contract PufferProtocolHandler is Test {
     // User deposits ETH to get pufETH
     function depositETH(address depositor, uint256 amount)
         public
-        setCorrectBlockNumber
         assumeEOA(depositor)
+        setCorrectBlockNumber
         recordPreviousBalance
         isETHLeavingThePool
         countCall("depositETH")
@@ -235,17 +236,19 @@ contract PufferProtocolHandler is Test {
 
         (address withdrawer, uint256 amount) = _pufETHDepositors.at(withdrawerIndex);
 
+        console.log("Withdrawer pufETH amount", amount);
+
         // Due to limited liquidity in WithdrawalPool, we are withdrawing 1/3 of the user's balance at a time
         uint256 burnAmount = amount / 3;
+        _pufETHDepositors.set(withdrawer, (amount - burnAmount));
 
+        vm.deal(address(withdrawalPool), 1000000 ether);
         console.log("WITHDRAWAL POOL BALANCE:", address(withdrawalPool).balance);
 
         vm.startPrank(withdrawer);
         pool.approve(address(withdrawalPool), type(uint256).max);
-        withdrawalPool.withdrawETH(withdrawer, amount);
+        withdrawalPool.withdrawETH(withdrawer, burnAmount);
         vm.stopPrank();
-
-        _pufETHDepositors.set(withdrawer, amount - burnAmount);
     }
 
     // Registers Validator key
@@ -389,6 +392,7 @@ contract PufferProtocolHandler is Test {
     function callSummary() external view {
         console.log("Call summary:");
         console.log("-------------------");
+        console.log("totalCalls", totalCalls);
         console.log("depositStakingRewards", calls["depositStakingRewards"]);
         console.log("depositETH", calls["depositETH"]);
         console.log("withdrawETH", calls["withdrawETH"]);
@@ -471,7 +475,7 @@ contract PufferProtocolHandler is Test {
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
 
-        bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,
@@ -482,14 +486,39 @@ contract PufferProtocolHandler is Test {
             })
         );
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(testhelper.guardian1SKEnclave(), digest);
+        return _getGuardianEnclaveSignatures(digest);
+    }
+
+    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(testhelper.guardian2SKEnclave(), digest);
-        (v, r, s) = vm.sign(testhelper.guardian3SKEnclave(), digest);
+        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
         bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(testhelper.guardian3SKEnclave(), digest);
+        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
+    }
+
+    function _getGuardianEOASignatures(bytes32 digest) internal returns (bytes[] memory) {
+        // Create Guardian wallets
+        (, uint256 guardian1SK) = makeAddrAndKey("guardian1");
+        (, uint256 guardian2SK) = makeAddrAndKey("guardian2");
+        (, uint256 guardian3SK) = makeAddrAndKey("guardian3");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SK, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SK, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         bytes[] memory guardianSignatures = new bytes[](3);

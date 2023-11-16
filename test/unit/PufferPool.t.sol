@@ -3,13 +3,21 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+
+contract Mock is ERC20 {
+    constructor() ERC20("mock", "mock") {
+        _mint(msg.sender, 1_000_000 ether);
+    }
+}
 
 contract PufferPoolTest is TestHelper {
     using ECDSA for bytes32;
@@ -90,13 +98,19 @@ contract PufferPoolTest is TestHelper {
 
         assertEq(pool.getPufETHtoETHExchangeRate(), 1 ether, "exchange rate before");
 
-        vm.startPrank(address(guardiansSafe));
-
         pufferProtocol.proofOfReserve({
             ethAmount: 10_000 ether,
             lockedETH: 320 ether,
             pufETHTotalSupply: 10_000 ether,
-            blockNumber: 50350
+            blockNumber: 50350,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getProofOfReserveMessage({
+                    ethAmount: 10_000 ether,
+                    lockedETH: 320 ether,
+                    pufETHTotalSupply: 10_000 ether,
+                    blockNumber: 50350
+                })
+                )
         });
         vm.stopPrank();
 
@@ -164,12 +178,19 @@ contract PufferPoolTest is TestHelper {
         // Fast forward 50400 blocks ~ 7 days
         vm.roll(50401);
 
-        vm.startPrank(address(guardiansSafe));
         pufferProtocol.proofOfReserve({
             ethAmount: 2 ether,
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
-            blockNumber: 50401
+            blockNumber: 50401,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getProofOfReserveMessage({
+                    ethAmount: 2 ether,
+                    lockedETH: 0 ether,
+                    pufETHTotalSupply: 1 ether,
+                    blockNumber: 50401
+                })
+                )
         });
         vm.stopPrank();
 
@@ -235,5 +256,19 @@ contract PufferPoolTest is TestHelper {
     function testStorageS() public {
         PufferPoolStorage memory data = pufferProtocol.getPuferPoolStorage();
         assertEq(data.lastUpdate, 0, "last update");
+    }
+
+    function testRecoverERC20() public {
+        vm.expectRevert(abi.encodeWithSelector(IPufferPool.InvalidToken.selector, address(pool)));
+        pool.recoverERC20(address(pool));
+
+        ERC20 token = new Mock();
+        token.transfer(address(pool), token.balanceOf(address(this)));
+
+        assertEq(token.balanceOf(pufferProtocol.TREASURY()), 0, "token balance");
+
+        pool.recoverERC20(address(token));
+
+        assertEq(token.balanceOf(pufferProtocol.TREASURY()), 1_000_000 ether, "token balance after");
     }
 }

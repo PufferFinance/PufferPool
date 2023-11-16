@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
@@ -52,7 +51,6 @@ contract TestHelper is Test, BaseScript {
     IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
 
-    Safe public guardiansSafe;
     GuardianModule public module;
 
     AccessManager public accessManager;
@@ -88,7 +86,6 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[address(module)] = true;
         fuzzedAddressMapping[address(verifier)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
-        fuzzedAddressMapping[address(guardiansSafe)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
         fuzzedAddressMapping[address(pool)] = true;
@@ -124,9 +121,8 @@ contract TestHelper is Test, BaseScript {
         pool = PufferPool(payable(pufferDeployment.pufferPool));
         withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
-        module = GuardianModule(pufferDeployment.guardianModule);
+        module = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
-        guardiansSafe = Safe(payable(pufferDeployment.guardians));
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
@@ -200,5 +196,41 @@ contract TestHelper is Test, BaseScript {
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
         assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
         assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
+    }
+
+    function _getGuardianEOASignatures(bytes32 digest) internal view returns (bytes[] memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SK, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SK, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
+    }
+
+    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
     }
 }

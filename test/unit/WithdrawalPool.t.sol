@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";

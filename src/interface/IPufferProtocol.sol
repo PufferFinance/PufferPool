@@ -9,7 +9,6 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 
 /**
  * @title IPufferProtocol
@@ -312,8 +311,13 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Updates the reserves amounts
      * @dev Restricted to Guardians
      */
-    function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber)
-        external;
+    function proofOfReserve(
+        uint256 ethAmount,
+        uint256 lockedETH,
+        uint256 pufETHTotalSupply,
+        uint256 blockNumber,
+        bytes[] calldata guardianSignatures
+    ) external;
 
     /**
      * @notice Changes the `strategyName` with `newStrategy`
@@ -438,9 +442,4 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the treasury address
      */
     function TREASURY() external view returns (address payable);
-
-    /**
-     * @notice Returns the Guardians {Safe} multisig wallet
-     */
-    function GUARDIANS() external view returns (Safe);
 }

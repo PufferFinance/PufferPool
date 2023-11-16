@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
@@ -76,18 +75,11 @@ contract PufferPoolMock is IPufferPool, ERC20PermitUpgradeable {
 
     function getProtocolFeeRate() external view returns (uint256) { }
 
-    function createGuardianAccount(address[] calldata guardiansWallets, uint256 threshold, bytes calldata data)
-        external
-        returns (Safe account)
-    { }
-
     function getEigenPodProxyAndEigenPod(address[] calldata podAccountOwners)
         external
         view
         returns (address, address)
     { }
-
-    function getGuardians() external view returns (Safe) { }
 
     function getEnclaveVerifier() external view returns (IEnclaveVerifier) { }
 

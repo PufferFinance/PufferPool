@@ -8,14 +8,18 @@ runs = 7_000
 fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports=[
     "PufferPool",
-    "EigenPodProxy",
-    "PufferAVSRegistry"
+    "WithdrawalPool",
+    "PufferProtocol",
+    "GuardianModule",
+    "EnclaveVerifier",
+    "NoRestakingStrategy"
 ]
 auto_detect_solc = false
 cbor_metadata = false
 bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
+# via_ir = true
 solc = "0.8.23"
 # evm_version = "shanghai"
 
@@ -33,6 +37,6 @@ bracket_spacing = true
 goerli="${GOERLI_RPC_URL}"
 
 [invariant]
-# fail_on_revert=true
-depth = 20
+fail_on_revert=false
+depth = 30
 runs = 500

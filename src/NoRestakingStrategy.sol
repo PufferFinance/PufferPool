@@ -2,12 +2,15 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { TokenRescuer } from "puffer/TokenRescuer.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Unauthorized } from "puffer/Errors.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
  * @title NoRestakingStrategy
@@ -151,10 +154,21 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
      */
-    function postRewardsRoot(bytes32 root, uint256 blockNumber) external restricted {
+    function postRewardsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures) external {
         if (blockNumber <= _lastProofOfRewardsBlockNumber) {
             revert InvalidBlockNumber(blockNumber);
         }
+
+        IGuardianModule module = PUFFER_PROTOCOL.getGuardianModule();
+
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(NAME, root, blockNumber);
+
+        bool validSignatures = module.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+
         _lastProofOfRewardsBlockNumber = blockNumber;
         rewardsRoots[blockNumber] = root;
         emit RewardsRootPosted(blockNumber, root);

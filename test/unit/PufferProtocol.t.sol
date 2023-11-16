@@ -14,6 +14,7 @@ import { PufferStrategy } from "puffer/PufferStrategy.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
 import { Unauthorized } from "puffer/Errors.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -86,7 +87,6 @@ contract PufferProtocolTest is TestHelper {
 
         assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
 
-        vm.prank(address(guardiansSafe));
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
         // This contract shluld receive pufETH because of the skipProvisioning
@@ -100,9 +100,11 @@ contract PufferProtocolTest is TestHelper {
         assertEq(strategyName, NO_RESTAKING, "strategy");
         assertEq(idx, 1, "idx should be 1");
 
+        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
+
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+        pufferProtocol.provisionNode(signatures);
         strategySelecitonIdx = pufferProtocol.getStrategySelectIndex();
         assertEq(strategySelecitonIdx, 1, "strategy idx changed");
     }
@@ -231,10 +233,23 @@ contract PufferProtocolTest is TestHelper {
 
     // Try updating for future block
     function testProofOfReserve() external {
-        vm.startPrank(address(guardiansSafe));
+        bytes[] memory signatures = _getGuardianEOASignatures(
+            LibGuardianMessages.getProofOfReserveMessage({
+                ethAmount: 2 ether,
+                lockedETH: 0 ether,
+                pufETHTotalSupply: 1 ether,
+                blockNumber: 2
+            })
+        );
 
         vm.expectRevert(IPufferProtocol.InvalidData.selector);
-        pufferProtocol.proofOfReserve({ ethAmount: 2 ether, lockedETH: 0, pufETHTotalSupply: 1 ether, blockNumber: 2 });
+        pufferProtocol.proofOfReserve({
+            ethAmount: 2 ether,
+            lockedETH: 0,
+            pufETHTotalSupply: 1 ether,
+            blockNumber: 2,
+            guardianSignatures: signatures
+        });
 
         vm.roll(50401);
 
@@ -242,8 +257,25 @@ contract PufferProtocolTest is TestHelper {
             ethAmount: 2 ether,
             lockedETH: 32 ether,
             pufETHTotalSupply: 1 ether,
-            blockNumber: 50401
+            blockNumber: 50401,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getProofOfReserveMessage({
+                    ethAmount: 2 ether,
+                    lockedETH: 32 ether,
+                    pufETHTotalSupply: 1 ether,
+                    blockNumber: 50401
+                })
+                )
         });
+
+        bytes[] memory signatures2 = _getGuardianEOASignatures(
+            LibGuardianMessages.getProofOfReserveMessage({
+                ethAmount: 2 ether,
+                lockedETH: 0 ether,
+                pufETHTotalSupply: 1 ether,
+                blockNumber: 50401
+            })
+        );
 
         // Second update should revert as it has not passed enough time between two updates
         vm.expectRevert(IPufferProtocol.OutsideUpdateWindow.selector);
@@ -251,7 +283,8 @@ contract PufferProtocolTest is TestHelper {
             ethAmount: 2 ether,
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
-            blockNumber: 50401
+            blockNumber: 50401,
+            guardianSignatures: signatures2
         });
     }
 
@@ -476,7 +509,6 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(alice, 10 ether);
 
         bytes memory bobPubKey = _getPubKey(bobPubKeyPart);
-        bytes memory alicePubKey = _getPubKey(alicePubKeyPart);
 
         // 1. validator
         _registerValidatorKey(zeroPubKeyPart, NO_RESTAKING);
@@ -506,16 +538,19 @@ contract PufferProtocolTest is TestHelper {
 
         vm.deal(address(pool), 1000 ether);
 
-        vm.startPrank(address(guardiansSafe));
+        bytes[] memory signatures = _getGuardianSignatures(zeroPubKey);
+
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(zeroPubKey, 0, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
+        pufferProtocol.provisionNode(signatures);
+
+        bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(bobPubKey, 1, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(bobPubKey));
+        pufferProtocol.provisionNode(bobSignatures);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 1);
 
@@ -523,8 +558,10 @@ contract PufferProtocolTest is TestHelper {
 
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
+        signatures = _getGuardianSignatures(zeroPubKey);
+
         emit SuccesfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(zeroPubKey));
+        pufferProtocol.provisionNode(signatures);
     }
 
     function testProvisionNode() public {
@@ -559,12 +596,12 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
         assertTrue(nextId == 0, "strategy selection");
 
-        vm.startPrank(address(guardiansSafe));
+        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+        pufferProtocol.provisionNode(signatures);
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -572,9 +609,11 @@ contract PufferProtocolTest is TestHelper {
         // Id is zero, because that is the first in this queue
         assertTrue(nextId == 0, "strategy id");
 
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")));
+
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("benjamin"))));
+        pufferProtocol.provisionNode(signatures);
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -587,8 +626,6 @@ contract PufferProtocolTest is TestHelper {
         // Now jason registers to EIGEN_DA
         _registerValidatorKey(bytes32("jason"), EIGEN_DA);
 
-        vm.startPrank(address(guardiansSafe));
-
         // If we query next validator, it should switch back to EIGEN_DA (because of the weighted selection)
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -596,19 +633,23 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(nextId == 1, "strategy id");
 
         // Provisioning of rocky should fail, because jason is next in line
-        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
         vm.expectRevert(Unauthorized.selector);
         pufferProtocol.provisionNode(signatures);
 
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("jason")));
+
         // Provision Jason
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("jason"))));
+        pufferProtocol.provisionNode(signatures);
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
 
         // Rocky is now in line
         assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
         assertTrue(nextId == 0, "strategy id");
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("rocky"))));
+        pufferProtocol.provisionNode(signatures);
 
         (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -619,13 +660,18 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking strategy"
         );
 
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
+
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1, NO_RESTAKING);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
+        pufferProtocol.provisionNode(signatures);
     }
 
     function testCreatePufferStrategy() public {
-        pufferProtocol.createPufferStrategy(bytes32("LEVERAGED_RESTAKING"));
+        bytes32 name = bytes32("LEVERAGED_RESTAKING");
+        pufferProtocol.createPufferStrategy(name);
+        IPufferStrategy strategy = IPufferStrategy(pufferProtocol.getStrategyAddress(name));
+        assertEq(strategy.NAME(), name, "names");
     }
 
     function testClaimBackBond() public {
@@ -653,7 +699,6 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH in protocol");
 
         // Provision validators
-        vm.startPrank(address(guardiansSafe));
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
 
@@ -763,7 +808,7 @@ contract PufferProtocolTest is TestHelper {
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
 
-        bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,
@@ -795,7 +840,7 @@ contract PufferProtocolTest is TestHelper {
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
         (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
 
-        bytes32 digest = (pufferProtocol.getGuardianModule()).getSkipProvisioningMessage(strategyName, pendingIdx);
+        bytes32 digest = LibGuardianMessages.getSkipProvisioningMessage(strategyName, pendingIdx);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -900,14 +945,17 @@ contract PufferProtocolTest is TestHelper {
         assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
 
         // Values are hardcoded and generated using test/unit/FullWithdrawalProofs.js
-        vm.startPrank(address(guardiansSafe));
         pufferProtocol.postFullWithdrawalsRoot({
             root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
             blockNumber: 100,
             strategies: strategies,
-            amounts: amounts
+            amounts: amounts,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getPostFullWithdrawalsRootMessage(
+                    hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, strategies, amounts
+                )
+                )
         });
-        vm.stopPrank();
 
         // Total withdrawal eth is 32.14 + 31
 

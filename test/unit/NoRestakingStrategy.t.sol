@@ -4,10 +4,10 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { NoRestakingStrategy } from "puffer/NoRestakingStrategy.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 contract NoRestakingStartegyTest is TestHelper {
     using ECDSA for bytes32;
@@ -34,17 +34,23 @@ contract NoRestakingStartegyTest is TestHelper {
 
     // Reverts for everybody else
     function testPostRewardsRootReverts(address sender, bytes32 merkleRoot, uint256 blockNumber) public {
-        vm.assume(sender != address(guardiansSafe));
+        vm.assume(sender != address(pufferProtocol.getGuardianModule()));
 
         vm.expectRevert();
-        strategy.postRewardsRoot(merkleRoot, blockNumber);
+        strategy.postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));
     }
 
     // Works for guardians
     function testPostRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
         vm.assume(strategy.getLastProofOfRewardsBlock() < blockNumber);
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot, blockNumber);
+
+        bytes32 signedMessageHash = LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(
+            bytes32("NO_RESTAKING"), merkleRoot, blockNumber
+        );
+
+        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
+
+        strategy.postRewardsRoot(merkleRoot, blockNumber, signatures);
     }
 
     // Donation should work
@@ -229,11 +235,15 @@ contract NoRestakingStartegyTest is TestHelper {
     function testPostingRewardsForSameBlockReverts() public {
         bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
 
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+
+        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
+
         // Post two merkle roots
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot1, 1);
+        strategy.postRewardsRoot(merkleRoot1, 1, signatures);
         vm.expectRevert(abi.encodeWithSelector(NoRestakingStrategy.InvalidBlockNumber.selector, 1));
-        strategy.postRewardsRoot(merkleRoot1, 1);
+        strategy.postRewardsRoot(merkleRoot1, 1, signatures);
     }
 
     function _setupMerkleRoot() public {
@@ -244,9 +254,16 @@ contract NoRestakingStartegyTest is TestHelper {
         bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
         bytes32 merkleRoot2 = hex"361520123168ffc3c2d93e1eaaaa5188616fef4a47f68e868a7414f2c2350313";
 
+        bytes32 signedMessageHash1 =
+            LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+        bytes32 signedMessageHash2 =
+            LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot2, 150);
+
+        bytes[] memory signatures1 = _getGuardianEOASignatures(signedMessageHash1);
+        bytes[] memory signatures2 = _getGuardianEOASignatures(signedMessageHash2);
+
         // Post two merkle roots
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot1, 1);
-        strategy.postRewardsRoot(merkleRoot2, 150);
+        strategy.postRewardsRoot(merkleRoot1, 1, signatures1);
+        strategy.postRewardsRoot(merkleRoot2, 150, signatures2);
     }
 }

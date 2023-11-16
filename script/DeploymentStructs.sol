@@ -5,11 +5,8 @@ pragma solidity >=0.8.0 <0.9.0;
  * @notice Guardians deployment struct
  */
 struct GuardiansDeployment {
-    address guardians;
     address accessManager;
     address guardianModule;
-    address safeProxyFactory;
-    address safeImplementation;
     address enclaveVerifier;
     address pauser;
 }
@@ -24,7 +21,6 @@ struct PufferDeployment {
     address withdrawalPool;
     address pufferProtocol;
     address guardianModule;
-    address guardians;
     address accessManager;
     address enclaveVerifier;
     address pauser;

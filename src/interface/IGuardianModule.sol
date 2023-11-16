@@ -23,8 +23,34 @@ interface IGuardianModule {
 
     /**
      * @notice Thrown if the address supplied is not valid
+     * @dev Signature "0xe6c4247b"
      */
     error InvalidAddress();
+
+    /**
+     * @notice Thrown if the threshold value is not valid
+     * @dev Signature "0x651a749b"
+     */
+    error InvalidThreshold(uint256 threshold);
+
+    /**
+     * @notice Emitted when the threshold value for guardian signatures is changed
+     * @param oldThreshold is the old threshold value
+     * @param newThreshold is the new threshold value
+     */
+    event ThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
+
+    /**
+     * @notice Emitted when a guardian is added to the module
+     * @param guardian The address of the guardian added
+     */
+    event GuardianAdded(address guardian);
+
+    /**
+     * @notice Emitted when a guardian is removed from the module
+     * @param guardian The address of the guardian removed
+     */
+    event GuardianRemoved(address guardian);
 
     /**
      * @notice Emitted when the guardian changes guardian enclave address
@@ -56,58 +82,66 @@ interface IGuardianModule {
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
     /**
-     * @notice Validates the skip provisioning for a specific strategy
-     * @param strategyName is the name of the strategy
-     * @param index is the index of the skipped validator
-     * @param guardianEOASignatures are the EOA signatures of the guardians
-     */
-    function validateSkipProvisioning(bytes32 strategyName, uint256 index, bytes[] calldata guardianEOASignatures)
-        external
-        view;
-
-    /**
-     * @notice Returns the message to be signed for skip provisioning
-     * @param strategyName is the name of the strategy
-     * @param index is the index of the skipped validator
-     * @return the message to be signed
-     */
-    function getSkipProvisioningMessage(bytes32 strategyName, uint256 index) external pure returns (bytes32);
-
-    /**
      * @notice Returns the enclave verifier
      */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
-     * @notice Validates that the guardians enclaves signed on the data.
-     * @dev If the signatures are invalid / guardians threshold is not reached the tx will revert
-     * @param pubKey is the node operator's public key
-     * @param signature is the BLS signature of the deposit data
-     * @param depositDataRoot is the hash of the deposit data
-     * @param withdrawalCredentials are the withdrawal credentials for this validator
-     * @param guardianEnclaveSignatures array of enclave signatures that we are validating
+     * @notice Returns the threshold value for guardian signatures
+     * @dev The threshold value is the minimum number of guardian signatures required for a transaction to be considered valid
+     * @return The threshold value
      */
-    function validateGuardianSignatures(
-        bytes memory pubKey,
-        bytes calldata signature,
-        bytes32 depositDataRoot,
-        bytes calldata withdrawalCredentials,
-        bytes[] calldata guardianEnclaveSignatures
-    ) external view;
+    function getThreshold() external view returns (uint256);
 
     /**
-     * @notice Returns the message that the guardian's enclave needs to sign
-     * @param signature is the BLS signature of the deposit data
-     * @param withdrawalCredentials are the withdrawal credentials for this validator
-     * @param depositDataRoot is the hash of the deposit data
-     * @return hash of the data
+     * @notice Returns the list of guardians
+     * @dev This function returns an array of addresses representing the guardians
+     * @return An array of addresses representing the guardians
      */
-    function getMessageToBeSigned(
-        bytes memory pubKey,
-        bytes calldata signature,
-        bytes calldata withdrawalCredentials,
-        bytes32 depositDataRoot
-    ) external pure returns (bytes32);
+    function getGuardians() external view returns (address[] memory);
+
+    /**
+     * @notice Adds a new guardian to the module
+     * @dev Only accessible by a DAO
+     * @param newGuardian The address of the new guardian to add
+     */
+    function addGuardian(address newGuardian) external;
+
+    /**
+     * @notice Removes a guardian from the module
+     * @dev Only accessible by a DAO
+     * @param guardian The address of the guardian to remove
+     */
+    function removeGuardian(address guardian) external;
+
+    /**
+     * @notice Changes the threshold value for guardian signatures
+     * @dev Only accessible by a DAO
+     * @param newThreshold The new threshold value
+     */
+    function changeThreshold(uint256 newThreshold) external;
+
+    /**
+     * @dev Validates the signatures of the guardians' enclave signatures
+     * @param enclaveSignatures The array of enclave signatures
+     * @param signedMessageHash The hash of the signed message
+     * @return A boolean indicating whether the signatures are valid
+     */
+    function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
+
+    /**
+     * @dev Validates the signatures of the guardians' EOAs.
+     * @param eoaSignatures The array of EOAs' signatures.
+     * @param signedMessageHash The hash of the signed message.
+     * @return A boolean indicating whether the signatures are valid.
+     */
+    function validateGuardiansEOASignatures(bytes[] calldata eoaSignatures, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Rotates guardian's key
@@ -127,6 +161,13 @@ interface IGuardianModule {
      * @notice Returns the guarardians enclave public keys
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
+
+    /**
+     * @notice Checks if an account is a guardian
+     * @param account The address to check
+     * @return A boolean indicating whether the account is a guardian
+     */
+    function isGuardian(address account) external view returns (bool);
 
     /**
      * @notice Returns the mrenclave value

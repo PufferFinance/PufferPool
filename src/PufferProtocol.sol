@@ -17,12 +17,12 @@ import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
  * @title PufferProtocol
@@ -70,15 +70,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     address payable public immutable TREASURY;
 
-    /**
-     * @notice Guardians {Safe} multisig
-     */
-    Safe public immutable GUARDIANS;
-
-    constructor(Safe guardians, address payable treasury, address strategyBeacon) payable {
+    constructor(address payable treasury, address strategyBeacon) payable {
         PUFFER_STRATEGY_BEACON = strategyBeacon;
         TREASURY = treasury;
-        GUARDIANS = guardians;
         _disableInitializers();
     }
 
@@ -86,7 +80,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address accessManager,
         IPufferPool pool,
         IWithdrawalPool withdrawalPool,
-        address guardianSafeModule,
+        GuardianModule module,
         address noRestakingStrategy,
         uint256[] calldata smoothingCommitments
     ) external initializer {
@@ -94,7 +88,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         __AccessManaged_init(accessManager);
         $.pool = pool;
         $.withdrawalPool = withdrawalPool;
-        $.guardianModule = GuardianModule(guardianSafeModule);
+        $.guardianModule = module;
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
         _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
         _setGuardiansFeeRate(5 * 1e17); // 0.5 %
@@ -183,14 +177,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             withdrawalCredentials: withdrawalCredentials
         });
 
-        // If the guardian signatures aren't valid this will revert
-        $.guardianModule.validateGuardianSignatures({
-            pubKey: validator.pubKey,
-            guardianEnclaveSignatures: guardianEnclaveSignatures,
-            signature: validator.signature,
-            withdrawalCredentials: withdrawalCredentials,
-            depositDataRoot: depositDataRoot
+        // Recreate the message hash
+        bytes32 signedMessageHash = LibGuardianMessages.getMessageToBeSigned(
+            validator.pubKey, validator.signature, withdrawalCredentials, depositDataRoot
+        );
+
+        // Check the signatures
+        bool validSignatures = $.guardianModule.validateGuardiansEnclaveSignatures({
+            enclaveSignatures: guardianEnclaveSignatures,
+            signedMessageHash: signedMessageHash
         });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
 
         $.validators[strategyName][index].status = Status.ACTIVE;
 
@@ -219,7 +219,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidETHAmount();
         }
 
-        // No need for Safecast because of the validatrions above
+        // No need for Safecast because of the validations above
         validator.monthsCommitted = uint40(numberOfMonths);
         validator.lastCommitmentPayment = uint64(block.timestamp);
 
@@ -337,7 +337,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 skippedIndex = $.nextToBeProvisioned[strategyName];
 
-        $.guardianModule.validateSkipProvisioning(strategyName, skippedIndex, guardianEOASignatures);
+        bytes32 signedMessageHash = LibGuardianMessages.getSkipProvisioningMessage(strategyName, skippedIndex);
+
+        // Check the signatures
+        bool validSignatures = $.guardianModule.validateGuardiansEOASignatures({
+            eoaSignatures: guardianEOASignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
 
         // Change the status of that validator
         $.validators[strategyName][skippedIndex].status = Status.SKIPPED;
@@ -352,7 +362,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @notice Posts the full withdrawals root
-     * @dev Restricted to Guardians
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number of a withdrawal root
      * @param strategies is the array from which strategies we are redestributing ETH
@@ -362,13 +371,27 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 root,
         uint256 blockNumber,
         address[] calldata strategies,
-        uint256[] calldata amounts
-    ) external restricted {
+        uint256[] calldata amounts,
+        bytes[] calldata guardianSignatures
+    ) external {
         if (strategies.length != amounts.length) {
             revert InvalidData();
         }
-
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, strategies, amounts);
+
+        // Check the signatures
+        bool validSignatures = $.guardianModule.validateGuardiansEOASignatures({
+            eoaSignatures: guardianSignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
 
         $.fullWithdrawalsRoots[blockNumber] = root;
 
@@ -403,11 +426,29 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber)
-        external
-        restricted
-    {
+    function proofOfReserve(
+        uint256 ethAmount,
+        uint256 lockedETH,
+        uint256 pufETHTotalSupply,
+        uint256 blockNumber,
+        bytes[] calldata guardianSignatures
+    ) external {
         PufferPoolStorage storage $ = _getPuferPoolStorage();
+
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
+
+        // Check the signatures
+        bool validSignatures = _getPufferProtocolStorage().guardianModule.validateGuardiansEOASignatures({
+            eoaSignatures: guardianSignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+
         //@audit figure out if we want more restrictions on this
         if (block.number < blockNumber) {
             revert InvalidData();
@@ -643,7 +684,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         bytes[] memory pubKeys = $.guardianModule.getGuardiansEnclavePubkeys();
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.strategies[strategyName]));
-        uint256 threshold = GUARDIANS.getThreshold();
+        uint256 threshold = $.guardianModule.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
         uint256 ethAmount = validatorBond + $.smoothingCommitments[numberOfMonths - 1];
 
@@ -662,7 +703,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 treasuryAmount = _sendETH(TREASURY, amount, $.protocolFeeRate);
         uint256 withdrawalPoolAmount = _sendETH(address($.withdrawalPool), amount, $.withdrawalPoolRate);
-        uint256 guardiansAmount = _sendETH(address(GUARDIANS), amount, $.guardiansFeeRate);
+        uint256 guardiansAmount = _sendETH(address($.guardianModule), amount, $.guardiansFeeRate);
 
         uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
         address($.pool).safeTransferETH(poolAmount);
@@ -801,13 +842,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidPufferStrategy();
         }
 
-        uint256 numGuardians = GUARDIANS.getOwners().length;
+        uint256 numGuardians = $.guardianModule.getGuardians().length;
 
         if (data.blsEncryptedPrivKeyShares.length != numGuardians) {
             revert InvalidBLSPrivateKeyShares();
         }
 
-        if (data.blsPubKeySet.length != (GUARDIANS.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
+        if (data.blsPubKeySet.length != ($.guardianModule.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
             revert InvalidBLSPublicKeySet();
         }
 

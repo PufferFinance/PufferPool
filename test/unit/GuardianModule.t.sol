@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { Safe } from "safe-contracts/Safe.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
@@ -33,6 +32,50 @@ contract GuardianModuleTest is TestHelper {
 
         vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
         module.rotateGuardianKey(0, new bytes(55), evidence);
+    }
+
+    function testAddGuardian(address guardian) public assumeEOA(guardian) {
+        vm.startPrank(DAO);
+
+        // Must not be a guardian already
+        vm.assume(!module.isGuardian(guardian));
+
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.GuardianAdded(guardian);
+        module.addGuardian(guardian);
+    }
+
+    function testRemoveGuardian(address guardian) public {
+        testAddGuardian(guardian);
+
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.GuardianRemoved(guardian);
+        module.removeGuardian(guardian);
+    }
+
+    function testSplitFunds() public {
+        vm.deal(address(module), 1 ether);
+
+        module.splitGuardianFunds();
+
+        assertEq(guardian1.balance, guardian2.balance, "guardian balances");
+        assertEq(guardian1.balance, guardian3.balance, "guardian balances");
+    }
+
+    function testChangeThreshold() public {
+        vm.startPrank(DAO);
+
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.ThresholdChanged(1, 2);
+        module.changeThreshold(2);
+    }
+
+    function testChangeThresholdReverts() public {
+        vm.startPrank(DAO);
+
+        // We have 3 guardians, try setting threshold to 5
+        vm.expectRevert();
+        module.changeThreshold(5);
     }
 
     function testRoateGuardianKeyWithInvalidRaveReverts() public {
