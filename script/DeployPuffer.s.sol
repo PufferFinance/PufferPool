@@ -59,7 +59,8 @@ contract DeployPuffer is BaseScript {
             vm.serializeAddress(obj, "PufferStrategyBeacon", address(beacon));
 
             // Puffer Service implementation
-            pufferProtocolImpl = new PufferProtocol({treasury: treasury, strategyBeacon: address(beacon)});
+            pufferProtocolImpl =
+            new PufferProtocol({guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, strategyBeacon: address(beacon)});
         }
 
         // UUPS proxy for PufferProtocol
@@ -70,9 +71,6 @@ contract DeployPuffer is BaseScript {
         pool = new PufferPool(pufferProtocol, address(accessManager));
 
         withdrawalPool = new WithdrawalPool(pool, address(accessManager));
-
-        // Read guardians module variable
-        address payable guardiansModule = payable(guardiansDeployment.guardianModule);
 
         NoRestakingStrategy noRestaking =
             new NoRestakingStrategy(address(accessManager), pufferProtocol, getStakingContract());
@@ -99,7 +97,6 @@ contract DeployPuffer is BaseScript {
             accessManager: address(accessManager),
             pool: pool,
             withdrawalPool: withdrawalPool,
-            module: GuardianModule(guardiansModule),
             noRestakingStrategy: address(noRestaking),
             smoothingCommitments: smoothingCommitments
         });

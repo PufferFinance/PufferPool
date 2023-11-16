@@ -34,7 +34,7 @@ contract NoRestakingStartegyTest is TestHelper {
 
     // Reverts for everybody else
     function testPostRewardsRootReverts(address sender, bytes32 merkleRoot, uint256 blockNumber) public {
-        vm.assume(sender != address(pufferProtocol.getGuardianModule()));
+        vm.assume(sender != address(pufferProtocol.GUARDIAN_MODULE()));
 
         vm.expectRevert();
         strategy.postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));

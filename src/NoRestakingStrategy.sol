@@ -159,7 +159,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
             revert InvalidBlockNumber(blockNumber);
         }
 
-        IGuardianModule module = PUFFER_PROTOCOL.getGuardianModule();
+        IGuardianModule module = PUFFER_PROTOCOL.GUARDIAN_MODULE();
 
         bytes32 signedMessageHash =
             LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(NAME, root, blockNumber);

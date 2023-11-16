@@ -328,7 +328,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
     /**
      * @notice Returns the guardian module
      */
-    function getGuardianModule() external view returns (IGuardianModule);
+    function GUARDIAN_MODULE() external view returns (IGuardianModule);
 
     /**
      * @notice Returns the protocol fee rate
