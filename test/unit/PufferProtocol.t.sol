@@ -927,15 +927,15 @@ contract PufferProtocolTest is TestHelper {
         vm.stopPrank();
 
         // We are simulating 2 full withdrawals
-        address[] memory strategies = new address[](2);
-        strategies[0] = NoRestakingModule;
-        strategies[1] = eigenDaModule;
+        address[] memory modules = new address[](2);
+        modules[0] = NoRestakingModule;
+        modules[1] = eigenDaModule;
 
-        // Give funds to strategies
-        vm.deal(strategies[0], 200 ether);
-        vm.deal(strategies[1], 100 ether);
+        // Give funds to modules
+        vm.deal(modules[0], 200 ether);
+        vm.deal(modules[1], 100 ether);
 
-        // Amounts of full withdrawals that we want to move from strategies to pools
+        // Amounts of full withdrawals that we want to move from modules to pools
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 32.14 ether;
         amounts[1] = 31 ether;
@@ -948,11 +948,11 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.postFullWithdrawalsRoot({
             root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
             blockNumber: 100,
-            strategies: strategies,
+            modules: modules,
             amounts: amounts,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages.getPostFullWithdrawalsRootMessage(
-                    hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, strategies, amounts
+                    hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, modules, amounts
                 )
                 )
         });

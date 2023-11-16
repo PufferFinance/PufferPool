@@ -168,7 +168,7 @@ contract PufferProtocolHandler is Test {
 
         uint256 pufETHSupply = pool.totalSupply();
 
-        // At the moment there is no ETH landing in our strategies, instead we simulate the deposit to pufferPool using `depositStakingRewards`
+        // At the moment there is no ETH landing in our modules, instead we simulate the deposit to pufferPool using `depositStakingRewards`
         uint256 ethAmount = address(pool).balance + address(withdrawalPool).balance + ghost_eth_rewards_amount;
         uint256 lockedETH = ghost_locked_amount;
 

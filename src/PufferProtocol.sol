@@ -351,24 +351,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Posts the full withdrawals root
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number of a withdrawal root
-     * @param strategies is the array from which strategies we are redestributing ETH
-     * @param amounts is the array of ETH amounts to pull from strategies
+     * @param modules is the array from which modules we are redestributing ETH
+     * @param amounts is the array of ETH amounts to pull from modules
      */
     function postFullWithdrawalsRoot(
         bytes32 root,
         uint256 blockNumber,
-        address[] calldata strategies,
+        address[] calldata modules,
         uint256[] calldata amounts,
         bytes[] calldata guardianSignatures
     ) external {
-        if (strategies.length != amounts.length) {
+        if (modules.length != amounts.length) {
             revert InvalidData();
         }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Recreate the message hash
         bytes32 signedMessageHash =
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, strategies, amounts);
+            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
 
         // Check the signatures
         bool validSignatures = GUARDIAN_MODULE.validateGuardiansEOASignatures({
@@ -383,18 +383,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.fullWithdrawalsRoots[blockNumber] = root;
 
         // We want to get our hands on ETH as soon as withdrawals happen to use that capital elsewhere
-        for (uint256 i = 0; i < strategies.length; ++i) {
+        for (uint256 i = 0; i < modules.length; ++i) {
             uint256 withdrawalPoolAmount =
                 FixedPointMathLib.fullMulDiv(amounts[i], $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
             uint256 pufferPoolAmount = amounts[i] - withdrawalPoolAmount;
 
             // slither-disable-next-line calls-loop
-            (bool success,) = IPufferModule(strategies[i]).call(address($.withdrawalPool), withdrawalPoolAmount, "");
+            (bool success,) = IPufferModule(modules[i]).call(address($.withdrawalPool), withdrawalPoolAmount, "");
             if (!success) {
                 revert Failed();
             }
             // slither-disable-next-line calls-loop
-            (success,) = IPufferModule(strategies[i]).call(address($.pool), pufferPoolAmount, "");
+            (success,) = IPufferModule(modules[i]).call(address($.pool), pufferPoolAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -550,7 +550,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Read from the storage
         bytes32 moduleName = $.moduleWeights[moduleSelectionIndex % moduleWeightsLength];
 
-        // Iterate through all strategies to see if there is a validator ready to be provisioned
+        // Iterate through all modules to see if there is a validator ready to be provisioned
         while (moduleSelectionIndex < moduleEndIndex) {
             // Read the index for that moduleName
             uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
