@@ -6,7 +6,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
 
@@ -30,10 +30,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidMerkleProof();
 
     /**
-     * @notice Thrown when the strategy name already exists
+     * @notice Thrown when the module name already exists
      * @dev Signature "0xc45546f7"
      */
-    error StrategyAlreadyExists();
+    error ModuleAlreadyExists();
 
     /**
      * @notice Thrown when the supplied number of months is not valid
@@ -77,16 +77,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidData();
 
     /**
-     * @notice Thrown if the Creation of new strategy failed
+     * @notice Thrown if the Creation of new module failed
      * @dev Signature "0x04a5b3ee"
      */
     error Create2Failed();
 
     /**
-     * @notice Thrown if the Node operator tries to register with invalid strategy
+     * @notice Thrown if the Node operator tries to register with invalid module
      * @dev Signature "0x60ac6d15"
      */
-    error InvalidPufferStrategy();
+    error InvalidPufferModule();
 
     /**
      * @notice Thrown if Guardians try to re-submit the backing data
@@ -95,16 +95,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error OutsideUpdateWindow();
 
     /**
-     * @notice Emitted when the new Puffer strategy is created
+     * @notice Emitted when the new Puffer module is created
      * @dev Signature "0x1670437ca2eb58efedc6de6646babe75e13b3ef73af5174bd55db63efeaf41c7"
      */
-    event NewPufferStrategyCreated(address strategy);
+    event NewPufferModuleCreated(address module);
 
     /**
-     * @notice Emitted when the new Puffer `strategyName` is changed to a new strategy
+     * @notice Emitted when the new Puffer `moduleName` is changed to a new module
      * @dev Signature "0x38488ea225f6b4bcf21060e716ea744fa5c99fd5de9ea2f8d1b257e1060f9ee1"
      */
-    event StrategyChanged(bytes32 indexed strategyName, address oldStrategy, address newStrategy);
+    event ModuleChanged(bytes32 indexed moduleName, address oldModule, address newModule);
 
     /**
      * @notice Emitted when the Guardians fee rate is changed from `oldRate` to `newRate`
@@ -137,10 +137,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 timestamp, uint256 amountPaid);
 
     /**
-     * @notice Emitted when the guardians decide to skip validator provisioning for `strategyName`
+     * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
-    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the full withdrawals MerkleRoot `root` for a `blockNumber` is posted
@@ -174,40 +174,40 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event ValidatorLimitPerIntervalChanged(uint256 oldLimit, uint256 newLimit);
 
     /**
-     * @notice Emitted when the strategy weights changes from `olgWeights` to `newWeights`
+     * @notice Emitted when the module weights changes from `olgWeights` to `newWeights`
      * @dev Signature "0x651ca4f91cd6509c3bd83f4eae79f7b55bf243d8b0dc5fc648d6002b06873afe"
      */
-    event StrategyWeightsChanged(bytes32[] olgWeights, bytes32[] newWeights);
+    event ModuleWeightsChanged(bytes32[] olgWeights, bytes32[] newWeights);
 
     /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @param usingEnclave is indicating if the validator is using secure enclave
      * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
     event ValidatorKeyRegistered(
-        bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName, bool usingEnclave
+        bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName, bool usingEnclave
     );
 
     /**
      * @notice Emitted when the Validator exited and stopped validating
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @dev Signature "0xec0dc4352d02ab1358d681da59e62a34af18c126565f98d7c4c71da1315f81f5"
      */
-    event ValidatorExited(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+    event ValidatorExited(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator is provisioned
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @dev Signature "0x09290f1d819767ba40f9616823cb23f1e925c228f0d02e5e4818a4fa05d6c487"
      */
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed strategyName);
+    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator key is failed to be provisioned
@@ -227,31 +227,31 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Returns validator information
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @return Validator info struct
      */
-    function getValidatorInfo(bytes32 strategyName, uint256 validatorIndex) external view returns (Validator memory);
+    function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
      * @notice Stops the registration
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
-    function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external;
+    function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external;
 
     /**
      * @notice Stops the validator
      * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
-     * @param strategyName is the staking Strategy
+     * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @param withdrawalAmount is the amount of ETH from the full withdrawal
      * @param wasSlashed is the amount of pufETH that we are burning from the node operator
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
     function stopValidator(
-        bytes32 strategyName,
+        bytes32 moduleName,
         uint256 validatorIndex,
         uint256 blockNumber,
         uint256 withdrawalAmount,
@@ -260,16 +260,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     ) external;
 
     /**
-     * @notice Skips the next validator for `strategyName`
+     * @notice Skips the next validator for `moduleName`
      * @dev Restricted to Guardians
      */
-    function skipProvisioning(bytes32 strategyName, bytes[] calldata guardianEOASignatures) external;
+    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
 
     /**
-     * @notice Sets the strategy weights array to `newStrategyWeights`
+     * @notice Sets the module weights array to `newModuleWeights`
      * @dev Restricted to DAO
      */
-    function setStrategyWeights(bytes32[] calldata newStrategyWeights) external;
+    function setModuleWeights(bytes32[] calldata newModuleWeights) external;
 
     /**
      * @notice Sets the protocol fee rate
@@ -320,10 +320,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     ) external;
 
     /**
-     * @notice Changes the `strategyName` with `newStrategy`
+     * @notice Changes the `moduleName` with `newModule`
      * @dev Restricted to DAO
      */
-    function changeStrategy(bytes32 strategyName, IPufferStrategy newStrategy) external;
+    function changeModule(bytes32 moduleName, IPufferModule newModule) external;
 
     /**
      * @notice Returns the guardian module
@@ -346,19 +346,19 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getPufferPool() external view returns (IPufferPool);
 
     /**
-     * @notice Returns the current strategy weights
+     * @notice Returns the current module weights
      */
-    function getStrategyWeights() external view returns (bytes32[] memory);
+    function getModuleWeights() external view returns (bytes32[] memory);
 
     /**
-     * @notice Returns the strategy select index
+     * @notice Returns the module select index
      */
-    function getStrategySelectIndex() external view returns (uint256);
+    function getModuleSelectIndex() external view returns (uint256);
 
     /**
-     * @notice Returns the address for `strategyName`
+     * @notice Returns the address for `moduleName`
      */
-    function getStrategyAddress(bytes32 strategyName) external view returns (address);
+    function getModuleAddress(bytes32 moduleName) external view returns (address);
 
     /**
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
@@ -370,7 +370,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the deposit_data_root
      * @param pubKey is the public key of the validator
      * @param signature is the validator's signature over deposit data
-     * @param withdrawalCredentials is the withdrawal credentials (one of Puffer Strategies)
+     * @param withdrawalCredentials is the withdrawal credentials (one of Puffer Modules)
      * @return deposit_data_root
      */
     function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
@@ -382,13 +382,13 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the array of Puffer validators
      * @dev OFF-CHAIN function
      */
-    function getValidators(bytes32 strategyName) external view returns (Validator[] memory);
+    function getValidators(bytes32 moduleName) external view returns (Validator[] memory);
 
     /**
-     * @notice Creates a new Puffer strategy with `strategyName`
-     * @dev It will revert if you try to create two strategies with the same name
+     * @notice Creates a new Puffer module with `moduleName`
+     * @dev It will revert if you try to create two modules with the same name
      */
-    function createPufferStrategy(bytes32 strategyName) external returns (address);
+    function createPufferModule(bytes32 moduleName) external returns (address);
 
     /**
      * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
@@ -396,37 +396,37 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
 
     /**
-     * @notice Registers a new validator in a `strategyName` queue
-     * @dev There is a queue per strategyName and it is FIFO
+     * @notice Registers a new validator in a `moduleName` queue
+     * @dev There is a queue per moduleName and it is FIFO
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
         external
         payable;
 
     /**
-     * @notice Extends the commitment for a validator in a specific strategy
-     * @param strategyName The name of the strategy
-     * @param validatorIndex The index of the validator in the strategy
+     * @notice Extends the commitment for a validator in a specific module
+     * @param moduleName The name of the module
+     * @param validatorIndex The index of the validator in the module
      * @param numberOfMonths The number of months to extend the commitment for
      */
-    function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
+    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
 
     /**
-     * @notice Returns the pending validator index for `strategyName`
+     * @notice Returns the pending validator index for `moduleName`
      */
-    function getPendingValidatorIndex(bytes32 strategyName) external view returns (uint256);
+    function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256);
 
     /**
-     * @notice Returns the next validator index for provisioning for `strategyName`
+     * @notice Returns the next validator index for provisioning for `moduleName`
      */
-    function getNextValidatorToBeProvisionedIndex(bytes32 strategyName) external view returns (uint256);
+    function getNextValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256);
 
     /**
      * @notice Returns the next in line for provisioning
-     * @dev The order in which the strategies are selected is based on Strategy Weights
-     * Every strategy has its own FIFO queue for provisioning
+     * @dev The order in which the modules are selected is based on Module Weights
+     * Every module has its own FIFO queue for provisioning
      */
-    function getNextValidatorToProvision() external view returns (bytes32 strategyName, uint256 indexToBeProvisioned);
+    function getNextValidatorToProvision() external view returns (bytes32 moduleName, uint256 indexToBeProvisioned);
 
     /**
      * @notice Returns the validator limit per interval
@@ -434,9 +434,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getValidatorLimitPerInterval() external view returns (uint256);
 
     /**
-     * @notice Returns the withdrawal credentials for a `strategy`
+     * @notice Returns the withdrawal credentials for a `module`
      */
-    function getWithdrawalCredentials(address strategy) external view returns (bytes memory);
+    function getWithdrawalCredentials(address module) external view returns (bytes memory);
 
     /**
      * @notice Returns the treasury address

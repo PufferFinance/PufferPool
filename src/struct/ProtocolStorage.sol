@@ -2,11 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
@@ -23,10 +22,10 @@ struct ProtocolStorage {
      */
     IWithdrawalPool withdrawalPool;
     /**
-     * @dev Strategy weights
+     * @dev Module weights
      * Slot 2
      */
-    bytes32[] strategyWeights;
+    bytes32[] moduleWeights;
     /**
      * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
      * Slot 3
@@ -53,35 +52,35 @@ struct ProtocolStorage {
      */
     uint16 validatorLimitPerInterval;
     /**
-     * @dev Select strategy index
+     * @dev Select module index
      * Slot 4
      */
-    uint128 strategySelectIndex;
+    uint128 moduleSelectIndex;
     /**
-     * @dev Mapping of strategy name to pending validator index for that strategy
+     * @dev Mapping of module name to pending validator index for that module
      * Slot 5
      */
-    mapping(bytes32 strategyName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
+    mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
     /**
-     * @dev Mapping of a strategy name to validator queue
+     * @dev Mapping of a module name to validator queue
      * Slot 6
      */
-    mapping(bytes32 strategyName => uint256 nextInLineToBeProvisionedIndex) nextToBeProvisioned;
+    mapping(bytes32 moduleName => uint256 nextInLineToBeProvisionedIndex) nextToBeProvisioned;
     /**
-     * @dev Mapping of Strategy name => idx => Validator
+     * @dev Mapping of Module name => idx => Validator
      * Index is incrementing starting from 0, not to be mistaken with Beacon Chain Validator Index
      * Slot 7
      */
-    mapping(bytes32 strategyName => mapping(uint256 index => Validator validator)) validators;
+    mapping(bytes32 moduleName => mapping(uint256 index => Validator validator)) validators;
     /**
      * @dev Mapping of a blockNumber and Merkle Root for full withdrawals
      */
     mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots;
     /**
-     * @dev Mapping between strategy name and a strategy
+     * @dev Mapping between module name and a module
      * Slot 8
      */
-    mapping(bytes32 strategyName => IPufferStrategy strategyAddress) strategies;
+    mapping(bytes32 moduleName => IPufferModule moduleAddress) modules;
     /**
      * @dev Array of smoothing commitments for a number of months and smoothing commitment amount (in wei)
      * Slot 9

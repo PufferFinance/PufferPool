@@ -8,7 +8,7 @@ import { Status } from "puffer/struct/Status.sol";
  */
 struct Validator {
     address node; // Address of the Node operator
-    address strategy; // In which strategy is the Validator participating
+    address module; // In which module is the Validator participating
     uint40 monthsCommitted; // Number of months
     uint64 lastCommitmentPayment; // block.timestamp of the last payment
     uint64 bond; // Validator bond (in pufETH)

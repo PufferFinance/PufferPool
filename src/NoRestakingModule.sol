@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { TokenRescuer } from "puffer/TokenRescuer.sol";
@@ -13,12 +13,12 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
- * @title NoRestakingStrategy
+ * @title NoRestakingModule
  * @author Puffer Finance
- * @notice NoRestakingStrategy
+ * @notice NoRestakingModule
  * @custom:security-contact security@puffer.fi
  */
-contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
+contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     using SafeTransferLib for address;
 
     /**
@@ -56,9 +56,9 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     address public immutable BEACON_CHAIN_DEPOSIT_CONTRACT;
 
     /**
-     * @notice Strategy Name
+     * @notice Module Name
      */
-    bytes32 public constant NAME = bytes32("NO_RESTAKING");
+    bytes32 public immutable NAME;
 
     /**
      * @notice Mapping of a blockNumber and the MerkleRoot for that rewards period
@@ -75,11 +75,12 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
      */
     uint256 internal _lastProofOfRewardsBlockNumber;
 
-    constructor(address initialAuthority, PufferProtocol puffer, address depositContract)
+    constructor(address initialAuthority, PufferProtocol puffer, address depositContract, bytes32 name)
         payable
         AccessManaged(initialAuthority)
         TokenRescuer(puffer)
     {
+        NAME = name;
         BEACON_CHAIN_DEPOSIT_CONTRACT = depositContract;
     }
 
@@ -89,7 +90,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     receive() external payable { }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
@@ -149,7 +150,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     }
 
     /**
-     * @notice Posts the rewards root for this strategy
+     * @notice Posts the rewards root for this module
      * @dev Restricted to Guardians
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
@@ -159,12 +160,11 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
             revert InvalidBlockNumber(blockNumber);
         }
 
-        IGuardianModule module = PUFFER_PROTOCOL.GUARDIAN_MODULE();
+        IGuardianModule guardianModule = PUFFER_PROTOCOL.GUARDIAN_MODULE();
 
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getNoRestakingStrategyRewardsRootMessage(NAME, root, blockNumber);
+        bytes32 signedMessageHash = LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(NAME, root, blockNumber);
 
-        bool validSignatures = module.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
+        bool validSignatures = guardianModule.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
         if (!validSignatures) {
             revert Unauthorized();
         }
@@ -175,7 +175,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
@@ -194,7 +194,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));

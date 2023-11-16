@@ -5,15 +5,14 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { PufferStrategy } from "puffer/PufferStrategy.sol";
-import { NoRestakingStrategy } from "puffer/NoRestakingStrategy.sol";
+import { PufferModule } from "puffer/PufferModule.sol";
+import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { Strings } from "openzeppelin/utils/Strings.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
@@ -53,14 +52,14 @@ contract DeployPuffer is BaseScript {
 
             address eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
 
-            PufferStrategy strategyImplementation = new PufferStrategy(IEigenPodManager(eigenPodManager));
+            PufferModule moduleImplementation = new PufferModule(IEigenPodManager(eigenPodManager));
 
-            beacon = new UpgradeableBeacon(address(strategyImplementation), address(accessManager));
-            vm.serializeAddress(obj, "PufferStrategyBeacon", address(beacon));
+            beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
+            vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
             // Puffer Service implementation
             pufferProtocolImpl =
-            new PufferProtocol({guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, strategyBeacon: address(beacon)});
+            new PufferProtocol({guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleBeacon: address(beacon)});
         }
 
         // UUPS proxy for PufferProtocol
@@ -72,8 +71,8 @@ contract DeployPuffer is BaseScript {
 
         withdrawalPool = new WithdrawalPool(pool, address(accessManager));
 
-        NoRestakingStrategy noRestaking =
-            new NoRestakingStrategy(address(accessManager), pufferProtocol, getStakingContract());
+        NoRestakingModule noRestaking =
+            new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
 
         uint256[] memory smoothingCommitments = new uint256[](14);
 
@@ -97,12 +96,12 @@ contract DeployPuffer is BaseScript {
             accessManager: address(accessManager),
             pool: pool,
             withdrawalPool: withdrawalPool,
-            noRestakingStrategy: address(noRestaking),
+            noRestakingModule: address(noRestaking),
             smoothingCommitments: smoothingCommitments
         });
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
-        vm.serializeAddress(obj, "noRestakingStrategy", address(noRestaking));
+        vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
@@ -115,7 +114,7 @@ contract DeployPuffer is BaseScript {
         // return (pufferProtocol, pool, accessManager);
         return PufferDeployment({
             pufferProtocolImplementation: address(pufferProtocolImpl),
-            noRestakingStrategy: address(noRestaking),
+            NoRestakingModule: address(noRestaking),
             pufferPool: address(pool),
             withdrawalPool: address(withdrawalPool),
             pufferProtocol: address(proxy),

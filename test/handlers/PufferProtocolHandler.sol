@@ -252,7 +252,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Registers Validator key
-    function registerValidatorKey(address nodeOperator, bytes32 pubKeyPart, uint256 strategySelectorSeed)
+    function registerValidatorKey(address nodeOperator, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
         public
         setCorrectBlockNumber
         assumeEOA(nodeOperator)
@@ -260,24 +260,24 @@ contract PufferProtocolHandler is Test {
         isETHLeavingThePool
         countCall("registerValidatorKey")
     {
-        bytes32[] memory strategyWeights = pufferProtocol.getStrategyWeights();
-        uint256 strategyIndex = strategySelectorSeed % strategyWeights.length;
+        bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
+        uint256 moduleIndex = moduleSelectorSeed % moduleWeights.length;
 
-        bytes32 strategyName = strategyWeights[strategyIndex];
+        bytes32 moduleName = moduleWeights[moduleIndex];
 
         vm.deal(nodeOperator, 5 ether);
         vm.startPrank(nodeOperator);
 
-        uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(strategyName);
+        uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, strategyName);
+        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, moduleName);
 
         // Store data and push to queue
         ProvisioningData memory validator;
         validator.status = Status.PENDING;
         validator.pubKeypart = pubKeyPart;
 
-        _validatorQueue[strategyName].push(validator);
+        _validatorQueue[moduleName].push(validator);
 
         vm.stopPrank();
 
@@ -290,33 +290,33 @@ contract PufferProtocolHandler is Test {
         _nodeOperators.add(nodeOperator);
     }
 
-    // Creates a puffer strategy and adds it to weights
-    function createPufferStrategy(bytes32 startegyName)
+    // Creates a puffer module and adds it to weights
+    function createPufferModule(bytes32 startegyName)
         public
         setCorrectBlockNumber
         recordPreviousBalance
         isETHLeavingThePool
-        countCall("createPufferStrategy")
+        countCall("createPufferModule")
     {
         vm.startPrank(DAO);
 
-        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
         bytes32[] memory newWeights = new bytes32[](weights.length + 1 );
         for (uint256 i = 0; i < weights.length; ++i) {
             newWeights[i] = weights[i];
         }
 
-        try pufferProtocol.createPufferStrategy(startegyName) {
+        try pufferProtocol.createPufferModule(startegyName) {
             newWeights[weights.length] = startegyName;
-            pufferProtocol.setStrategyWeights(newWeights);
+            pufferProtocol.setModuleWeights(newWeights);
         } catch (bytes memory reason) { }
 
         vm.stopPrank();
     }
 
     // Starts the validating process
-    function provisionNode(address nodeOperator, bytes32 pubKeyPart, uint256 strategySelectorSeed)
+    function provisionNode(address nodeOperator, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
         public
         setCorrectBlockNumber
         recordPreviousBalance
@@ -325,8 +325,8 @@ contract PufferProtocolHandler is Test {
     {
         // If we don't have proxies, create and register validator key, then call this function again with the same params
         if (_nodeOperators.length() == 0) {
-            registerValidatorKey(nodeOperator, pubKeyPart, strategySelectorSeed);
-            return provisionNode(nodeOperator, pubKeyPart, strategySelectorSeed);
+            registerValidatorKey(nodeOperator, pubKeyPart, moduleSelectorSeed);
+            return provisionNode(nodeOperator, pubKeyPart, moduleSelectorSeed);
         }
 
         // If there is nothing to be provisioned, index returned is max uint256
@@ -336,20 +336,20 @@ contract PufferProtocolHandler is Test {
             return;
         }
 
-        uint256 startegySelectIndex = pufferProtocol.getStrategySelectIndex();
-        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
+        uint256 startegySelectIndex = pufferProtocol.getModuleSelectIndex();
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
-        bytes32 strategyName = weights[startegySelectIndex % weights.length];
+        bytes32 moduleName = weights[startegySelectIndex % weights.length];
 
-        uint256 nextIdx = ghost_nextForProvisioning[strategyName];
+        uint256 nextIdx = ghost_nextForProvisioning[moduleName];
 
         // Nothing to provision
-        if (_validatorQueue[strategyName].length <= nextIdx) {
+        if (_validatorQueue[moduleName].length <= nextIdx) {
             ethLeavingThePool = false;
             return;
         }
 
-        ProvisioningData memory validatorData = _validatorQueue[strategyName][nextIdx];
+        ProvisioningData memory validatorData = _validatorQueue[moduleName][nextIdx];
 
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
@@ -359,7 +359,7 @@ contract PufferProtocolHandler is Test {
 
             // Update ghost variables
             ghost_locked_amount += 32 ether;
-            ghost_nextForProvisioning[strategyName]++;
+            ghost_nextForProvisioning[moduleName]++;
         }
     }
 
@@ -397,13 +397,13 @@ contract PufferProtocolHandler is Test {
         console.log("depositETH", calls["depositETH"]);
         console.log("withdrawETH", calls["withdrawETH"]);
         console.log("registerValidatorKey", calls["registerValidatorKey"]);
-        console.log("createPufferStrategy", calls["createPufferStrategy"]);
+        console.log("createPufferModule", calls["createPufferModule"]);
         console.log("provisionNode", calls["provisionNode"]);
         console.log("proofOfReserve", calls["proofOfReserve"]);
         console.log("-------------------");
     }
 
-    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 strategyName)
+    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 moduleName)
         internal
         view
         returns (ValidatorKeyData memory)
@@ -415,9 +415,9 @@ contract PufferProtocolHandler is Test {
         newSetOfPubKeys[0] = bytes("key2");
         newSetOfPubKeys[0] = bytes("key3");
 
-        address strategy = pufferProtocol.getStrategyAddress(strategyName);
+        address module = pufferProtocol.getModuleAddress(moduleName);
 
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(module);
 
         bytes memory randomSignature =
             hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
@@ -444,7 +444,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Copied from PufferProtocol.t.sol
-    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 strategyName)
+    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 moduleName)
         internal
         returns (uint256 depositedETHAmount)
     {
@@ -452,28 +452,28 @@ contract PufferProtocolHandler is Test {
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, strategyName);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, moduleName);
 
-        uint256 idx = pufferProtocol.getPendingValidatorIndex(strategyName);
+        uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, strategyName, true);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
+        emit ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, 1);
 
         return (smoothingCommitment + bond);
     }
 
     // Copied from PufferProtocol.t.sol
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(strategyName, pendingIdx);
-        // If there is no strategy return empty byte array
-        if (validator.strategy == address(0)) {
+        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
+        // If there is no module return empty byte array
+        if (validator.module == address(0)) {
             return new bytes[](0);
         }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
         bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
             pubKey,

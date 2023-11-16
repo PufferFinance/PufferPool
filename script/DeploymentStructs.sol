@@ -16,7 +16,7 @@ struct GuardiansDeployment {
  */
 struct PufferDeployment {
     address pufferProtocolImplementation;
-    address noRestakingStrategy;
+    address NoRestakingModule;
     address pufferPool;
     address withdrawalPool;
     address pufferProtocol;

@@ -29,28 +29,28 @@ library LibGuardianMessages {
 
     /**
      * @notice Returns the message to be signed for skip provisioning
-     * @param strategyName is the name of the strategy
+     * @param moduleName is the name of the module
      * @param index is the index of the skipped validator
      * @return the message to be signed
      */
-    function getSkipProvisioningMessage(bytes32 strategyName, uint256 index) external pure returns (bytes32) {
+    function getSkipProvisioningMessage(bytes32 moduleName, uint256 index) external pure returns (bytes32) {
         // All guardians use the same nonce
-        return keccak256(abi.encode(strategyName, index)).toEthSignedMessageHash();
+        return keccak256(abi.encode(moduleName, index)).toEthSignedMessageHash();
     }
 
     /**
-     * @notice Returns the message to be signed for the no restaking strategy rewards root
-     * @param strategyName is the name of the strategy
-     * @param root is the root of the no restaking strategy rewards
-     * @param blockNumber is the block number of the no restaking strategy rewards
+     * @notice Returns the message to be signed for the no restaking module rewards root
+     * @param moduleName is the name of the module
+     * @param root is the root of the no restaking module rewards
+     * @param blockNumber is the block number of the no restaking module rewards
      * @return the message to be signed
      */
-    function getNoRestakingStrategyRewardsRootMessage(bytes32 strategyName, bytes32 root, uint256 blockNumber)
+    function getNoRestakingModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
         external
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(strategyName, root, blockNumber)).toEthSignedMessageHash();
+        return keccak256(abi.encode(moduleName, root, blockNumber)).toEthSignedMessageHash();
     }
 
     /**
@@ -75,16 +75,16 @@ library LibGuardianMessages {
      * @notice Returns the message to be signed for the post full withdrawals root
      * @param root is the root of the full withdrawals
      * @param blockNumber is the block number of the full withdrawals
-     * @param strategies are the addresses of the strategies
+     * @param modules are the addresses of the modules
      * @param amounts are the amounts of the full withdrawals
      * @return the message to be signed
      */
     function getPostFullWithdrawalsRootMessage(
         bytes32 root,
         uint256 blockNumber,
-        address[] calldata strategies,
+        address[] calldata modules,
         uint256[] calldata amounts
     ) external pure returns (bytes32) {
-        return keccak256(abi.encode(root, blockNumber, strategies, amounts)).toEthSignedMessageHash();
+        return keccak256(abi.encode(root, blockNumber, modules, amounts)).toEthSignedMessageHash();
     }
 }

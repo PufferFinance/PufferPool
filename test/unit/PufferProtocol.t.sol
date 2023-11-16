@@ -10,8 +10,8 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferStrategy } from "puffer/PufferStrategy.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { PufferModule } from "puffer/PufferModule.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
@@ -23,7 +23,7 @@ contract PufferProtocolTest is TestHelper {
     event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
     event FailedToProvision(bytes indexed pubKey, uint256);
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
-    event StrategyWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
+    event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
     bytes zeroPubKey = new bytes(48);
     bytes32 zeroPubKeyPart;
@@ -40,8 +40,8 @@ contract PufferProtocolTest is TestHelper {
         bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
         selectors[1] = PufferProtocol.setSmoothingCommitments.selector;
-        selectors[2] = PufferProtocol.createPufferStrategy.selector;
-        selectors[3] = PufferProtocol.setStrategyWeights.selector;
+        selectors[2] = PufferProtocol.createPufferModule.selector;
+        selectors[3] = PufferProtocol.setModuleWeights.selector;
         selectors[4] = PufferProtocol.setValidatorLimitPerInterval.selector;
         selectors[5] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
 
@@ -60,14 +60,14 @@ contract PufferProtocolTest is TestHelper {
     function testSetup() public {
         assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
         assertTrue(address(pufferProtocol.getPufferPool()) != address(0), "pufer pool address");
-        address strategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
-        assertEq(PufferStrategy(payable(strategy)).NAME(), NO_RESTAKING, "bad name");
+        address module = pufferProtocol.getModuleAddress(NO_RESTAKING);
+        assertEq(PufferModule(payable(module)).NAME(), NO_RESTAKING, "bad name");
     }
 
     function testEmptyQueue() public {
-        (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, bytes32("NO_VALIDATORS"), "name");
+        assertEq(moduleName, bytes32("NO_VALIDATORS"), "name");
         assertEq(idx, type(uint256).max, "name");
     }
 
@@ -78,12 +78,12 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
-        (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
-        uint256 strategySelecitonIdx = pufferProtocol.getStrategySelectIndex();
+        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        uint256 moduleSelecitonIdx = pufferProtocol.getModuleSelectIndex();
 
-        assertEq(strategyName, NO_RESTAKING, "strategy");
+        assertEq(moduleName, NO_RESTAKING, "module");
         assertEq(idx, 0, "idx");
-        assertEq(strategySelecitonIdx, 0, "strategy selection idx");
+        assertEq(moduleSelecitonIdx, 0, "module selection idx");
 
         assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
 
@@ -95,9 +95,9 @@ contract PufferProtocolTest is TestHelper {
         Validator memory aliceValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
         assertTrue(aliceValidator.status == Status.SKIPPED, "did not update status");
 
-        (strategyName, idx) = pufferProtocol.getNextValidatorToProvision();
+        (moduleName, idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, NO_RESTAKING, "strategy");
+        assertEq(moduleName, NO_RESTAKING, "module");
         assertEq(idx, 1, "idx should be 1");
 
         bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
@@ -105,15 +105,15 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
-        strategySelecitonIdx = pufferProtocol.getStrategySelectIndex();
-        assertEq(strategySelecitonIdx, 1, "strategy idx changed");
+        moduleSelecitonIdx = pufferProtocol.getModuleSelectIndex();
+        assertEq(moduleSelecitonIdx, 1, "module idx changed");
     }
 
-    // Create an existing strategy should revert
-    function testCreateExistingStrategyShouldFail() public {
+    // Create an existing module should revert
+    function testCreateExistingModuleShouldFail() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.StrategyAlreadyExists.selector);
-        pufferProtocol.createPufferStrategy(NO_RESTAKING);
+        vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
+        pufferProtocol.createPufferModule(NO_RESTAKING);
     }
 
     // Invalid pub key shares length
@@ -134,14 +134,14 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING, 1);
     }
 
-    // Try registering with invalid strategy
-    function testRegisterToInvalidStrategy() public {
+    // Try registering with invalid module
+    function testRegisterToInvalidModule() public {
         uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
-        vm.expectRevert(IPufferProtocol.InvalidPufferStrategy.selector);
+        vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
-            validatorKeyData, bytes32("imaginary strategy"), 1
+            validatorKeyData, bytes32("imaginary module"), 1
         );
     }
 
@@ -153,11 +153,11 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: 5 ether }(validatorKeyData, NO_RESTAKING, 1);
     }
 
-    function testStrategyDOS() external {
+    function testModuleDOS() external {
         vm.deal(address(pool), 1000 ether);
 
-        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
-        assertEq(weights.length, 1, "only one strategy");
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
+        assertEq(weights.length, 1, "only one module");
         assertEq(weights[0], NO_RESTAKING, "no restaking");
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
@@ -183,8 +183,8 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.stopRegistration(NO_RESTAKING, 6);
         pufferProtocol.stopRegistration(NO_RESTAKING, 7);
 
-        (bytes32 strategy, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(strategy, NO_RESTAKING, "strategy");
+        (bytes32 module, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(module, NO_RESTAKING, "module");
         assertEq(idx, 0, "idx");
 
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
@@ -192,8 +192,8 @@ contract PufferProtocolTest is TestHelper {
         uint256 next = pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING);
         assertEq(next, 1, "next idx");
 
-        (strategy, idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(strategy, NO_RESTAKING, "strategy");
+        (module, idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(module, NO_RESTAKING, "module");
         assertEq(idx, 5, "idx");
 
         // Provision node updates the idx to current + 1
@@ -204,8 +204,8 @@ contract PufferProtocolTest is TestHelper {
         assertEq(next, 6, "next idx");
 
         // From there the counter of '5' starts before we return nothing to provision
-        (strategy, idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(strategy, NO_RESTAKING, "strategy");
+        (module, idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(module, NO_RESTAKING, "module");
         assertEq(idx, 8, "idx");
     }
 
@@ -297,7 +297,7 @@ contract PufferProtocolTest is TestHelper {
         }
     }
 
-    // Change smoothing commitment for default strategy
+    // Change smoothing commitment for default module
     function testSetSmoothingCommitment() external {
         uint256 commitmentBefore = pufferProtocol.getSmoothingCommitment(1);
         uint256[] memory commitments = new uint256[](1);
@@ -308,8 +308,8 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(commitmentBefore != commitmentAfter, "should change");
     }
 
-    // Change smoothing non existent strategy
-    function testSetSmoothingCommitment(bytes32 strategy) external {
+    // Change smoothing non existent module
+    function testSetSmoothingCommitment(bytes32 module) external {
         uint256 commitmentBefore = pufferProtocol.getSmoothingCommitment(1);
         uint256[] memory commitments = new uint256[](1);
         commitments[0] = 20 ether;
@@ -425,32 +425,32 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setWithdrawalPoolRate(rate);
     }
 
-    function testChangeStrategy() public {
-        address strategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
-        vm.expectRevert(IPufferProtocol.InvalidPufferStrategy.selector);
-        pufferProtocol.changeStrategy(NO_RESTAKING, PufferStrategy(payable(address(5))));
+    function testChangeModule() public {
+        address module = pufferProtocol.getModuleAddress(NO_RESTAKING);
+        vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
+        pufferProtocol.changeModule(NO_RESTAKING, PufferModule(payable(address(5))));
     }
 
-    function testChangeStrategyToCustom() public {
-        pufferProtocol.changeStrategy(bytes32("RANDOM_STRATEGY"), PufferStrategy(payable(address(5))));
-        address strategyAfterChange = pufferProtocol.getStrategyAddress("RANDOM_STRATEGY");
-        assertTrue(address(0) != strategyAfterChange, "strategy did not change");
+    function testChangeModuleToCustom() public {
+        pufferProtocol.changeModule(bytes32("RANDOM_MODULE"), PufferModule(payable(address(5))));
+        address moduleAfterChange = pufferProtocol.getModuleAddress("RANDOM_MODULE");
+        assertTrue(address(0) != moduleAfterChange, "module did not change");
     }
 
-    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 strategyName) internal {
+    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 moduleName) internal {
         uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, strategyName);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, moduleName);
 
-        uint256 idx = pufferProtocol.getPendingValidatorIndex(strategyName);
+        uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, strategyName, true);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
+        emit ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, 1);
     }
 
     function testStopRegistration() public {
@@ -465,10 +465,10 @@ contract PufferProtocolTest is TestHelper {
         vm.expectRevert(Unauthorized.selector);
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
 
-        (bytes32 strategyName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, NO_RESTAKING, "strategy");
-        assertEq(0, idx, "strategy");
+        assertEq(moduleName, NO_RESTAKING, "module");
+        assertEq(0, idx, "module");
         assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 0, "zero index is next in line");
 
         bytes memory alicePubKey = _getPubKey(bytes32("alice"));
@@ -483,10 +483,10 @@ contract PufferProtocolTest is TestHelper {
         // Because this contract is msg.sender, it means that it is the node operator
         assertEq(pool.balanceOf(address(this)), 1 ether, "node operator should get 1 pufETH for Alice");
 
-        (strategyName, idx) = pufferProtocol.getNextValidatorToProvision();
+        (moduleName, idx) = pufferProtocol.getNextValidatorToProvision();
 
-        assertEq(strategyName, NO_RESTAKING, "strategy after");
-        assertEq(1, idx, "strategy after");
+        assertEq(moduleName, NO_RESTAKING, "module after");
+        assertEq(1, idx, "module after");
 
         bytes[] memory signatures = _getGuardianSignatures(alicePubKey);
 
@@ -565,8 +565,8 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function testProvisionNode() public {
-        pufferProtocol.createPufferStrategy(EIGEN_DA);
-        pufferProtocol.createPufferStrategy(CRAZY_GAINS);
+        pufferProtocol.createPufferModule(EIGEN_DA);
+        pufferProtocol.createPufferModule(CRAZY_GAINS);
 
         bytes32[] memory oldWeights = new bytes32[](1);
         oldWeights[0] = NO_RESTAKING;
@@ -578,8 +578,8 @@ contract PufferProtocolTest is TestHelper {
         newWeights[3] = CRAZY_GAINS;
 
         vm.expectEmit(true, true, true, true);
-        emit StrategyWeightsChanged(oldWeights, newWeights);
-        pufferProtocol.setStrategyWeights(newWeights);
+        emit ModuleWeightsChanged(oldWeights, newWeights);
+        pufferProtocol.setModuleWeights(newWeights);
 
         vm.deal(address(pool), 10000 ether);
 
@@ -591,10 +591,10 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("benjamin"), EIGEN_DA);
         _registerValidatorKey(bytes32("rocky"), CRAZY_GAINS);
 
-        (bytes32 nextStrategy, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
+        (bytes32 nextModule, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
 
-        assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
-        assertTrue(nextId == 0, "strategy selection");
+        assertTrue(nextModule == NO_RESTAKING, "module selection");
+        assertTrue(nextId == 0, "module selection");
 
         bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
 
@@ -603,11 +603,11 @@ contract PufferProtocolTest is TestHelper {
         emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
 
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+        (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
-        assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
+        assertTrue(nextModule == EIGEN_DA, "module selection");
         // Id is zero, because that is the first in this queue
-        assertTrue(nextId == 0, "strategy id");
+        assertTrue(nextId == 0, "module id");
 
         signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")));
 
@@ -615,11 +615,11 @@ contract PufferProtocolTest is TestHelper {
         emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
         pufferProtocol.provisionNode(signatures);
 
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+        (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
         // // Because the EIGEN_DA queue is empty, the next for provisioning is from CRAZY_GAINS
-        assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
-        assertTrue(nextId == 0, "strategy id");
+        assertTrue(nextModule == CRAZY_GAINS, "module selection");
+        assertTrue(nextId == 0, "module id");
 
         vm.stopPrank();
 
@@ -627,10 +627,10 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("jason"), EIGEN_DA);
 
         // If we query next validator, it should switch back to EIGEN_DA (because of the weighted selection)
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+        (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
-        assertTrue(nextStrategy == EIGEN_DA, "strategy selection");
-        assertTrue(nextId == 1, "strategy id");
+        assertTrue(nextModule == EIGEN_DA, "module selection");
+        assertTrue(nextId == 1, "module id");
 
         // Provisioning of rocky should fail, because jason is next in line
         signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
@@ -642,22 +642,22 @@ contract PufferProtocolTest is TestHelper {
         // Provision Jason
         pufferProtocol.provisionNode(signatures);
 
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+        (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
         signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
 
         // Rocky is now in line
-        assertTrue(nextStrategy == CRAZY_GAINS, "strategy selection");
-        assertTrue(nextId == 0, "strategy id");
+        assertTrue(nextModule == CRAZY_GAINS, "module selection");
+        assertTrue(nextId == 0, "module id");
         pufferProtocol.provisionNode(signatures);
 
-        (nextStrategy, nextId) = pufferProtocol.getNextValidatorToProvision();
+        (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
-        assertTrue(nextStrategy == NO_RESTAKING, "strategy selection");
-        assertTrue(nextId == 1, "strategy id");
+        assertTrue(nextModule == NO_RESTAKING, "module selection");
+        assertTrue(nextId == 1, "module id");
 
         assertEq(
-            pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking strategy"
+            pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking module"
         );
 
         signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
@@ -667,11 +667,11 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.provisionNode(signatures);
     }
 
-    function testCreatePufferStrategy() public {
+    function testCreatePufferModule() public {
         bytes32 name = bytes32("LEVERAGED_RESTAKING");
-        pufferProtocol.createPufferStrategy(name);
-        IPufferStrategy strategy = IPufferStrategy(pufferProtocol.getStrategyAddress(name));
-        assertEq(strategy.NAME(), name, "names");
+        pufferProtocol.createPufferModule(name);
+        IPufferModule module = IPufferModule(pufferProtocol.getModuleAddress(name));
+        assertEq(module.NAME(), name, "names");
     }
 
     function testClaimBackBond() public {
@@ -710,7 +710,7 @@ contract PufferProtocolTest is TestHelper {
         // Invalid block number = invalid proof
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
         pufferProtocol.stopValidator({
-            strategyName: NO_RESTAKING,
+            moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 150,
             withdrawalAmount: 32.14 ether,
@@ -722,7 +722,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Valid proof
         pufferProtocol.stopValidator({
-            strategyName: NO_RESTAKING,
+            moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 32.14 ether,
@@ -733,7 +733,7 @@ contract PufferProtocolTest is TestHelper {
         // Try again, now the validator will be in invalid state
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.EXITED));
         pufferProtocol.stopValidator({
-            strategyName: NO_RESTAKING,
+            moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 32.14 ether,
@@ -750,7 +750,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Bob was slashed, bob shouldn't get any pufETH
         pufferProtocol.stopValidator({
-            strategyName: EIGEN_DA,
+            moduleName: EIGEN_DA,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 31 ether,
@@ -800,13 +800,13 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(strategyName, pendingIdx);
-        // If there is no strategy return empty byte array
-        if (validator.strategy == address(0)) {
+        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
+        // If there is no module return empty byte array
+        if (validator.module == address(0)) {
             return new bytes[](0);
         }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
         bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
             pubKey,
@@ -838,9 +838,9 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
-        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
 
-        bytes32 digest = LibGuardianMessages.getSkipProvisioningMessage(strategyName, pendingIdx);
+        bytes32 digest = LibGuardianMessages.getSkipProvisioningMessage(moduleName, pendingIdx);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -861,7 +861,7 @@ contract PufferProtocolTest is TestHelper {
 
     // Tests setter for enclave measurements
 
-    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 strategyName)
+    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 moduleName)
         internal
         view
         returns (ValidatorKeyData memory)
@@ -873,9 +873,9 @@ contract PufferProtocolTest is TestHelper {
         newSetOfPubKeys[0] = bytes("key2");
         newSetOfPubKeys[0] = bytes("key3");
 
-        address strategy = pufferProtocol.getStrategyAddress(strategyName);
+        address module = pufferProtocol.getModuleAddress(moduleName);
 
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(module);
 
         bytes memory randomSignature =
             hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
@@ -903,33 +903,33 @@ contract PufferProtocolTest is TestHelper {
 
     // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
     function _setupMerkleRoot() public {
-        // Create EIGEN_DA strategy
-        pufferProtocol.createPufferStrategy(EIGEN_DA);
+        // Create EIGEN_DA module
+        pufferProtocol.createPufferModule(EIGEN_DA);
 
-        // Include the EIGEN_DA in strategy selection
+        // Include the EIGEN_DA in module selection
         bytes32[] memory newWeights = new bytes32[](4);
         newWeights[0] = NO_RESTAKING;
         newWeights[1] = EIGEN_DA;
         newWeights[2] = EIGEN_DA;
         newWeights[3] = CRAZY_GAINS;
 
-        pufferProtocol.setStrategyWeights(newWeights);
+        pufferProtocol.setModuleWeights(newWeights);
 
-        address noRestakingStrategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
-        address eigenDaStrategy = pufferProtocol.getStrategyAddress(EIGEN_DA);
+        address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
+        address eigenDaModule = pufferProtocol.getModuleAddress(EIGEN_DA);
 
-        // Enable PufferProtocol to call `call` function on strategy
+        // Enable PufferProtocol to call `call` function on module
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = IPufferStrategy.call.selector;
+        selectors[0] = IPufferModule.call.selector;
         vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(noRestakingStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL);
-        accessManager.setTargetFunctionRole(eigenDaStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        accessManager.setTargetFunctionRole(NoRestakingModule, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_PROTOCOL);
         vm.stopPrank();
 
         // We are simulating 2 full withdrawals
         address[] memory strategies = new address[](2);
-        strategies[0] = noRestakingStrategy;
-        strategies[1] = eigenDaStrategy;
+        strategies[0] = NoRestakingModule;
+        strategies[1] = eigenDaModule;
 
         // Give funds to strategies
         vm.deal(strategies[0], 200 ether);

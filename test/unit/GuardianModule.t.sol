@@ -22,7 +22,7 @@ contract GuardianModuleTest is TestHelper {
     function testRotateGuardianKeyFromNonGuardianReverts() public {
         RaveEvidence memory evidence;
         vm.expectRevert(Unauthorized.selector);
-        module.rotateGuardianKey(0, new bytes(55), evidence);
+        guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
     }
 
     function testRoateGuardianToInvalidPubKeyReverts() public {
@@ -31,18 +31,18 @@ contract GuardianModuleTest is TestHelper {
         vm.startPrank(guardian1);
 
         vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
-        module.rotateGuardianKey(0, new bytes(55), evidence);
+        guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
     }
 
     function testAddGuardian(address guardian) public assumeEOA(guardian) {
         vm.startPrank(DAO);
 
         // Must not be a guardian already
-        vm.assume(!module.isGuardian(guardian));
+        vm.assume(!guardianModule.isGuardian(guardian));
 
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.GuardianAdded(guardian);
-        module.addGuardian(guardian);
+        guardianModule.addGuardian(guardian);
     }
 
     function testRemoveGuardian(address guardian) public {
@@ -50,13 +50,13 @@ contract GuardianModuleTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.GuardianRemoved(guardian);
-        module.removeGuardian(guardian);
+        guardianModule.removeGuardian(guardian);
     }
 
     function testSplitFunds() public {
-        vm.deal(address(module), 1 ether);
+        vm.deal(address(guardianModule), 1 ether);
 
-        module.splitGuardianFunds();
+        guardianModule.splitGuardianFunds();
 
         assertEq(guardian1.balance, guardian2.balance, "guardian balances");
         assertEq(guardian1.balance, guardian3.balance, "guardian balances");
@@ -67,7 +67,7 @@ contract GuardianModuleTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.ThresholdChanged(1, 2);
-        module.changeThreshold(2);
+        guardianModule.changeThreshold(2);
     }
 
     function testChangeThresholdReverts() public {
@@ -75,7 +75,7 @@ contract GuardianModuleTest is TestHelper {
 
         // We have 3 guardians, try setting threshold to 5
         vm.expectRevert();
-        module.changeThreshold(5);
+        guardianModule.changeThreshold(5);
     }
 
     function testRoateGuardianKeyWithInvalidRaveReverts() public {
@@ -90,6 +90,6 @@ contract GuardianModuleTest is TestHelper {
         });
 
         vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
-        module.rotateGuardianKey(1, guardian3EnclavePubKey, rave);
+        guardianModule.rotateGuardianKey(1, guardian3EnclavePubKey, rave);
     }
 }

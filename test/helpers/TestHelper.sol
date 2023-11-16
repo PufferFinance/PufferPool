@@ -51,7 +51,7 @@ contract TestHelper is Test, BaseScript {
     IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
 
-    GuardianModule public module;
+    GuardianModule public guardianModule;
 
     AccessManager public accessManager;
     IEnclaveVerifier public verifier;
@@ -83,7 +83,7 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
         fuzzedAddressMapping[address(withdrawalPool)] = true;
-        fuzzedAddressMapping[address(module)] = true;
+        fuzzedAddressMapping[address(guardianModule)] = true;
         fuzzedAddressMapping[address(verifier)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
@@ -121,7 +121,7 @@ contract TestHelper is Test, BaseScript {
         pool = PufferPool(payable(pufferDeployment.pufferPool));
         withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
-        module = GuardianModule(payable(pufferDeployment.guardianModule));
+        guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
 
         vm.label(address(pool), "PufferPool");
@@ -133,14 +133,14 @@ contract TestHelper is Test, BaseScript {
 
         // mrenclave and mrsigner are the same for all evidences
         vm.startPrank(DAO);
-        module.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+        guardianModule.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
         vm.stopPrank();
 
-        assertEq(module.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
-        assertEq(module.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
+        assertEq(guardianModule.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
+        assertEq(guardianModule.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
 
         // Add a valid certificate to verifier
-        verifier = module.ENCLAVE_VERIFIER();
+        verifier = guardianModule.ENCLAVE_VERIFIER();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
         require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
@@ -153,7 +153,7 @@ contract TestHelper is Test, BaseScript {
 
         // Register enclave keys for guardians
         vm.startPrank(guardians[0]);
-        module.rotateGuardianKey(
+        guardianModule.rotateGuardianKey(
             0,
             guardian1EnclavePubKey,
             RaveEvidence({
@@ -165,7 +165,7 @@ contract TestHelper is Test, BaseScript {
         vm.stopPrank();
 
         vm.startPrank(guardians[1]);
-        module.rotateGuardianKey(
+        guardianModule.rotateGuardianKey(
             0,
             guardian2EnclavePubKey,
             RaveEvidence({
@@ -177,7 +177,7 @@ contract TestHelper is Test, BaseScript {
         vm.stopPrank();
 
         vm.startPrank(guardians[2]);
-        module.rotateGuardianKey(
+        guardianModule.rotateGuardianKey(
             0,
             guardian3EnclavePubKey,
             RaveEvidence({
@@ -188,11 +188,11 @@ contract TestHelper is Test, BaseScript {
         );
         vm.stopPrank();
 
-        assertEq(module.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
-        assertEq(module.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
-        assertEq(module.getGuardiansEnclaveAddress(guardians[2]), guardian3Enclave, "bad enclave address3");
+        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
+        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
+        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[2]), guardian3Enclave, "bad enclave address3");
 
-        bytes[] memory pubKeys = module.getGuardiansEnclavePubkeys();
+        bytes[] memory pubKeys = guardianModule.getGuardiansEnclavePubkeys();
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
         assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
         assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
