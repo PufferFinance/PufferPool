@@ -22,7 +22,6 @@ import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
-import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
  * @title PufferProtocol
@@ -181,20 +180,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             withdrawalCredentials: withdrawalCredentials
         });
 
-        // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages.getMessageToBeSigned(
-            validator.pubKey, validator.signature, withdrawalCredentials, depositDataRoot
-        );
-
-        // Check the signatures
-        bool validSignatures = GUARDIAN_MODULE.validateGuardiansEnclaveSignatures({
-            enclaveSignatures: guardianEnclaveSignatures,
-            signedMessageHash: signedMessageHash
+        // Check the signatures (reverts if invalid)
+        GUARDIAN_MODULE.validateProvisionNode({
+            pubKey: validator.pubKey,
+            signature: validator.signature,
+            depositDataRoot: depositDataRoot,
+            withdrawalCredentials: withdrawalCredentials,
+            guardianEnclaveSignatures: guardianEnclaveSignatures
         });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
 
         $.validators[moduleName][index].status = Status.ACTIVE;
 
@@ -324,17 +317,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
 
-        bytes32 signedMessageHash = LibGuardianMessages.getSkipProvisioningMessage(moduleName, skippedIndex);
-
-        // Check the signatures
-        bool validSignatures = GUARDIAN_MODULE.validateGuardiansEOASignatures({
-            eoaSignatures: guardianEOASignatures,
-            signedMessageHash: signedMessageHash
+        // Check the signatures (reverts if invalid)
+        GUARDIAN_MODULE.validateSkipProvisioning({
+            moduleName: moduleName,
+            skippedIndex: skippedIndex,
+            guardianEOASignatures: guardianEOASignatures
         });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
 
         // Change the status of that validator
         $.validators[moduleName][skippedIndex].status = Status.SKIPPED;
@@ -366,19 +354,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
-
-        // Check the signatures
-        bool validSignatures = GUARDIAN_MODULE.validateGuardiansEOASignatures({
-            eoaSignatures: guardianSignatures,
-            signedMessageHash: signedMessageHash
+        // Check the signatures (reverts if invalid)
+        GUARDIAN_MODULE.validatePostFullWithdrawalsRoot({
+            root: root,
+            blockNumber: blockNumber,
+            modules: modules,
+            amounts: amounts,
+            guardianSignatures: guardianSignatures
         });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
 
         $.fullWithdrawalsRoots[blockNumber] = root;
 
@@ -422,19 +405,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) external {
         PufferPoolStorage storage $ = _getPuferPoolStorage();
 
-        // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
-
-        // Check the signatures
-        bool validSignatures = GUARDIAN_MODULE.validateGuardiansEOASignatures({
-            eoaSignatures: guardianSignatures,
-            signedMessageHash: signedMessageHash
+        // Check the signatures (reverts if invalid)
+        GUARDIAN_MODULE.validateProofOfReserve({
+            ethAmount: ethAmount,
+            lockedETH: lockedETH,
+            pufETHTotalSupply: pufETHTotalSupply,
+            blockNumber: blockNumber,
+            guardianSignatures: guardianSignatures
         });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
 
         //@audit figure out if we want more restrictions on this
         if (block.number < blockNumber) {

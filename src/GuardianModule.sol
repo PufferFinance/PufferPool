@@ -9,6 +9,7 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
  * @title Guardian module
@@ -103,6 +104,97 @@ contract GuardianModule is AccessManaged, IGuardianModule {
             // slither-disable-next-line calls-loop
             payable(guardians[i]).transfer(amountPerGuardian);
             // slither-disable-end reentrancy-unlimited-gas
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
+        external
+        view
+    {
+        bytes32 signedMessageHash = LibGuardianMessages.getSkipProvisioningMessage(moduleName, skippedIndex);
+
+        // Check the signatures
+        bool validSignatures = validateGuardiansEOASignatures({
+            eoaSignatures: guardianEOASignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validatePostFullWithdrawalsRoot(
+        bytes32 root,
+        uint256 blockNumber,
+        address[] calldata modules,
+        uint256[] calldata amounts,
+        bytes[] calldata guardianSignatures
+    ) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
+
+        // Check the signatures
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateProofOfReserve(
+        uint256 ethAmount,
+        uint256 lockedETH,
+        uint256 pufETHTotalSupply,
+        uint256 blockNumber,
+        bytes[] calldata guardianSignatures
+    ) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
+
+        // Check the signatures
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateProvisionNode(
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes calldata withdrawalCredentials,
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
+    ) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
+
+        // Check the signatures
+        bool validSignatures = validateGuardiansEnclaveSignatures({
+            enclaveSignatures: guardianEnclaveSignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
         }
     }
 

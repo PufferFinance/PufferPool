@@ -87,6 +87,66 @@ interface IGuardianModule {
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
+     * @notice Validates the node provisioning calldata
+     * @param pubKey The public key
+     * @param signature The signature
+     * @param withdrawalCredentials The withdrawal credentials
+     * @param depositDataRoot The deposit data root
+     * @param guardianEnclaveSignatures The guardian enclave signatures
+     */
+    function validateProvisionNode(
+        bytes memory pubKey,
+        bytes calldata signature,
+        bytes calldata withdrawalCredentials,
+        bytes32 depositDataRoot,
+        bytes[] calldata guardianEnclaveSignatures
+    ) external view;
+
+    /**
+     * @notice Validates the skipping of provisioning for a specific module
+     * @param moduleName The name of the module
+     * @param skippedIndex The index of the skipped provisioning
+     * @param guardianEOASignatures The guardian EOA signatures
+     */
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
+        external
+        view;
+
+    /**
+     * @notice Validates the proof of reserve
+     * @dev This function validates the proof of reserve by checking the signatures of the guardians
+     * @param ethAmount The amount of ETH
+     * @param lockedETH The locked ETH amount
+     * @param pufETHTotalSupply The total supply of PUF-ETH tokens
+     * @param blockNumber The block number
+     * @param guardianSignatures The guardian signatures
+     */
+    function validateProofOfReserve(
+        uint256 ethAmount,
+        uint256 lockedETH,
+        uint256 pufETHTotalSupply,
+        uint256 blockNumber,
+        bytes[] calldata guardianSignatures
+    ) external view;
+
+    /**
+     * @notice Validates the post full withdrawals root
+     * @dev This function validates the post full withdrawals root by checking the signatures of the guardians
+     * @param root The post full withdrawals root
+     * @param blockNumber The block number
+     * @param modules The array of module addresses
+     * @param amounts The array of withdrawal amounts
+     * @param guardianSignatures The guardian signatures
+     */
+    function validatePostFullWithdrawalsRoot(
+        bytes32 root,
+        uint256 blockNumber,
+        address[] calldata modules,
+        uint256[] calldata amounts,
+        bytes[] calldata guardianSignatures
+    ) external view;
+
+    /**
      * @notice Returns the threshold value for guardian signatures
      * @dev The threshold value is the minimum number of guardian signatures required for a transaction to be considered valid
      * @return The threshold value
