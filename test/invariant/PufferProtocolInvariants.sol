@@ -23,7 +23,7 @@ contract PufferProtocolInvariants is TestHelper {
     function invariant_pufferPoolETHCanOnlyGoUp() public {
         // PufferPool's ETH balance can only grow, unless it is `provisionNode`
         if (handler.ethLeavingThePool()) {
-            assertLe(address(pool).balance, handler.previousBalance(), "balance should be smaler");
+            assertLe(address(pool).balance, handler.previousBalance(), "balance should be smaller");
         } else {
             assertGe(address(pool).balance, handler.previousBalance(), "balance should go up");
         }
