@@ -26,13 +26,20 @@ For some parts of our system, guardians can use a normal Safe multisig transacti
 #### High-level Concepts
 
 This document organizes methods according to the following themes (click each to be taken to the relevant section):
-* TODO
 * [Guardian Functions](#guardian-functions)
 * [Enclave Verifier Functions](#enclave-verifier-functions)
 
 #### Important state variables
 
-* TODO
+### Guardian Module
+
+* `Safe public immutable GUARDIANS`: The SAFE multisig controlled by the Guardians
+* `IEnclaveVerifier public immutable ENCLAVE_VERIFIER`: The Enclave Verifier smart contract
+
+### Enclave Verifier
+
+* `mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s`: Mapping from leaf x509 hashes to RSA public key components
+
 
 #### Helpful definitions
 
@@ -103,14 +110,64 @@ Returns the message that the Guardians' enclaves must sign
 function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external
 ```
 
-function description TODO
+Allows Guardians to update their enclave keypair
 
 *Effects*:
-
+* The mapping `mapping(address guardian => GuardianData data) internal _guardianEnclaves` is updated for this Guardian, changing `enclaveAddress` and `enclavePubKey`
 
 *Requirements*:
 * May only be called by Guardians
+* Must submit a valid ECDSA public key
 
 ---
 
 ### Enclave Verifier Functions
+
+#### `addLeafX509`
+
+```solidity
+function addLeafX509(bytes calldata leafX509Cert) external
+```
+
+Adds a valid certificate if it is signed correctly
+
+*Effects*:
+* Adds the hashed leaf certificate as an entry to `mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s`
+
+*Requirements*:
+* Leaf certificate must be signed by Intel's root CA
+
+#### `removeLeafX509`
+
+```solidity
+function removeLeafX509(bytes32 hashedCert) external
+```
+
+Removes a whitelisted leaf x509 RSA public key
+
+*Effects*:
+* Removes the modulus and exponent fields from the entry within `mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s`, indexed by the provided `hashedCert`
+
+*Requirements*:
+* May only be called by Guardians
+
+
+#### `verifyEvidence`
+
+```solidity
+function verifyEvidence(
+    uint256 blockNumber,
+    bytes32 raveCommitment,
+    RaveEvidence calldata evidence,
+    bytes32 mrenclave,
+    bytes32 mrsigner
+) external view returns (bool)
+```
+
+Verifies remote attestation evidence. The report contains the expected MRENCLAVE/MRSIGNER values, a valid TCB status, and whether the data was signed by an Intel-issued x509 certificate. The report will contain a 64B payload in the form `(32B_Commitment || 32B_BlockHash)`, where `32B_Blockhash` is a recent L1 blockhash and `32B_Commitment` is a keccak256 hash that the enclave is committing to. The calling contract is expected to precompute `raveCommitment` from public inputs. The function returns true if the report is valid and the extracted payload matches the expected
+
+*Effects*:
+* View function; Returns true if the payload matches the expected
+
+*Requirements*:
+* Provided `blockNumber` must be within the `FRESHNESS_BLOCKS` interval
