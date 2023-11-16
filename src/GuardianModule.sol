@@ -84,8 +84,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         _threshold = threshold;
     }
 
-    receive() external payable {
-    }
+    receive() external payable { }
 
     /*
      * @notice Splits the funds among the guardians
