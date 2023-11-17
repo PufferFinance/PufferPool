@@ -5,6 +5,7 @@ import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { NoImplementation } from "puffer/NoImplementation.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -45,7 +46,11 @@ contract DeployPuffer is BaseScript {
         string memory obj = "";
 
         accessManager = AccessManager(guardiansDeployment.accessManager);
+        bytes32 poolSalt = bytes32("pufferPool");
+        bytes32 withdrawalPoolSalt = bytes32("withdrawalPool");
 
+        // UUPS proxy for PufferProtocol
+        proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
             // PufferTreasury
             address payable treasury = payable(vm.envOr("TREASURY", address(1337)));
@@ -57,19 +62,26 @@ contract DeployPuffer is BaseScript {
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
+            // Predict Pool address
+            address predictedPool = computeCreate2Address(
+                poolSalt, hashInitCode(type(PufferPool).creationCode, abi.encode(proxy, address(accessManager)))
+            );
+
+            address predictedWithdrawalPool = computeCreate2Address(
+                withdrawalPoolSalt,
+                hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
+            );
+
             // Puffer Service implementation
             pufferProtocolImpl =
-            new PufferProtocol({guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleBeacon: address(beacon)});
+            new PufferProtocol({withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)), pool: PufferPool(payable(predictedPool)), guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleBeacon: address(beacon)});
         }
-
-        // UUPS proxy for PufferProtocol
-        proxy = new ERC1967Proxy(address(pufferProtocolImpl), "");
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        pool = new PufferPool(pufferProtocol, address(accessManager));
+        pool = new PufferPool{salt: poolSalt}(pufferProtocol, address(accessManager));
 
-        withdrawalPool = new WithdrawalPool(pool, address(accessManager));
+        withdrawalPool = new WithdrawalPool{salt: withdrawalPoolSalt}(pool, address(accessManager));
 
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
@@ -91,11 +103,11 @@ contract DeployPuffer is BaseScript {
         smoothingCommitments[12] = 0.1140054663071664 ether;
         smoothingCommitments[13] = 0.1140020121007828 ether;
 
+        NoImplementation(payable(address(proxy))).upgradeToAndCall(address(pufferProtocolImpl), "");
+
         // Initialize the Pool
         pufferProtocol.initialize({
             accessManager: address(accessManager),
-            pool: pool,
-            withdrawalPool: withdrawalPool,
             noRestakingModule: address(noRestaking),
             smoothingCommitments: smoothingCommitments
         });

@@ -70,28 +70,40 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     address payable public immutable TREASURY;
 
     /**
-     * @dev Puffer finance treasury
+     * @inheritdoc IPufferProtocol
      */
     IGuardianModule public immutable override GUARDIAN_MODULE;
 
-    constructor(IGuardianModule guardianModule, address payable treasury, address moduleBeacon) payable {
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    IPufferPool public immutable override POOL;
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    IWithdrawalPool public immutable override WITHDRAWAL_POOL;
+
+    constructor(
+        IWithdrawalPool withdrawalPool,
+        IPufferPool pool,
+        IGuardianModule guardianModule,
+        address payable treasury,
+        address moduleBeacon
+    ) payable {
         PUFFER_MODULE_BEACON = moduleBeacon;
         TREASURY = treasury;
         GUARDIAN_MODULE = guardianModule;
+        POOL = pool;
+        WITHDRAWAL_POOL = withdrawalPool;
         _disableInitializers();
     }
 
-    function initialize(
-        address accessManager,
-        IPufferPool pool,
-        IWithdrawalPool withdrawalPool,
-        address noRestakingModule,
-        uint256[] calldata smoothingCommitments
-    ) external initializer {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
+    function initialize(address accessManager, address noRestakingModule, uint256[] calldata smoothingCommitments)
+        external
+        initializer
+    {
         __AccessManaged_init(accessManager);
-        $.pool = pool;
-        $.withdrawalPool = withdrawalPool;
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
         _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
         _setGuardiansFeeRate(5 * 1e17); // 0.5 %
@@ -123,7 +135,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             numberOfMonths: numberOfMonths
         });
 
-        uint256 pufETHReceived = $.pool.depositETH{ value: validatorBond }();
+        // slither-disable-next-line arbitrary-send-eth
+        uint256 pufETHReceived = POOL.depositETH{ value: validatorBond }();
 
         // Save the validator data to storage
         Validator memory validator;
@@ -194,7 +207,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         IPufferModule module = $.modules[moduleName];
 
         // Transfer 32 ETH to the module
-        $.pool.transferETH(address(module), 32 ether);
+        POOL.transferETH(address(module), 32 ether);
 
         emit SuccesfullyProvisioned(validator.pubKey, index, moduleName);
 
@@ -254,7 +267,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // slither-disable-next-line unchecked-transfer
-        $.pool.transfer(validator.node, validator.bond);
+        POOL.transfer(validator.node, validator.bond);
     }
 
     /**
@@ -301,10 +314,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Burn everything if the validator was slashed
         if (wasSlashed) {
-            $.pool.burn(validatorBond);
+            POOL.burn(validatorBond);
         } else {
             // slither-disable-next-line unchecked-transfer
-            $.pool.transfer(node, validatorBond);
+            POOL.transfer(node, validatorBond);
         }
 
         emit ValidatorExited(pubKey, validatorIndex, moduleName);
@@ -329,7 +342,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Transfer pufETH to that node operator
         // slither-disable-next-line unchecked-transfer
-        $.pool.transfer($.validators[moduleName][skippedIndex].node, $.validators[moduleName][skippedIndex].bond);
+        POOL.transfer($.validators[moduleName][skippedIndex].node, $.validators[moduleName][skippedIndex].bond);
 
         ++$.nextToBeProvisioned[moduleName];
         emit ValidatorSkipped($.validators[moduleName][skippedIndex].pubKey, skippedIndex, moduleName);
@@ -372,12 +385,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             uint256 pufferPoolAmount = amounts[i] - withdrawalPoolAmount;
 
             // slither-disable-next-line calls-loop
-            (bool success,) = IPufferModule(modules[i]).call(address($.withdrawalPool), withdrawalPoolAmount, "");
+            (bool success,) = IPufferModule(modules[i]).call(address(WITHDRAWAL_POOL), withdrawalPoolAmount, "");
             if (!success) {
                 revert Failed();
             }
             // slither-disable-next-line calls-loop
-            (success,) = IPufferModule(modules[i]).call(address($.pool), pufferPoolAmount, "");
+            (success,) = IPufferModule(modules[i]).call(address(POOL), pufferPoolAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -584,22 +597,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getWithdrawalPool() external view returns (IWithdrawalPool) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.withdrawalPool;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getPufferPool() external view returns (IPufferPool) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.pool;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     function getProtocolFeeRate() external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.protocolFeeRate;
@@ -658,11 +655,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 amount = msg.value - bond;
 
         uint256 treasuryAmount = _sendETH(TREASURY, amount, $.protocolFeeRate);
-        uint256 withdrawalPoolAmount = _sendETH(address($.withdrawalPool), amount, $.withdrawalPoolRate);
+        uint256 withdrawalPoolAmount = _sendETH(address(WITHDRAWAL_POOL), amount, $.withdrawalPoolRate);
         uint256 guardiansAmount = _sendETH(address(GUARDIAN_MODULE), amount, $.guardiansFeeRate);
 
         uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
-        address($.pool).safeTransferETH(poolAmount);
+        address(POOL).safeTransferETH(poolAmount);
     }
 
     function _setGuardiansFeeRate(uint256 newRate) internal {

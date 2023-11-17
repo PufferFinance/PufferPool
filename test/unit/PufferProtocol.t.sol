@@ -58,8 +58,8 @@ contract PufferProtocolTest is TestHelper {
 
     // Setup
     function testSetup() public {
-        assertTrue(address(pufferProtocol.getWithdrawalPool()) != address(0), "non zero address");
-        assertTrue(address(pufferProtocol.getPufferPool()) != address(0), "pufer pool address");
+        assertTrue(address(pufferProtocol.WITHDRAWAL_POOL()) != address(0), "non zero address");
+        assertTrue(address(pufferProtocol.POOL()) != address(0), "pufer pool address");
         address module = pufferProtocol.getModuleAddress(NO_RESTAKING);
         assertEq(PufferModule(payable(module)).NAME(), NO_RESTAKING, "bad name");
     }

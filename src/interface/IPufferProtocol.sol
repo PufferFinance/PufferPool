@@ -337,19 +337,19 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function GUARDIAN_MODULE() external view returns (IGuardianModule);
 
     /**
+     * @notice Returns the Puffer Pool
+     */
+    function POOL() external view returns (IPufferPool);
+
+    /**
+     * @notice Returns the Withdrawal Pool
+     */
+    function WITHDRAWAL_POOL() external view returns (IWithdrawalPool);
+
+    /**
      * @notice Returns the protocol fee rate
      */
     function getProtocolFeeRate() external view returns (uint256);
-
-    /**
-     * @notice Returns the address of the Withdrawal pool
-     */
-    function getWithdrawalPool() external view returns (IWithdrawalPool);
-
-    /**
-     * @notice Returns the address of the Withdrawal pool
-     */
-    function getPufferPool() external view returns (IPufferPool);
 
     /**
      * @notice Returns the current module weights

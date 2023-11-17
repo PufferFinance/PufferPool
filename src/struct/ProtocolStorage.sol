@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { Validator } from "puffer/struct/Validator.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 
 /**
@@ -12,78 +9,69 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
  */
 struct ProtocolStorage {
     /**
-     * @dev Puffer Pool
-     * Slot 0
-     */
-    IPufferPool pool;
-    /**
-     * @dev Withdrawal pool address
-     * Slot 1
-     */
-    IWithdrawalPool withdrawalPool;
-    /**
      * @dev Module weights
-     * Slot 2
+     * Slot 0
      */
     bytes32[] moduleWeights;
     /**
      * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 3
+     * Slot 1
      */
     uint72 protocolFeeRate;
     /**
      * @dev WithdrawalPool rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 3
+     * Slot 1
      */
     uint72 withdrawalPoolRate;
     /**
      * @dev Guardians fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 3
+     * Slot 1
      */
     uint72 guardiansFeeRate;
     /**
      * @dev Number of validators registered in this interval
-     * Slot 3
+     * Slot 1
      */
     uint16 numberOfValidatorsRegisteredInThisInterval;
     /**
      * @dev Number of validators allowed per interval
-     * Slot 3
+     * Slot 1
      */
     uint16 validatorLimitPerInterval;
     /**
      * @dev Select module index
-     * Slot 4
+     * Slot 2
      */
-    uint128 moduleSelectIndex;
+    uint256 moduleSelectIndex;
     /**
      * @dev Mapping of module name to pending validator index for that module
-     * Slot 5
+     * Slot 3
      */
     mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
     /**
      * @dev Mapping of a module name to validator queue
-     * Slot 6
+     * Slot 4
      */
     mapping(bytes32 moduleName => uint256 nextInLineToBeProvisionedIndex) nextToBeProvisioned;
     /**
      * @dev Mapping of Module name => idx => Validator
      * Index is incrementing starting from 0, not to be mistaken with Beacon Chain Validator Index
-     * Slot 7
+     * Slot 5
      */
     mapping(bytes32 moduleName => mapping(uint256 index => Validator validator)) validators;
     /**
      * @dev Mapping of a blockNumber and Merkle Root for full withdrawals
+     * Slot 6
      */
     mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots;
     /**
      * @dev Mapping between module name and a module
-     * Slot 8
+     * Slot 7
      */
     mapping(bytes32 moduleName => IPufferModule moduleAddress) modules;
     /**
      * @dev Array of smoothing commitments for a number of months and smoothing commitment amount (in wei)
-     * Slot 9
+     * Slot 8
      */
     uint256[] smoothingCommitments;
 }
