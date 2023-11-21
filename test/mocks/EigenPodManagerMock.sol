@@ -1,13 +1,50 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IBeacon } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
     function slasher() external view returns (ISlasher) { }
 
-    function createPod() external pure { }
+    function createPod() external pure returns (address) {
+        return (address(123123123));
+    }
+
+    function addShares(address podOwner, uint256 shares) external returns (uint256) {
+        return 55;
+    }
+
+    function beaconChainETHStrategy() external view returns (IStrategy) { }
+
+    function eigenPodBeacon() external view returns (IBeacon) {
+        return IBeacon(address(99));
+    }
+
+    function ethPOS() external view returns (IETHPOSDeposit) {
+        return IETHPOSDeposit(address(99));
+    }
+
+    function getBlockRootAtTimestamp(uint64 timestamp) external view returns (bytes32) {
+        return bytes32("asdf");
+    }
+
+    function maxPods() external view returns (uint256) {
+        return 100;
+    }
+
+    function numPods() external view returns (uint256) {
+        return 10;
+    }
+
+    function podOwnerShares(address podOwner) external view returns (int256) {
+        return 5;
+    }
+
+    function recordBeaconChainETHBalanceUpdate(address podOwner, int256 sharesDelta) external { }
+    function removeShares(address podOwner, uint256 shares) external { }
+    function withdrawSharesAsTokens(address podOwner, address destination, uint256 shares) external { }
 
     function stake(bytes calldata, /*pubkey*/ bytes calldata, /*signature*/ bytes32 /*depositDataRoot*/ )
         external

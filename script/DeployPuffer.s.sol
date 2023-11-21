@@ -16,6 +16,7 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
 
 /**
  * @title DeployPuffer
@@ -33,25 +34,29 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
  *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
 contract DeployPuffer is BaseScript {
-    function run() public broadcast returns (PufferProtocol, PufferPool, AccessManager) {
-        string memory guardiansDeployment =
-            vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+    PufferProtocol pufferProtocolImpl;
+    AccessManager accessManager;
+    ERC1967Proxy proxy;
+    PufferProtocol pufferProtocol;
+    PufferPool pool;
+    WithdrawalPool withdrawalPool;
+    UpgradeableBeacon beacon;
+
+    function run(GuardiansDeployment calldata guardiansDeployment) public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
 
-        PufferProtocol pufferProtocolImpl;
-
-        AccessManager accessManager = AccessManager(stdJson.readAddress(guardiansDeployment, ".accessManager"));
+        accessManager = AccessManager(guardiansDeployment.accessManager);
 
         {
             // PufferTreasury
             address payable treasury = payable(vm.envOr("TREASURY", address(1337)));
-            address payable guardians = payable(stdJson.readAddress(guardiansDeployment, ".guardians"));
+            address payable guardians = payable(guardiansDeployment.guardians);
 
             address eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
 
             PufferStrategy strategyImplementation = new PufferStrategy(IEigenPodManager(eigenPodManager));
 
-            UpgradeableBeacon beacon = new UpgradeableBeacon(address(strategyImplementation), address(accessManager));
+            beacon = new UpgradeableBeacon(address(strategyImplementation), address(accessManager));
             vm.serializeAddress(obj, "PufferStrategyBeacon", address(beacon));
 
             // Puffer Service implementation
@@ -60,16 +65,16 @@ contract DeployPuffer is BaseScript {
         }
 
         // UUPS proxy for PufferProtocol
-        ERC1967Proxy proxy = new ERC1967Proxy(address(pufferProtocolImpl), "");
+        proxy = new ERC1967Proxy(address(pufferProtocolImpl), "");
 
-        PufferProtocol pufferProtocol = PufferProtocol(payable(address(proxy)));
+        pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        PufferPool pool = new PufferPool(pufferProtocol, address(accessManager));
+        pool = new PufferPool(pufferProtocol, address(accessManager));
 
-        WithdrawalPool withdrawalPool = new WithdrawalPool(pool, address(accessManager));
+        withdrawalPool = new WithdrawalPool(pool, address(accessManager));
 
         // Read guardians module variable
-        address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
+        address payable guardiansModule = payable(guardiansDeployment.guardianModule);
 
         NoRestakingStrategy noRestaking =
             new NoRestakingStrategy(address(accessManager), pufferProtocol, getStakingContract());
@@ -106,12 +111,27 @@ contract DeployPuffer is BaseScript {
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
+        vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
+        vm.serializeAddress(obj, "guardians", guardiansDeployment.guardians);
+        vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
         vm.writeJson(finalJson, "./output/puffer.json");
-
-        return (pufferProtocol, pool, accessManager);
+        // return (pufferProtocol, pool, accessManager);
+        return PufferDeployment({
+            pufferProtocolImplementation: address(pufferProtocolImpl),
+            noRestakingStrategy: address(noRestaking),
+            pufferPool: address(pool),
+            withdrawalPool: address(withdrawalPool),
+            pufferProtocol: address(proxy),
+            guardianModule: guardiansDeployment.guardianModule,
+            guardians: guardiansDeployment.guardians,
+            accessManager: guardiansDeployment.accessManager,
+            enclaveVerifier: guardiansDeployment.enclaveVerifier,
+            pauser: guardiansDeployment.pauser,
+            beacon: address(beacon)
+        });
     }
 
     function getStakingContract() internal returns (address) {

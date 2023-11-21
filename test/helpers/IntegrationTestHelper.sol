@@ -4,7 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { DeployGuardians } from "script/1_DeployGuardians.s.sol";
+import { DeployGuardians } from "script/DeployGuardians.s.sol";
+import { GuardiansDeployment } from "script/DeploymentStructs.sol";
 
 contract IntegrationTestHelper is Test {
     address safeProxyFactory = 0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2; // mainnet
@@ -19,9 +20,9 @@ contract IntegrationTestHelper is Test {
         guardians[0] = address(this);
 
         // 1. Deploy guardians safe
-        new DeployGuardians().run(guardians, 1, "");
+        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, 1, "");
 
-        new DeployPuffer().run();
+        new DeployPuffer().run(guardiansDeployment);
         // vm.label(address(pool), "PufferPool");
     }
 
@@ -31,8 +32,9 @@ contract IntegrationTestHelper is Test {
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);
 
-        new DeployGuardians().run(guardians, 1, "");
-        new DeployPuffer().run();
+        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, 1, "");
+
+        new DeployPuffer().run(guardiansDeployment);
         // vm.label(address(pool), "PufferPool");
     }
 }

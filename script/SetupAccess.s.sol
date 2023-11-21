@@ -2,8 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "script/BaseScript.s.sol";
-import { Strings } from "openzeppelin/utils/Strings.sol";
-import { stdJson } from "forge-std/StdJson.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
@@ -12,6 +10,7 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { PufferDeployment } from "./DeploymentStructs.sol";
 
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1;
 uint64 constant ROLE_ID_DAO = 77;
@@ -19,23 +18,14 @@ uint64 constant ROLE_ID_GUARDIANS = 88;
 uint64 constant ROLE_ID_PAUSER = 999;
 
 contract SetupAccess is BaseScript {
-    string internal pufferDeployment = vm.readFile(string.concat("./output/puffer.json"));
+    AccessManager internal accessManager;
 
-    string internal guardiansDeployment = guardiansDeployment =
-        vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+    PufferDeployment internal pufferDeployment;
 
-    AccessManager internal accessManager = AccessManager(stdJson.readAddress(guardiansDeployment, ".accessManager"));
+    function run(PufferDeployment memory deployment, address DAO) external broadcast {
+        pufferDeployment = deployment;
+        accessManager = AccessManager(payable(deployment.accessManager));
 
-    address internal guardians = stdJson.readAddress(guardiansDeployment, ".guardians");
-    address internal guardianModule = stdJson.readAddress(guardiansDeployment, ".guardianModule");
-    address internal pufferProtocol = stdJson.readAddress(pufferDeployment, ".PufferProtocol");
-    address internal noRestakingStrategy = stdJson.readAddress(pufferDeployment, ".noRestakingStrategy");
-    address internal withdrawalPool = stdJson.readAddress(pufferDeployment, ".withdrawalPool");
-    address internal pufferPool = stdJson.readAddress(pufferDeployment, ".pufferPool");
-    address internal enclaveVerifier = stdJson.readAddress(guardiansDeployment, ".enclaveVerifier");
-    address internal pauser = stdJson.readAddress(guardiansDeployment, ".pauser");
-
-    function run(address DAO) external broadcast {
         // We do one multicall to setup everything
         bytes[] memory rolesCalldatas = _grantRoles(DAO);
         bytes[] memory pufferProtocolRoles = _setupPufferProtocolRoles();
@@ -83,7 +73,10 @@ contract SetupAccess is BaseScript {
         selectors[1] = bytes4(hex"945fca09"); // IWithdrawalPool.withdrawETH Permit version
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, withdrawalPool, selectors, accessManager.PUBLIC_ROLE()
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.withdrawalPool,
+            selectors,
+            accessManager.PUBLIC_ROLE()
         );
     }
 
@@ -91,25 +84,32 @@ contract SetupAccess is BaseScript {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = GuardianModule.setGuardianEnclaveMeasurements.selector;
 
-        return
-            abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, guardianModule, selectors, ROLE_ID_DAO);
+        return abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDeployment.guardianModule, selectors, ROLE_ID_DAO
+        );
     }
 
-    function _setupPufferPoolRoles() internal returns (bytes[] memory) {
+    function _setupPufferPoolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = PufferPool.transferETH.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferPool, selectors, ROLE_ID_PUFFER_PROTOCOL
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.pufferPool,
+            selectors,
+            ROLE_ID_PUFFER_PROTOCOL
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
         publicSelectors[0] = PufferPool.depositETH.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferPool, publicSelectors, accessManager.PUBLIC_ROLE()
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.pufferPool,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
         );
 
         return calldatas;
@@ -121,7 +121,7 @@ contract SetupAccess is BaseScript {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            PufferProtocol(pufferProtocol).PUFFER_STRATEGY_BEACON(),
+            PufferProtocol(pufferDeployment.pufferProtocol).PUFFER_STRATEGY_BEACON(),
             selectors,
             ROLE_ID_DAO
         );
@@ -134,14 +134,20 @@ contract SetupAccess is BaseScript {
         selectors[0] = IPufferStrategy.callStake.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, noRestakingStrategy, selectors, ROLE_ID_PUFFER_PROTOCOL
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.noRestakingStrategy,
+            selectors,
+            ROLE_ID_PUFFER_PROTOCOL
         );
 
         bytes4[] memory selectorsForGuardians = new bytes4[](1);
         selectorsForGuardians[0] = bytes4(hex"abfaad62"); // signature for `function postRewardsRoot(bytes32 root, uint256 blockNumber)`
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, noRestakingStrategy, selectorsForGuardians, ROLE_ID_GUARDIANS
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.noRestakingStrategy,
+            selectorsForGuardians,
+            ROLE_ID_GUARDIANS
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
@@ -149,7 +155,7 @@ contract SetupAccess is BaseScript {
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            noRestakingStrategy,
+            pufferDeployment.noRestakingStrategy,
             publicSelectors,
             accessManager.PUBLIC_ROLE()
         );
@@ -162,7 +168,7 @@ contract SetupAccess is BaseScript {
         selectors[0] = EnclaveVerifier.removeLeafX509.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, enclaveVerifier, selectors, ROLE_ID_DAO
+            AccessManager.setTargetFunctionRole.selector, pufferDeployment.enclaveVerifier, selectors, ROLE_ID_DAO
         );
     }
 
@@ -181,7 +187,10 @@ contract SetupAccess is BaseScript {
         selectors[8] = PufferProtocol.setWithdrawalPoolRate.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(pufferProtocol), selectors, ROLE_ID_DAO
+            AccessManager.setTargetFunctionRole.selector,
+            address(pufferDeployment.pufferProtocol),
+            selectors,
+            ROLE_ID_DAO
         );
 
         bytes4[] memory guardianSelectors = new bytes4[](4);
@@ -191,7 +200,10 @@ contract SetupAccess is BaseScript {
         guardianSelectors[3] = PufferProtocol.postFullWithdrawalsRoot.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(pufferProtocol), guardianSelectors, ROLE_ID_GUARDIANS
+            AccessManager.setTargetFunctionRole.selector,
+            address(pufferDeployment.pufferProtocol),
+            guardianSelectors,
+            ROLE_ID_GUARDIANS
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
@@ -199,7 +211,7 @@ contract SetupAccess is BaseScript {
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            address(pufferProtocol),
+            address(pufferDeployment.pufferProtocol),
             publicSelectors,
             accessManager.PUBLIC_ROLE()
         );
@@ -211,10 +223,13 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](4);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, DAO, 0);
-        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_GUARDIANS, guardians, 0);
-        calldatas[2] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, pufferProtocol, 0);
-        calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PAUSER, pauser, 0);
+        calldatas[1] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_GUARDIANS, pufferDeployment.guardians, 0);
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, pufferDeployment.pufferProtocol, 0
+        );
+        calldatas[3] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PAUSER, pufferDeployment.pauser, 0);
 
         return calldatas;
     }

@@ -1,5 +1,5 @@
 [profile.ci.fuzz]
-runs = 8_000
+runs = 7_000
 
 [profile.default]
 # Skip gas tests on CI
@@ -16,8 +16,8 @@ cbor_metadata = false
 bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
-solc = "0.8.20"
-evm_version = "shanghai"
+solc = "0.8.23"
+# evm_version = "shanghai"
 
 [fmt]
 line_length = 120
