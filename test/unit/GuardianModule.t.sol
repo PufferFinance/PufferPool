@@ -7,6 +7,7 @@ import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { Guardian2RaveEvidence } from "../helpers/GuardiansRaveEvidence.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 
 contract GuardianModuleTest is TestHelper {
     function setUp() public override {
@@ -21,7 +22,7 @@ contract GuardianModuleTest is TestHelper {
 
     function testRotateGuardianKeyFromNonGuardianReverts() public {
         RaveEvidence memory evidence;
-        vm.expectRevert(IGuardianModule.Unauthorized.selector);
+        vm.expectRevert(Unauthorized.selector);
         module.rotateGuardianKey(0, new bytes(55), evidence);
     }
 

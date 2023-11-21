@@ -7,6 +7,7 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 

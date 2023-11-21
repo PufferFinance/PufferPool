@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 
 /**
  * @title IPufferPool
@@ -37,11 +36,6 @@ interface IPufferPool is IERC20 {
      * @dev Signature "0xf6326fb3"
      */
     function depositETH() external payable returns (uint256);
-
-    /**
-     * @notice Deposits ETH without minting any pufETH
-     */
-    function depositETHWithoutMinting() external payable;
 
     /**
      *

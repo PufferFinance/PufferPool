@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
-import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { AbstractVault } from "puffer/AbstractVault.sol";
+import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
+import { TokenRescuer } from "puffer/TokenRescuer.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
@@ -15,7 +15,7 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
  * @notice NoRestakingStrategy
  * @custom:security-contact security@puffer.fi
  */
-contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
+contract NoRestakingStrategy is IPufferStrategy, AccessManaged, TokenRescuer {
     using SafeTransferLib for address;
 
     /**
@@ -75,7 +75,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     constructor(address initialAuthority, PufferProtocol puffer, address depositContract)
         payable
         AccessManaged(initialAuthority)
-        AbstractVault(puffer)
+        TokenRescuer(puffer)
     {
         BEACON_CHAIN_DEPOSIT_CONTRACT = depositContract;
     }
@@ -94,7 +94,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         restricted
     {
         // slither-disable-next-line arbitrary-send-eth
-        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{value: 32 ether}(
+        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{ value: 32 ether }(
             abi.encodeCall(
                 IBeaconDepositContract.deposit, (pubKey, getWithdrawalCredentials(), signature, depositDataRoot)
             )
@@ -120,7 +120,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external {
+    ) external restricted {
         // Anybody can submit a valid proof and the ETH will be sent to the node
         uint256 ethToSend = 0;
 

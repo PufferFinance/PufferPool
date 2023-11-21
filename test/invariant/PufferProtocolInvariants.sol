@@ -19,7 +19,7 @@ contract PufferProtocolInvariants is TestHelper {
         targetContract(address(handler));
     }
 
-    // // Guardian multisig is not supposed to change
+    // Guardian multisig is not supposed to change
     function invariant_guardiansCanNeverChange() public {
         assertTrue(address(guardiansSafe) == address(pufferProtocol.GUARDIANS()));
     }
@@ -30,6 +30,33 @@ contract PufferProtocolInvariants is TestHelper {
             assertTrue(address(pool).balance < handler.previousBalance());
         } else {
             assertTrue(address(pool).balance >= handler.previousBalance());
+        }
+    }
+
+    // Make sure that the pufETH doesn't disappear
+    function invariant_pufferProtocolBond() public {
+        // Validate against ghost variable
+        uint256 pufETHinProtocol = pool.balanceOf(address(pufferProtocol));
+        assertEq(handler.ghost_pufETH_bond_amount(), pufETHinProtocol, "missing bond from the protocol");
+
+        // Validate by calculating eth
+        uint256 ethAmount = pool.calculatePufETHtoETHAmount(pufETHinProtocol);
+        uint256 originalETHAmountDeposited = (handler.ghost_validators() * 1 ether);
+
+        // If the eth amount is lower than the original eth deposited, it is because of the rounding down (calculation for when we pay out users)
+        if (ethAmount < originalETHAmountDeposited) {
+            assertApproxEqRel(
+                ethAmount,
+                originalETHAmountDeposited,
+                0.01e18,
+                "bond should be worth more than the number of validators depositing"
+            );
+        } else {
+            assertGe(
+                ethAmount,
+                originalETHAmountDeposited,
+                "bond should be worth more than the number of validators depositing"
+            );
         }
     }
 

@@ -40,6 +40,7 @@ contract DeployGuardians is BaseScript {
         vm.serializeAddress(obj, "safeProxyFactory", address(safeProxy));
         vm.serializeAddress(obj, "safeImplementation", address(safeImplementation));
         vm.serializeAddress(obj, "enclaveVerifier", address(verifier));
+        vm.serializeAddress(obj, "pauser", 0x98BDB87fCF3697F4b356C36Cd621ffF94Ee3Aa19);
 
         string memory finalJson = vm.serializeString(obj, "", "");
 

@@ -66,7 +66,7 @@ contract DeployPuffer is BaseScript {
         // Deploy pool
         PufferPool pool = new PufferPool(pufferProtocol, address(accessManager));
 
-        WithdrawalPool withdrawalPool = new WithdrawalPool(pool);
+        WithdrawalPool withdrawalPool = new WithdrawalPool(pool, address(accessManager));
 
         // Read guardians module variable
         address payable guardiansModule = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));

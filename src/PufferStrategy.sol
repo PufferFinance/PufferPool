@@ -6,16 +6,16 @@ import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-
 /**
  * @title PufferStartegy
  * @author Puffer Finance
- * @notice PufferStartegy TODO:
+ * @notice PufferStartegy
  * @custom:security-contact security@puffer.fi
  */
+
 contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradeable {
-    error Unauthorized();
     /**
      * @dev Upgradeable contract from EigenLayer
      */

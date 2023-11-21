@@ -16,10 +16,13 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeTransferLib for address;
+    using SafeTransferLib for address payable;
 
     TestHelper testhelper;
 
@@ -45,6 +48,8 @@ contract PufferProtocolHandler is Test {
     uint256 public ghost_locked_amount;
     uint256 public ghost_eth_rewards_amount;
     uint256 public ghost_block_number = 1;
+    uint256 public ghost_validators = 0;
+    uint256 public ghost_pufETH_bond_amount = 0; // bond amount that should be in puffer protocol
 
     // Previous ETH balance of PufferPool
     uint256 public previousBalance;
@@ -144,7 +149,7 @@ contract PufferProtocolHandler is Test {
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
-        pool.depositETHWithoutMinting{ value: stakingRewardsAmount }();
+        address(pool).safeTransferETH(stakingRewardsAmount);
         vm.stopPrank();
 
         ghost_eth_rewards_amount += stakingRewardsAmount;
@@ -255,24 +260,28 @@ contract PufferProtocolHandler is Test {
         bytes32[] memory strategyWeights = pufferProtocol.getStrategyWeights();
         uint256 strategyIndex = strategySelectorSeed % strategyWeights.length;
 
-        bytes32 startegyName = strategyWeights[strategyIndex];
+        bytes32 strategyName = strategyWeights[strategyIndex];
 
         vm.deal(nodeOperator, 5 ether);
         vm.startPrank(nodeOperator);
 
-        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, startegyName);
+        uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(strategyName);
+
+        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, strategyName);
 
         // Store data and push to queue
         ProvisioningData memory validator;
         validator.status = Status.PENDING;
         validator.pubKeypart = pubKeyPart;
 
-        _validatorQueue[startegyName].push(validator);
+        _validatorQueue[strategyName].push(validator);
 
         vm.stopPrank();
 
         // Account for that deposited eth in ghost variable
         ghost_eth_deposited_amount += depositedETHAmount;
+        ghost_validators += 1;
+        ghost_pufETH_bond_amount += pool.calculateETHToPufETHAmount(1 ether);
 
         // Add node operator to the set
         _nodeOperators.add(nodeOperator);

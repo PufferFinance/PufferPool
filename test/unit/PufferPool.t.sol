@@ -9,9 +9,12 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 contract PufferPoolTest is TestHelper {
     using ECDSA for bytes32;
+    using SafeTransferLib for address;
+    using SafeTransferLib for address payable;
 
     event DepositRateChanged(uint256 oldValue, uint256 newValue);
 
@@ -121,13 +124,10 @@ contract PufferPoolTest is TestHelper {
         vm.deal(alice, 100 ether);
 
         vm.startPrank(bob);
-        (bool success,) = address(pool).call{ value: 10 ether }("");
-
-        assertTrue(success, "failed");
-        assertEq(pool.balanceOf(bob), 10 ether, "bob balance");
+        pool.depositETH{ value: 6 ether }();
+        assertEq(pool.balanceOf(bob), 6 ether, "bob balance");
 
         vm.startPrank(alice);
-
         uint256 minted = pool.depositETH{ value: 10 ether }();
 
         assertEq(minted, 10 ether, "amounts dont match");
@@ -159,7 +159,7 @@ contract PufferPoolTest is TestHelper {
         assertEq(minted, 1 ether, "minted amount");
 
         // Simulate rewards of 1 ETH
-        pool.depositETHWithoutMinting{ value: 1 ether }();
+        address(pool).safeTransferETH(1 ether);
 
         // Fast forward 50400 blocks ~ 7 days
         vm.roll(50401);

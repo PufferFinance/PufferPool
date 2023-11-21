@@ -21,12 +21,6 @@ interface IEnclaveVerifier {
     error StaleEvidence();
 
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
      * @notice Emitted when the `pubKeyHash` is added to valid pubKeys
      */
     event AddedPubKey(bytes32 pubKeyHash);

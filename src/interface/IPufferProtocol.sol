@@ -55,12 +55,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidBLSPrivateKeyShares();
 
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
      * @notice Thrown when the BLS public key is not valid
      * @dev Signature "0x7eef7967"
      */
@@ -404,6 +398,14 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
         external
         payable;
+
+    /**
+     * @notice Extends the commitment for a validator in a specific strategy
+     * @param strategyName The name of the strategy
+     * @param validatorIndex The index of the validator in the strategy
+     * @param numberOfMonths The number of months to extend the commitment for
+     */
+    function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
 
     /**
      * @notice Returns the pending validator index for `strategyName`

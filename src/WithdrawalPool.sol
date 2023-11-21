@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
+import { PufferPool } from "puffer/PufferPool.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
@@ -12,7 +13,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract WithdrawalPool is IWithdrawalPool {
+contract WithdrawalPool is IWithdrawalPool, AccessManaged {
     using SafeTransferLib for address;
 
     /**
@@ -29,7 +30,7 @@ contract WithdrawalPool is IWithdrawalPool {
     // uint256 internal constant _withdrawalFee = FixedPointMathLib.WAD; // 1%
     uint256 internal constant _withdrawalFee = 0;
 
-    constructor(PufferPool pufferPool) payable {
+    constructor(PufferPool pufferPool, address initialAuthority) payable AccessManaged(initialAuthority) {
         POOL = pufferPool;
     }
 
@@ -38,14 +39,14 @@ contract WithdrawalPool is IWithdrawalPool {
     /**
      * @inheritdoc IWithdrawalPool
      */
-    function withdrawETH(address to, uint256 pufETHAmount) external returns (uint256) {
+    function withdrawETH(address to, uint256 pufETHAmount) external restricted returns (uint256) {
         return _withdrawETH(msg.sender, to, pufETHAmount);
     }
 
     /**
      * @inheritdoc IWithdrawalPool
      */
-    function withdrawETH(address to, Permit calldata permit) external {
+    function withdrawETH(address to, Permit calldata permit) external restricted returns (uint256) {
         // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
         // @audit-issue it is important that signature is not stored anywhere
         // @audit-issue frontend hack could cause harm here
@@ -61,7 +62,7 @@ contract WithdrawalPool is IWithdrawalPool {
             r: permit.r
         }) { } catch { }
 
-        _withdrawETH(permit.owner, to, permit.amount);
+        return _withdrawETH(permit.owner, to, permit.amount);
     }
 
     function _withdrawETH(address from, address to, uint256 pufETHAmount) internal returns (uint256) {
