@@ -180,10 +180,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event ValidatorLimitPerIntervalChanged(uint256 oldLimit, uint256 newLimit);
 
     /**
-     * @notice Emitted when the module weights changes from `olgWeights` to `newWeights`
+     * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
      * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
      */
-    event ModuleWeightsChanged(bytes32[] olgWeights, bytes32[] newWeights);
+    event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
     /**
      * @notice Emitted when the Validator key is registered

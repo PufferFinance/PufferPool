@@ -378,7 +378,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.fullWithdrawalsRoots[blockNumber] = root;
 
-        // We want to get our hands on ETH as soon as withdrawals happen to use that capital elsewhere
+        // Allocate ETH capital back to the pool ASAP to fuel pool growth
         for (uint256 i = 0; i < modules.length; ++i) {
             uint256 withdrawalPoolAmount =
                 FixedPointMathLib.fullMulDiv(amounts[i], $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
