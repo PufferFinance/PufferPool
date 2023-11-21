@@ -2,18 +2,18 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * @title IPufferStrategy
+ * @title IPufferModule
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferStrategy {
+interface IPufferModule {
     /**
-     * @notice Returns the Withdrawal credentials for that strategy
+     * @notice Returns the Withdrawal credentials for that module
      */
     function getWithdrawalCredentials() external view returns (bytes memory);
 
     /**
-     * @notice Returns the strategy name
+     * @notice Returns the module name
      */
     function NAME() external view returns (bytes32);
 

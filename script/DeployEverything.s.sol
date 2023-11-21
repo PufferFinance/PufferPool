@@ -10,7 +10,7 @@ import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
 contract DeployEverything is BaseScript {
     function run(address[] calldata guardians, uint256 threshold) public returns (PufferDeployment memory) {
         // Deploy guardians
-        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, threshold, "");
+        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, threshold);
 
         PufferDeployment memory pufferDeployment = new DeployPuffer().run(guardiansDeployment);
 

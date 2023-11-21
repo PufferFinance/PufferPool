@@ -2,12 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { EnumerableMap } from "openzeppelin/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
@@ -17,6 +16,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
@@ -24,9 +24,14 @@ contract PufferProtocolHandler is Test {
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
 
+    uint256 guardian1SKEnclave = 81165043675487275545095207072241430673874640255053335052777448899322561824201;
+    address guardian1Enclave = vm.addr(guardian1SKEnclave);
+    uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
+    address guardian2Enclave = vm.addr(guardian2SKEnclave);
+    uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
     TestHelper testhelper;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
+    address[] public actors;
 
     address DAO = makeAddr("DAO");
 
@@ -40,7 +45,7 @@ contract PufferProtocolHandler is Test {
     EnumerableSet.AddressSet _nodeOperators;
 
     struct Data {
-        Safe owner;
+        address owner;
         bytes32 pubKeyPart;
     }
 
@@ -59,6 +64,7 @@ contract PufferProtocolHandler is Test {
 
     // Counter for the calls in the invariant test
     mapping(bytes32 => uint256) public calls;
+    uint256 totalCalls;
 
     struct ProvisioningData {
         Status status;
@@ -68,24 +74,7 @@ contract PufferProtocolHandler is Test {
     mapping(bytes32 queue => ProvisioningData[] validators) _validatorQueue;
     mapping(bytes32 queue => uint256 nextForProvisioning) ghost_nextForProvisioning;
 
-    modifier assumeEOA(address addr) {
-        console.log(addr.code.length, "code len");
-        console.logBytes32(addr.codehash);
-        console.log("codehash");
-        vm.assume(addr != address(0));
-        vm.assume(addr != address(1));
-        vm.assume(addr != address(2));
-        vm.assume(addr != address(3));
-        vm.assume(addr != address(4));
-        vm.assume(addr != address(5));
-        vm.assume(addr != address(6));
-        vm.assume(addr != address(7));
-        vm.assume(addr != address(8));
-        vm.assume(addr != address(9));
-        vm.assume(addr.code.length == 0);
-        vm.assume(addr.codehash == bytes32(0));
-        _;
-    }
+    address internal currentActor;
 
     constructor(
         TestHelper helper,
@@ -94,6 +83,17 @@ contract PufferProtocolHandler is Test {
         PufferProtocol protocol,
         uint256[] memory _guardiansEnclavePks
     ) {
+        // Initialize actors, skip precompiles
+        for (uint256 i = 11; i < 1000; ++i) {
+            address actor = address(uint160(i));
+            if (actor.code.length != 0) {
+                continue;
+            }
+            vm.deal(actor, 1000 ether);
+
+            actors.push(actor);
+        }
+
         testhelper = helper;
         pufferProtocol = protocol;
         pool = _pool;
@@ -109,6 +109,13 @@ contract PufferProtocolHandler is Test {
         pool.depositETH{ value: initialDepositAmount }();
 
         ghost_eth_deposited_amount += initialDepositAmount;
+    }
+
+    modifier useActor(uint256 actorIndexSeed) {
+        currentActor = actors[bound(actorIndexSeed, 0, actors.length - 1)];
+        vm.startPrank(currentActor);
+        _;
+        vm.stopPrank();
     }
 
     // https://github.com/foundry-rs/foundry/issues/5795
@@ -133,6 +140,7 @@ contract PufferProtocolHandler is Test {
 
     modifier countCall(bytes32 key) {
         calls[key]++;
+        totalCalls++;
         _;
     }
 
@@ -145,7 +153,7 @@ contract PufferProtocolHandler is Test {
         countCall("depositStakingRewards")
     {
         // bound the result between min deposit amount and uint64.max value ~18.44 ETH
-        stakingRewardsAmount = bound(stakingRewardsAmount, 0.01 ether, uint256(type(uint64).max));
+        stakingRewardsAmount = bound(stakingRewardsAmount, 1, uint256(type(uint64).max));
 
         vm.deal(address(this), stakingRewardsAmount);
         vm.startPrank(address(this));
@@ -170,42 +178,43 @@ contract PufferProtocolHandler is Test {
 
         uint256 pufETHSupply = pool.totalSupply();
 
-        // At the moment there is no ETH landing in our strategies, instead we simulate the deposit to pufferPool using `depositStakingRewards`
+        // At the moment there is no ETH landing in our modules, instead we simulate the deposit to pufferPool using `depositStakingRewards`
         uint256 ethAmount = address(pool).balance + address(withdrawalPool).balance + ghost_eth_rewards_amount;
         uint256 lockedETH = ghost_locked_amount;
 
-        vm.startPrank(address(testhelper.guardiansSafe()));
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHSupply, block.number - 10);
+
         pufferProtocol.proofOfReserve({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHSupply,
-            blockNumber: block.number - 10
+            blockNumber: block.number - 10,
+            guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
         });
         vm.stopPrank();
     }
 
     // User deposits ETH to get pufETH
-    function depositETH(address depositor, uint256 amount)
+    function depositETH(uint256 depositorSeed, uint256 amount)
         public
+        useActor(depositorSeed)
         setCorrectBlockNumber
-        assumeEOA(depositor)
         recordPreviousBalance
         isETHLeavingThePool
         countCall("depositETH")
     {
         // bound the result between min deposit amount and uint64.max value ~18.44 ETH
         amount = bound(amount, 0.01 ether, uint256(type(uint64).max));
-        vm.deal(depositor, amount);
+        vm.deal(currentActor, amount);
 
         uint256 expectedPufETHAmount = pool.calculateETHToPufETHAmount(amount);
 
-        uint256 prevBalance = pool.balanceOf(depositor);
+        uint256 prevBalance = pool.balanceOf(currentActor);
 
-        vm.startPrank(depositor);
         uint256 pufETHAmount = pool.depositETH{ value: amount }();
-        vm.stopPrank();
 
-        uint256 afterBalance = pool.balanceOf(depositor);
+        uint256 afterBalance = pool.balanceOf(currentActor);
 
         ghost_eth_deposited_amount += amount;
 
@@ -213,68 +222,95 @@ contract PufferProtocolHandler is Test {
         require(pufETHAmount == expectedPufETHAmount, "amounts dont match");
 
         // Store the depositor and amount of pufETH
-        (, uint256 prevAmount) = _pufETHDepositors.tryGet(depositor);
-        _pufETHDepositors.set(depositor, prevAmount + expectedPufETHAmount);
+        (, uint256 prevAmount) = _pufETHDepositors.tryGet(currentActor);
+        _pufETHDepositors.set(currentActor, prevAmount + expectedPufETHAmount);
     }
 
     // withdraw pufETH for ETH
-    function withdrawETH(uint256 withdrawerSeed, address depositor, uint256 depositAmount)
+    function withdrawETH(uint256 withdrawerSeed)
         public
         setCorrectBlockNumber
-        assumeEOA(depositor)
         recordPreviousBalance
         isETHLeavingThePool
         countCall("withdrawETH")
     {
         // If there are no pufETH holders, deposit ETH
         if (_pufETHDepositors.length() == 0) {
-            return depositETH(depositor, depositAmount);
+            return;
         }
 
         uint256 withdrawerIndex = withdrawerSeed % _pufETHDepositors.length();
 
         (address withdrawer, uint256 amount) = _pufETHDepositors.at(withdrawerIndex);
 
+        console.log("Withdrawer pufETH amount", amount);
+
         // Due to limited liquidity in WithdrawalPool, we are withdrawing 1/3 of the user's balance at a time
         uint256 burnAmount = amount / 3;
+        _pufETHDepositors.set(withdrawer, (amount - burnAmount));
 
+        vm.deal(address(withdrawalPool), 1000000 ether);
         console.log("WITHDRAWAL POOL BALANCE:", address(withdrawalPool).balance);
 
         vm.startPrank(withdrawer);
         pool.approve(address(withdrawalPool), type(uint256).max);
-        withdrawalPool.withdrawETH(withdrawer, amount);
+        withdrawalPool.withdrawETH(withdrawer, burnAmount);
         vm.stopPrank();
-
-        _pufETHDepositors.set(withdrawer, amount - burnAmount);
     }
 
-    // Registers Validator key
-    function registerValidatorKey(address nodeOperator, bytes32 pubKeyPart, uint256 strategySelectorSeed)
+    // We have three of these to get better call distribution in the invariant tests
+    function registerValidatorKey3(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
         public
         setCorrectBlockNumber
-        assumeEOA(nodeOperator)
+        useActor(nodeOperatorSeed)
         recordPreviousBalance
         isETHLeavingThePool
         countCall("registerValidatorKey")
     {
-        bytes32[] memory strategyWeights = pufferProtocol.getStrategyWeights();
-        uint256 strategyIndex = strategySelectorSeed % strategyWeights.length;
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
 
-        bytes32 strategyName = strategyWeights[strategyIndex];
+    function registerValidatorKey2(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+        public
+        setCorrectBlockNumber
+        useActor(nodeOperatorSeed)
+        recordPreviousBalance
+        isETHLeavingThePool
+        countCall("registerValidatorKey")
+    {
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
 
-        vm.deal(nodeOperator, 5 ether);
-        vm.startPrank(nodeOperator);
+    // Registers Validator key
+    function registerValidatorKey(uint256 nodeOperatorSeed, bytes32 pubKeyPart, uint256 moduleSelectorSeed)
+        public
+        setCorrectBlockNumber
+        useActor(nodeOperatorSeed)
+        recordPreviousBalance
+        isETHLeavingThePool
+        countCall("registerValidatorKey")
+    {
+        _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
+    }
 
-        uint256 validatorIndex = pufferProtocol.getPendingValidatorIndex(strategyName);
+    function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
+        bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
+        uint256 moduleIndex = moduleSelectorSeed % moduleWeights.length;
 
-        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, strategyName);
+        bytes32 moduleName = moduleWeights[moduleIndex];
+
+        vm.deal(currentActor, 5 ether);
+
+        pufferProtocol.getPendingValidatorIndex(moduleName);
+
+        uint256 depositedETHAmount = _registerValidatorKey(pubKeyPart, moduleName);
 
         // Store data and push to queue
         ProvisioningData memory validator;
         validator.status = Status.PENDING;
         validator.pubKeypart = pubKeyPart;
 
-        _validatorQueue[strategyName].push(validator);
+        _validatorQueue[moduleName].push(validator);
 
         vm.stopPrank();
 
@@ -284,36 +320,36 @@ contract PufferProtocolHandler is Test {
         ghost_pufETH_bond_amount += pool.calculateETHToPufETHAmount(1 ether);
 
         // Add node operator to the set
-        _nodeOperators.add(nodeOperator);
+        _nodeOperators.add(currentActor);
     }
 
-    // Creates a puffer strategy and adds it to weights
-    function createPufferStrategy(bytes32 startegyName)
+    // Creates a puffer module and adds it to weights
+    function createPufferModule(bytes32 startegyName)
         public
         setCorrectBlockNumber
         recordPreviousBalance
         isETHLeavingThePool
-        countCall("createPufferStrategy")
+        countCall("createPufferModule")
     {
         vm.startPrank(DAO);
 
-        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
         bytes32[] memory newWeights = new bytes32[](weights.length + 1 );
         for (uint256 i = 0; i < weights.length; ++i) {
             newWeights[i] = weights[i];
         }
 
-        try pufferProtocol.createPufferStrategy(startegyName) {
+        try pufferProtocol.createPufferModule(startegyName) {
             newWeights[weights.length] = startegyName;
-            pufferProtocol.setStrategyWeights(newWeights);
+            pufferProtocol.setModuleWeights(newWeights);
         } catch (bytes memory reason) { }
 
         vm.stopPrank();
     }
 
     // Starts the validating process
-    function provisionNode(address nodeOperator, bytes32 pubKeyPart, uint256 strategySelectorSeed)
+    function provisionNode()
         public
         setCorrectBlockNumber
         recordPreviousBalance
@@ -322,8 +358,8 @@ contract PufferProtocolHandler is Test {
     {
         // If we don't have proxies, create and register validator key, then call this function again with the same params
         if (_nodeOperators.length() == 0) {
-            registerValidatorKey(nodeOperator, pubKeyPart, strategySelectorSeed);
-            return provisionNode(nodeOperator, pubKeyPart, strategySelectorSeed);
+            ethLeavingThePool = false;
+            return;
         }
 
         // If there is nothing to be provisioned, index returned is max uint256
@@ -333,20 +369,20 @@ contract PufferProtocolHandler is Test {
             return;
         }
 
-        uint256 startegySelectIndex = pufferProtocol.getStrategySelectIndex();
-        bytes32[] memory weights = pufferProtocol.getStrategyWeights();
+        uint256 moduleSelectIndex = pufferProtocol.getModuleSelectIndex();
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
-        bytes32 strategyName = weights[startegySelectIndex % weights.length];
+        bytes32 moduleName = weights[moduleSelectIndex % weights.length];
 
-        uint256 nextIdx = ghost_nextForProvisioning[strategyName];
+        uint256 nextIdx = ghost_nextForProvisioning[moduleName];
 
         // Nothing to provision
-        if (_validatorQueue[strategyName].length <= nextIdx) {
+        if (_validatorQueue[moduleName].length <= nextIdx) {
             ethLeavingThePool = false;
             return;
         }
 
-        ProvisioningData memory validatorData = _validatorQueue[strategyName][nextIdx];
+        ProvisioningData memory validatorData = _validatorQueue[moduleName][nextIdx];
 
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
@@ -356,50 +392,60 @@ contract PufferProtocolHandler is Test {
 
             // Update ghost variables
             ghost_locked_amount += 32 ether;
-            ghost_nextForProvisioning[strategyName]++;
+            ghost_nextForProvisioning[moduleName]++;
         }
     }
 
     // Stops the validator registration process
-    // function stopRegistration(uint256 eigenPodProxySeed, address podAccountOwner, bytes32 pubKeyPart)
-    //     public
-    //     isETHLeavingThePool
-    //     countCall("stopRegistration")
-    //     recordPreviousBalance
-    // {
-    //     // If we don't have proxies, create and register validator key, then call this function again with the same params
-    //     if (_eigenPodProxies.length() == 0) {
-    //         return registerValidatorKey(podAccountOwner, pubKeyPart);
-    //     }
+    function stopRegistration(uint256 moduleSelectIndex)
+        public
+        setCorrectBlockNumber
+        isETHLeavingThePool
+        recordPreviousBalance
+        countCall("stopRegistration")
+    {
+        bytes32[] memory weights = pufferProtocol.getModuleWeights();
+        bytes32 moduleName = weights[moduleSelectIndex % weights.length];
+        uint256 pendingIdx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-    //     uint256 eigePodProxyIndex = eigenPodProxySeed % _eigenPodProxies.length();
+        if (pendingIdx == 0) {
+            return;
+        }
+        // Set skip index to pending index for that module
+        uint256 skipIdx = pendingIdx - 1;
 
-    //     // Fetch EigenPodProxy from the set
-    //     IEigenPodProxy proxy = IEigenPodProxy(_eigenPodProxies.at(eigePodProxyIndex));
+        Validator memory info = pufferProtocol.getValidatorInfo(moduleName, skipIdx);
+        if (info.status == Status.PENDING) {
+            // Accounting in ghost vars
+            ghost_pufETH_bond_amount -= info.bond;
+            ghost_validators -= 1;
 
-    //     Data memory data = _eigenPodProxiesData[address(proxy)];
-
-    //     bytes memory pubKey = _getPubKey(data.pubKeyPart);
-
-    //     vm.startPrank(address(data.owner));
-    //     proxy.stopRegistration(keccak256(pubKey));
-    //     vm.stopPrank();
-    // }
+            uint256 pufETHBalanceBefore = pool.balanceOf(info.node);
+            vm.startPrank(info.node);
+            pufferProtocol.stopRegistration(moduleName, skipIdx);
+            uint256 pufETHBalanceAfter = pool.balanceOf(info.node);
+            assertGt(pufETHBalanceAfter, pufETHBalanceBefore);
+            _validatorQueue[moduleName][skipIdx].status = Status.DEQUEUED;
+            console.log("=== Stopped the registration ===");
+        }
+    }
 
     function callSummary() external view {
         console.log("Call summary:");
         console.log("-------------------");
+        console.log("totalCalls", totalCalls);
         console.log("depositStakingRewards", calls["depositStakingRewards"]);
         console.log("depositETH", calls["depositETH"]);
         console.log("withdrawETH", calls["withdrawETH"]);
         console.log("registerValidatorKey", calls["registerValidatorKey"]);
-        console.log("createPufferStrategy", calls["createPufferStrategy"]);
+        console.log("createPufferModule", calls["createPufferModule"]);
         console.log("provisionNode", calls["provisionNode"]);
         console.log("proofOfReserve", calls["proofOfReserve"]);
+        console.log("stopRegistration", calls["stopRegistration"]);
         console.log("-------------------");
     }
 
-    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 strategyName)
+    function _getMockValidatorKeyData(bytes memory pubKey, bytes32 moduleName)
         internal
         view
         returns (ValidatorKeyData memory)
@@ -411,9 +457,9 @@ contract PufferProtocolHandler is Test {
         newSetOfPubKeys[0] = bytes("key2");
         newSetOfPubKeys[0] = bytes("key3");
 
-        address strategy = pufferProtocol.getStrategyAddress(strategyName);
+        address module = pufferProtocol.getModuleAddress(moduleName);
 
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(module);
 
         bytes memory randomSignature =
             hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
@@ -440,38 +486,39 @@ contract PufferProtocolHandler is Test {
     }
 
     // Copied from PufferProtocol.t.sol
-    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 strategyName)
+    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 moduleName)
         internal
         returns (uint256 depositedETHAmount)
     {
-        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
+        uint256 momths = bound(block.timestamp, 0, 12);
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(momths);
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
-        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, strategyName);
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, moduleName);
 
-        uint256 idx = pufferProtocol.getPendingValidatorIndex(strategyName);
+        uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, strategyName, true);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, strategyName, 1);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, momths);
 
         return (smoothingCommitment + bond);
     }
 
     // Copied from PufferProtocol.t.sol
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 strategyName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(strategyName, pendingIdx);
-        // If there is no strategy return empty byte array
-        if (validator.strategy == address(0)) {
+        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
+        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
+        // If there is no module return empty byte array
+        if (validator.module == address(0)) {
             return new bytes[](0);
         }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.strategy);
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
-        bytes32 digest = (pufferProtocol.getGuardianModule()).getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,
@@ -482,14 +529,39 @@ contract PufferProtocolHandler is Test {
             })
         );
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(testhelper.guardian1SKEnclave(), digest);
+        return _getGuardianEnclaveSignatures(digest);
+    }
+
+    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(testhelper.guardian2SKEnclave(), digest);
-        (v, r, s) = vm.sign(testhelper.guardian3SKEnclave(), digest);
+        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
         bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(testhelper.guardian3SKEnclave(), digest);
+        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
+    }
+
+    function _getGuardianEOASignatures(bytes32 digest) internal returns (bytes[] memory) {
+        // Create Guardian wallets
+        (, uint256 guardian1SK) = makeAddrAndKey("guardian1");
+        (, uint256 guardian2SK) = makeAddrAndKey("guardian2");
+        (, uint256 guardian3SK) = makeAddrAndKey("guardian3");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SK, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SK, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         bytes[] memory guardianSignatures = new bytes[](3);
