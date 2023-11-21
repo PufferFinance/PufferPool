@@ -9,6 +9,7 @@ import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 
 /**
  * @title IPufferProtocol
@@ -400,6 +401,25 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
      */
     function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
+
+    /**
+     * @notice Registers a new validator key in a `moduleName` queue with a permit
+     * @dev There is a queue per moduleName and it is FIFO
+     *
+     * If you are depositing without the permit, make sure to .approve pufETH to PufferProtocol
+     * and populate permit.amount with the correct amount
+     *
+     * @param data The validator key data
+     * @param moduleName The name of the module
+     * @param numberOfMonths The number of months for the registration
+     * @param permit The permit for the registration
+     */
+    function registerValidatorKeyPermit(
+        ValidatorKeyData calldata data,
+        bytes32 moduleName,
+        uint256 numberOfMonths,
+        Permit calldata permit
+    ) external payable;
 
     /**
      * @notice Registers a new validator in a `moduleName` queue
