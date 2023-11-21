@@ -10,7 +10,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 /**
  * @title WithdrawalPool
  * @notice Users can burn their pufETH and get ETH from this pool
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 contract WithdrawalPool is IWithdrawalPool, AccessManaged {

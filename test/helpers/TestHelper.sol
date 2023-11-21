@@ -6,6 +6,7 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -50,6 +51,7 @@ contract TestHelper is Test, BaseScript {
     PufferProtocol public pufferProtocol;
     IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
+    PufferModuleFactory public moduleFactory;
 
     GuardianModule public guardianModule;
 
@@ -123,6 +125,7 @@ contract TestHelper is Test, BaseScript {
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
+        moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");

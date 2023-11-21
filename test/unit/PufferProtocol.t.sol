@@ -237,6 +237,7 @@ contract PufferProtocolTest is TestHelper {
             LibGuardianMessages.getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
+                numberOfActiveValidators: 100,
                 pufETHTotalSupply: 1 ether,
                 blockNumber: 2
             })
@@ -248,6 +249,7 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 2,
+            numberOfActiveValidators: 100,
             guardianSignatures: signatures
         });
 
@@ -258,10 +260,12 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 32 ether,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401,
+            numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages.getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
+                    numberOfActiveValidators: 100,
                     pufETHTotalSupply: 1 ether,
                     blockNumber: 50401
                 })
@@ -272,6 +276,7 @@ contract PufferProtocolTest is TestHelper {
             LibGuardianMessages.getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
+                numberOfActiveValidators: 100,
                 pufETHTotalSupply: 1 ether,
                 blockNumber: 50401
             })
@@ -284,8 +289,41 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401,
+            numberOfActiveValidators: 100,
             guardianSignatures: signatures2
         });
+    }
+
+    function testBurstThreshold() external {
+        vm.roll(50401);
+
+        // Update the reserves and make it so that the next validator is over threshold
+        pufferProtocol.proofOfReserve({
+            ethAmount: 2 ether,
+            lockedETH: 32 ether,
+            pufETHTotalSupply: 1 ether,
+            blockNumber: 50401,
+            numberOfActiveValidators: 1,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getProofOfReserveMessage({
+                    ethAmount: 2 ether,
+                    lockedETH: 32 ether,
+                    pufETHTotalSupply: 1 ether,
+                    blockNumber: 50401,
+                    numberOfActiveValidators: 1
+                })
+                )
+        });
+
+        uint256 balanceBefore = pufferProtocol.TREASURY().balance;
+
+        uint256 sc = pufferProtocol.getSmoothingCommitment(1);
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 balanceAfter = pufferProtocol.TREASURY().balance;
+
+        assertEq(balanceAfter, balanceBefore + sc, "treasury gets everything");
     }
 
     // Set validator limit and try registering that many validators

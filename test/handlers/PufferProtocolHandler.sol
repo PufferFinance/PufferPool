@@ -183,13 +183,14 @@ contract PufferProtocolHandler is Test {
         uint256 lockedETH = ghost_locked_amount;
 
         bytes32 signedMessageHash =
-            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHSupply, block.number - 10);
+            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHSupply, block.number - 10, 100);
 
         pufferProtocol.proofOfReserve({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHSupply,
             blockNumber: block.number - 10,
+            numberOfActiveValidators: 20000,
             guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
         });
         vm.stopPrank();

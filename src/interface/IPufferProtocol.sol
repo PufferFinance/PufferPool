@@ -12,7 +12,7 @@ import { Status } from "puffer/struct/Status.sol";
 
 /**
  * @title IPufferProtocol
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol is IPufferProtocolStorage {
@@ -81,12 +81,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x5cb045db"
      */
     error InvalidData();
-
-    /**
-     * @notice Thrown if the Creation of new module failed
-     * @dev Signature "0x04a5b3ee"
-     */
-    error Create2Failed();
 
     /**
      * @notice Thrown if the Node operator tries to register with invalid module
@@ -314,14 +308,20 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
 
     /**
-     * @notice Updates the reserves amounts
-     * @dev Restricted to Guardians
+     * @notice Updates the proof of reserve by checking the signatures of the guardians
+     * @param ethAmount The amount of ETH
+     * @param lockedETH The locked ETH amount on Beacon Chain
+     * @param pufETHTotalSupply The total supply of pufETH tokens
+     * @param blockNumber The block number
+     * @param numberOfActiveValidators The number of all active validators on Beacon Chain
+     * @param guardianSignatures The guardian signatures
      */
     function proofOfReserve(
         uint256 ethAmount,
         uint256 lockedETH,
         uint256 pufETHTotalSupply,
         uint256 blockNumber,
+        uint256 numberOfActiveValidators,
         bytes[] calldata guardianSignatures
     ) external;
 

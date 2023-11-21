@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 
 /**
  * @title Base Script
- * @author Puffer finance
+ * @author Puffer Finance
  */
 abstract contract BaseScript is Script {
     uint256 internal PK = 55358659325830545179143827536745912452716312441367500916455484419538098489698; // makeAddr("pufferDeployer")

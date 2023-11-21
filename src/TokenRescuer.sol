@@ -10,7 +10,7 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 
 /**
  * @title TokenRescuer
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {

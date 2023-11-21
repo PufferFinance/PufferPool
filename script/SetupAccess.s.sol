@@ -7,6 +7,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
+import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
@@ -123,7 +124,7 @@ contract SetupAccess is BaseScript {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            PufferProtocol(pufferDeployment.pufferProtocol).PUFFER_MODULE_BEACON(),
+            PufferModuleFactory(pufferDeployment.moduleFactory).PUFFER_MODULE_BEACON(),
             selectors,
             ROLE_ID_DAO
         );

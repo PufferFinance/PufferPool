@@ -9,7 +9,7 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
  * @title EnclaveVerifier
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 

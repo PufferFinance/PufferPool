@@ -22,10 +22,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
-    // @audit recompute for new name
-    // keccak256(abi.encode(uint256(keccak256("PufferModuleBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
+    // keccak256(abi.encode(uint256(keccak256("PufferModuleBase.storage")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
-        0x08d27b0961ee13de37a30c1621e160bf37a3d1fd1fd05ea89d0e3b0b7e4b2000;
+        0xd1bf6fe7a57849dfa0cdbc909a9468d68de91a273148664d5309c08b532a8400;
 
     /**
      * @custom:storage-location erc7201:PufferModuleBase.storage
