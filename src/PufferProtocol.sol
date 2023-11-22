@@ -109,6 +109,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         external
         initializer
     {
+        //@audit define start values
         __AccessManaged_init(accessManager);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
         _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
@@ -120,7 +121,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _setModuleWeights(weights);
         _changeModule(_NO_RESTAKING, IPufferModule(noRestakingModule));
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.numberOfActiveValidators = 10000;
+        $.numberOfActiveValidators = uint128(10000);
+        // Start at 1 (gas optimisation)
+        $.numberOfValidatorsRegisteredInThisInterval = uint16(1);
     }
 
     /**
@@ -261,27 +264,28 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
 
-        Validator memory validator = $.validators[moduleName][index];
+        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+        bytes memory validatorSignature = $.validators[moduleName][index].signature;
 
-        // Increment next validator to be provisioned index
+        // Increment next validator to be provisioned index, overflows if there is no validator for provisioning
         $.nextToBeProvisioned[moduleName] = index + 1;
         unchecked {
             // Increment module selection index
             ++$.moduleSelectIndex;
         }
 
-        bytes memory withdrawalCredentials = getWithdrawalCredentials(validator.module);
+        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 
         bytes32 depositDataRoot = this.getDepositDataRoot({
-            pubKey: validator.pubKey,
-            signature: validator.signature,
+            pubKey: validatorPubKey,
+            signature: validatorSignature,
             withdrawalCredentials: withdrawalCredentials
         });
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
-            pubKey: validator.pubKey,
-            signature: validator.signature,
+            pubKey: validatorPubKey,
+            signature: validatorSignature,
             depositDataRoot: depositDataRoot,
             withdrawalCredentials: withdrawalCredentials,
             guardianEnclaveSignatures: guardianEnclaveSignatures
@@ -294,9 +298,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Transfer 32 ETH to the module
         POOL.transferETH(address(module), 32 ether);
 
-        emit SuccesfullyProvisioned(validator.pubKey, index, moduleName);
+        emit SuccesfullyProvisioned(validatorPubKey, index, moduleName);
 
-        module.callStake({ pubKey: validator.pubKey, signature: validator.signature, depositDataRoot: depositDataRoot });
+        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
     /**
@@ -843,8 +847,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ValidatorKeyData calldata data,
         bytes32 moduleName
     ) internal view {
-        // +1 To check if this registration would go over the limit
-        if (($.numberOfValidatorsRegisteredInThisInterval + 1) > $.validatorLimitPerInterval) {
+        // validatorLimitPerInterval starts at 1, and +1 is to include check if the current registration will go over the limit
+        if (($.numberOfValidatorsRegisteredInThisInterval + 1) > $.validatorLimitPerInterval + 1) {
             revert ValidatorLimitPerIntervalReached();
         }
 

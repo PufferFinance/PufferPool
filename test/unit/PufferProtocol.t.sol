@@ -440,6 +440,18 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorKeyData, NO_RESTAKING, 1);
     }
 
+    // Try to provision a validator when there is nothing to provision
+    function testProvisioning() public {
+        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(type(uint256).max, idx, "module");
+
+        bytes[] memory signatures =
+            _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000");
+
+        vm.expectRevert();
+        pufferProtocol.provisionNode(signatures);
+    }
+
     function testSetProtocolFeeRate() public {
         uint256 rate = 10 * FixedPointMathLib.WAD;
         pufferProtocol.setProtocolFeeRate(rate); // 10%
