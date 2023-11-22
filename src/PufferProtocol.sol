@@ -109,7 +109,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         external
         initializer
     {
-        //@audit define start values
         __AccessManaged_init(accessManager);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
         _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
@@ -523,14 +522,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             guardianSignatures: guardianSignatures
         });
 
-        //@audit figure out if we want more restrictions on this
-        if (block.number < blockNumber) {
-            revert InvalidData();
-        }
-
-        if (block.number - $.lastUpdate < _UPDATE_INTERVAL) {
+        if ((block.number - $.lastUpdate) < _UPDATE_INTERVAL) {
             revert OutsideUpdateWindow();
         }
+
         $.ethAmount = ethAmount;
         $.lockedETH = lockedETH;
         $.pufETHTotalSupply = pufETHTotalSupply;
@@ -770,9 +765,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _setGuardiansFeeRate(uint256 newRate) internal {
-        // @todo decide constraints
-        // Revert if the new rate is bigger than 5%
-        if (newRate > (5 * FixedPointMathLib.WAD)) {
+        if (newRate > (2 * FixedPointMathLib.WAD)) {
             revert InvalidData();
         }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -801,8 +794,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _setProtocolFeeRate(uint256 protocolFee) internal {
-        // @todo decide constraints
-        // Revert if the new rate is bigger than 10%
         if (protocolFee > (10 * FixedPointMathLib.WAD)) {
             revert InvalidData();
         }
@@ -813,11 +804,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _setWithdrawalPoolRate(uint256 withdrawalPoolRate) internal {
-        // @todo decide constraints
-        // Revert if the new rate is bigger than 10%
-        if (withdrawalPoolRate > (10 * FixedPointMathLib.WAD)) {
-            revert InvalidData();
-        }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 oldWithdrawalPoolRate = $.withdrawalPoolRate;
         $.withdrawalPoolRate = SafeCastLib.toUint64(withdrawalPoolRate);
