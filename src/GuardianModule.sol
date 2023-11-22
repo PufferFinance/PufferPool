@@ -394,7 +394,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i; i < signers.length; ++i) {
-            address currentSigner = ECDSA.recover(signedMessageHash, signatures[i]);
+            (address currentSigner,,) = ECDSA.tryRecover(signedMessageHash, signatures[i]);
             if (currentSigner == signers[i]) {
                 ++validSignatures;
             }

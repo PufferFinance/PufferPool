@@ -1,21 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { Permit } from "puffer/struct/Permit.sol";
+
 /**
  * @title IWithdrawalPool
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 interface IWithdrawalPool {
-    struct Permit {
-        address owner;
-        uint256 deadline;
-        uint256 amount;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
     /**
      * @notice Burns `pufETHAmount` and sends the ETH to `to`
      * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve

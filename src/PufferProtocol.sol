@@ -161,6 +161,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             r: permit.r
         }) { } catch { }
 
+        // slither-disable-next-line unchecked-transfer
         POOL.transferFrom(msg.sender, address(this), permit.amount);
 
         _storeValidatorInformation({
@@ -841,7 +842,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $,
         ValidatorKeyData calldata data,
         bytes32 moduleName
-    ) internal {
+    ) internal view {
         // +1 To check if this registration would go over the limit
         if (($.numberOfValidatorsRegisteredInThisInterval + 1) > $.validatorLimitPerInterval) {
             revert ValidatorLimitPerIntervalReached();

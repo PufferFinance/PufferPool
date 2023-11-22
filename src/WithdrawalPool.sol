@@ -6,6 +6,7 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 
 /**
  * @title WithdrawalPool

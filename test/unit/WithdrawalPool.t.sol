@@ -2,32 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
-import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { console } from "forge-std/console.sol";
 
 contract WithdrawalPoolTest is TestHelper {
-    bytes32 private constant _PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-
-    struct _TestTemps {
-        address owner;
-        address to;
-        uint256 amount;
-        uint256 deadline;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        uint256 privateKey;
-        uint256 nonce;
-    }
-
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();
@@ -63,7 +41,7 @@ contract WithdrawalPoolTest is TestHelper {
 
         _TestTemps memory temp = _testTemps(addressSeed, address(withdrawalPool), 50 ether, block.timestamp);
 
-        IWithdrawalPool.Permit memory permit = _signPermit(temp);
+        Permit memory permit = _signPermit(temp);
 
         vm.deal(pufETHDepositor, 1000 ether);
 
@@ -77,26 +55,5 @@ contract WithdrawalPoolTest is TestHelper {
         withdrawalPool.withdrawETH(charlie, permit);
 
         assertTrue(charlie.balance != 0, "charlie got ETH");
-    }
-
-    // Modified from https://github.com/Vectorized/solady/blob/2ced0d8382fd0289932010517d66efb28b07c3ce/test/ERC20.t.sol
-    function _signPermit(_TestTemps memory t) internal view returns (IWithdrawalPool.Permit memory p) {
-        bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
-        bytes32 domainSeparator = pool.DOMAIN_SEPARATOR();
-        bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
-        (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
-
-        return
-            IWithdrawalPool.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
-    }
-
-    function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline)
-        internal
-        returns (_TestTemps memory t)
-    {
-        (t.owner, t.privateKey) = makeAddrAndKey(seed);
-        t.to = to;
-        t.amount = amount;
-        t.deadline = deadline;
     }
 }
