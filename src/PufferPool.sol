@@ -13,7 +13,7 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
  * @title PufferPool
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {

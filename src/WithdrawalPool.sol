@@ -6,11 +6,12 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 
 /**
  * @title WithdrawalPool
  * @notice Users can burn their pufETH and get ETH from this pool
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 contract WithdrawalPool is IWithdrawalPool, AccessManaged {

@@ -8,7 +8,7 @@ import { Strings } from "openzeppelin/utils/Strings.sol";
 
 /**
  * @title Deposit ETH script
- * @author Puffer finance
+ * @author Puffer Finance
  * @notice Calls the `depositETH` function on PufferPool
  * @dev Example on how to run the script
  *      forge script script/SetGuardianEnclaveMeasurements.s.sol:SetEnclaveMeasurements --rpc-url=$EPHEMERY_RPC_URL --broadcast --sig "run(bytes32,bytes32)" -vvvv 0xaa00000000000000000000000000000000000000000000000000000000000000 0xaa00000000000000000000000000000000000000000000000000000000000000

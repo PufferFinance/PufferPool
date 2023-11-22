@@ -7,7 +7,7 @@ import { stdJson } from "forge-std/StdJson.sol";
 
 /**
  * @title Deposit ETH script
- * @author Puffer finance
+ * @author Puffer Finance
  * @notice Calls the `depositETH` function on PufferPool
  * @dev Example on how to run the script
  *      forge script script/3_DepositETH.s.sol:DepositETH --rpc-url=$EPHEMERY_RPC_URL --broadcast --sig "run(uint256)" -vvvv 1000000000000000000

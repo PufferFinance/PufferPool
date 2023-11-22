@@ -92,4 +92,24 @@ contract GuardianModuleTest is TestHelper {
         vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
         guardianModule.rotateGuardianKey(1, guardian3EnclavePubKey, rave);
     }
+
+    // Invalid signature reverts with unauthorized
+    function testValidateSkipProvisioningReverts() public {
+        (, uint256 bobSK) = makeAddrAndKey("bob");
+        bytes[] memory guardianSignatures = new bytes[](3);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
+        guardianSignatures[0] = abi.encodePacked(r, s, v);
+        vm.expectRevert(Unauthorized.selector);
+        guardianModule.validateSkipProvisioning(NO_RESTAKING, 0, guardianSignatures);
+    }
+
+    // Invalid signature reverts with unauthorized
+    function testPostWithdrawalsRootReverts(address[] calldata modules, uint256[] calldata amounts) public {
+        (, uint256 bobSK) = makeAddrAndKey("bob");
+        bytes[] memory guardianSignatures = new bytes[](3);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
+        guardianSignatures[0] = abi.encodePacked(r, s, v);
+        vm.expectRevert(Unauthorized.selector);
+        guardianModule.validatePostFullWithdrawalsRoot(bytes32("root"), 100, modules, amounts, guardianSignatures);
+    }
 }

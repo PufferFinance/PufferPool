@@ -5,7 +5,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 
 /**
  * @title LibGuardianMessages
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 library LibGuardianMessages {
@@ -59,16 +59,20 @@ library LibGuardianMessages {
      * @param lockedETH is the amount of locked ETH in the reserve
      * @param pufETHTotalSupply is the total supply of pufETH tokens
      * @param blockNumber is the block number of the proof of reserve
+     * @param numberOfActiveValidators is the number of all active validators on Beacon Chain
      * @return the message to be signed
      */
     function getProofOfReserveMessage(
         uint256 ethAmount,
         uint256 lockedETH,
         uint256 pufETHTotalSupply,
-        uint256 blockNumber
+        uint256 blockNumber,
+        uint256 numberOfActiveValidators
     ) external pure returns (bytes32) {
         // All guardians use the same nonce
-        return keccak256(abi.encode(ethAmount, lockedETH, pufETHTotalSupply, blockNumber)).toEthSignedMessageHash();
+        //solhint-disable-next-line func-named-parameters
+        return keccak256(abi.encode(ethAmount, lockedETH, pufETHTotalSupply, blockNumber, numberOfActiveValidators))
+            .toEthSignedMessageHash();
     }
 
     /**

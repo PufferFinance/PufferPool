@@ -25,4 +25,5 @@ struct PufferDeployment {
     address enclaveVerifier;
     address pauser;
     address beacon; // Beacon for Puffer modules
+    address moduleFactory;
 }
