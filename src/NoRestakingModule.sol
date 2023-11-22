@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
-import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { AbstractVault } from "puffer/AbstractVault.sol";
+import { TokenRescuer } from "puffer/TokenRescuer.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Unauthorized } from "puffer/Errors.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
- * @title NoRestakingStrategy
+ * @title NoRestakingModule
  * @author Puffer Finance
- * @notice NoRestakingStrategy
+ * @notice NoRestakingModule
  * @custom:security-contact security@puffer.fi
  */
-contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
+contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     using SafeTransferLib for address;
 
     /**
@@ -53,9 +56,9 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     address public immutable BEACON_CHAIN_DEPOSIT_CONTRACT;
 
     /**
-     * @notice Strategy Name
+     * @notice Module Name
      */
-    bytes32 public constant NAME = bytes32("NO_RESTAKING");
+    bytes32 public immutable NAME;
 
     /**
      * @notice Mapping of a blockNumber and the MerkleRoot for that rewards period
@@ -72,11 +75,12 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
      */
     uint256 internal _lastProofOfRewardsBlockNumber;
 
-    constructor(address initialAuthority, PufferProtocol puffer, address depositContract)
+    constructor(address initialAuthority, PufferProtocol puffer, address depositContract, bytes32 name)
         payable
         AccessManaged(initialAuthority)
-        AbstractVault(puffer)
+        TokenRescuer(puffer)
     {
+        NAME = name;
         BEACON_CHAIN_DEPOSIT_CONTRACT = depositContract;
     }
 
@@ -86,7 +90,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     receive() external payable { }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
@@ -94,7 +98,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         restricted
     {
         // slither-disable-next-line arbitrary-send-eth
-        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{value: 32 ether}(
+        (bool success,) = BEACON_CHAIN_DEPOSIT_CONTRACT.call{ value: 32 ether }(
             abi.encodeCall(
                 IBeaconDepositContract.deposit, (pubKey, getWithdrawalCredentials(), signature, depositDataRoot)
             )
@@ -120,7 +124,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external {
+    ) external restricted {
         // Anybody can submit a valid proof and the ETH will be sent to the node
         uint256 ethToSend = 0;
 
@@ -146,22 +150,32 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     }
 
     /**
-     * @notice Posts the rewards root for this strategy
+     * @notice Posts the rewards root for this module
      * @dev Restricted to Guardians
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
      */
-    function postRewardsRoot(bytes32 root, uint256 blockNumber) external restricted {
+    function postRewardsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures) external {
         if (blockNumber <= _lastProofOfRewardsBlockNumber) {
             revert InvalidBlockNumber(blockNumber);
         }
+
+        IGuardianModule guardianModule = PUFFER_PROTOCOL.GUARDIAN_MODULE();
+
+        bytes32 signedMessageHash = LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(NAME, root, blockNumber);
+
+        bool validSignatures = guardianModule.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+
         _lastProofOfRewardsBlockNumber = blockNumber;
         rewardsRoots[blockNumber] = root;
         emit RewardsRootPosted(blockNumber, root);
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
@@ -180,7 +194,7 @@ contract NoRestakingStrategy is IPufferStrategy, AccessManaged, AbstractVault {
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));

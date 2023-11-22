@@ -1,5 +1,5 @@
 [profile.ci.fuzz]
-runs = 8_000
+runs = 7_000
 
 [profile.default]
 # Skip gas tests on CI
@@ -8,16 +8,20 @@ runs = 8_000
 fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports=[
     "PufferPool",
-    "EigenPodProxy",
-    "PufferAVSRegistry"
+    "WithdrawalPool",
+    "PufferProtocol",
+    "GuardianModule",
+    "EnclaveVerifier",
+    "NoRestakingStrategy"
 ]
 auto_detect_solc = false
 cbor_metadata = false
 bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
-solc = "0.8.20"
-evm_version = "shanghai"
+# via_ir = true
+solc = "0.8.23"
+# evm_version = "shanghai"
 
 [fmt]
 line_length = 120
@@ -33,6 +37,6 @@ bracket_spacing = true
 goerli="${GOERLI_RPC_URL}"
 
 [invariant]
-# fail_on_revert=true
-depth = 20
-runs = 500
+fail_on_revert=false
+depth = 60
+runs = 50

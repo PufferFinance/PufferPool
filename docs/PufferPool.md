@@ -97,7 +97,7 @@ This function allows Guardians or the Protocol to burn a NoOp's pufETH bond if t
 function recoverERC20(address token) external
 ```
 
-Allows tokens which were accidentally sent to the `PufferPool` to be recovered (sent) to the Treasury contract
+Allows tokens which were accidentally sent to the `PufferPool` to be recovered (sent) to the Treasury contract. PufferPool inherits from TokenRescuer.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.
 
 *Effects*:
 * Sends the totality of the specified token from the `PufferPool` contract to the Treasury contract

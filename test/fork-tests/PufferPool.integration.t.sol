@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";

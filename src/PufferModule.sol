@@ -5,32 +5,33 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-
 /**
  * @title PufferStartegy
  * @author Puffer Finance
- * @notice PufferStartegy TODO:
+ * @notice PufferStartegy
  * @custom:security-contact security@puffer.fi
  */
-contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradeable {
-    error Unauthorized();
+
+contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
     /**
      * @dev Upgradeable contract from EigenLayer
      */
 
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
-    // keccak256(abi.encode(uint256(keccak256("PufferStrategyBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
-    bytes32 private constant _PUFFER_STRATEGY_BASE_STORAGE =
+    // @audit recompute for new name
+    // keccak256(abi.encode(uint256(keccak256("PufferModuleBase.storage")) - 1)) & ~bytes32(uint256(0xff)) @audit-info recheck this
+    bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x08d27b0961ee13de37a30c1621e160bf37a3d1fd1fd05ea89d0e3b0b7e4b2000;
 
     /**
-     * @custom:storage-location erc7201:PufferStrategyBase.storage
+     * @custom:storage-location erc7201:PufferModuleBase.storage
      */
-    struct PufferStrategyBase {
-        bytes32 strategyName;
+    struct PufferModuleBase {
+        bytes32 moduleName;
         IPufferProtocol pufferProtocol;
         IEigenPod eigenPod;
     }
@@ -40,7 +41,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     }
 
     modifier onlyPufferProtocol() {
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        PufferModuleBase storage $ = _getPufferProtocolStorage();
 
         if (msg.sender != address($.pufferProtocol)) {
             revert Unauthorized();
@@ -48,18 +49,18 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
         _;
     }
 
-    function initialize(IPufferProtocol protocol, bytes32 strategyName, address initialAuthority) public initializer {
+    function initialize(IPufferProtocol protocol, bytes32 moduleName, address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        PufferModuleBase storage $ = _getPufferProtocolStorage();
         $.pufferProtocol = protocol;
-        $.strategyName = strategyName;
+        $.moduleName = moduleName;
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.ownerToPod(address(this))));
     }
 
     receive() external payable { }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
@@ -73,7 +74,7 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     function collectNonRestakingRewards() external {
         // @todo limit it to 1x per day or something?
         // it creates a queued withdrawal via withdrawal router
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        PufferModuleBase storage $ = _getPufferProtocolStorage();
         $.eigenPod.withdrawBeforeRestaking();
     }
 
@@ -91,26 +92,26 @@ contract PufferStrategy is IPufferStrategy, Initializable, AccessManagedUpgradea
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
-        // Withdrawal credentials for EIgenLayer strategies are EigenPods
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
+        // Withdrawal credentials for EigenLayer modules are EigenPods
+        PufferModuleBase storage $ = _getPufferProtocolStorage();
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
     }
 
     /**
-     * @inheritdoc IPufferStrategy
+     * @inheritdoc IPufferModule
      */
     function NAME() external view returns (bytes32) {
-        PufferStrategyBase storage $ = _getPufferProtocolStorage();
-        return $.strategyName;
+        PufferModuleBase storage $ = _getPufferProtocolStorage();
+        return $.moduleName;
     }
 
-    function _getPufferProtocolStorage() internal pure returns (PufferStrategyBase storage $) {
+    function _getPufferProtocolStorage() internal pure returns (PufferModuleBase storage $) {
         // solhint-disable-next-line
         assembly {
-            $.slot := _PUFFER_STRATEGY_BASE_STORAGE
+            $.slot := _PUFFER_MODULE_BASE_STORAGE
         }
     }
 }

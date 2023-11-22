@@ -2,17 +2,17 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
-import { IPufferStrategy } from "puffer/interface/IPufferStrategy.sol";
-import { NoRestakingStrategy } from "puffer/NoRestakingStrategy.sol";
-import { Safe } from "safe-contracts/Safe.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
-contract NoRestakingStartegyTest is TestHelper {
+contract NoRestakingModuleTest is TestHelper {
     using ECDSA for bytes32;
 
-    NoRestakingStrategy strategy;
+    NoRestakingModule _noRestakingModule;
 
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
@@ -23,33 +23,38 @@ contract NoRestakingStartegyTest is TestHelper {
         super.setUp();
         _skipDefaultFuzzAddresses();
 
-        strategy = NoRestakingStrategy(payable(pufferProtocol.getStrategyAddress(NO_RESTAKING)));
+        _noRestakingModule = NoRestakingModule(payable(pufferProtocol.getModuleAddress(NO_RESTAKING)));
     }
 
     // Test setup
     function testSetup() public {
-        address noRestakingStrategy = pufferProtocol.getStrategyAddress(NO_RESTAKING);
-        assertEq(IPufferStrategy(noRestakingStrategy).NAME(), NO_RESTAKING, "bad name");
+        address noRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
+        assertEq(IPufferModule(noRestakingModule).NAME(), NO_RESTAKING, "bad name");
     }
 
     // Reverts for everybody else
     function testPostRewardsRootReverts(address sender, bytes32 merkleRoot, uint256 blockNumber) public {
-        vm.assume(sender != address(guardiansSafe));
+        vm.assume(sender != address(pufferProtocol.GUARDIAN_MODULE()));
 
         vm.expectRevert();
-        strategy.postRewardsRoot(merkleRoot, blockNumber);
+        _noRestakingModule.postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));
     }
 
     // Works for guardians
     function testPostRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
-        vm.assume(strategy.getLastProofOfRewardsBlock() < blockNumber);
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot, blockNumber);
+        vm.assume(_noRestakingModule.getLastProofOfRewardsBlock() < blockNumber);
+
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot, blockNumber);
+
+        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
+
+        _noRestakingModule.postRewardsRoot(merkleRoot, blockNumber, signatures);
     }
 
     // Donation should work
     function testDonation() public {
-        (bool s,) = address(strategy).call{ value: 5 ether }("");
+        (bool s,) = address(_noRestakingModule).call{ value: 5 ether }("");
         assertTrue(s);
     }
 
@@ -72,7 +77,7 @@ contract NoRestakingStartegyTest is TestHelper {
         assertEq(alice.balance, 0, "alice should start with zero balance");
 
         vm.startPrank(alice);
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: alice,
             pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
@@ -83,10 +88,10 @@ contract NoRestakingStartegyTest is TestHelper {
         // Double claim in different transactions should revert
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingStrategy.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
             )
         );
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: alice,
             pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
@@ -99,10 +104,10 @@ contract NoRestakingStartegyTest is TestHelper {
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingStrategy.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
             )
         );
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: bob,
             pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
@@ -112,9 +117,9 @@ contract NoRestakingStartegyTest is TestHelper {
 
         // Bob claiming with a valid proof that is not his
         vm.expectRevert(
-            abi.encodeWithSelector(NoRestakingStrategy.NothingToClaim.selector, keccak256(bytes.concat(bytes32("bob"))))
+            abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, keccak256(bytes.concat(bytes32("bob"))))
         );
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: bob,
             pubKeyHash: keccak256(bytes.concat(bytes32("bob"))),
             blockNumbers: blockNumbers,
@@ -149,10 +154,10 @@ contract NoRestakingStartegyTest is TestHelper {
         vm.startPrank(alice);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingStrategy.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
             )
         );
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: alice,
             pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
@@ -162,7 +167,7 @@ contract NoRestakingStartegyTest is TestHelper {
     }
 
     // Anybody should be able to claim for Charlie, Charlie should get ETH
-    function testRewardsClaimingForAnotherUser(address msgSender) public {
+    function testRewardsClaimingForAnotherUser(address msgSender) public assumeEOA(msg.sender) {
         _setupMerkleRoot();
 
         uint256[] memory blockNumbers = new uint256[](1);
@@ -180,7 +185,7 @@ contract NoRestakingStartegyTest is TestHelper {
 
         // Random msg.sender
         vm.startPrank(msgSender);
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: charlie,
             pubKeyHash: keccak256(bytes.concat(bytes32("charlie"))),
             blockNumbers: blockNumbers,
@@ -215,7 +220,7 @@ contract NoRestakingStartegyTest is TestHelper {
 
         assertEq(alice.balance, 0, "alice should start with zero balance");
 
-        strategy.collectRewards({
+        _noRestakingModule.collectRewards({
             node: alice,
             pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
@@ -229,24 +234,35 @@ contract NoRestakingStartegyTest is TestHelper {
     function testPostingRewardsForSameBlockReverts() public {
         bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
 
+        bytes32 signedMessageHash =
+            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+
+        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
+
         // Post two merkle roots
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot1, 1);
-        vm.expectRevert(abi.encodeWithSelector(NoRestakingStrategy.InvalidBlockNumber.selector, 1));
-        strategy.postRewardsRoot(merkleRoot1, 1);
+        _noRestakingModule.postRewardsRoot(merkleRoot1, 1, signatures);
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.InvalidBlockNumber.selector, 1));
+        _noRestakingModule.postRewardsRoot(merkleRoot1, 1, signatures);
     }
 
     function _setupMerkleRoot() public {
         // Script for generating merkle proofs is in `test/unit/NoRestakingStartegyProofs.js`
         // Merkle roots are hardcoded, we have two of them
-        vm.deal(address(strategy), 1000 ether);
+        vm.deal(address(_noRestakingModule), 1000 ether);
 
         bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
         bytes32 merkleRoot2 = hex"361520123168ffc3c2d93e1eaaaa5188616fef4a47f68e868a7414f2c2350313";
 
+        bytes32 signedMessageHash1 =
+            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+        bytes32 signedMessageHash2 =
+            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot2, 150);
+
+        bytes[] memory signatures1 = _getGuardianEOASignatures(signedMessageHash1);
+        bytes[] memory signatures2 = _getGuardianEOASignatures(signedMessageHash2);
+
         // Post two merkle roots
-        vm.startPrank(address(guardiansSafe));
-        strategy.postRewardsRoot(merkleRoot1, 1);
-        strategy.postRewardsRoot(merkleRoot2, 150);
+        _noRestakingModule.postRewardsRoot(merkleRoot1, 1, signatures1);
+        _noRestakingModule.postRewardsRoot(merkleRoot2, 150, signatures2);
     }
 }

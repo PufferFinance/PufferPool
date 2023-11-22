@@ -10,12 +10,6 @@ import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
  */
 interface IGuardianModule {
     /**
-     * @notice Thrown when the user is not authorized
-     * @dev Signature "0x82b42900"
-     */
-    error Unauthorized();
-
-    /**
      * @notice Thrown when the ECDSA public key is not valid
      * @dev Signature "0xe3eece5a"
      */
@@ -29,8 +23,34 @@ interface IGuardianModule {
 
     /**
      * @notice Thrown if the address supplied is not valid
+     * @dev Signature "0xe6c4247b"
      */
     error InvalidAddress();
+
+    /**
+     * @notice Thrown if the threshold value is not valid
+     * @dev Signature "0x651a749b"
+     */
+    error InvalidThreshold(uint256 threshold);
+
+    /**
+     * @notice Emitted when the threshold value for guardian signatures is changed
+     * @param oldThreshold is the old threshold value
+     * @param newThreshold is the new threshold value
+     */
+    event ThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
+
+    /**
+     * @notice Emitted when a guardian is added to the module
+     * @param guardian The address of the guardian added
+     */
+    event GuardianAdded(address guardian);
+
+    /**
+     * @notice Emitted when a guardian is removed from the module
+     * @param guardian The address of the guardian removed
+     */
+    event GuardianRemoved(address guardian);
 
     /**
      * @notice Emitted when the guardian changes guardian enclave address
@@ -67,35 +87,121 @@ interface IGuardianModule {
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
-     * @notice Validates that the guardians enclaves signed on the data.
-     * @dev If the signatures are invalid / guardians threshold is not reached the tx will revert
-     * @param pubKey is the node operator's public key
-     * @param signature is the BLS signature of the deposit data
-     * @param depositDataRoot is the hash of the deposit data
-     * @param withdrawalCredentials are the withdrawal credentials for this validator
-     * @param guardianEnclaveSignatures array of enclave signatures that we are validating
+     * @notice Validates the node provisioning calldata
+     * @param pubKey The public key
+     * @param signature The signature
+     * @param withdrawalCredentials The withdrawal credentials
+     * @param depositDataRoot The deposit data root
+     * @param guardianEnclaveSignatures The guardian enclave signatures
      */
-    function validateGuardianSignatures(
+    function validateProvisionNode(
         bytes memory pubKey,
         bytes calldata signature,
-        bytes32 depositDataRoot,
         bytes calldata withdrawalCredentials,
+        bytes32 depositDataRoot,
         bytes[] calldata guardianEnclaveSignatures
     ) external view;
 
     /**
-     * @notice Returns the message that the guardian's enclave needs to sign
-     * @param signature is the BLS signature of the deposit data
-     * @param withdrawalCredentials are the withdrawal credentials for this validator
-     * @param depositDataRoot is the hash of the deposit data
-     * @return hash of the data
+     * @notice Validates the skipping of provisioning for a specific module
+     * @param moduleName The name of the module
+     * @param skippedIndex The index of the skipped provisioning
+     * @param guardianEOASignatures The guardian EOA signatures
      */
-    function getMessageToBeSigned(
-        bytes memory pubKey,
-        bytes calldata signature,
-        bytes calldata withdrawalCredentials,
-        bytes32 depositDataRoot
-    ) external pure returns (bytes32);
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
+        external
+        view;
+
+    /**
+     * @notice Validates the proof of reserve
+     * @dev This function validates the proof of reserve by checking the signatures of the guardians
+     * @param ethAmount The amount of ETH
+     * @param lockedETH The locked ETH amount
+     * @param pufETHTotalSupply The total supply of PUF-ETH tokens
+     * @param blockNumber The block number
+     * @param guardianSignatures The guardian signatures
+     */
+    function validateProofOfReserve(
+        uint256 ethAmount,
+        uint256 lockedETH,
+        uint256 pufETHTotalSupply,
+        uint256 blockNumber,
+        bytes[] calldata guardianSignatures
+    ) external view;
+
+    /**
+     * @notice Validates the post full withdrawals root
+     * @dev This function validates the post full withdrawals root by checking the signatures of the guardians
+     * @param root The post full withdrawals root
+     * @param blockNumber The block number
+     * @param modules The array of module addresses
+     * @param amounts The array of withdrawal amounts
+     * @param guardianSignatures The guardian signatures
+     */
+    function validatePostFullWithdrawalsRoot(
+        bytes32 root,
+        uint256 blockNumber,
+        address[] calldata modules,
+        uint256[] calldata amounts,
+        bytes[] calldata guardianSignatures
+    ) external view;
+
+    /**
+     * @notice Returns the threshold value for guardian signatures
+     * @dev The threshold value is the minimum number of guardian signatures required for a transaction to be considered valid
+     * @return The threshold value
+     */
+    function getThreshold() external view returns (uint256);
+
+    /**
+     * @notice Returns the list of guardians
+     * @dev This function returns an array of addresses representing the guardians
+     * @return An array of addresses representing the guardians
+     */
+    function getGuardians() external view returns (address[] memory);
+
+    /**
+     * @notice Adds a new guardian to the module
+     * @dev Only accessible by a DAO
+     * @param newGuardian The address of the new guardian to add
+     */
+    function addGuardian(address newGuardian) external;
+
+    /**
+     * @notice Removes a guardian from the module
+     * @dev Only accessible by a DAO
+     * @param guardian The address of the guardian to remove
+     */
+    function removeGuardian(address guardian) external;
+
+    /**
+     * @notice Changes the threshold value for guardian signatures
+     * @dev Only accessible by a DAO
+     * @param newThreshold The new threshold value
+     */
+    function changeThreshold(uint256 newThreshold) external;
+
+    /**
+     * @dev Validates the signatures of the guardians' enclave signatures
+     * @param enclaveSignatures The array of enclave signatures
+     * @param signedMessageHash The hash of the signed message
+     * @return A boolean indicating whether the signatures are valid
+     */
+    function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
+
+    /**
+     * @dev Validates the signatures of the guardians' EOAs.
+     * @param eoaSignatures The array of EOAs' signatures.
+     * @param signedMessageHash The hash of the signed message.
+     * @return A boolean indicating whether the signatures are valid.
+     */
+    function validateGuardiansEOASignatures(bytes[] calldata eoaSignatures, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Rotates guardian's key
@@ -115,6 +221,13 @@ interface IGuardianModule {
      * @notice Returns the guarardians enclave public keys
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
+
+    /**
+     * @notice Checks if an account is a guardian
+     * @param account The address to check
+     * @return A boolean indicating whether the account is a guardian
+     */
+    function isGuardian(address account) external view returns (bool);
 
     /**
      * @notice Returns the mrenclave value

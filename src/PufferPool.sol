@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AbstractVault } from "puffer/AbstractVault.sol";
+import { TokenRescuer } from "puffer/TokenRescuer.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
@@ -16,28 +16,23 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
  * @author Puffer finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
+contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
     using SafeTransferLib for address;
 
     constructor(PufferProtocol protocol, address initialAuthority)
         payable
-        AbstractVault(protocol)
+        TokenRescuer(protocol)
         ERC20("Puffer ETH", "pufETH")
         ERC20Permit("pufETH")
         AccessManaged(initialAuthority)
     { }
 
-    /**
-     * @notice no calldata automatically triggers the depositETH for `msg.sender`
-     */
-    receive() external payable {
-        depositETH();
-    }
+    receive() external payable { }
 
     /**
      * @inheritdoc IPufferPool
      */
-    function depositETH() public payable returns (uint256) {
+    function depositETH() public payable restricted returns (uint256) {
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);
@@ -45,10 +40,6 @@ contract PufferPool is IPufferPool, AbstractVault, ERC20Permit, AccessManaged {
         _mint(msg.sender, pufETHAmount);
 
         return pufETHAmount;
-    }
-
-    function depositETHWithoutMinting() public payable {
-        // Deposit rewards through this function
     }
 
     /**

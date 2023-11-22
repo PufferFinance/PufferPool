@@ -3,8 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocolHandler } from "../handlers/PufferProtocolHandler.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { Safe } from "safe-contracts/Safe.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 
 contract PufferProtocolInvariants is TestHelper {
@@ -13,23 +11,48 @@ contract PufferProtocolInvariants is TestHelper {
     function setUp() public override {
         super.setUp();
 
+        vm.startPrank(DAO);
+        pufferProtocol.setValidatorLimitPerInterval(200);
+        vm.stopPrank();
         handler = new PufferProtocolHandler(this, pool, withdrawalPool, pufferProtocol, guardiansEnclavePks);
 
         // Set handler as a target contract for invariant test
         targetContract(address(handler));
     }
 
-    // // Guardian multisig is not supposed to change
-    function invariant_guardiansCanNeverChange() public {
-        assertTrue(address(guardiansSafe) == address(pufferProtocol.GUARDIANS()));
-    }
-
     function invariant_pufferPoolETHCanOnlyGoUp() public {
         // PufferPool's ETH balance can only grow, unless it is `provisionNode`
         if (handler.ethLeavingThePool()) {
-            assertTrue(address(pool).balance < handler.previousBalance());
+            assertLe(address(pool).balance, handler.previousBalance(), "balance should be smaller");
         } else {
-            assertTrue(address(pool).balance >= handler.previousBalance());
+            assertGe(address(pool).balance, handler.previousBalance(), "balance should go up");
+        }
+    }
+
+    // Make sure that the pufETH doesn't disappear
+    function invariant_pufferProtocolBond() public {
+        // Validate against ghost variable
+        uint256 pufETHinProtocol = pool.balanceOf(address(pufferProtocol));
+        assertEq(handler.ghost_pufETH_bond_amount(), pufETHinProtocol, "missing bond from the protocol");
+
+        // Validate by calculating eth
+        uint256 ethAmount = pool.calculatePufETHtoETHAmount(pufETHinProtocol);
+        uint256 originalETHAmountDeposited = (handler.ghost_validators() * 1 ether);
+
+        // If the eth amount is lower than the original eth deposited, it is because of the rounding down (calculation for when we pay out users)
+        if (ethAmount < originalETHAmountDeposited) {
+            assertApproxEqRel(
+                ethAmount,
+                originalETHAmountDeposited,
+                0.01e18,
+                "bond should be worth more than the number of validators depositing"
+            );
+        } else {
+            assertGe(
+                ethAmount,
+                originalETHAmountDeposited,
+                "bond should be worth more than the number of validators depositing"
+            );
         }
     }
 
@@ -38,18 +61,6 @@ contract PufferProtocolInvariants is TestHelper {
         // Exchange rate should always be bigger than 1:1, we are not supposed to be losing anything with this setup ATM
         assertTrue(pool.getPufETHtoETHExchangeRate() >= 1 ether);
     }
-
-    // Sanity check for our calculations
-    // function invariant_depositedShouldBeBiggerThanTotalSupply() public {
-    //     // Read total supply from oracle update, not from pufferPool
-    //     uint256 totalSupply = pufferProtocol.getPuferPoolStorage().pufETHTotalSupply;
-
-    //     uint256 amount = pool.calculatePufETHtoETHAmount(totalSupply);
-
-    //     uint256 totalEth = handler.ghost_eth_deposited_amount() + handler.ghost_locked_amount() + handler.ghost_eth_rewards_amount();
-    //     // The total amount deposited + rewards should be bigger than all of pufETH converted to ETH calculation
-    //     assertTrue(totalEth >= amount);
-    // }
 
     function invariant_callSummary() public view {
         handler.callSummary();

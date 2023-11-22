@@ -28,5 +28,5 @@ interface IWithdrawalPool {
      * Permit allows a gasless approval. Owner signs a message giving transfer approval to this contract.
      * @param permit is the struct required by IERC20Permit-permit
      */
-    function withdrawETH(address to, Permit calldata permit) external;
+    function withdrawETH(address to, Permit calldata permit) external returns (uint256);
 }

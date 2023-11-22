@@ -88,7 +88,7 @@ See full documentation in [./PufferStrategy.md](./PufferStrategy.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- |  -------- |
-| [`AbstractVault.sol`](../src/AbstractVault.sol) | Singleton | NO | Yes | / |
+| [`TokenRescuer.sol`](../src/TokenRescuer.sol) | Singleton | NO | Yes | / |
 | [`IPufferPool.sol`](../src/interface/IPufferPool.sol) | Singleton | NO | Yes | / |
 | [`PufferPool.sol`](../src/PufferPool.sol) | Singleton | NO | / | / |
 
