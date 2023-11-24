@@ -27,9 +27,10 @@ contract WithdrawalPool is IWithdrawalPool, AccessManaged {
      */
     uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
-    // @todo Figure out if we want a setter or a constant
-    // uint256 internal constant _withdrawalFee = FixedPointMathLib.WAD; // 1%
-    uint256 internal constant _withdrawalFee = 0;
+    /**
+     * @dev Withdrawal fee amount
+     */
+    uint256 internal _withdrawalFee = FixedPointMathLib.WAD; // 1%
 
     constructor(PufferPool pufferPool, address initialAuthority) payable AccessManaged(initialAuthority) {
         POOL = pufferPool;
@@ -47,11 +48,20 @@ contract WithdrawalPool is IWithdrawalPool, AccessManaged {
     /**
      * @inheritdoc IWithdrawalPool
      */
-    function withdrawETH(address to, Permit calldata permit) external restricted returns (uint256) {
-        // @audit-issue if the attacker gets PERMIT calldata, he can steal money from the permit.owner
-        // @audit-issue it is important that signature is not stored anywhere
-        // @audit-issue frontend hack could cause harm here
+    function setWithdrawalFee(uint256 withdrawalFee) external restricted {
+        // Revert if bigger than 3%
+        if (withdrawalFee > (3 * FixedPointMathLib.WAD)) {
+            revert InvalidFeeRate();
+        }
+        uint256 oldRate = _withdrawalFee;
+        _withdrawalFee = withdrawalFee;
+        emit WithdrawalFeeChanged(oldRate, withdrawalFee);
+    }
 
+    /**
+     * @inheritdoc IWithdrawalPool
+     */
+    function withdrawETH(address to, Permit calldata permit) external restricted returns (uint256) {
         // Approve pufETH from owner to this contract
         try POOL.permit({
             owner: permit.owner,

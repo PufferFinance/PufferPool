@@ -26,11 +26,13 @@ contract DeployGuardians is BaseScript {
 
         GuardianModule module = new GuardianModule(verifier, guardians, threshold, address(accessManager));
 
+        address DAO = payable(vm.envOr("DAO", makeAddr("DAO")));
+
         string memory obj = "";
         vm.serializeAddress(obj, "accessManager", address(accessManager));
         vm.serializeAddress(obj, "guardianModule", address(module));
         vm.serializeAddress(obj, "enclaveVerifier", address(verifier));
-        vm.serializeAddress(obj, "pauser", 0x98BDB87fCF3697F4b356C36Cd621ffF94Ee3Aa19);
+        vm.serializeAddress(obj, "pauser", DAO);
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
@@ -40,7 +42,7 @@ contract DeployGuardians is BaseScript {
         deployment.accessManager = address(accessManager);
         deployment.guardianModule = address(module);
         deployment.enclaveVerifier = address(verifier);
-        deployment.pauser = 0x98BDB87fCF3697F4b356C36Cd621ffF94Ee3Aa19;
+        deployment.pauser = DAO;
 
         return deployment;
     }

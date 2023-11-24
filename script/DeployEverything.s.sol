@@ -14,7 +14,8 @@ contract DeployEverything is BaseScript {
 
         PufferDeployment memory pufferDeployment = new DeployPuffer().run(guardiansDeployment);
 
-        address DAO = makeAddr("DAO");
+        address DAO = payable(vm.envOr("DAO", makeAddr("DAO")));
+
         // Tests / local chain
         if (block.chainid != 31337) {
             DAO = _broadcaster;

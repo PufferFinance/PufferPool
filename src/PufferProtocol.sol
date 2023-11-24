@@ -229,8 +229,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint64(pufETHAmount),
-            monthsCommitted: uint40(numberOfMonths),
-            lastCommitmentPayment: uint64(block.timestamp),
+            monthsCommitted: uint24(numberOfMonths),
             node: msg.sender
         });
 
@@ -318,8 +317,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // No need for Safecast because of the validations above
-        validator.monthsCommitted = uint40(numberOfMonths);
-        validator.lastCommitmentPayment = uint64(block.timestamp);
+        validator.monthsCommitted = uint24(numberOfMonths);
 
         emit SmoothingCommitmentPaid(validator.pubKey, block.timestamp, msg.value);
 
@@ -389,7 +387,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidMerkleProof();
         }
         // Store what we need
-        uint256 validatorBond = validator.bond;
+        uint256 returnAmount = validator.bond;
         address node = validator.node;
         bytes memory pubKey = validator.pubKey;
 
@@ -405,10 +403,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Burn everything if the validator was slashed
         if (wasSlashed) {
-            POOL.burn(validatorBond);
+            POOL.burn(returnAmount);
         } else {
+            uint256 burnAmount = 0;
+
+            if (withdrawalAmount < 32 ether) {
+                burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount);
+                POOL.burn(burnAmount);
+            }
+
             // slither-disable-next-line unchecked-transfer
-            POOL.transfer(node, validatorBond);
+            POOL.transfer(node, (returnAmount - burnAmount));
         }
 
         emit ValidatorExited(pubKey, validatorIndex, moduleName);
@@ -757,11 +762,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         uint256 treasuryAmount = _sendETH(TREASURY, amount, $.protocolFeeRate);
-        uint256 withdrawalPoolAmount = _sendETH(address(WITHDRAWAL_POOL), amount, $.withdrawalPoolRate);
         uint256 guardiansAmount = _sendETH(address(GUARDIAN_MODULE), amount, $.guardiansFeeRate);
 
-        uint256 poolAmount = amount - (treasuryAmount + withdrawalPoolAmount + guardiansAmount);
-        address(POOL).safeTransferETH(poolAmount);
+        uint256 remainder = amount - (treasuryAmount + guardiansAmount);
+
+        uint256 withdrawalPoolAmount = _sendETH(address(WITHDRAWAL_POOL), remainder, $.withdrawalPoolRate);
+        address(POOL).safeTransferETH(remainder - withdrawalPoolAmount);
     }
 
     function _setGuardiansFeeRate(uint256 newRate) internal {
@@ -806,7 +812,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function _setWithdrawalPoolRate(uint256 withdrawalPoolRate) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 oldWithdrawalPoolRate = $.withdrawalPoolRate;
-        $.withdrawalPoolRate = SafeCastLib.toUint64(withdrawalPoolRate);
+        $.withdrawalPoolRate = SafeCastLib.toUint72(withdrawalPoolRate);
         emit WithdrawalPoolRateChanged(oldWithdrawalPoolRate, withdrawalPoolRate);
     }
 

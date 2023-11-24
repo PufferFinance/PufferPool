@@ -10,6 +10,23 @@ import { Permit } from "puffer/struct/Permit.sol";
  */
 interface IWithdrawalPool {
     /**
+     * @notice Thrown if the fee rate is not valid
+     * @dev Signature "0x56d69198"
+     */
+    error InvalidFeeRate();
+
+    /**
+     * @notice Emitted when the withdrawal fee is changed
+     */
+    event WithdrawalFeeChanged(uint256 oldRate, uint256 newRate);
+
+    /**
+     * @notice Sets the withdrawal fee to the specified amount
+     * @param withdrawalFee The new withdrawal fee to be set
+     */
+    function setWithdrawalFee(uint256 withdrawalFee) external;
+
+    /**
      * @notice Burns `pufETHAmount` and sends the ETH to `to`
      * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
      * @return ETH Amount redeemed
