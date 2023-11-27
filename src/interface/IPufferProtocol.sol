@@ -42,12 +42,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error ModuleAlreadyExists();
 
     /**
-     * @notice Thrown when the supplied number of months is not valid
-     * @dev Signature "0xa00523fd"
-     */
-    error InvalidNumberOfMonths();
-
-    /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
      * @dev Signature "0xa00523fd"
      */
@@ -118,12 +112,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
      */
     event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
-
-    /**
-     * @notice Emitted when the validator interval gets reset
-     * @dev Signature "0xf147f5fea5809d6be90362da029bbc2ab19828fbd38e0e426eccc76ae7bba618"
-     */
-    event IntervalReset();
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
