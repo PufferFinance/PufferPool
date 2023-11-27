@@ -207,7 +207,7 @@ contract PufferPoolTest is TestHelper {
         assertEq(minted, 0.5 ether, "ratio didn't change");
     }
 
-    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) internal {
+    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) public {
         numberOfValidators = bound(numberOfValidators, 10, 1000);
 
         attackerAmount = bound(attackerAmount, 1 ether, 100 ether);
@@ -249,12 +249,10 @@ contract PufferPoolTest is TestHelper {
 
         uint256 gasConsumedForWithdrawal = (gasBefore - gasAfter) * GWEI; // gas * gwei to get ETH amount;
 
-        // @todo revisit this
-        // assertTrue(
-        //     attacker.balance < (attackerAmount - (gasConsumedForWithdrawal + gasConsumedForDeposit)),
-        //     "attacker is in profit"
-        // );
-        // assertApproxEqRel(attacker.balance, 10 ether, 1e16, "balance is bad"); // diff 1%
+        assertTrue(
+            attacker.balance < (attackerAmount - (gasConsumedForWithdrawal + gasConsumedForDeposit)),
+            "attacker is in profit"
+        );
     }
 
     function testStorageS() public {
