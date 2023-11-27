@@ -482,16 +482,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 FixedPointMathLib.fullMulDiv(amounts[i], $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
             uint256 pufferPoolAmount = amounts[i] - withdrawalPoolAmount;
 
+            // Withdrawal pool / pool don't revert on receive()
+
             // slither-disable-next-line calls-loop
-            (bool success,) = IPufferModule(modules[i]).call(address(WITHDRAWAL_POOL), withdrawalPoolAmount, "");
-            if (!success) {
-                revert Failed();
-            }
+            IPufferModule(modules[i]).call(address(WITHDRAWAL_POOL), withdrawalPoolAmount, "");
+
             // slither-disable-next-line calls-loop
-            (success,) = IPufferModule(modules[i]).call(address(POOL), pufferPoolAmount, "");
-            if (!success) {
-                revert Failed();
-            }
+            IPufferModule(modules[i]).call(address(POOL), pufferPoolAmount, "");
         }
 
         emit FullWithdrawalsRootPosted(blockNumber, root);
@@ -788,8 +785,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             emit TransferredETH(to, toSend);
             to.safeTransferETH(toSend);
         }
-
-        return toSend;
     }
 
     function _setModuleWeights(bytes32[] memory newModuleWeights) internal {
