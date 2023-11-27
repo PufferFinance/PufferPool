@@ -64,7 +64,7 @@ contract WithdrawalPool is IWithdrawalPool, AccessManaged {
     function withdrawETH(address to, Permit calldata permit) external restricted returns (uint256) {
         // Approve pufETH from owner to this contract
         try POOL.permit({
-            owner: permit.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permit.amount,
             deadline: permit.deadline,
@@ -73,7 +73,8 @@ contract WithdrawalPool is IWithdrawalPool, AccessManaged {
             r: permit.r
         }) { } catch { }
 
-        return _withdrawETH(permit.owner, to, permit.amount);
+        // Only permit signer (msg.sender) can use the permit
+        return _withdrawETH(msg.sender, to, permit.amount);
     }
 
     function _withdrawETH(address from, address to, uint256 pufETHAmount) internal returns (uint256) {
