@@ -6,14 +6,8 @@ export RPC_URL=http://localhost:8545
 export MR_ENCLAVE=2f1488bd64b2c85fc3fe4fa535a89cfa5282ae960e902664ff5390909333e78c
 export MR_SIGNER=83d719e77deaca1470f6baf62a4d774303c899db69020f9c70ee1dfc08c7ce9e
 
-echo "DEPLOYING GUARDIANS"
-forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256, bytes calldata)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1 "" --broadcast
-
-echo "DEPLOYING PUFFER"
-forge script script/DeployPuffer.s.sol:DeployPuffer --rpc-url=$RPC_URL --broadcast
-
-echo "SETUP ACCESS"
-forge script script/SetupAccess.s.sol:SetupAccess --rpc-url=$RPC_URL --broadcast --sig "run(address)" $DEPLOYER
+echo "DEPLOYING"
+forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1 --broadcast
 
 echo "SETUP SetGuardianEnclaveMeasurements"
 forge script script/SetGuardianEnclaveMeasurements.s.sol:SetEnclaveMeasurements --rpc-url=$RPC_URL --broadcast --sig "run(bytes32,bytes32)" -vvvv 0x${MR_ENCLAVE} 0x${MR_SIGNER}
