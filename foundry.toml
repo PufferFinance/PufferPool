@@ -41,5 +41,5 @@ goerli="${GOERLI_RPC_URL}"
 
 [invariant]
 fail_on_revert=false
-depth = 60
-runs = 50
+depth = 110
+runs = 100
