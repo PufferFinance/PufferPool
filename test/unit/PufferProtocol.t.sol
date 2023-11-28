@@ -846,7 +846,8 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: aliceProof
         });
 
-        assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
+        // Alice receives the bond + the reward
+        assertEq(pool.balanceOf(alice), 1.14 ether, "alice received back the bond in pufETH");
 
         bytes32[] memory bobProof = new bytes32[](2);
         bobProof[0] = hex"1b72b726ef6f9386ef710df7e7fb5d64435c9efdf02f65e7d84e422ba4c97de2";
@@ -1181,12 +1182,11 @@ contract PufferProtocolTest is TestHelper {
         });
 
         // Total withdrawal eth is 32.14 + 31 + 31.6
+        // 0.14 stays in protocol because the first amount is over 32 eth (it has the rewards in it)
 
+        // 94.6 goes to the pools
         // Default split rate for withdrawal pool is 10%
-        // 10% of 32.14 + 31 = 6.314
-        // The rest is 63.14 - 6.314 = 56.826
-
-        assertEq(address(withdrawalPool).balance, 9.474 ether, "ending withdraawal pool balance");
-        assertEq(address(pool).balance, 85.266 ether, "ending pool balance");
+        assertEq(address(withdrawalPool).balance, 9.46 ether, "ending withdraawal pool balance");
+        assertEq(address(pool).balance, 85.14 ether, "ending pool balance");
     }
 }

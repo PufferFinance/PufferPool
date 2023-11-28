@@ -135,7 +135,7 @@ contract TestHelper is Test, BaseScript {
         // Deploy everything with one script
         PufferDeployment memory pufferDeployment = new DeployEverything().run(guardians, 1);
 
-        pufferProtocol = PufferProtocol(pufferDeployment.pufferProtocol);
+        pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         pool = PufferPool(payable(pufferDeployment.pufferPool));
         withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);

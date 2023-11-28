@@ -52,7 +52,7 @@ contract PufferProtocolHandler is Test {
     uint256 public ghost_eth_deposited_amount;
     uint256 public ghost_locked_amount;
     uint256 public ghost_eth_rewards_amount;
-    uint256 public ghost_block_number = 1;
+    uint256 public ghost_block_number = 10000;
     uint256 public ghost_validators = 0;
     uint256 public ghost_pufETH_bond_amount = 0; // bond amount that should be in puffer protocol
 
@@ -171,6 +171,8 @@ contract PufferProtocolHandler is Test {
         isETHLeavingThePool
         countCall("proofOfReserve")
     {
+        uint256 blockNumber = block.number;
+        uint256 activeValidators = 20000;
         // advance block to where it can be updated next
         uint256 nextUpdate = block.number + 7149; // Update interval is 7141 `_UPDATE_INTERVAL` on pufferProtocol
         ghost_block_number = nextUpdate;
@@ -182,15 +184,16 @@ contract PufferProtocolHandler is Test {
         uint256 ethAmount = address(pool).balance + address(withdrawalPool).balance + ghost_eth_rewards_amount;
         uint256 lockedETH = ghost_locked_amount;
 
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHSupply, block.number - 10, 100);
+        bytes32 signedMessageHash = LibGuardianMessages.getProofOfReserveMessage(
+            ethAmount, lockedETH, pufETHSupply, blockNumber, activeValidators
+        );
 
         pufferProtocol.proofOfReserve({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHSupply,
-            blockNumber: block.number - 10,
-            numberOfActiveValidators: 20000,
+            blockNumber: blockNumber,
+            numberOfActiveValidators: activeValidators,
             guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
         });
         vm.stopPrank();

@@ -105,6 +105,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
+    receive() external payable { }
+
     function initialize(address accessManager, address noRestakingModule, uint256[] calldata smoothingCommitments)
         external
         initializer
@@ -406,14 +408,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             POOL.burn(returnAmount);
         } else {
             uint256 burnAmount = 0;
+            uint256 mintAmount = 0;
 
             if (withdrawalAmount < 32 ether) {
                 burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount);
                 POOL.burn(burnAmount);
+            } else {
+                // If the withdrawal amount was over 32 ether, the excess ETH is in this smart contract
+                // With that ETH, we mint pufETH and send to the user
+                // slither-disable-next-line arbitrary-send-eth
+                mintAmount = POOL.depositETH{ value: (withdrawalAmount - 32 ether) }();
             }
 
             // slither-disable-next-line unchecked-transfer
-            POOL.transfer(node, (returnAmount - burnAmount));
+            POOL.transfer(node, (returnAmount + mintAmount - burnAmount));
         }
 
         emit ValidatorExited(pubKey, validatorIndex, moduleName);
@@ -478,17 +486,28 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Allocate ETH capital back to the pool ASAP to fuel pool growth
         for (uint256 i = 0; i < modules.length; ++i) {
-            uint256 withdrawalPoolAmount =
-                FixedPointMathLib.fullMulDiv(amounts[i], $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
-            uint256 pufferPoolAmount = amounts[i] - withdrawalPoolAmount;
+            uint256 amount = amounts[i];
+            uint256 rewards = 0;
 
-            // Withdrawal pool / pool don't revert on receive()
+            // If the withdrawal has > 32 ether, the extra is rewards that we are transferring to this contract
+            if (amount > 32 ether) {
+                rewards = amount - 32 ether;
+                amount = 32 ether;
+            }
+
+            uint256 withdrawalPoolAmount = FixedPointMathLib.fullMulDiv(amount, $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
+            uint256 pufferPoolAmount = amount - withdrawalPoolAmount;
+
+            // Withdrawal pool / pool / protocol don't revert on receive()
 
             // slither-disable-next-line calls-loop
             IPufferModule(modules[i]).call(address(WITHDRAWAL_POOL), withdrawalPoolAmount, "");
 
             // slither-disable-next-line calls-loop
             IPufferModule(modules[i]).call(address(POOL), pufferPoolAmount, "");
+
+            // slither-disable-next-line calls-loop
+            IPufferModule(modules[i]).call(address(this), rewards, "");
         }
 
         emit FullWithdrawalsRootPosted(blockNumber, root);
