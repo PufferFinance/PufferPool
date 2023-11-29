@@ -15,6 +15,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -237,6 +238,7 @@ contract PufferProtocolTest is TestHelper {
             LibGuardianMessages.getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
+                numberOfActiveValidators: 100,
                 pufETHTotalSupply: 1 ether,
                 blockNumber: 2
             })
@@ -248,6 +250,7 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 2,
+            numberOfActiveValidators: 100,
             guardianSignatures: signatures
         });
 
@@ -258,10 +261,12 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 32 ether,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401,
+            numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages.getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
+                    numberOfActiveValidators: 100,
                     pufETHTotalSupply: 1 ether,
                     blockNumber: 50401
                 })
@@ -272,6 +277,7 @@ contract PufferProtocolTest is TestHelper {
             LibGuardianMessages.getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
+                numberOfActiveValidators: 100,
                 pufETHTotalSupply: 1 ether,
                 blockNumber: 50401
             })
@@ -284,8 +290,41 @@ contract PufferProtocolTest is TestHelper {
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401,
+            numberOfActiveValidators: 100,
             guardianSignatures: signatures2
         });
+    }
+
+    function testBurstThreshold() external {
+        vm.roll(50401);
+
+        // Update the reserves and make it so that the next validator is over threshold
+        pufferProtocol.proofOfReserve({
+            ethAmount: 2 ether,
+            lockedETH: 32 ether,
+            pufETHTotalSupply: 1 ether,
+            blockNumber: 50401,
+            numberOfActiveValidators: 1,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages.getProofOfReserveMessage({
+                    ethAmount: 2 ether,
+                    lockedETH: 32 ether,
+                    pufETHTotalSupply: 1 ether,
+                    blockNumber: 50401,
+                    numberOfActiveValidators: 1
+                })
+                )
+        });
+
+        uint256 balanceBefore = pufferProtocol.TREASURY().balance;
+
+        uint256 sc = pufferProtocol.getSmoothingCommitment(1);
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 balanceAfter = pufferProtocol.TREASURY().balance;
+
+        assertEq(balanceAfter, balanceBefore + sc, "treasury gets everything");
     }
 
     // Set validator limit and try registering that many validators
@@ -399,6 +438,18 @@ contract PufferProtocolTest is TestHelper {
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.ValidatorLimitPerIntervalReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(validatorKeyData, NO_RESTAKING, 1);
+    }
+
+    // Try to provision a validator when there is nothing to provision
+    function testProvisioning() public {
+        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
+        assertEq(type(uint256).max, idx, "module");
+
+        bytes[] memory signatures =
+            _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000");
+
+        vm.expectRevert();
+        pufferProtocol.provisionNode(signatures);
     }
 
     function testSetProtocolFeeRate() public {
@@ -799,6 +850,94 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: bond }(validatorKeyData, NO_RESTAKING, type(uint256).max);
     }
 
+    // Node operator can deposit Bond in pufETH
+    function testRegisterValidatorKeyWithPermit() external {
+        address alice = makeAddr("alice");
+        bytes memory pubKey = _getPubKey(bytes32("alice"));
+        vm.deal(alice, 10 ether);
+
+        // Alice mints 2 ETH of pufETH
+        vm.startPrank(alice);
+        pool.depositETH{ value: 2 ether }();
+
+        // approve pufETH to pufferProtocol
+        pool.approve(address(pufferProtocol), type(uint256).max);
+
+        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
+        assertEq(pool.balanceOf(alice), 2 ether, "2 pufETH before for alice");
+
+        // In this case, the only important data on permit is the amount
+        // Permit call will fail, but the amount is reused
+        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+        Permit memory permit;
+        permit.amount = pool.balanceOf(alice);
+
+        // Get the smoothing commitment amount for 6 months
+        uint256 sc = pufferProtocol.getSmoothingCommitment(6);
+
+        // Register validator key by paying SC in ETH and depositing bond in pufETH
+        vm.expectEmit(true, true, true, true);
+        emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
+        pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
+
+        assertEq(pool.balanceOf(alice), 0, "0 pufETH after for alice");
+        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
+    }
+
+    // Node operator can deposit Bond in pufETH with Permit
+    function testRegisterValidatorKeyWithPermitSignature() external {
+        address alice = makeAddr("alice");
+        bytes memory pubKey = _getPubKey(bytes32("alice"));
+        vm.deal(alice, 10 ether);
+
+        // Alice mints 2 ETH of pufETH
+        vm.startPrank(alice);
+        pool.depositETH{ value: 2 ether }();
+
+        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
+        assertEq(pool.balanceOf(alice), 2 ether, "2 pufETH before for alice");
+
+        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+        // Generate Permit data for 2 pufETH to the protocol
+        Permit memory permit = _signPermit(_testTemps("alice", address(pufferProtocol), 2 ether, block.timestamp));
+
+        // Get the smoothing commitment amount for 6 months
+        uint256 sc = pufferProtocol.getSmoothingCommitment(6);
+
+        // Register validator key by paying SC in ETH and depositing bond in pufETH
+        vm.expectEmit(true, true, true, true);
+        emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
+        pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
+
+        assertEq(pool.balanceOf(alice), 0, "0 pufETH after for alice");
+        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
+    }
+
+    // Node operator can deposit Bond in pufETH
+    function testRegisterValidatorKeyWithPermitSignatureRevertsInvalidSC() external {
+        address alice = makeAddr("alice");
+        bytes memory pubKey = _getPubKey(bytes32("alice"));
+        vm.deal(alice, 10 ether);
+
+        // Alice mints 2 ETH of pufETH
+        vm.startPrank(alice);
+        pool.depositETH{ value: 2 ether }();
+
+        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+        // Generate Permit data for 10 pufETH to the protocol
+        Permit memory permit = _signPermit(_testTemps("alice", address(pufferProtocol), 0.5 ether, block.timestamp));
+
+        // Try to pay invalid SC amount
+        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
+        pufferProtocol.registerValidatorKeyPermit{ value: 0.1 ether }(data, NO_RESTAKING, 6, permit);
+
+        uint256 sc = pufferProtocol.getSmoothingCommitment(6);
+
+        // Try to pay good amount for SC, but not enough pufETH for the bond
+        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
+        pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
@@ -944,17 +1083,29 @@ contract PufferProtocolTest is TestHelper {
         assertEq(address(pool).balance, 0, "starting pool balance");
         assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
 
+        bytes[] memory signatures = _getGuardianEOASignatures(
+            LibGuardianMessages.getPostFullWithdrawalsRootMessage(
+                hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, modules, amounts
+            )
+        );
+
+        // modules.length and amounts.length don't match
+        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+        pufferProtocol.postFullWithdrawalsRoot({
+            root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
+            blockNumber: 100,
+            modules: new address[](5), // lengths don't match
+            amounts: amounts,
+            guardianSignatures: signatures
+        });
+
         // Values are hardcoded and generated using test/unit/FullWithdrawalProofs.js
         pufferProtocol.postFullWithdrawalsRoot({
             root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
             blockNumber: 100,
             modules: modules,
             amounts: amounts,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getPostFullWithdrawalsRootMessage(
-                    hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, modules, amounts
-                )
-                )
+            guardianSignatures: signatures
         });
 
         // Total withdrawal eth is 32.14 + 31

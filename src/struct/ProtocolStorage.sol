@@ -39,39 +39,49 @@ struct ProtocolStorage {
      */
     uint16 validatorLimitPerInterval;
     /**
-     * @dev Select module index
+     * @dev Number of active puffer validators
      * Slot 2
+     */
+    uint128 activePufferValidators;
+    /**
+     * @dev Total number of active validators on Beacon Chain
+     * Slot 2
+     */
+    uint128 numberOfActiveValidators;
+    /**
+     * @dev Select module index
+     * Slot 3
      */
     uint256 moduleSelectIndex;
     /**
      * @dev Mapping of module name to pending validator index for that module
-     * Slot 3
+     * Slot 4
      */
     mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
     /**
      * @dev Mapping of a module name to validator queue
-     * Slot 4
+     * Slot 5
      */
     mapping(bytes32 moduleName => uint256 nextInLineToBeProvisionedIndex) nextToBeProvisioned;
     /**
      * @dev Mapping of Module name => idx => Validator
      * Index is incrementing starting from 0, not to be mistaken with Beacon Chain Validator Index
-     * Slot 5
+     * Slot 6
      */
     mapping(bytes32 moduleName => mapping(uint256 index => Validator validator)) validators;
     /**
      * @dev Mapping of a blockNumber and Merkle Root for full withdrawals
-     * Slot 6
+     * Slot 7
      */
     mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots;
     /**
      * @dev Mapping between module name and a module
-     * Slot 7
+     * Slot 8
      */
     mapping(bytes32 moduleName => IPufferModule moduleAddress) modules;
     /**
      * @dev Array of smoothing commitments for a number of months and smoothing commitment amount (in wei)
-     * Slot 8
+     * Slot 9
      */
     uint256[] smoothingCommitments;
 }

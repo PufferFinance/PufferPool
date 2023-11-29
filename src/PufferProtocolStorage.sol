@@ -7,7 +7,7 @@ import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 
 /**
  * @title PufferProtocolStorage
- * @author Puffer finance
+ * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 abstract contract PufferProtocolStorage is IPufferProtocolStorage {
@@ -15,8 +15,6 @@ abstract contract PufferProtocolStorage is IPufferProtocolStorage {
      * @dev Constant representing 100%
      */
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
-
-    uint256 public constant BURST_THRESHOLD = 20;
 
     /**
      * @dev Storage slot location for PufferProtocol

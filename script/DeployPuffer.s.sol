@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { NoImplementation } from "puffer/NoImplementation.sol";
@@ -20,7 +21,7 @@ import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
 
 /**
  * @title DeployPuffer
- * @author Puffer finance
+ * @author Puffer Finance
  * @notice Deploys PufferPool Contracts
  * @dev
  *
@@ -41,6 +42,7 @@ contract DeployPuffer is BaseScript {
     PufferPool pool;
     WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
+    PufferModuleFactory moduleFactory;
 
     function run(GuardiansDeployment calldata guardiansDeployment) public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
@@ -67,14 +69,18 @@ contract DeployPuffer is BaseScript {
                 poolSalt, hashInitCode(type(PufferPool).creationCode, abi.encode(proxy, address(accessManager)))
             );
 
+            // Predict Withdrawal pool address
             address predictedWithdrawalPool = computeCreate2Address(
                 withdrawalPoolSalt,
                 hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
             );
 
+            moduleFactory =
+            new PufferModuleFactory({beacon: address(beacon), pufferProtocol: address(proxy), authority: address(accessManager)});
+
             // Puffer Service implementation
             pufferProtocolImpl =
-            new PufferProtocol({withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)), pool: PufferPool(payable(predictedPool)), guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleBeacon: address(beacon)});
+            new PufferProtocol({withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)), pool: PufferPool(payable(predictedPool)), guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleFactory: address(moduleFactory) });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
@@ -117,6 +123,7 @@ contract DeployPuffer is BaseScript {
         vm.serializeAddress(obj, "pufferPool", address(pool));
         vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
+        vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
         vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
 
@@ -134,7 +141,8 @@ contract DeployPuffer is BaseScript {
             accessManager: guardiansDeployment.accessManager,
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
             pauser: guardiansDeployment.pauser,
-            beacon: address(beacon)
+            beacon: address(beacon),
+            moduleFactory: address(moduleFactory)
         });
     }
 

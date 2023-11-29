@@ -13,7 +13,7 @@ import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
 /**
  * @title Guardian module
- * @author Puffer finance
+ * @author Puffer Finance
  * @dev This contract is responsible for storing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
@@ -158,11 +158,17 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         uint256 lockedETH,
         uint256 pufETHTotalSupply,
         uint256 blockNumber,
+        uint256 numberOfActiveValidators,
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getProofOfReserveMessage(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
+        bytes32 signedMessageHash = LibGuardianMessages.getProofOfReserveMessage({
+            ethAmount: ethAmount,
+            lockedETH: lockedETH,
+            pufETHTotalSupply: pufETHTotalSupply,
+            blockNumber: blockNumber,
+            numberOfActiveValidators: numberOfActiveValidators
+        });
 
         // Check the signatures
         bool validSignatures =
@@ -388,7 +394,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         // Iterate through guardian enclave addresses and make sure that the signers match
         for (uint256 i; i < signers.length; ++i) {
-            address currentSigner = ECDSA.recover(signedMessageHash, signatures[i]);
+            (address currentSigner,,) = ECDSA.tryRecover(signedMessageHash, signatures[i]);
             if (currentSigner == signers[i]) {
                 ++validSignatures;
             }

@@ -103,11 +103,13 @@ contract PufferPoolTest is TestHelper {
             lockedETH: 320 ether,
             pufETHTotalSupply: 10_000 ether,
             blockNumber: 50350,
+            numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages.getProofOfReserveMessage({
                     ethAmount: 10_000 ether,
                     lockedETH: 320 ether,
                     pufETHTotalSupply: 10_000 ether,
+                    numberOfActiveValidators: 100,
                     blockNumber: 50350
                 })
                 )
@@ -183,11 +185,13 @@ contract PufferPoolTest is TestHelper {
             lockedETH: 0,
             pufETHTotalSupply: 1 ether,
             blockNumber: 50401,
+            numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages.getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 0 ether,
                     pufETHTotalSupply: 1 ether,
+                    numberOfActiveValidators: 100,
                     blockNumber: 50401
                 })
                 )

@@ -12,7 +12,10 @@ gas_reports=[
     "PufferProtocol",
     "GuardianModule",
     "EnclaveVerifier",
-    "NoRestakingStrategy"
+    "NoRestakingModule",
+    "TokenRescuer",
+    "PufferModuleFactory",
+    "PufferModule",
 ]
 auto_detect_solc = false
 cbor_metadata = false

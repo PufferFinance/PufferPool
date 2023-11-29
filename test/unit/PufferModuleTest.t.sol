@@ -23,7 +23,7 @@ contract PufferModuleTest is TestHelper {
     }
 
     function testBeaconUpgrade() public {
-        address moduleBeacon = pufferProtocol.PUFFER_MODULE_BEACON();
+        address moduleBeacon = moduleFactory.PUFFER_MODULE_BEACON();
 
         vm.startPrank(DAO);
         pufferProtocol.createPufferModule(bytes32("DEGEN"));
