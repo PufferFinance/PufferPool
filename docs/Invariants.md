@@ -7,5 +7,5 @@ The Puffer Protocol observes certain invariants, based on its design. These are 
 * `Once set, the Guardians should never change`
     * We only set Guardians once, and there is no way to change the Guardians. However, the Puffer Protocol is working towards trustlessness, and the need for trusted Guardians will eventually be removed
 * `The PufferPool will never lose ETH outside of provisioning nodes`
-    * ETH is only ever added to the PufferPool, not removed, except in the case of provisioning 32 ETH to a Puffer NoOp to allow them to operate a validator node. ETH may be added to the PufferPool via staking and rewards
+    * ETH is only ever added to the PufferPool, not removed, except in the case of provisioning 32 ETH to a Puffer NoOp to allow them to operate a validator. ETH may be added to the PufferPool via staking and rewards
 

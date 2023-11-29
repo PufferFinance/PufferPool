@@ -39,7 +39,7 @@ function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depo
 This function serves as the entry point for a NoOp to opt into a module and begin staking through this module. The ETH funds sent upon calling this function will eventually end up staked on the beacon chain, either though an EigenPod, or other means, depending on the type of module.
 
 *Effects*:
-* Will create a new deposit on the beacon chain, and initiate starting a new validator node
+* Will create a new deposit on the beacon chain, and initiate starting a new validator
 * May deploy an EigenPod contract, depending on the module
 
 *Requirements*:
@@ -57,7 +57,7 @@ This function serves as the entry point for a NoOp to opt into a module and begi
 function collectNonRestakingRewards() external
 ```
 
-This function allows NoOps to claim their consensus rewards, earned by their validator node operating within this module
+This function allows NoOps to claim their consensus rewards, earned by their validator operating within this module
 
 *Effects*:
 * Will withdraw the corresponding amount of ETH from this module, sending it to the NoOp's address

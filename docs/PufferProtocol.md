@@ -7,7 +7,7 @@
 | [`PufferProtocolStorage.sol`](../src/PufferProtocolStorage.sol) | Singleton | UUPS Proxy | YES | / |
 | [`PufferProtocol.sol`](../src/PufferProtocol.sol) | Singleton | UUPS Proxy | NO | / |
 
-The [PufferProtocol](../src/PufferProtocol.sol) contract is the main entry point for the Puffer Protocol. This contract allows users to register their public keys with the protocol and receive 32 provisioned ETH in order to operate a validator node. In order to do so, they must deposit a bond, which is denominated in ETH, but is converted to pufETH upon deposit and held within the contract. A 1 ETH bond is required for NoOps running TEEs such as Intel SGX, otherwise a 2 ETH bond is required. An additional requirement to operate a validator is to pay a smoothing commitment, which allows operation of the validator for a certain amount of time, corresponding to the amount of smoothing commitment paid. Puffer NoOps may pay additional smoothing commitments here in order to extend the allowed duration of operating their validators. Note that, unlike the bond, smoothing commitments are not refunded, no matter the status of the validator. NoOps must interact with this contract in order to stop their validator nodes as well. Before a NoOp is provisioned 32 ETH, they may call the `stopRegistration()` function to cancel registration. Note that the NoOp will only receive back their bond in this case, not their smoothing commitment.
+The [PufferProtocol](../src/PufferProtocol.sol) contract is the main entry point for the Puffer Protocol. This contract allows users to register their public keys with the protocol and receive 32 provisioned ETH in order to operate a validator. In order to do so, they must deposit a bond, which is denominated in ETH, but is converted to pufETH upon deposit and held within the contract. A 1 ETH bond is required for NoOps running TEEs such as Intel SGX, otherwise a 2 ETH bond is required. An additional requirement to operate a validator is to pay a smoothing commitment, which allows operation of the validator for a certain amount of time, corresponding to the amount of smoothing commitment paid. Puffer NoOps may pay additional smoothing commitments here in order to extend the allowed duration of operating their validators. Note that, unlike the bond, smoothing commitments are not refunded, no matter the status of the validator. NoOps must interact with this contract in order to stop their validators as well. Before a NoOp is provisioned 32 ETH, they may call the `stopRegistration()` function to cancel registration. Note that the NoOp will only receive back their bond in this case, not their smoothing commitment.
 
 Proof of reserves happen through this contract, as well as proof of full withdrawals, which NoOps may submit in order to retrieve their bonded pufETH after they are finished validating, given that they have not been slashed or were inactive. If they were slashed, they do not receive back any of their bond. If they were inactive and lost some ETH from the originally provisioned 32, their bonded pufETH will be slashed by the corresponding amount, given the ETH to pufETH ratio at the time of exit. New Puffer modules involving various AVSs (or no AVS) may be created through this contract.
 
@@ -16,7 +16,7 @@ Finally, this contract maintains a queue to provision validators for NoOps, and 
 #### High-level Concepts
 
 This document organizes methods according to the following themes (click each to be taken to the relevant section):
-* [Provisioning a Validator Node](#provisioning-a-validator-node)
+* [Provisioning a Validator](#provisioning-a-validator)
 * [Withdrawing from Protocol](#withdrawing-from-protocol)
 * [Protocol Maintenance](#protocol-maintenance)
 
@@ -39,11 +39,11 @@ This document organizes methods according to the following themes (click each to
 #### Helpful definitions
 
 * Module: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one module per each validator they run, upon entering the Puffer Protocol
-* Smoothing Commitment: A non-refundable payment NoOps must provide in order to run their validator node for a set period of time. NoOps may make a large smoothing commitment to gain the rights to operate their validator node longer, or can make top-up payments anytime.
+* Smoothing Commitment: A non-refundable payment NoOps must provide in order to run their validator for a set period of time. NoOps may make a large smoothing commitment to gain the rights to operate their validator for longer, or can make top-up payments anytime.
 
 ---
 
-### Provisioning a Validator Node
+### Provisioning a Validator
 
 #### `registerValidatorKey`
 
@@ -53,7 +53,7 @@ function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName
     payable
 ```
 
-This function initiates the process of provisioning a new validator node for a NoOp. The NoOp must pay the bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
+This function initiates the process of provisioning a new validator for a NoOp. The NoOp must pay the bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
 
 *Effects*:
 * ETH bond is taken from the NoOp and deposited into the pool, also minting a corresponding amount of pufETH, which is stored on the `PufferProtocol.sol` smart contract
@@ -64,7 +64,7 @@ This function initiates the process of provisioning a new validator node for a N
 * Caller must provide a valid public key that is not currently registered with the protocol
 * Caller must submit valid RAVE evidence if using SGX or other TEE
 * Caller must provide valid ETH bond amount (1 ETH with SGX or other TEE, otherwise 2 ETH)
-* Caller must provide number of months desired to operate validator node, along with corresponding amount of ETH to cover smoothing commitment
+* Caller must provide number of months desired to operate validator, along with corresponding amount of ETH to cover smoothing commitment
 
 #### `provisionNode`
 
@@ -72,10 +72,10 @@ This function initiates the process of provisioning a new validator node for a N
 function provisionNode(bytes[] calldata guardianEnclaveSignatures) external
 ```
 
-Provisions the next validator node that is in line for provisioning, given the `guardianEnclaveSignatures` are valid
+Provisions the next validator that is in line for provisioning, given the `guardianEnclaveSignatures` are valid
 
 *Effects*:
-* Sets the next validator node's status to ACTIVE
+* Sets the next validator's status to ACTIVE
 * Increments the index of the next node to provision for the module this node was provisioned for
 * Increments the module selection index
 * Transfers 32 ETH from the pool into the module contract address
@@ -91,7 +91,7 @@ Provisions the next validator node that is in line for provisioning, given the `
 function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable
 ```
 
-Allows NoOps to pay additional smoothing commitments in order to be able to continue running their validator nodes for additional time
+Allows NoOps to pay additional smoothing commitments in order to be able to continue running their validators for additional time
 
 *Effects*:
 * Extends NoOp's allowed time to operate this valdiator by the specified number of months
@@ -111,16 +111,16 @@ Allows NoOps to pay additional smoothing commitments in order to be able to cont
 function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external
 ```
 
-Allows a NoOp to stop their pending provisioning of a validator node and exit themselves from the queue
+Allows a NoOp to stop their pending provisioning of a validator and exit themselves from the queue
 
 *Effects*:
 * Updates the status of this validator in the queue to DEQUEUED
-* If this validator node was next to be provisioned, increments the counter for next node to be provisioned
+* If this validator was next to be provisioned, increments the counter for next node to be provisioned
 * Transfers the bonded ETH back to the NoOp
 
 *Requirements*:
 * Caller must be the corresponding NoOp for this pending validator
-* Validator node must have pending status in the queue
+* Validator must have pending status in the queue
 
 #### `stopValidator`
 
@@ -135,16 +135,16 @@ function stopValidator(
 ) external
 ```
 
-Allows anyone to submit a merkle proof proving a validator node's full withdrawal from the beacon chain. If the validator was not slashed, this will return the full amount of the bond back to the NoOp. If the validator was slashed, no bond amount will be returned. If the balance of the validator node is less than 32 ETH, the difference will be taken out of the bond before returning it to the NoOp.
+Allows anyone to submit a merkle proof proving a validator's full withdrawal from the beacon chain. If the validator was not slashed, this will return the full amount of the bond back to the NoOp. If the validator was slashed, no bond amount will be returned. If the balance of the validator is less than 32 ETH, the difference will be taken out of the bond before returning it to the NoOp.
 
 *Effects*:
-* Delete unused information regarding the validator node from on-chain
-* Change the validator node to EXITED status
+* Delete unused information regarding the validator from on-chain
+* Change the validator to EXITED status
 * Return the validator's bond to the NoOp, if they were not slashed
 * Remove the corresponding amount from the validator's bond if the validator's balance is less than 32 ETH
 
 *Requirements*:
-* Validator node must be in ACTIVE status
+* Validator must be in ACTIVE status
 * Submitted merkle proof must be valid
 
 ---
@@ -157,11 +157,11 @@ Allows anyone to submit a merkle proof proving a validator node's full withdrawa
 function skipProvisioning(bytes32 moduleName) external
 ```
 
-Skips provisioning of a validator node, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
+Skips provisioning of a validator, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
 
 *Effects*:
 * Changes the status of the skipped vaidator node to SKIPPED
-* Transfers the bond back to the NoOp corresponding to this skipped validator node
+* Transfers the bond back to the NoOp corresponding to this skipped validator
 * Increments the next to be provisioned node counter for the module corresponding to `moduleName`
 
 *Requirements*:
