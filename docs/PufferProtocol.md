@@ -9,7 +9,7 @@
 
 The [PufferProtocol](../src/PufferProtocol.sol) contract is the main entry point for the Puffer Protocol. This contract allows users to register their public keys with the protocol and receive 32 provisioned ETH in order to operate a validator node. In order to do so, they must deposit a bond, which is denominated in ETH, but is converted to pufETH upon deposit and held within the contract. A 1 ETH bond is required for NoOps running TEEs such as Intel SGX, otherwise a 2 ETH bond is required. An additional requirement to operate a validator is to pay a smoothing commitment, which allows operation of the validator for a certain amount of time, corresponding to the amount of smoothing commitment paid. Puffer NoOps may pay additional smoothing commitments here in order to extend the allowed duration of operating their validators. Note that, unlike the bond, smoothing commitments are not refunded, no matter the status of the validator. NoOps must interact with this contract in order to stop their validator nodes as well. Before a NoOp is provisioned 32 ETH, they may call the `stopRegistration()` function to cancel registration. Note that the NoOp will only receive back their bond in this case, not their smoothing commitment.
 
-Proof of reserves happen through this contract, as well as proof of full withdrawals, which NoOps may submit in order to retrieve their bonded pufETH after they are finished validating, given that they have not been slashed or were inactive. If they were slashed, they do not receive back any of their bond. If they were inactive and lost some ETH from the originally provisioned 32, their bonded pufETH will be slashed by the corresponding amount, given the ETH to pufETH ratio at the time of exit. New Puffer strategies involving various AVSs (or no AVS) may be created through this contract.
+Proof of reserves happen through this contract, as well as proof of full withdrawals, which NoOps may submit in order to retrieve their bonded pufETH after they are finished validating, given that they have not been slashed or were inactive. If they were slashed, they do not receive back any of their bond. If they were inactive and lost some ETH from the originally provisioned 32, their bonded pufETH will be slashed by the corresponding amount, given the ETH to pufETH ratio at the time of exit. New Puffer modules involving various AVSs (or no AVS) may be created through this contract.
 
 Finally, this contract maintains a queue to provision validators for NoOps, and also stores other various information about NoOps and other variables within the protocol that are maintained by governance, for example, the ratio at which ETH enters the [WithdrawalPool](./WithdrawalPool.md) upon a NoOp withdrawing from the protocol.
 
@@ -22,7 +22,7 @@ This document organizes methods according to the following themes (click each to
 
 #### Important state variables
 
-* `bytes32[] strategyWeights`: Defines how to provision queued validators in a weighted round-robin across the various strategies
+* `bytes32[] moduleWeights`: Defines how to provision queued validators in a weighted round-robin across the various modules
 
 * `uint256 withdrawalPoolRate`: Defines the ratio at which returned validator ETH enters the [WithdrawalPool](./WithdrawalPool.md) smart contract
 
@@ -30,15 +30,15 @@ This document organizes methods according to the following themes (click each to
 
 * `uint72 guardiansFeeRate`: Defines the percentage of rewards earned by operation of Puffer that return to the Guardians to ensure their continued honest participation
 
-* `mapping(bytes32 strategyName => uint256 pendingValidatorIndex) pendingValidatorIndicies`: Keeps track of validators waiting to be provisioned to enter the corresponding strategy. Note that the validator index here is different from the beacon chain validator index
+* `mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndicies`: Keeps track of validators waiting to be provisioned to enter the corresponding module. Note that the validator index here is different from the beacon chain validator index
 
-* `mapping(bytes32 strategyName => mapping(uint256 index => Validator validator)) validators`: Keeps track of current validators running within the corresponding strategy
+* `mapping(bytes32 moduleName => mapping(uint256 index => Validator validator)) validators`: Keeps track of current validators running within the corresponding module
 
 * `mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots`: These are merkle tree roots that are posted every set number of blocks by the Guardians. These are necessary for NoOps to prove their full withdrawal via merkle proof and retrieve their bond
 
 #### Helpful definitions
 
-* Strategy: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one strategy per each validator they run, upon entering the Puffer Protocol
+* Module: A defined set of AVSs that a Puffer NoOp may choose to delegate their funds to running / maintaining. NoOps must choose exactly one module per each validator they run, upon entering the Puffer Protocol
 * Smoothing Commitment: A non-refundable payment NoOps must provide in order to run their validator node for a set period of time. NoOps may make a large smoothing commitment to gain the rights to operate their validator node longer, or can make top-up payments anytime.
 
 ---
@@ -48,7 +48,7 @@ This document organizes methods according to the following themes (click each to
 #### `registerValidatorKey`
 
 ```solidity
-function registerValidatorKey(ValidatorKeyData calldata data, bytes32 strategyName, uint256 numberOfMonths)
+function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
     external
     payable
 ```
@@ -76,10 +76,10 @@ Provisions the next validator node that is in line for provisioning, given the `
 
 *Effects*:
 * Sets the next validator node's status to ACTIVE
-* Increments the index of the next node to provision for the strategy this node was provisioned for
-* Increments the strategy selection index
-* Transfers 32 ETH from the pool into the strategy contract address
-* Stakes the 32 ETH on the beacon chain, either directly or via Eigenpod, or any other method defined by the particular strategy contract
+* Increments the index of the next node to provision for the module this node was provisioned for
+* Increments the module selection index
+* Transfers 32 ETH from the pool into the module contract address
+* Stakes the 32 ETH on the beacon chain, either directly or via Eigenpod, or any other method defined by the particular module contract
 
 *Requirements*
 * The Guardians must have provided valid signatures in order to provision this node
@@ -88,7 +88,7 @@ Provisions the next validator node that is in line for provisioning, given the `
 #### `extendCommitment`
 
 ```solidity
-function extendCommitment(bytes32 strategyName, uint256 validatorIndex, uint256 numberOfMonths) external payable
+function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable
 ```
 
 Allows NoOps to pay additional smoothing commitments in order to be able to continue running their validator nodes for additional time
@@ -108,7 +108,7 @@ Allows NoOps to pay additional smoothing commitments in order to be able to cont
 #### `stopRegistration`
 
 ```solidity
-function stopRegistration(bytes32 strategyName, uint256 validatorIndex) external
+function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external
 ```
 
 Allows a NoOp to stop their pending provisioning of a validator node and exit themselves from the queue
@@ -126,7 +126,7 @@ Allows a NoOp to stop their pending provisioning of a validator node and exit th
 
 ```solidity
 function stopValidator(
-    bytes32 strategyName,
+    bytes32 moduleName,
     uint256 validatorIndex,
     uint256 blockNumber,
     uint256 withdrawalAmount,
@@ -154,7 +154,7 @@ Allows anyone to submit a merkle proof proving a validator node's full withdrawa
 #### `skipProvisioning`
 
 ```solidity
-function skipProvisioning(bytes32 strategyName) external
+function skipProvisioning(bytes32 moduleName) external
 ```
 
 Skips provisioning of a validator node, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
@@ -162,7 +162,7 @@ Skips provisioning of a validator node, making the next node in the queue the ne
 *Effects*:
 * Changes the status of the skipped vaidator node to SKIPPED
 * Transfers the bond back to the NoOp corresponding to this skipped validator node
-* Increments the next to be provisioned node counter for the strategy corresponding to `strategyName`
+* Increments the next to be provisioned node counter for the module corresponding to `moduleName`
 
 *Requirements*:
 * May only be called by Guardians
@@ -173,7 +173,7 @@ Skips provisioning of a validator node, making the next node in the queue the ne
 function postFullWithdrawalsRoot(
     bytes32 root,
     uint256 blockNumber,
-    address[] calldata strategies,
+    address[] calldata modules,
     uint256[] calldata amounts
 ) external
 ```
@@ -182,11 +182,11 @@ Allows Guardians to post the merkle root for all full withdrawals that happened 
 
 *Effects*:
 * Stores the new full withdrawal root on-chain, mapped to `blockNumber`
-* Moves all full withdrawal ETH living on strategy contracts back to the PufferPool and WithdrawalPool, corresponding to the `withdrawalPoolRate`, set by governance
+* Moves all full withdrawal ETH living on module contracts back to the PufferPool and WithdrawalPool, corresponding to the `withdrawalPoolRate`, set by governance
 
 *Requirements*:
 * Must be called by Guardians
-* Must provide a full withdrawal amount per each strategy address passed into this function's parameters
+* Must provide a full withdrawal amount per each module address passed into this function's parameters
 
 #### `proofOfReserve`
 

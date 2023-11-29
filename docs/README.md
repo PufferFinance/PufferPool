@@ -50,7 +50,7 @@ The protocol also utilizes these smart contracts to perform important functions,
 
 * Proof of Reserves, AKA the amount of ETH backing pufETH
 * Proof of Full Withdrawls, required for NoOps to be able to retrieve their bond after they have finished validating
-* Create new Puffer Strategies, which will include various mixes of AVSs that NoOps can decide to opt into, depending on risk/reward preferences
+* Create new Puffer Modules, which will include various mixes of AVSs that NoOps can decide to opt into, depending on risk/reward preferences
 * Store information about validator nodes and protocol state variables controlled by governance, such as the ratio at which withdrawn ETH is split between the [PufferPool](../src/PufferPool.sol) and [WithdrawalPool](../src/WithdrawalPool.sol) smart contracts
 
 See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
@@ -72,17 +72,17 @@ The Guardians operate a [Safe multisig](https://github.com/safe-global/safe-cont
 
 See full documentation in [./Guardians.md](./Guardians.md)
 
-### [Strategies](./Strategies.md)
+### [Modules](./Modules.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
-| [`IPufferStrategy.sol`](../src/interface/IPufferStrategy.sol) | Singleton | / | YES | / |
-| [`NoRestakingStrategy.sol`](../src/NoRestakingStrategy.sol) | Singleton | NO | NO | / |
-| [`PufferStrategy.sol`](../src/PufferStrategy.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+| [`IPufferModule.sol`](../src/interface/IPufferModule.sol) | Singleton | / | YES | / |
+| [`NoRestakingModule.sol`](../src/NoRestakingModule.sol) | Singleton | NO | NO | / |
+| [`PufferModule.sol`](../src/PufferModule.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
 
-Each Puffer Strategy refers to a specific set of AVSs for which all Puffer NoOps participating in that strategy must delegate their funds to running. Each validator node must choose exactly one Puffer Strategy to participate in, based on desired risk/reward preferences. The safest Puffer Strategy is the [NoRestakingStrategy](../src/NoRestakingStrategy.sol), which includes no AVSs. Validator nodes in this strategy only perform Ethereum consensus.
+Each Puffer Module refers to a specific set of AVSs for which all Puffer NoOps participating in that module must delegate their funds to running. Each validator node must choose exactly one Puffer Module to participate in, based on desired risk/reward preferences. The safest Puffer Module is the [NoRestakingModule](../src/NoRestakingModule.sol), which includes no AVSs. Validators in this module only perform Ethereum consensus.
 
-See full documentation in [./PufferStrategy.md](./PufferStrategy.md)
+See full documentation in [./PufferModule.md](./PufferModule.md)
 
 ### [PufferPool](./PufferPool.md)
 
