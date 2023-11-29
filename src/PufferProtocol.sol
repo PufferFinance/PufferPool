@@ -414,10 +414,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount);
                 POOL.burn(burnAmount);
             } else {
-                // If the withdrawal amount was over 32 ether, the excess ETH is in this smart contract
-                // With that ETH, we mint pufETH and send to the user
-                // slither-disable-next-line arbitrary-send-eth
-                mintAmount = POOL.depositETH{ value: (withdrawalAmount - 32 ether) }();
+                uint256 rewards = withdrawalAmount - 32 ether;
+                if (rewards != 0) {
+                    // If the withdrawal amount was over 32 ether, the excess ETH is in this smart contract
+                    // With that ETH, we mint pufETH and send to the user
+                    // slither-disable-next-line arbitrary-send-eth
+                    mintAmount = POOL.depositETH{ value: rewards }();
+                }
             }
 
             // slither-disable-next-line unchecked-transfer

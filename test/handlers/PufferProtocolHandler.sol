@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferPool } from "puffer/PufferPool.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
@@ -17,6 +18,14 @@ import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { Merkle } from "murky/Merkle.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
+
+struct ProvisionedValidator {
+    bytes32 moduleName;
+    uint256 idx;
+}
 
 contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
@@ -55,6 +64,9 @@ contract PufferProtocolHandler is Test {
     uint256 public ghost_block_number = 10000;
     uint256 public ghost_validators = 0;
     uint256 public ghost_pufETH_bond_amount = 0; // bond amount that should be in puffer protocol
+    ProvisionedValidator[] public ghost_validators_validating;
+
+    address _accessManagerAdmin;
 
     // Previous ETH balance of PufferPool
     uint256 public previousBalance;
@@ -81,7 +93,8 @@ contract PufferProtocolHandler is Test {
         PufferPool _pool,
         IWithdrawalPool _withdrawalPool,
         PufferProtocol protocol,
-        uint256[] memory _guardiansEnclavePks
+        uint256[] memory _guardiansEnclavePks,
+        address accessManagerAdmin
     ) {
         // Initialize actors, skip precompiles
         for (uint256 i = 11; i < 1000; ++i) {
@@ -101,10 +114,12 @@ contract PufferProtocolHandler is Test {
         guardiansEnclavePks.push(_guardiansEnclavePks[0]);
         guardiansEnclavePks.push(_guardiansEnclavePks[1]);
         guardiansEnclavePks.push(_guardiansEnclavePks[2]);
+        _accessManagerAdmin = accessManagerAdmin;
+        _enableCall(pufferProtocol.getModuleAddress(bytes32("NO_RESTAKING")));
 
-        vm.deal(address(this), 200 ether);
+        vm.deal(address(this), 20000 ether);
 
-        uint256 initialDepositAmount = 200 ether;
+        uint256 initialDepositAmount = 20000 ether;
         // bootstrap pool with some eth, assume this will never be liquidated
         pool.depositETH{ value: initialDepositAmount }();
 
@@ -297,6 +312,117 @@ contract PufferProtocolHandler is Test {
         _registerValidatorKey(pubKeyPart, moduleSelectorSeed);
     }
 
+    function postFullWithdrawalsProof(uint256 firstWithdrawalSeed, uint256 secondWithdrawalSeed)
+        public
+        setCorrectBlockNumber
+        recordPreviousBalance
+        isETHLeavingThePool
+        countCall("postFullWithdrawalsProof")
+    {
+        console.log("ghost validators validaitng -->", ghost_validators_validating.length);
+        // return if there is less than 3 validators
+        if (ghost_validators_validating.length < 3) {
+            return;
+        }
+
+        // Take two active validators and create a withdrawla proof for them
+        ProvisionedValidator memory first = ghost_validators_validating[0];
+        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
+        ghost_validators_validating.pop();
+
+        ProvisionedValidator memory second = ghost_validators_validating[0];
+        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
+        ghost_validators_validating.pop();
+
+        address[] memory modules = new address[](2);
+        modules[0] = pufferProtocol.getModuleAddress(first.moduleName);
+        modules[1] = pufferProtocol.getModuleAddress(second.moduleName);
+
+        // Give funds to modules
+        vm.deal(modules[0], 200 ether);
+        vm.deal(modules[1], 100 ether);
+
+        // Amounts of full withdrawals that we want to move from modules to pools
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = bound(firstWithdrawalSeed, 32 ether, 32.5 ether); // First one has the rewards
+        amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
+
+        bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
+
+        // Build merkle root and get two proofs
+
+        (bytes32 merkleRoot, bytes32[] memory proof1, bytes32[] memory proof2) =
+            _buildMerkle(first, amounts[0], second, amounts[1], isSlashed);
+
+        uint256 blockNumber = block.number - 5;
+
+        bytes[] memory signatures = _getGuardianEOASignatures(
+            LibGuardianMessages.getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber, modules, amounts)
+        );
+
+        pufferProtocol.postFullWithdrawalsRoot({
+            root: merkleRoot,
+            blockNumber: blockNumber,
+            modules: modules,
+            amounts: amounts,
+            guardianSignatures: signatures
+        });
+
+        Validator memory info1 = pufferProtocol.getValidatorInfo(first.moduleName, first.idx);
+
+        uint256 pufETHBalanceBefore = pool.balanceOf(info1.node);
+
+        // Claim proof 1
+        pufferProtocol.stopValidator({
+            moduleName: first.moduleName,
+            validatorIndex: first.idx,
+            blockNumber: blockNumber,
+            withdrawalAmount: amounts[0],
+            wasSlashed: false,
+            merkleProof: proof1
+        });
+
+        // Update ghost locked amount
+        ghost_locked_amount -= amounts[0];
+        ghost_pufETH_bond_amount -= info1.bond;
+        ghost_validators -= 1;
+
+        uint256 pufETHBalanceAfter = pool.balanceOf(info1.node);
+
+        assertEq(
+            pufETHBalanceAfter,
+            pufETHBalanceBefore + info1.bond + pool.calculateETHToPufETHAmount(amounts[0] - 32 ether),
+            "balance after the stop 1"
+        );
+
+        Validator memory info2 = pufferProtocol.getValidatorInfo(second.moduleName, second.idx);
+
+        pufETHBalanceBefore = pool.balanceOf(info2.node);
+
+        // Claim proof 2
+        pufferProtocol.stopValidator({
+            moduleName: second.moduleName,
+            validatorIndex: second.idx,
+            blockNumber: blockNumber,
+            withdrawalAmount: amounts[1],
+            wasSlashed: isSlashed,
+            merkleProof: proof2
+        });
+
+        // Update ghost locked amount
+        ghost_locked_amount -= amounts[1];
+        ghost_pufETH_bond_amount -= info2.bond;
+        ghost_validators -= 1;
+
+        pufETHBalanceAfter = pool.balanceOf(info2.node);
+
+        uint256 expectedOut = isSlashed
+            ? pufETHBalanceBefore
+            : (pufETHBalanceBefore + info2.bond - pool.calculateETHToPufETHAmount(32 ether - amounts[1]));
+
+        assertEq(pufETHBalanceAfter, expectedOut, "balance after the stop 2");
+    }
+
     function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
         bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
         uint256 moduleIndex = moduleSelectorSeed % moduleWeights.length;
@@ -328,7 +454,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Creates a puffer module and adds it to weights
-    function createPufferModule(bytes32 startegyName)
+    function createPufferModule(bytes32 moduleName)
         public
         setCorrectBlockNumber
         recordPreviousBalance
@@ -339,14 +465,16 @@ contract PufferProtocolHandler is Test {
 
         bytes32[] memory weights = pufferProtocol.getModuleWeights();
 
-        bytes32[] memory newWeights = new bytes32[](weights.length + 1 );
+        bytes32[] memory newWeights = new bytes32[](weights.length + 1);
         for (uint256 i = 0; i < weights.length; ++i) {
             newWeights[i] = weights[i];
         }
 
-        try pufferProtocol.createPufferModule(startegyName) {
-            newWeights[weights.length] = startegyName;
+        try pufferProtocol.createPufferModule(moduleName) {
+            newWeights[weights.length] = moduleName;
             pufferProtocol.setModuleWeights(newWeights);
+            address createdModule = pufferProtocol.getModuleAddress(moduleName);
+            _enableCall(createdModule);
         } catch (bytes memory reason) { }
 
         vm.stopPrank();
@@ -393,6 +521,8 @@ contract PufferProtocolHandler is Test {
 
             bytes[] memory signatures = _getGuardianSignatures(sig);
             pufferProtocol.provisionNode(signatures);
+
+            ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 
             // Update ghost variables
             ghost_locked_amount += 32 ether;
@@ -446,6 +576,7 @@ contract PufferProtocolHandler is Test {
         console.log("provisionNode", calls["provisionNode"]);
         console.log("proofOfReserve", calls["proofOfReserve"]);
         console.log("stopRegistration", calls["stopRegistration"]);
+        console.log("postFullWithdrawalsProof", calls["postFullWithdrawalsProof"]);
         console.log("-------------------");
     }
 
@@ -574,5 +705,39 @@ contract PufferProtocolHandler is Test {
         guardianSignatures[2] = signature3;
 
         return guardianSignatures;
+    }
+
+    function _buildMerkle(
+        ProvisionedValidator memory first,
+        uint256 firstAmount,
+        ProvisionedValidator memory second,
+        uint256 secondAmount,
+        bool slashed
+    ) public returns (bytes32, bytes32[] memory, bytes32[] memory) {
+        // Initialize
+        Merkle m = new Merkle();
+        uint256 wasSlashed = slashed == true ? 1 : 0;
+
+        bytes32[] memory data = new bytes32[](2);
+        data[0] = keccak256(bytes.concat(keccak256(abi.encode(first.moduleName, first.idx, firstAmount, uint8(0)))));
+        data[1] = keccak256(
+            bytes.concat(keccak256(abi.encode(second.moduleName, second.idx, secondAmount, uint8(wasSlashed))))
+        );
+
+        // Get Root, Proof, and Verify
+        bytes32 root = m.getRoot(data);
+        bytes32[] memory proof1 = m.getProof(data, 0);
+        bytes32[] memory proof2 = m.getProof(data, 1);
+
+        return (root, proof1, proof2);
+    }
+
+    function _enableCall(address module) internal {
+        // Enable PufferProtocol to call `call` function on module
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = IPufferModule.call.selector;
+        vm.startPrank(_accessManagerAdmin);
+        AccessManager(pufferProtocol.authority()).setTargetFunctionRole(module, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        vm.stopPrank();
     }
 }

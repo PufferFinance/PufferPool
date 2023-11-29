@@ -14,7 +14,8 @@ contract PufferProtocolInvariants is TestHelper {
         vm.startPrank(DAO);
         pufferProtocol.setValidatorLimitPerInterval(200);
         vm.stopPrank();
-        handler = new PufferProtocolHandler(this, pool, withdrawalPool, pufferProtocol, guardiansEnclavePks);
+        handler =
+            new PufferProtocolHandler(this, pool, withdrawalPool, pufferProtocol, guardiansEnclavePks, _broadcaster);
 
         // Set handler as a target contract for invariant test
         targetContract(address(handler));
