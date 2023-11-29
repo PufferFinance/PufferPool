@@ -133,8 +133,9 @@ contract SetupAccess is BaseScript {
     function _setupNoRestakingModuleRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](1);
+        bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = IPufferModule.callStake.selector;
+        selectors[1] = IPufferModule.call.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
