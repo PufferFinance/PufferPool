@@ -20,10 +20,10 @@ library LibGuardianMessages {
      */
     function getMessageToBeSigned(
         bytes memory pubKey,
-        bytes calldata signature,
-        bytes calldata withdrawalCredentials,
+        bytes memory signature,
+        bytes memory withdrawalCredentials,
         bytes32 depositDataRoot
-    ) external pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(pubKey, withdrawalCredentials, signature, depositDataRoot)).toEthSignedMessageHash();
     }
 
@@ -33,7 +33,7 @@ library LibGuardianMessages {
      * @param index is the index of the skipped validator
      * @return the message to be signed
      */
-    function getSkipProvisioningMessage(bytes32 moduleName, uint256 index) external pure returns (bytes32) {
+    function getSkipProvisioningMessage(bytes32 moduleName, uint256 index) internal pure returns (bytes32) {
         // All guardians use the same nonce
         return keccak256(abi.encode(moduleName, index)).toEthSignedMessageHash();
     }
@@ -46,7 +46,7 @@ library LibGuardianMessages {
      * @return the message to be signed
      */
     function getNoRestakingModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
-        external
+        internal
         pure
         returns (bytes32)
     {
@@ -68,7 +68,7 @@ library LibGuardianMessages {
         uint256 pufETHTotalSupply,
         uint256 blockNumber,
         uint256 numberOfActiveValidators
-    ) external pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         // All guardians use the same nonce
         //solhint-disable-next-line func-named-parameters
         return keccak256(abi.encode(ethAmount, lockedETH, pufETHTotalSupply, blockNumber, numberOfActiveValidators))
@@ -86,9 +86,9 @@ library LibGuardianMessages {
     function getPostFullWithdrawalsRootMessage(
         bytes32 root,
         uint256 blockNumber,
-        address[] calldata modules,
-        uint256[] calldata amounts
-    ) external pure returns (bytes32) {
+        address[] memory modules,
+        uint256[] memory amounts
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(root, blockNumber, modules, amounts)).toEthSignedMessageHash();
     }
 }
