@@ -25,12 +25,6 @@ interface IPufferPool is IERC20 {
     event Deposited(address pufETHRecipient, uint256 ethAmountDeposited, uint256 pufETHAmount);
 
     /**
-     * @notice Emitted when the PufferPool receives the smoothing commitment ETH
-     * @dev Signature "0xe68c71e5588672ff97ad57a1655ab6e656bf6dab3ce58df127f5c6058f26a431"
-     */
-    event SmoothingCommitmentPaid(uint256 ethAmount);
-
-    /**
      * @notice Deposits ETH and `msg.sender` receives pufETH in return
      * @return pufETH amount minted
      * @dev Signature "0xf6326fb3"

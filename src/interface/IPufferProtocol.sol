@@ -121,9 +121,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Emitted when the smoothing commitment is paid
-     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     * @dev Signature "0x84e6610d0de4b996419eca9cf06b11fc13c256051f73673c802822674928fb9a"
      */
-    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 timestamp, uint256 amountPaid);
+    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 amountPaid);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
