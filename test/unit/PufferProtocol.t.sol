@@ -242,7 +242,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 50401,
             numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
                     numberOfActiveValidators: 100,
@@ -253,7 +253,7 @@ contract PufferProtocolTest is TestHelper {
         });
 
         bytes[] memory signatures2 = _getGuardianEOASignatures(
-            LibGuardianMessages.getProofOfReserveMessage({
+            LibGuardianMessages._getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
                 numberOfActiveValidators: 100,
@@ -285,7 +285,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 50401,
             numberOfActiveValidators: 1,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
                     pufETHTotalSupply: 1 ether,
@@ -1018,7 +1018,7 @@ contract PufferProtocolTest is TestHelper {
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
-        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages._getMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,
@@ -1050,7 +1050,7 @@ contract PufferProtocolTest is TestHelper {
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
 
-        bytes32 digest = LibGuardianMessages.getSkipProvisioningMessage(moduleName, pendingIdx);
+        bytes32 digest = LibGuardianMessages._getSkipProvisioningMessage(moduleName, pendingIdx);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -1157,7 +1157,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
 
         bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(
                 hex"24a566dbaa9a929ce4bf9be3b07870632ddc759751ab219ceb44f1fd23d4b9c0", 100, modules, amounts
             )
         );

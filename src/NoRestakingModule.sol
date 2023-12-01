@@ -162,7 +162,7 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
 
         IGuardianModule guardianModule = PUFFER_PROTOCOL.GUARDIAN_MODULE();
 
-        bytes32 signedMessageHash = LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(NAME, root, blockNumber);
+        bytes32 signedMessageHash = LibGuardianMessages._getNoRestakingModuleRewardsRootMessage(NAME, root, blockNumber);
 
         bool validSignatures = guardianModule.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
         if (!validSignatures) {

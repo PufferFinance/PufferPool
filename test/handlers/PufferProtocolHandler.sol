@@ -199,7 +199,7 @@ contract PufferProtocolHandler is Test {
         uint256 ethAmount = address(pool).balance + address(withdrawalPool).balance + ghost_eth_rewards_amount;
         uint256 lockedETH = ghost_locked_amount;
 
-        bytes32 signedMessageHash = LibGuardianMessages.getProofOfReserveMessage(
+        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(
             ethAmount, lockedETH, pufETHSupply, blockNumber, activeValidators
         );
 
@@ -357,7 +357,7 @@ contract PufferProtocolHandler is Test {
         uint256 blockNumber = block.number - 5;
 
         bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber, modules, amounts)
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber, modules, amounts)
         );
 
         pufferProtocol.postFullWithdrawalsRoot({
@@ -653,7 +653,7 @@ contract PufferProtocolHandler is Test {
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
-        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages._getMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,

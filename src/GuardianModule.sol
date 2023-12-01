@@ -115,7 +115,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         external
         view
     {
-        bytes32 signedMessageHash = LibGuardianMessages.getSkipProvisioningMessage(moduleName, skippedIndex);
+        bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
         bool validSignatures = validateGuardiansEOASignatures({
@@ -140,7 +140,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash =
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
 
         // Check the signatures
         bool validSignatures =
@@ -163,7 +163,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages.getProofOfReserveMessage({
+        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHTotalSupply,
@@ -192,7 +192,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash =
-            LibGuardianMessages.getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
+            LibGuardianMessages._getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({

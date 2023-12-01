@@ -18,7 +18,7 @@ library LibGuardianMessages {
      * @param depositDataRoot is the hash of the deposit data
      * @return hash of the data
      */
-    function getMessageToBeSigned(
+    function _getMessageToBeSigned(
         bytes memory pubKey,
         bytes memory signature,
         bytes memory withdrawalCredentials,
@@ -33,7 +33,7 @@ library LibGuardianMessages {
      * @param index is the index of the skipped validator
      * @return the message to be signed
      */
-    function getSkipProvisioningMessage(bytes32 moduleName, uint256 index) internal pure returns (bytes32) {
+    function _getSkipProvisioningMessage(bytes32 moduleName, uint256 index) internal pure returns (bytes32) {
         // All guardians use the same nonce
         return keccak256(abi.encode(moduleName, index)).toEthSignedMessageHash();
     }
@@ -45,7 +45,7 @@ library LibGuardianMessages {
      * @param blockNumber is the block number of the no restaking module rewards
      * @return the message to be signed
      */
-    function getNoRestakingModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
+    function _getNoRestakingModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
         internal
         pure
         returns (bytes32)
@@ -62,7 +62,7 @@ library LibGuardianMessages {
      * @param numberOfActiveValidators is the number of all active validators on Beacon Chain
      * @return the message to be signed
      */
-    function getProofOfReserveMessage(
+    function _getProofOfReserveMessage(
         uint256 ethAmount,
         uint256 lockedETH,
         uint256 pufETHTotalSupply,
@@ -83,7 +83,7 @@ library LibGuardianMessages {
      * @param amounts are the amounts of the full withdrawals
      * @return the message to be signed
      */
-    function getPostFullWithdrawalsRootMessage(
+    function _getPostFullWithdrawalsRootMessage(
         bytes32 root,
         uint256 blockNumber,
         address[] memory modules,
