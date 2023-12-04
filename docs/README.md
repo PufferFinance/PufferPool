@@ -1,6 +1,6 @@
 # Puffer Protocol Docs
 
-The Puffer Protocol enables anyone to run a validator with a refundable bond of just 2 ETH and an additional payment for the desired operation time, known as a smoothing commitment. If Intel SGX or another Trusted Execution Environment (TEE) is utilized, the bond requirement is reduced to 1 ETH. The liquidity required to operate these validators is provided by stakers who can stake ETH into the [PufferPool.sol](../src/PufferPool.sol) smart contract. In exchange, stakers receive pufETH, an asset that appreciates in value as the protocol generates rewards.
+The Puffer Protocol enables anyone to run an Ethereum PoS validator with a 2 ETH bond and an additional payment for the desired operation time, known as a smoothing commitment. If Intel SGX or another Trusted Execution Environment (TEE) is utilized, the bond requirement is reduced to 1 ETH. During registration, Node Operators (NoOps) have the choice to deploy their validator to restaking modules that are committed to running AVSs on EigenLayer. Their validator's ETH is restaked and delegated to a Restaking Operator who runs the AVSs. In exchange, the NoOp will receive commission on the generated restaking rewards. The liquidity required to operate the validators is provided by stakers who stake ETH to the [PufferPool.sol](../src/PufferPool.sol) smart contract. In exchange, stakers receive pufETH, an asset that appreciates in value as the protocol generates PoS and restaking rewards.
 
 ## Dependencies
 

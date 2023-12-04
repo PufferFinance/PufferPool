@@ -11,11 +11,14 @@ PufferPool.sol is a **non upgradeable** ERC20Permit token.
 <sub>The ERC-20 permit feature is an extension to the ERC-20 standard that allows token holders to approve transfers without the need for two separate transactions. </sub> -->
 
 It takes ETH deposits from stakers and mints `pufETH` ERC20 token in return. This can be achieved in 2 ways:
-- Triggering a payable `receive()` function on this smart contract
-- Calling `depositETH()` and sending the ETH along with it
+- Triggering the payable `receive()` function on this smart contract
+- Sending ETH to the payable `depositETH()` function
 
-Rewards / donations go through the `depositETHWithoutMinting()` function. This function will not mint any `pufETH` in return.
-Depositing ETH through this function will eventually change the exchange rate between ETH and pufETH, making it so that for 1 pufETH you will be able to get more ETH in return. Withdrawals and exchanging of `pufETH` to ETH is possible through our [WithdrawalPool](./WithdrawalPool.md) smart contract or any third party exchange.
+The `depositETHWithoutMinting()` function is used in the case where ETH is deposited to the PufferPool but no pufETH is minted in return. This is needed for depositing Smoothing Commitments and restaking rewards.
+
+As ETH is deposited and pufETH is minted, the exchange rate between ETH and pufETH will change. Assuming rewards exceed penalties, this means 1 pufETH will become redeemable for more than 1 ETH. To handle redemptions, the WithdrawalPool is used to burn pufETH to receive ETH, assuming sufficient ETH liquidity. Alternatively, since pufETH is a liquid ERC-20 token, it can be exchanged on a secondary market.
+
+Withdrawals and exchanging of `pufETH` to ETH is possible through our [WithdrawalPool](./WithdrawalPool.md) smart contract or any third party exchange.
 
 The [Guardians](./Guardians.md) are responsible for reporting the values used for calculation of the exchange rate: [PufferPoolStorage](../src/struct/PufferPoolStorage.sol). Those values are stored, and can be accessed, on-chain within our main [PufferProtocol smart contract](../src/PufferProtocolStorage.sol)
 
