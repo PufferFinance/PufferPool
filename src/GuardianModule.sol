@@ -191,8 +191,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages._getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
+        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            pubKey, signature, withdrawalCredentials, depositDataRoot
+        );
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({

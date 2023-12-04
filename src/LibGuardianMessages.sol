@@ -18,7 +18,7 @@ library LibGuardianMessages {
      * @param depositDataRoot is the hash of the deposit data
      * @return hash of the data
      */
-    function _getMessageToBeSigned(
+    function _getBeaconDepositMessageToBeSigned(
         bytes memory pubKey,
         bytes memory signature,
         bytes memory withdrawalCredentials,

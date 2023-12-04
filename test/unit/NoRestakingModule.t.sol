@@ -44,8 +44,9 @@ contract NoRestakingModuleTest is TestHelper {
     function testPostRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
         vm.assume(_noRestakingModule.getLastProofOfRewardsBlock() < blockNumber);
 
-        bytes32 signedMessageHash =
-            LibGuardianMessages._getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot, blockNumber);
+        bytes32 signedMessageHash = LibGuardianMessages._getNoRestakingModuleRewardsRootMessage(
+            bytes32("NO_RESTAKING"), merkleRoot, blockNumber
+        );
 
         bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
 
