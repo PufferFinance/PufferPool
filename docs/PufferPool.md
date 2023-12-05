@@ -22,7 +22,7 @@ Withdrawals and exchanging of `pufETH` to ETH is possible through our [Withdrawa
 
 The [Guardians](./Guardians.md) are responsible for reporting the values used for calculation of the exchange rate: [PufferPoolStorage](../src/struct/PufferPoolStorage.sol). Those values are stored, and can be accessed, on-chain within our main [PufferProtocol smart contract](../src/PufferProtocolStorage.sol)
 
-PufferPool inherits from AbstractVault.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.
+PufferPool inherits from AbstractVault.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury. This enables us to recover tokens sent to this contract by mistake.
 
 #### High-level Concepts
 
@@ -34,8 +34,8 @@ This document organizes methods according to the following themes (click each to
 
 The PufferPool accesses state variables within [PufferPoolStorage](../src/struct/PufferPoolStorage.sol) to determine the exchange rate between ETH and pufETH. These are:
 
-* `uint256 ethAmount`: Keeps track of the ETH within the protocol, not locked in the beacon chain deposit contract
-* `uint256 lockedETH`: The amount of ETH within the protocol, but locked in the beacon chain deposit contract
+* `uint256 ethAmount`: Keeps track of on-chain ETH pertaining to the protocol
+* `uint256 lockedETH`: The amount of beacon chain ETH pertaining to the protocol
 * `uint256 pufETHTotalSupply`: The total outstanding amount of pufETH tokens
 * `uint256 lastUpdate`: The block number upon which these values were last updated
 
@@ -71,7 +71,7 @@ This is a special function that allows ETH to be sent to the `PufferPool` contra
 
 *Effects*: 
 * Adds more ETH to the `PufferPool` contract without minting any new pufETH
-* Increases the exchange rate value of pufETH relative to ETH, effectively appreciating the price of pufETH
+* Increases the exchange rate value of pufETH relative to ETH, effectively appreciating the price of pufETH. Note: The exchange rate isn't directly changed here upon this function call, but upon next time Proof of Reserves is calculated and the exchange rate is posted
 
 *Requirements*:
 * N/A callable by anyone
@@ -86,7 +86,7 @@ This is a special function that allows ETH to be sent to the `PufferPool` contra
 function burn(address owner, uint256 pufETHAmount) external
 ```
 
-This function allows Guardians or the Protocol to burn a NoOp's pufETH bond if their validator has exited the beacon chain with a balance less than 32 ETH
+This function allows pufETH to be burned upon redemption of ETH in exchange for pufETH.
 
 *Effects*:
 * Removes (burns) the specified amount of pufETH held by the owner
@@ -100,7 +100,7 @@ This function allows Guardians or the Protocol to burn a NoOp's pufETH bond if t
 function recoverERC20(address token) external
 ```
 
-Allows tokens which were accidentally sent to the `PufferPool` to be recovered (sent) to the Treasury contract. PufferPool inherits from TokenRescuer.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury (with an exception to `pufETH`). This enables us to recover tokens sent to this contract by mistake.
+Allows tokens which were accidentally sent to the `PufferPool` to be recovered (sent) to the Treasury contract. PufferPool inherits from TokenRescuer.sol which enables it to transfer any ERC20, ERC721, ERC1151 tokens to the PufferTreasury. This enables us to recover tokens sent to this contract by mistake.
 
 *Effects*:
 * Sends the totality of the specified token from the `PufferPool` contract to the Treasury contract

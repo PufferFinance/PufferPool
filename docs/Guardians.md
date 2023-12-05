@@ -10,14 +10,24 @@
 Guardians play a crucial role in our system and are a collective of respected community members who are deeply aligned with Ethereum's principles and values.
 
 We are deploying and enabling [GuardianModule.sol](../src/GuardianModule.sol) and creating a wallet inside of an enclave. The wallets from the enclave are used to sign data that the enclave produces. GuardianModule is used to ensure that the Guardians are:
-- Using a trusted execution environment
-- Validating the Guardian's signatures coming from the enclaves
+- Running the correct version of an Intel SGX enclave
+- Verifying signatures from the Guardians enclaves and EOAs to perform their duties
 
-The Guardian module allows guardians to change their enclave address to a new enclave address. For this purpose, we are using [EnclaveVerifier](./EnclaveVerifier.md). It ensures that the guardians are using enclaves.
+Guardians are running enclaves that have very limited functionality. Particularly, the enclave has only three functionalities:
 
-The roles of the guardians are:
-- Reporting the amount of ETH backing pufETH
+1. Create a fresh ETH keypair and attest to its creation via remote attestation evidence. The private key is kept private even to the Guardian
+
+2. Sign off on a NoOp's beacon chain deposit message if it was valid and the enclave was able to receive custody of an encrypted keyshare and verify remote attestation evidence
+
+3. Produce a partial signature for a `VoluntaryExit` Message. If a threshold of Guardians combine these signatures they are able to withdraw a validator should their balance fall too low or their smoothing commitment duration expire.
+
+The GuardianModule allows Guardians to rotate their enclave ETH keypairs using [EnclaveVerifier](./EnclaveVerifier.md). It ensures that the Guardians are using the correct enclave version by verifying remote attestation evidence.
+
+The roles of the Guardians are:
+- Provisioning ETH to Validators
+- Calculating and Posting Proof of Rewards (the amount of ETH backing pufETH)
 - Ejecting validators
+- Skipping provisioning ETH to validators with invalid deposit messages
 
 #### Future of Guardians
 
@@ -38,7 +48,7 @@ This document organizes methods according to the following themes (click each to
 
 ### Guardian Module
 
-* `Safe public immutable GUARDIANS`: The SAFE multisig controlled by the Guardians
+* `EnumerableSet.AddressSet private _guardians`: The set of Guardian EOA addresses
 * `IEnclaveVerifier public immutable ENCLAVE_VERIFIER`: The Enclave Verifier smart contract
 
 ### Enclave Verifier

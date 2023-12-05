@@ -7,9 +7,17 @@
 | [`PufferProtocolStorage.sol`](../src/PufferProtocolStorage.sol) | Singleton | UUPS Proxy | YES | / |
 | [`PufferProtocol.sol`](../src/PufferProtocol.sol) | Singleton | UUPS Proxy | NO | / |
 
-The [PufferProtocol](../src/PufferProtocol.sol) contract is the main entry point for the Puffer Protocol. This contract allows users to register their public keys with the protocol and receive 32 provisioned ETH in order to operate a validator. In order to do so, they must deposit a bond, which is denominated in ETH, but is converted to pufETH upon deposit and held within the contract. A 1 ETH bond is required for NoOps running TEEs such as Intel SGX, otherwise a 2 ETH bond is required. An additional requirement to operate a validator is to pay a smoothing commitment, which allows operation of the validator for a certain amount of time, corresponding to the amount of smoothing commitment paid. Puffer NoOps may pay additional smoothing commitments here in order to extend the allowed duration of operating their validators. Note that, unlike the bond, smoothing commitments are not refunded, no matter the status of the validator. NoOps must interact with this contract in order to stop their validators as well. Before a NoOp is provisioned 32 ETH, they may call the `stopRegistration()` function to cancel registration. Note that the NoOp will only receive back their bond in this case, not their smoothing commitment.
+#### Overview
+
+The [PufferProtocol](../src/PufferProtocol.sol) contract is the main entry point for the Puffer Protocol. This contract allows Node Operators (NoOps) to register their public keys with the protocol, and they are subsequently provisioned 32 ETH in order to operate a validator. Reistering requires depositing an ETH-denominated bond that is converted to pufETH upon deposit and held within the contract. A 1 ETH bond is required for NoOps running TEEs such as Intel SGX, otherwise a 2 ETH bond is required. An additional requirement to operate a validator is to pay a smoothing commitment, which allows operation of the validator for a certain amount of time, corresponding to the amount of smoothing commitment paid. NoOps may pay additional smoothing commitments in order to extend their validator's working duration. Note that, unlike the bond, smoothing commitments are non-refundable. 
+
+The PufferProtocol contract also allows NoOps to stop their validators. Before a NoOp is provisioned 32 ETH, they may call the `stopRegistration()` function to cancel registration. Note that the NoOp will only receive back their bond in this case, not their smoothing commitment.
+
+#### Proof of Reserves
 
 Proof of reserves happen through this contract, as well as proof of full withdrawals, which NoOps may submit in order to retrieve their bonded pufETH after they are finished validating, given that they have not been slashed or were inactive. If they were slashed, they do not receive back any of their bond. If they were inactive and lost some ETH from the originally provisioned 32, their bonded pufETH will be slashed by the corresponding amount, given the ETH to pufETH ratio at the time of exit. New Puffer modules involving various AVSs (or no AVS) may be created through this contract.
+
+#### Provisioning Validators
 
 Finally, this contract maintains a queue to provision validators for NoOps, and also stores other various information about NoOps and other variables within the protocol that are maintained by governance, for example, the ratio at which ETH enters the [WithdrawalPool](./WithdrawalPool.md) upon a NoOp withdrawing from the protocol.
 
@@ -21,6 +29,8 @@ This document organizes methods according to the following themes (click each to
 * [Protocol Maintenance](#protocol-maintenance)
 
 #### Important state variables
+
+* `uint256 internal constant _BURST_THRESHOLD`: Used to cap our pool at 22% of ETH staked, in order to promote and maintain a decentralized Ethereum
 
 * `bytes32[] moduleWeights`: Defines how to provision queued validators in a weighted round-robin across the various modules
 
@@ -53,10 +63,11 @@ function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName
     payable
 ```
 
-This function initiates the process of provisioning a new validator for a NoOp. The NoOp must pay the bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
+This function initiates the process of provisioning a new validator for a NoOp. The NoOp must pay the smoothing commitment amount, and a bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
 
 *Effects*:
-* ETH bond is taken from the NoOp and deposited into the pool, also minting a corresponding amount of pufETH, which is stored on the `PufferProtocol.sol` smart contract
+* Smoothing commitment is taken from the NoOp and deposited into the pool as rewards
+* ETH bond is taken from the NoOp and deposited into the pool, also minting a corresponding amount of pufETH, which is locked in the `PufferProtocol.sol` smart contract until the NoOp's validator exits
 * Information about the new validator is saved on-chain
 * The validator is pushed onto an on-chain queue of pending validators, waiting to be provisioned
 
@@ -141,7 +152,7 @@ Allows anyone to submit a merkle proof proving a validator's full withdrawal fro
 * Delete unused information regarding the validator from on-chain
 * Change the validator to EXITED status
 * Return the validator's bond to the NoOp, if they were not slashed
-* Remove the corresponding amount from the validator's bond if the validator's balance is less than 32 ETH
+* Burn the corresponding amount from the validator's bond if the validator's balance is less than 32 ETH
 
 *Requirements*:
 * Validator must be in ACTIVE status

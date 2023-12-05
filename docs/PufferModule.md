@@ -6,7 +6,7 @@
 | [`NoRestakingModule.sol`](../src/NoRestakingModule.sol) | Singleton | NO | NO | / |
 | [`PufferModule.sol`](../src/PufferModule.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
 
-The PufferModule contract defines a template for Puffer modules. A module refers to the specific set of AVSs for which all Puffer NoOps participating in the module must delegate their funds to running. This set of AVSs may be empty, as in the case of the [NoRestakingModule](../src/NoRestakingModule.sol), in which the totality of the funds in this contract are committed solely to performing ETH validation, and no funds are delegated to any AVSs.
+The PufferModule contract defines a template for Puffer modules. A module refers to the specific set of AVSs for which all Puffer NoOps participating in the module must delegate their funds to running. This set of AVSs may be empty, as in the case of the [NoRestakingModule](../src/NoRestakingModule.sol), in which the totality of the funds in this contract are committed solely to performing ETH PoS, and no funds are delegated to any AVSs. Simply put, RestakingModules are wrappers around EigenPods that are committed to an immutable set of AVSs.
 
 #### High-level Concepts
 
@@ -43,6 +43,7 @@ This function serves as the entry point for a NoOp to opt into a module and begi
 * May deploy an EigenPod contract, depending on the module
 
 *Requirements*:
+* This function is only callable via the PufferProtocol after a NoOp's validator has been provisioned
 * This function must be called with 32 ETH
 
 ---
