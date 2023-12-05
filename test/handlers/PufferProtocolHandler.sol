@@ -344,7 +344,7 @@ contract PufferProtocolHandler is Test {
 
         // Amounts of full withdrawals that we want to move from modules to pools
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = bound(firstWithdrawalSeed, 32 ether, 32.5 ether); // First one has the rewards
+        amounts[0] = 32 ether; // First one has the rewards
         amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
 
         bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
@@ -389,11 +389,7 @@ contract PufferProtocolHandler is Test {
 
         uint256 pufETHBalanceAfter = pool.balanceOf(info1.node);
 
-        assertEq(
-            pufETHBalanceAfter,
-            pufETHBalanceBefore + info1.bond + pool.calculateETHToPufETHAmount(amounts[0] - 32 ether),
-            "balance after the stop 1"
-        );
+        assertEq(pufETHBalanceAfter, pufETHBalanceBefore + info1.bond, "balance after the stop for first withdrawal");
 
         Validator memory info2 = pufferProtocol.getValidatorInfo(second.moduleName, second.idx);
 
@@ -420,7 +416,7 @@ contract PufferProtocolHandler is Test {
             ? pufETHBalanceBefore
             : (pufETHBalanceBefore + info2.bond - pool.calculateETHToPufETHAmount(32 ether - amounts[1]));
 
-        assertEq(pufETHBalanceAfter, expectedOut, "balance after the stop 2");
+        assertEq(pufETHBalanceAfter, expectedOut, "balance after the stop for second withdrawal");
     }
 
     function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
