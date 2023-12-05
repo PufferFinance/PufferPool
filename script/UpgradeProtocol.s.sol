@@ -18,7 +18,7 @@ contract UpgradeProtocol is BaseScript {
     function run() external broadcast {
         address payable protocolProxy = payable(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D);
 
-        UpgradedProtocol newImplementation = new PufferProtocol({
+        PufferProtocol newImplementation = new PufferProtocol({
             withdrawalPool: WithdrawalPool(payable(0x378b738c0Cd4e5B373f943b1c9951730E5a29E5b)),
             pool: PufferPool(payable(0x90Daec4Cee7e7A4E5499e9E864a1eb89Bb19b8Ed)),
             guardianModule: GuardianModule(payable(0x66eb09811E1e46D60eD1421884E9FD76cbE555cA)),
