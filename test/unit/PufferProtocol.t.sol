@@ -1148,7 +1148,7 @@ contract PufferProtocolTest is TestHelper {
         uint256[] memory amounts = new uint256[](2);
         // For no restaking module
         // Assume that the first withdrawal is over 32 ETH, but the guardians will we cap it to 32 ETH, the rest stays in module for rewards withdrawal
-        // The secnd withdrawal is 3.16 (inactiviy leak)
+        // The second withdrawal is 3.16 (inactiviy leak)
         amounts[0] = 32 ether + 31.6 ether;
         amounts[1] = 31 ether; // got slashed
 
