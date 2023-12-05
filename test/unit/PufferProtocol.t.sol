@@ -1136,26 +1136,26 @@ contract PufferProtocolTest is TestHelper {
 
         // We are simulating 3 full withdrawals
         // 2 are from NoRestakingModule and 1 from eigenDaModule
-        address[] memory modules = new address[](3);
+        address[] memory modules = new address[](2);
         modules[0] = NoRestakingModule;
-        modules[1] = NoRestakingModule;
-        modules[2] = eigenDaModule;
+        modules[1] = eigenDaModule;
 
         // Give funds to modules
         vm.deal(modules[0], 200 ether);
-        vm.deal(modules[2], 100 ether);
+        vm.deal(modules[1], 100 ether);
 
         // Amounts of full withdrawals that we want to move from modules to pools
-        uint256[] memory amounts = new uint256[](3);
+        uint256[] memory amounts = new uint256[](2);
         // For no restaking module
-        amounts[0] = 32 ether; // Assume that the first withdrawal is over 32 ETH, but the guardians will we cap it to 32 ETH, the rest stays in module for rewards withdrawal
-        amounts[1] = 31.6 ether; // inactivity leak
-        amounts[2] = 31 ether; // got slashed
+        // Assume that the first withdrawal is over 32 ETH, but the guardians will we cap it to 32 ETH, the rest stays in module for rewards withdrawal
+        // The secnd withdrawal is 3.16 (inactiviy leak)
+        amounts[0] = 32 ether + 31.6 ether;
+        amounts[1] = 31 ether; // got slashed
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](3);
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: amounts[0], wasSlashed: 0 });
-        validatorExits[1] = MerkleProofData({ moduleName: EIGEN_DA, index: 0, amount: amounts[2], wasSlashed: 1 });
-        validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: amounts[1], wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({ moduleName: EIGEN_DA, index: 0, amount: 31 ether, wasSlashed: 1 });
+        validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: 31.6 ether, wasSlashed: 0 });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools

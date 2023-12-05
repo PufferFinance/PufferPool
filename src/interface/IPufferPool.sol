@@ -34,28 +34,36 @@ interface IPufferPool is IERC20 {
     /**
      *
      * @notice Burns `pufETHAmount` from the transaction sender
+     * @dev Signature "0x42966c68"
      */
     function burn(uint256 pufETHAmount) external;
 
     /**
-     * @notice Calculates ETH -> pufETH `amount` based on the ETH:pufETH exchange rate
-     * @return pufETH amount
+     * @notice Calculates the equivalent pufETH amount for a given `amount` of ETH based on the current ETH:pufETH exchange rate
+     * @param amount The amount of ETH to be converted to pufETH
+     * @dev Signature "0x1b5ebe05"
+     * @return The equivalent amount of pufETH
      */
     function calculateETHToPufETHAmount(uint256 amount) external view returns (uint256);
 
     /**
-     * @notice Calculates pufETH -> ETH `pufETHAmount` based on the ETH:pufETH exchange rate
-     * @return ETH amount
+     * @notice Calculates the equivalent ETH amount for a given `pufETHAmount` based on the current ETH:pufETH exchange rate
+     * @param pufETHAmount The amount of pufETH to be converted to ETH
+     * @dev Signature "0x149a74ed"
+     * @return The equivalent amount of ETH
      */
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
 
     /**
-     * @notice Returns the pufETH -> ETH exchange rate. 10**18 represents exchange rate of 1
+     * @notice Returns the exchange rate of pufETH to ETH
+     * @dev Signature "0x38220d4d"
+     * @return The current exchange rate of pufETH to ETH
      */
     function getPufETHtoETHExchangeRate() external view returns (uint256);
 
     /**
      * @notice Transfers `ethAmount` to `to`
+     * @dev Signature "0x7b1a4909"
      */
     function transferETH(address to, uint256 ethAmount) external;
 }
