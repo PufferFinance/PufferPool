@@ -77,6 +77,31 @@ This function initiates the process of provisioning a new validator for a NoOp. 
 * Caller must provide valid ETH bond amount (1 ETH with SGX or other TEE, otherwise 2 ETH)
 * Caller must provide number of months desired to operate validator, along with corresponding amount of ETH to cover smoothing commitment
 
+#### `registerValidatorKeyPermit`
+
+```solidity
+function registerValidatorKeyPermit(
+        ValidatorKeyData calldata data,
+        bytes32 moduleName,
+        uint256 numberOfMonths,
+        Permit calldata permit
+    ) external payable
+```
+
+This function initates the process of provisioning a new validator for a NoOp, similar to the above, except this function takes pufETH instead of ETH for the bond payment. The amount of pufETH supplied must match the bond amount in ETH value, according to the protocol's current exchange rate of ETH to pufETH.
+
+*Effects*
+* Smoothing commitment is taken from the NoOp and deposited into the pool as rewards
+* pufETH is taken from the NoOp and locked in the `PufferProtocol.sol` smart contract until the NoOp's validator exits
+* Information about the new validator is saved on-chain
+* The validator is pushed onto an on-chain queue of pending validators, waiting to be provisioned
+
+*Requirements*
+* Caller must either provide permit data to allow transferring of the ERC20 pufETH token. Otherwise caller must have approved the amount of pufETH token to be accepted by the smart contract via the [ERC20 `approve()` function](https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#IERC20-approve-address-uint256-)
+* Caller must submit valid RAVE evidence if using SGX or other TEE
+* Caller must provide valid pufETH bond amount according to protocol's ETH to pufETH exchange ratio (1 ETH equivalent with SGX or other TEE, otherwise 2 ETH equivalent)
+* Caller must provide number of months desired to operate validator, along with corresponding amount of ETH to cover smoothing commitment. (Note that while bond may be in pufETH, smoothing commitment is still paid in ETH)
+
 #### `provisionNode`
 
 ```solidity

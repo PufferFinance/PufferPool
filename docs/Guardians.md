@@ -9,7 +9,7 @@
 
 Guardians play a crucial role in our system and are a collective of respected community members who are deeply aligned with Ethereum's principles and values.
 
-We are deploying and enabling [GuardianModule.sol](../src/GuardianModule.sol) and creating a wallet inside of an enclave. The wallets from the enclave are used to sign data that the enclave produces. GuardianModule is used to ensure that the Guardians are:
+We are deploying and enabling [GuardianModule.sol](../src/GuardianModule.sol) and creating an ETH private key inside of an enclave. This key is used to sign data that the enclave produces. GuardianModule is used to ensure that the Guardians are:
 - Running the correct version of an Intel SGX enclave
 - Verifying signatures from the Guardians enclaves and EOAs to perform their duties
 
