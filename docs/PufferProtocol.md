@@ -88,7 +88,7 @@ function registerValidatorKeyPermit(
     ) external payable
 ```
 
-This function initates the process of provisioning a new validator for a NoOp, similar to the above, except this function takes pufETH instead of ETH for the bond payment. The amount of pufETH supplied must match the bond amount in ETH value, according to the protocol's current exchange rate of ETH to pufETH.
+This function initiates the process of provisioning a new validator for a NoOp, similar to the above, except this function takes pufETH instead of ETH for the bond payment. The amount of pufETH supplied must match the bond amount in ETH value, according to the protocol's current exchange rate of ETH to pufETH.
 
 *Effects*
 * Smoothing commitment is taken from the NoOp and deposited into the pool as rewards
@@ -196,7 +196,7 @@ function skipProvisioning(bytes32 moduleName) external
 Skips provisioning of a validator, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
 
 *Effects*:
-* Changes the status of the skipped vaidator node to SKIPPED
+* Changes the status of the skipped validator node to SKIPPED
 * Transfers the bond back to the NoOp corresponding to this skipped validator
 * Increments the next to be provisioned node counter for the module corresponding to `moduleName`
 
