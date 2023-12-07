@@ -65,6 +65,7 @@ interface IGuardianModule {
      * @dev SIgnature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
      */
     event MrEnclaveChanged(bytes32 oldMrEnclave, bytes32 newMrEnclave);
+
     /**
      * @notice Emitted when the mrsigner value is changed
      * @dev Signature "0x1a1fe271c5533136fccd1c6df515ca1f227d95822bfe78b9dd93debf3d709ae6"

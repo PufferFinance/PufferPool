@@ -10,6 +10,7 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 /**
  * @title Guardian module
@@ -19,6 +20,7 @@ import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
     using ECDSA for bytes32;
+    using SafeTransferLib for address;
     using MessageHashUtils for bytes32;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -94,15 +96,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      *      No need for reentrancy checks because guardians are expected to be EOA's accounts
      */
     function splitGuardianFunds() public {
-        address[] memory guardians = _guardians.values();
         uint256 numGuardians = _guardians.length();
 
         uint256 amountPerGuardian = address(this).balance / numGuardians;
 
-        for (uint256 i = 0; i < guardians.length; ++i) {
+        for (uint256 i = 0; i < numGuardians; ++i) {
             // slither-disable-start reentrancy-unlimited-gas
             // slither-disable-next-line calls-loop
-            payable(guardians[i]).transfer(amountPerGuardian);
+            _guardians.at(i).safeTransferETH(amountPerGuardian);
             // slither-disable-end reentrancy-unlimited-gas
         }
     }
@@ -114,7 +115,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         external
         view
     {
-        bytes32 signedMessageHash = LibGuardianMessages.getSkipProvisioningMessage(moduleName, skippedIndex);
+        bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
         bool validSignatures = validateGuardiansEOASignatures({
@@ -139,7 +140,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash =
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
 
         // Check the signatures
         bool validSignatures =
@@ -162,7 +163,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages.getProofOfReserveMessage({
+        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage({
             ethAmount: ethAmount,
             lockedETH: lockedETH,
             pufETHTotalSupply: pufETHTotalSupply,
@@ -190,8 +191,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages.getMessageToBeSigned(pubKey, signature, withdrawalCredentials, depositDataRoot);
+        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            pubKey, signature, withdrawalCredentials, depositDataRoot
+        );
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
@@ -333,11 +335,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function getGuardiansEnclaveAddresses() public view returns (address[] memory) {
-        address[] memory guardians = _guardians.values();
-        address[] memory enclaveAddresses = new address[](guardians.length);
+        uint256 guardiansLength = _guardians.length();
+        address[] memory enclaveAddresses = new address[](guardiansLength);
 
-        for (uint256 i; i < guardians.length; ++i) {
-            enclaveAddresses[i] = _guardianEnclaves[guardians[i]].enclaveAddress;
+        for (uint256 i; i < guardiansLength; ++i) {
+            enclaveAddresses[i] = _guardianEnclaves[_guardians.at(i)].enclaveAddress;
         }
 
         return enclaveAddresses;
@@ -346,12 +348,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getGuardiansEnclavePubkeys() public view returns (bytes[] memory) {
-        address[] memory guardians = _guardians.values();
-        bytes[] memory enclavePubkeys = new bytes[](guardians.length);
+    function getGuardiansEnclavePubkeys() external view returns (bytes[] memory) {
+        uint256 guardiansLength = _guardians.length();
+        bytes[] memory enclavePubkeys = new bytes[](guardiansLength);
 
-        for (uint256 i; i < guardians.length; ++i) {
-            enclavePubkeys[i] = _guardianEnclaves[guardians[i]].enclavePubKey;
+        for (uint256 i; i < guardiansLength; ++i) {
+            enclavePubkeys[i] = _guardianEnclaves[_guardians.at(i)].enclavePubKey;
         }
 
         return enclavePubkeys;

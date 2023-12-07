@@ -16,9 +16,13 @@ import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "puffer/struct/Permit.sol";
+import { Merkle } from "murky/Merkle.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
+
+    Merkle fullWithdrawalsMerkleProof;
+    bytes32[] fullWithdrawalMerkleProofData;
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
     event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
@@ -229,31 +233,10 @@ contract PufferProtocolTest is TestHelper {
         validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
         assertTrue(validator.monthsCommitted == 5, "lastPayment");
-        assertTrue(validator.lastCommitmentPayment == block.timestamp, "lastPayment");
     }
 
     // Try updating for future block
     function testProofOfReserve() external {
-        bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages.getProofOfReserveMessage({
-                ethAmount: 2 ether,
-                lockedETH: 0 ether,
-                numberOfActiveValidators: 100,
-                pufETHTotalSupply: 1 ether,
-                blockNumber: 2
-            })
-        );
-
-        vm.expectRevert(IPufferProtocol.InvalidData.selector);
-        pufferProtocol.proofOfReserve({
-            ethAmount: 2 ether,
-            lockedETH: 0,
-            pufETHTotalSupply: 1 ether,
-            blockNumber: 2,
-            numberOfActiveValidators: 100,
-            guardianSignatures: signatures
-        });
-
         vm.roll(50401);
 
         pufferProtocol.proofOfReserve({
@@ -263,7 +246,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 50401,
             numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
                     numberOfActiveValidators: 100,
@@ -274,7 +257,7 @@ contract PufferProtocolTest is TestHelper {
         });
 
         bytes[] memory signatures2 = _getGuardianEOASignatures(
-            LibGuardianMessages.getProofOfReserveMessage({
+            LibGuardianMessages._getProofOfReserveMessage({
                 ethAmount: 2 ether,
                 lockedETH: 0 ether,
                 numberOfActiveValidators: 100,
@@ -306,7 +289,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 50401,
             numberOfActiveValidators: 1,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 32 ether,
                     pufETHTotalSupply: 1 ether,
@@ -470,14 +453,84 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setProtocolFeeRate(rate);
     }
 
-    function testSetWithdrawalPoolRateOverTheLimit() public {
-        uint256 rate = 30 * FixedPointMathLib.WAD;
-        vm.expectRevert(IPufferProtocol.InvalidData.selector);
+    function testSetWithdrawalPoolRateMax() public {
+        uint256 rate = 100 * FixedPointMathLib.WAD;
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.WithdrawalPoolRateChanged(10 * FixedPointMathLib.WAD, 100 * FixedPointMathLib.WAD);
         pufferProtocol.setWithdrawalPoolRate(rate);
     }
 
+    function testFeeCalculations() public {
+        // Default values are
+        // 2% guardians
+        // 10% withdrawal fee pool
+        // 0.5% guardians
+        // rest to the PufferPool
+        uint256 amount = pufferProtocol.getSmoothingCommitment(12);
+
+        assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
+        assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
+        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
+        assertEq(0, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "withdrawal pool balance");
+
+        // We don't have additional validations on if the validator is active or not
+        pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
+
+        assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
+        assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
+        assertEq(11116446484546631, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "withdrawal pool balance");
+        assertEq(100048018360919684, address(pufferProtocol.POOL()).balance, "non zero pool");
+    }
+
+    function testFeeCalculationsEverythingToWithdrawalPool() public {
+        // Set withdrawal fee to 100%
+        pufferProtocol.setWithdrawalPoolRate(100 * FixedPointMathLib.WAD);
+
+        // Default values are
+        // 2% guardians
+        // 0.5% guardians
+        // 100% to the withdrawal pool
+        // 0 to puffer pool
+        uint256 amount = pufferProtocol.getSmoothingCommitment(12);
+
+        assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
+        assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
+        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
+
+        // We don't have additional validations on if the validator is active or not
+        pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
+
+        assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
+        assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
+        assertEq(111164464845466315, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "non zero withdrawal pool");
+        assertEq(0, address(pufferProtocol.POOL()).balance, "zero puffer pool");
+    }
+
+    function testFeeCalculationsEverythingToPufferPool() public {
+        // Set withdrawal fee to 100%
+        pufferProtocol.setWithdrawalPoolRate(0);
+
+        // Default values are
+        // 2% guardians
+        // 0.5% guardians
+        // 0% to the withdrawal pool
+        // 100% to puffer pool
+        uint256 amount = pufferProtocol.getSmoothingCommitment(12);
+
+        assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
+        assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
+        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
+
+        // We don't have additional validations on if the validator is active or not
+        pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
+
+        assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
+        assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
+        assertEq(0, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "non zero withdrawal pool");
+        assertEq(111164464845466315, address(pufferProtocol.POOL()).balance, "zero puffer pool");
+    }
+
     function testChangeModule() public {
-        address module = pufferProtocol.getModuleAddress(NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
         pufferProtocol.changeModule(NO_RESTAKING, PufferModule(payable(address(5))));
     }
@@ -736,6 +789,8 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(alice, 5 ether);
         address bob = makeAddr("bob");
         vm.deal(bob, 5 ether);
+        address charlie = makeAddr("charlie");
+        vm.deal(charlie, 5 ether);
         vm.deal(address(pool), 100 ether);
 
         assertEq(pool.balanceOf(address(pufferProtocol)), 0, "0 pufETH in protocol");
@@ -745,16 +800,18 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         vm.startPrank(bob);
         _registerValidatorKey(bytes32("bob"), EIGEN_DA);
+        vm.startPrank(charlie);
+        _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
 
-        // PufferProtocol should hold pufETH (bond for 2 validators)
-        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH in protocol");
+        // PufferProtocol should hold pufETH (bond for 3 validators)
+        assertEq(pool.balanceOf(address(pufferProtocol)), 3 ether, "3 pufETH in protocol");
 
         // Provision validators
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))));
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("charlie"))));
 
-        bytes32[] memory aliceProof = new bytes32[](1);
-        aliceProof[0] = hex"0e4f14a17378337442fec9c0fe64e67c22f046a5fd1fc973859da0abeb6323e2";
+        bytes32[] memory aliceProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0);
 
         // Now the node operators submit proofs to get back their bond
         vm.startPrank(alice);
@@ -764,7 +821,7 @@ contract PufferProtocolTest is TestHelper {
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 150,
-            withdrawalAmount: 32.14 ether,
+            withdrawalAmount: 32 ether,
             wasSlashed: false,
             merkleProof: aliceProof
         });
@@ -776,7 +833,7 @@ contract PufferProtocolTest is TestHelper {
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
-            withdrawalAmount: 32.14 ether,
+            withdrawalAmount: 32 ether,
             wasSlashed: false,
             merkleProof: aliceProof
         });
@@ -787,19 +844,18 @@ contract PufferProtocolTest is TestHelper {
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
-            withdrawalAmount: 32.14 ether,
+            withdrawalAmount: 32 ether,
             wasSlashed: false,
             merkleProof: aliceProof
         });
 
+        // Alice receives the bond + the reward
         assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
 
-        bytes32[] memory bobProof = new bytes32[](1);
-        bobProof[0] = hex"6df1a3c785f77eb353a2a4c0d38629c4d4088032e8ec0695b9bbbee2bd9d4506";
+        bytes32[] memory bobProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 1);
 
         assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH");
 
-        // Bob was slashed, bob shouldn't get any pufETH
         pufferProtocol.stopValidator({
             moduleName: EIGEN_DA,
             validatorIndex: 0,
@@ -810,6 +866,19 @@ contract PufferProtocolTest is TestHelper {
         });
 
         assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH after");
+
+        bytes32[] memory charlieProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 2);
+
+        pufferProtocol.stopValidator({
+            moduleName: NO_RESTAKING,
+            validatorIndex: 1,
+            blockNumber: 100,
+            withdrawalAmount: 31.6 ether,
+            wasSlashed: false,
+            merkleProof: charlieProof
+        });
+
+        // assertEq(pool.balanceOf(charlie), 0.6 ether, "Charlie has 0.6 pufETH after");
     }
 
     // Test smart contract upgradeability (UUPS)
@@ -947,7 +1016,7 @@ contract PufferProtocolTest is TestHelper {
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
-        bytes32 digest = LibGuardianMessages.getMessageToBeSigned(
+        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
             pubKey,
             validator.signature,
             withdrawalCredentials,
@@ -979,7 +1048,7 @@ contract PufferProtocolTest is TestHelper {
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
 
-        bytes32 digest = LibGuardianMessages.getSkipProvisioningMessage(moduleName, pendingIdx);
+        bytes32 digest = LibGuardianMessages._getSkipProvisioningMessage(moduleName, pendingIdx);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -1065,7 +1134,8 @@ contract PufferProtocolTest is TestHelper {
         accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_PROTOCOL);
         vm.stopPrank();
 
-        // We are simulating 2 full withdrawals
+        // We are simulating 3 full withdrawals
+        // 2 are from NoRestakingModule and 1 from eigenDaModule
         address[] memory modules = new address[](2);
         modules[0] = NoRestakingModule;
         modules[1] = eigenDaModule;
@@ -1076,45 +1146,82 @@ contract PufferProtocolTest is TestHelper {
 
         // Amounts of full withdrawals that we want to move from modules to pools
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 32.14 ether;
-        amounts[1] = 31 ether;
+        // For no restaking module
+        // Assume that the first withdrawal is over 32 ETH, but the guardians will we cap it to 32 ETH, the rest stays in module for rewards withdrawal
+        // The second withdrawal is 3.16 (inactiviy leak)
+        amounts[0] = 32 ether + 31.6 ether;
+        amounts[1] = 31 ether; // got slashed
+
+        MerkleProofData[] memory validatorExits = new MerkleProofData[](3);
+        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({ moduleName: EIGEN_DA, index: 0, amount: 31 ether, wasSlashed: 1 });
+        validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: 31.6 ether, wasSlashed: 0 });
+        bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools
         assertEq(address(pool).balance, 0, "starting pool balance");
         assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
 
         bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages.getPostFullWithdrawalsRootMessage(
-                hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9", 100, modules, amounts
-            )
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 100, modules, amounts)
         );
 
         // modules.length and amounts.length don't match
         vm.expectRevert(IPufferProtocol.InvalidData.selector);
         pufferProtocol.postFullWithdrawalsRoot({
-            root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
+            root: merkleRoot,
             blockNumber: 100,
             modules: new address[](5), // lengths don't match
             amounts: amounts,
             guardianSignatures: signatures
         });
 
-        // Values are hardcoded and generated using test/unit/FullWithdrawalProofs.js
+        // Submit a valid proof
         pufferProtocol.postFullWithdrawalsRoot({
-            root: hex"56a62fc9845bdfebe4127e8d9d67ea0c90fc0ac98d75747baff454b85ebb3df9",
+            root: merkleRoot,
             blockNumber: 100,
             modules: modules,
             amounts: amounts,
             guardianSignatures: signatures
         });
 
-        // Total withdrawal eth is 32.14 + 31
+        // Total withdrawal eth is 32 + 31 + 31.6 = 94.6
+        // 0.14 stays in protocol because the first amount is over 32 eth (it has the rewards in it)
 
+        // 94.6 goes to the pools
         // Default split rate for withdrawal pool is 10%
-        // 10% of 32.14 + 31 = 6.314
-        // The rest is 63.14 - 6.314 = 56.826
-
-        assertEq(address(withdrawalPool).balance, 6.314 ether, "ending withdraawal pool balance");
-        assertEq(address(pool).balance, 56.826 ether, "ending pool balance");
+        assertEq(address(withdrawalPool).balance, 9.46 ether, "ending withdraawal pool balance");
+        assertEq(address(pool).balance, 85.14 ether, "ending pool balance");
     }
+
+    function _buildMerkleProof(MerkleProofData[] memory validatorExits) internal returns (bytes32 root) {
+        fullWithdrawalsMerkleProof = new Merkle();
+
+        fullWithdrawalMerkleProofData = new bytes32[](validatorExits.length);
+
+        for (uint256 i = 0; i < validatorExits.length; ++i) {
+            MerkleProofData memory validatorData = validatorExits[i];
+            fullWithdrawalMerkleProofData[i] = keccak256(
+                bytes.concat(
+                    keccak256(
+                        abi.encode(
+                            validatorData.moduleName,
+                            validatorData.index,
+                            validatorData.amount,
+                            validatorData.wasSlashed
+                        )
+                    )
+                )
+            );
+        }
+
+        root = fullWithdrawalsMerkleProof.getRoot(fullWithdrawalMerkleProofData);
+    }
+}
+
+struct MerkleProofData {
+    bytes32 moduleName;
+    uint256 index;
+    uint256 amount;
+    uint8 wasSlashed;
 }

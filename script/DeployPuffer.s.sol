@@ -75,19 +75,27 @@ contract DeployPuffer is BaseScript {
                 hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
             );
 
-            moduleFactory =
-            new PufferModuleFactory({beacon: address(beacon), pufferProtocol: address(proxy), authority: address(accessManager)});
+            moduleFactory = new PufferModuleFactory({
+                beacon: address(beacon),
+                pufferProtocol: address(proxy),
+                authority: address(accessManager)
+            });
 
             // Puffer Service implementation
-            pufferProtocolImpl =
-            new PufferProtocol({withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)), pool: PufferPool(payable(predictedPool)), guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleFactory: address(moduleFactory) });
+            pufferProtocolImpl = new PufferProtocol({
+                withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)),
+                pool: PufferPool(payable(predictedPool)),
+                guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
+                treasury: treasury,
+                moduleFactory: address(moduleFactory)
+            });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        pool = new PufferPool{salt: poolSalt}(pufferProtocol, address(accessManager));
+        pool = new PufferPool{ salt: poolSalt }(pufferProtocol, address(accessManager));
 
-        withdrawalPool = new WithdrawalPool{salt: withdrawalPoolSalt}(pool, address(accessManager));
+        withdrawalPool = new WithdrawalPool{ salt: withdrawalPoolSalt }(pool, address(accessManager));
 
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));

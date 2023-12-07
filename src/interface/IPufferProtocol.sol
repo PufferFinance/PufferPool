@@ -42,12 +42,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error ModuleAlreadyExists();
 
     /**
-     * @notice Thrown when the supplied number of months is not valid
-     * @dev Signature "0xa00523fd"
-     */
-    error InvalidNumberOfMonths();
-
-    /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
      * @dev Signature "0xa00523fd"
      */
@@ -120,12 +114,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
 
     /**
-     * @notice Emitted when the validator interval gets reset
-     * @dev Signature "0xf147f5fea5809d6be90362da029bbc2ab19828fbd38e0e426eccc76ae7bba618"
-     */
-    event IntervalReset();
-
-    /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
      * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
      */
@@ -133,9 +121,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Emitted when the smoothing commitment is paid
-     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     * @dev Signature "0x84e6610d0de4b996419eca9cf06b11fc13c256051f73673c802822674928fb9a"
      */
-    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 timestamp, uint256 amountPaid);
+    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 amountPaid);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
