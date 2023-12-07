@@ -2,8 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { PufferModule } from "puffer/PufferModule.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { BeaconProxy } from "openzeppelin/proxy/beacon/BeaconProxy.sol";
+import { Create2 } from "openzeppelin/utils/Create2.sol";
 
 /**
  * @title PufferModuleFactory
@@ -36,23 +38,19 @@ contract PufferModuleFactory is IPufferModuleFactory {
      * @inheritdoc IPufferModuleFactory
      */
     function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule module) {
-        bytes memory deploymentData = abi.encodePacked(
-            type(BeaconProxy).creationCode,
-            abi.encode(
-                PUFFER_MODULE_BEACON,
-                abi.encodeWithSignature("initialize(address,bytes32,address)", msg.sender, moduleName, AUTHORITY)
-            )
+        module = IPufferModule(
+            Create2.deploy({
+                amount: 0,
+                salt: moduleName,
+                bytecode: abi.encodePacked(
+                    type(BeaconProxy).creationCode,
+                    abi.encode(
+                        // PUFFER_MODULE_BEACON, abi.encodeWithSignature("initialize(bytes32,address)", moduleName, AUTHORITY)
+                        PUFFER_MODULE_BEACON,
+                        abi.encodeCall(PufferModule.initialize, (moduleName, AUTHORITY))
+                    )
+                    )
+            })
         );
-
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            module := create2(0x0, add(0x20, deploymentData), mload(deploymentData), moduleName)
-        }
-
-        if (address(module) == address(0)) {
-            revert Create2Failed();
-        }
-
-        return IPufferModule(payable(address(module)));
     }
 }

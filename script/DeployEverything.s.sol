@@ -8,17 +8,18 @@ import { SetupAccess } from "script/SetupAccess.s.sol";
 import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
 
 contract DeployEverything is BaseScript {
+    address DAO;
+
     function run(address[] calldata guardians, uint256 threshold) public returns (PufferDeployment memory) {
         // Deploy guardians
         GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, threshold);
 
         PufferDeployment memory pufferDeployment = new DeployPuffer().run(guardiansDeployment);
 
-        address DAO = payable(vm.envOr("DAO", makeAddr("DAO")));
-
-        // Tests / local chain
-        if (block.chainid != 31337) {
+        if (!isAnvil()) {
             DAO = _broadcaster;
+        } else {
+            DAO = makeAddr("DAO");
         }
 
         new SetupAccess().run(pufferDeployment, DAO);

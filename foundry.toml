@@ -34,8 +34,7 @@ quote_style = "double"
 bracket_spacing = true
 
 [rpc_endpoints]
-# mainnet="https://eth-mainnet-public.unifra.io"
-# mainnet="https://eth.llamarpc.com"
+mainnet="${ETH_RPC_URL}"
 # goerli="https://ethereum-goerli-archive.allthatnode.com"
 goerli="${GOERLI_RPC_URL}"
 

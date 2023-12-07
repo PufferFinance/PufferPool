@@ -45,7 +45,7 @@ library LibGuardianMessages {
      * @param blockNumber is the block number of the no restaking module rewards
      * @return the message to be signed
      */
-    function _getNoRestakingModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
+    function _getModuleRewardsRootMessage(bytes32 moduleName, bytes32 root, uint256 blockNumber)
         internal
         pure
         returns (bytes32)
