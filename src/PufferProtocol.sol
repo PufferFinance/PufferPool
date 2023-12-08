@@ -88,7 +88,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferModuleFactory public immutable PUFFER_MODULE_FACTORY;
+    IPufferModuleFactory public immutable override PUFFER_MODULE_FACTORY;
 
     constructor(
         IWithdrawalPool withdrawalPool,

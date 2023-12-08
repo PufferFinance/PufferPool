@@ -6,11 +6,11 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
- * @dev +----------------------------------------------------------+
- *      |                                                          |
- *      | DO NOT CHANGE, REODER, REMOVE EXISTING STORAGE VARIABLES |
- *      |                                                          |
- *      +----------------------------------------------------------+
+ * @dev +-----------------------------------------------------------+
+ *      |                                                           |
+ *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+ *      |                                                           |
+ *      +-----------------------------------------------------------+
  */
 struct ProtocolStorage {
     /**

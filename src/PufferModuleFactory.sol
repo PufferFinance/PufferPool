@@ -44,11 +44,7 @@ contract PufferModuleFactory is IPufferModuleFactory {
                 salt: moduleName,
                 bytecode: abi.encodePacked(
                     type(BeaconProxy).creationCode,
-                    abi.encode(
-                        // PUFFER_MODULE_BEACON, abi.encodeWithSignature("initialize(bytes32,address)", moduleName, AUTHORITY)
-                        PUFFER_MODULE_BEACON,
-                        abi.encodeCall(PufferModule.initialize, (moduleName, AUTHORITY))
-                    )
+                    abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, AUTHORITY)))
                     )
             })
         );

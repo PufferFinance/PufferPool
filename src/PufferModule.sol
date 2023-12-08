@@ -78,11 +78,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @custom:storage-location erc7201:PufferModuleStorage.storage
-     * @dev +----------------------------------------------------------+
-     *      |                                                          |
-     *      | DO NOT CHANGE, REODER, REMOVE EXISTING STORAGE VARIABLES |
-     *      |                                                          |
-     *      +----------------------------------------------------------+
+     * @dev +-----------------------------------------------------------+
+     *      |                                                           |
+     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+     *      |                                                           |
+     *      +-----------------------------------------------------------+
      */
     struct PufferModuleStorage {
         /**
@@ -178,7 +178,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     function call(address to, uint256 amount, bytes calldata data)
         external
-        restricted
+        onlyPufferProtocol
         returns (bool success, bytes memory)
     {
         // slither-disable-next-line arbitrary-send-eth
@@ -201,7 +201,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external restricted {
+    ) external {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
 
         // Anybody can submit a valid proof and the ETH will be sent to the node
@@ -253,6 +253,14 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         $.lastProofOfRewardsBlockNumber = blockNumber;
         $.rewardsRoots[blockNumber] = root;
         emit RewardsRootPosted(blockNumber, root);
+    }
+
+    /**
+     * @notice Returns the block number of when the latest rewards proof was posted
+     */
+    function getLastProofOfRewardsBlock() external view returns (uint256) {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        return $.lastProofOfRewardsBlockNumber;
     }
 
     /**

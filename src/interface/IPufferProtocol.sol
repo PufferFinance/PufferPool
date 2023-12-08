@@ -5,6 +5,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
@@ -334,6 +335,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the Withdrawal Pool
      */
     function WITHDRAWAL_POOL() external view returns (IWithdrawalPool);
+
+    /**
+     * @notice Returns the Puffer Module Factory
+     */
+    function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
 
     /**
      * @notice Returns the protocol fee rate
