@@ -144,7 +144,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
-        vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
+        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorKeyData, bytes32("imaginary module"), 1
         );
@@ -1007,6 +1007,23 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
     }
 
+    function testValidatorLimitPerModule() external {
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorLimitPerModuleChanged(type(uint128).max, 1);
+        pufferProtocol.setValidatorLimitPerModule(NO_RESTAKING, 1);
+
+        // Revert if the registration will be over the limit
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
+        bytes memory pubKey = _getPubKey(bytes32("bob"));
+        ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+        uint256 bond = 1 ether;
+
+        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, NO_RESTAKING, 1);
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
@@ -1113,6 +1130,7 @@ contract PufferProtocolTest is TestHelper {
     function _setupMerkleRoot() public {
         // Create EIGEN_DA module
         pufferProtocol.createPufferModule(EIGEN_DA);
+        pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
 
         // Include the EIGEN_DA in module selection
         bytes32[] memory newWeights = new bytes32[](4);

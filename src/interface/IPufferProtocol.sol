@@ -49,6 +49,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error ValidatorLimitPerIntervalReached();
 
     /**
+     * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
+     * @dev Signature "0xb75c5781"
+     */
+    error ValidatorLimitForModuleReached();
+
+    /**
      * @notice Thrown when the number of BLS private key shares doesn't match guardians number
      * @dev Signature "0x2c8f9aa3"
      */
@@ -113,6 +119,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
      */
     event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
+
+    /**
+     * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
+     * @dev Signature "0x21e92cbdc47ef718b9c77ea6a6ee50ff4dd6362ee22041ab77a46dacb93f5355"
+     */
+    event ValidatorLimitPerModuleChanged(uint256 oldLimit, uint256 newLimit);
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -260,6 +272,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Restricted to DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external;
+
+    /**
+     * @notice Sets the module limits for `moduleName` to `limit`
+     * @dev Restricted to DAO
+     */
+    function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
 
     /**
      * @notice Sets the protocol fee rate

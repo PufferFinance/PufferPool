@@ -179,7 +179,7 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](9);
+        bytes4[] memory selectors = new bytes4[](10);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
         selectors[1] = PufferProtocol.setSmoothingCommitments.selector;
         selectors[2] = PufferProtocol.createPufferModule.selector;
@@ -189,6 +189,7 @@ contract SetupAccess is BaseScript {
         selectors[6] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
         selectors[7] = PufferProtocol.setGuardiansFeeRate.selector;
         selectors[8] = PufferProtocol.setWithdrawalPoolRate.selector;
+        selectors[9] = PufferProtocol.setValidatorLimitPerModule.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
