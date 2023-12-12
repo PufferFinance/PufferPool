@@ -1024,6 +1024,48 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, NO_RESTAKING, 1);
     }
 
+    function testClaimBackBondForSingleWithdrawal() external {
+        _singleWithdrawalMerkleRoot();
+
+        address alice = makeAddr("alice");
+        vm.deal(alice, 2 ether);
+        vm.deal(address(pool), 32 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        // PufferProtocol should hold pufETH (bond for 1 validators)
+        assertEq(pool.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH in protocol");
+
+        // Provision validators
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
+
+        assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
+
+        // Valid proof
+        pufferProtocol.stopValidator({
+            moduleName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 200,
+            withdrawalAmount: 32 ether,
+            wasSlashed: false,
+            merkleProof: fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0)
+        });
+
+        bytes32[] memory proof2 = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 1);
+
+        // Valid proof for the same validator will revert
+        vm.expectRevert();
+        pufferProtocol.stopValidator({
+            moduleName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 200,
+            withdrawalAmount: 0,
+            wasSlashed: false,
+            merkleProof: proof2
+        });
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
@@ -1124,6 +1166,51 @@ contract PufferProtocolTest is TestHelper {
 
     function _getPubKey(bytes32 pubKeypart) internal pure returns (bytes memory) {
         return bytes.concat(abi.encodePacked(pubKeypart), bytes16(""));
+    }
+
+    function _singleWithdrawalMerkleRoot() public {
+        address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
+
+        // We are simulating 1 full withdrawals
+        address[] memory modules = new address[](1);
+        modules[0] = NoRestakingModule;
+
+        // Give funds to modules
+        vm.deal(modules[0], 200 ether);
+
+        // Amounts of full withdrawals that we want to move from modules to pools
+        uint256[] memory amounts = new uint256[](1);
+        // For no restaking module
+        // Assume that the first withdrawal is over 32 ETH, but the guardians will we cap it to 32 ETH, the rest stays in module for rewards withdrawal
+        amounts[0] = 32 ether;
+
+        MerkleProofData[] memory validatorExits = new MerkleProofData[](2);
+        // Generate a normal proof
+        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        // Generate a zero proof for the same validator index
+        validatorExits[1] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        bytes32 merkleRoot = _buildMerkleProof(validatorExits);
+
+        // Assert starting state of the pools
+        assertEq(address(pool).balance, 0, "starting pool balance");
+        assertEq(address(withdrawalPool).balance, 0, "starting withdraawal pool balance");
+
+        bytes[] memory signatures = _getGuardianEOASignatures(
+            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 200, modules, amounts)
+        );
+
+        // Submit a valid proof
+        pufferProtocol.postFullWithdrawalsRoot({
+            root: merkleRoot,
+            blockNumber: 200,
+            modules: modules,
+            amounts: amounts,
+            guardianSignatures: signatures
+        });
+
+        // Default split rate for withdrawal pool is 10%
+        assertEq(address(withdrawalPool).balance, 3.2 ether, "ending withdraawal pool balance");
+        assertEq(address(pool).balance, 28.8 ether, "ending pool balance");
     }
 
     // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
