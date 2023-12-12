@@ -26,7 +26,7 @@ forge test -vvv --match-path './test/unit/*'
 
 # Deployments
 
-### [Holesky](./addresses/holesky.json)
+### [Holesky](./addresses/holesky.json) 
 
 - Initial deployment commit: f929764c3d7b60866c903e37f15b1d2cdf04c061
 - Upgraded PufferProtocol contract commit: c9b4aa6691c747e346eac6a8df467bca77a64eea
