@@ -74,9 +74,17 @@ interface IPufferPool is IERC20 {
 
     /**
      * @notice Returns the exchange rate of pufETH to ETH
-     *
-     *
-     *
+     * 
+     * The exchange rate starts at 1:1, because there is equal amount of ETH and pufETH in the protocol.
+     * As the Validators join and pay Smoothing Commitments, there will be more ETH than pufETH in the protocol, 
+     * meaning that the exchange rate will change. 
+     * 
+     * conversion rate = (deposits + rewards - penalties) / pufETH supply
+     * 
+     * At the protocol’s inception, Bob stakes 10 ETH and receives 10 pufETH. 
+     * Then, after some time, the protocol earns 2 ETH of rewards from smoothing commitments and restaking. 
+     * Now Bob’s 10 pufETH is backed by 12 ETH, making the conversion rate (10+2−0)/10=1.2 ETH per pufETH.
+     * 
      * @dev Signature "0x38220d4d"
      * @return The current exchange rate of pufETH to ETH
      */
