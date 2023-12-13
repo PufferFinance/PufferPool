@@ -25,7 +25,7 @@ contract WithdrawalPool is IWithdrawalPool, AccessManaged {
     /**
      * @dev A constant representing `100%`
      */
-    uint256 internal immutable _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
+    uint256 internal constant _ONE_HUNDRED_WAD = 100 * FixedPointMathLib.WAD;
 
     /**
      * @dev Withdrawal fee amount

@@ -9,6 +9,13 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 library LibBeaconchainContract {
+    /**
+     * @notice Returns the deposit data root
+     * @param pubKey is the public key
+     * @param signature is the signature
+     * @param withdrawalCredentials is the withdrawal credentials
+     * @return the deposit data root
+     */
     function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
         external
         pure

@@ -24,8 +24,6 @@ contract PufferPoolTest is TestHelper {
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
 
-    event DepositRateChanged(uint256 oldValue, uint256 newValue);
-
     address rewardsRecipient = makeAddr("rewardsRecipient");
 
     function setUp() public override {

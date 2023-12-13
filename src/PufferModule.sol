@@ -24,9 +24,9 @@ interface IEigenPodManager {
 }
 
 /**
- * @title PufferStartegy
+ * @title PufferModule
  * @author Puffer Finance
- * @notice PufferStartegy
+ * @notice PufferModule
  * @custom:security-contact security@puffer.fi
  */
 contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
@@ -117,6 +117,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
         PUFFER_PROTOCOL = protocol;
+        _disableInitializers();
     }
 
     modifier onlyPufferProtocol() {

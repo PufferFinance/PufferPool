@@ -26,7 +26,6 @@ contract PufferProtocolTest is TestHelper {
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
     event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
-    event FailedToProvision(bytes indexed pubKey, uint256);
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 

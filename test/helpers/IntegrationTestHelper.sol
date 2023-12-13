@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
-import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { DeployGuardians } from "script/DeployGuardians.s.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
