@@ -97,6 +97,7 @@ contract PufferModuleTest is TestHelper {
 
     // Collecting non restaking rewards
     function testCollectNoRestakingRewards(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         address module = _createPufferModule(moduleName);
 
         // 3 validators got the rewards
