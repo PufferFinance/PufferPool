@@ -36,7 +36,7 @@ contract PufferModuleTest is TestHelper {
         address moduleBeacon = moduleFactory.PUFFER_MODULE_BEACON();
 
         vm.startPrank(DAO);
-        pufferProtocol.createPufferModule(bytes32("DEGEN"));
+        pufferProtocol.createPufferModule(bytes32("DEGEN"), "", address(0));
         vm.stopPrank();
 
         // No restaking is a custom default module (non beacon upgradeable)
@@ -226,7 +226,7 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
-        module = pufferProtocol.createPufferModule(moduleName);
+        module = pufferProtocol.createPufferModule(moduleName, "", address(0));
         vm.stopPrank();
     }
 

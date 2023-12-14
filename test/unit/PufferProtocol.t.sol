@@ -117,7 +117,7 @@ contract PufferProtocolTest is TestHelper {
     function testCreateExistingModuleShouldFail() public {
         vm.startPrank(DAO);
         vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
-        pufferProtocol.createPufferModule(NO_RESTAKING);
+        pufferProtocol.createPufferModule(NO_RESTAKING, "", address(0));
     }
 
     // Invalid pub key shares length
@@ -668,8 +668,8 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function testProvisionNode() public {
-        pufferProtocol.createPufferModule(EIGEN_DA);
-        pufferProtocol.createPufferModule(CRAZY_GAINS);
+        pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
+        pufferProtocol.createPufferModule(CRAZY_GAINS, "", address(0));
 
         bytes32[] memory oldWeights = new bytes32[](1);
         oldWeights[0] = NO_RESTAKING;
@@ -772,7 +772,7 @@ contract PufferProtocolTest is TestHelper {
 
     function testCreatePufferModule() public {
         bytes32 name = bytes32("LEVERAGED_RESTAKING");
-        pufferProtocol.createPufferModule(name);
+        pufferProtocol.createPufferModule(name, "", address(0));
         IPufferModule module = IPufferModule(pufferProtocol.getModuleAddress(name));
         assertEq(module.NAME(), name, "names");
     }
@@ -1215,7 +1215,7 @@ contract PufferProtocolTest is TestHelper {
     // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
     function _setupMerkleRoot() public {
         // Create EIGEN_DA module
-        pufferProtocol.createPufferModule(EIGEN_DA);
+        pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
         pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
 
         // Include the EIGEN_DA in module selection

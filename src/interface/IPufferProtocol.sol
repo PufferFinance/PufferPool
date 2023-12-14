@@ -405,9 +405,17 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Creates a new Puffer module with `moduleName`
+     * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
+     * @param delegationApprover is an address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
+     * @dev Signature verification follows these rules:
+     * 1) If this address is left as address(0), then any staker will be free to delegate to the operator, i.e. no signature verification will be performed.
+     * 2) If this address is an EOA (i.e. it has no code), then we follow standard ECDSA signature verification for delegations to the operator.
+     * 3) If this address is a contract (i.e. it has code) then we forward a call to the contract and verify that it returns the correct EIP-1271 "magic value".
      * @dev It will revert if you try to create two modules with the same name
      */
-    function createPufferModule(bytes32 moduleName) external returns (address);
+    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        external
+        returns (address);
 
     /**
      * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)

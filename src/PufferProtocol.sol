@@ -554,8 +554,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function createPufferModule(bytes32 moduleName) external restricted returns (address) {
-        return _createPufferModule(moduleName);
+    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        external
+        restricted
+        returns (address)
+    {
+        return _createPufferModule(moduleName, metadataURI, delegationApprover);
     }
 
     /**
@@ -835,12 +839,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit WithdrawalPoolRateChanged(oldWithdrawalPoolRate, withdrawalPoolRate);
     }
 
-    function _createPufferModule(bytes32 moduleName) internal returns (address) {
+    function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        internal
+        returns (address)
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName);
+        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName, metadataURI, delegationApprover);
         $.modules[moduleName] = module;
         emit NewPufferModuleCreated(address(module));
         _setValidatorLimitPerModule(moduleName, 10);
