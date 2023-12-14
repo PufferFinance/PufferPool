@@ -6,7 +6,7 @@ Since NoOps pay a smoothing commitment upon provisioning a validator, they are d
 
 #### Claiming Partial Rewards
 
-While performing normal validator operations, ETH will accrue upon the corresponding [PufferModule](../src/PufferModule.sol) contract whenever a validator in that module receives consensus rewards; in this case, [NoRestakingModule](../src/NoRestakingModule.sol). Periodically, Guardians will calculate all consensus rewards that are due for each NoOp, create a merkle tree with this information, and post it on-chain via `postRewardsRoot()` on the [NoRestakingModule](../src/NoRestakingModule.sol) contract. Afterwards, a NoOp may call `collectRewards()` on the same contract with a valid merkle proof, proving their rewards, to retrieve their partial rewards.
+While performing normal validator operations, ETH will accrue upon the corresponding [PufferModule](../src/PufferModule.sol) contract whenever a validator in that module receives consensus rewards; in this case, [NoRestakingModule](../src/NoRestakingModule.sol). Periodically, Guardians will calculate all consensus rewards that are due for each NoOp, create a merkle tree with this information, and post it on-chain via `postRewardsRoot()` on the [NoRestakingModule](../src/NoRestakingModule.sol) contract. You may read more about this process [here](./Proof%20of%20Reserves%20and%20Rewards.md). Afterwards, a NoOp may call `collectRewards()` on the same contract with a valid merkle proof, proving their rewards, to retrieve their partial rewards.
 
 #### Retrieving Bond
 
