@@ -300,32 +300,32 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         return $.moduleName;
     }
 
-    /**
-     * @notice Registers this module as the operator in EigenLayer
-     * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
-     * @param delegationApprover Address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
-     */
-    function _registerAsOperator(string calldata metadataURI, address delegationApprover) internal {
-        EIGEN_DELEGATION_MANAGER.registerAsOperator(
-            IDelegationManager.OperatorDetails({
-                earningsReceiver: address(this), // All of the rewards go to this contract
-                delegationApprover: delegationApprover,
-                stakerOptOutWindowBlocks: 1000 // 1000 blocks
-             }),
-            metadataURI
-        );
-    }
+    // /**
+    //  * @notice Registers this module as the operator in EigenLayer
+    //  * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
+    //  * @param delegationApprover Address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
+    //  */
+    // function _registerAsOperator(string calldata metadataURI, address delegationApprover) internal {
+    //     EIGEN_DELEGATION_MANAGER.registerAsOperator(
+    //         IDelegationManager.OperatorDetails({
+    //             earningsReceiver: address(this), // All of the rewards go to this contract
+    //             delegationApprover: delegationApprover,
+    //             stakerOptOutWindowBlocks: 1000 // 1000 blocks
+    //          }),
+    //         metadataURI
+    //     );
+    // }
 
-    //@todo unused at the moment
-    function _modifyOperatorDetails(address delegationApprover, uint32 stakerOptOutWindowBlocks) internal {
-        EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(
-            IDelegationManager.OperatorDetails({
-                stakerOptOutWindowBlocks: stakerOptOutWindowBlocks,
-                delegationApprover: delegationApprover,
-                earningsReceiver: address(this)
-            })
-        );
-    }
+    // //@todo unused at the moment
+    // function _modifyOperatorDetails(address delegationApprover, uint32 stakerOptOutWindowBlocks) internal {
+    //     EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(
+    //         IDelegationManager.OperatorDetails({
+    //             stakerOptOutWindowBlocks: stakerOptOutWindowBlocks,
+    //             delegationApprover: delegationApprover,
+    //             earningsReceiver: address(this)
+    //         })
+    //     );
+    // }
 
     function _getPufferProtocolStorage() internal pure returns (PufferModuleStorage storage $) {
         // solhint-disable-next-line

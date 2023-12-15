@@ -62,7 +62,7 @@ struct ProtocolStorage {
      * @dev Mapping of module name to pending validator index for that module
      * Slot 4
      */
-    mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndicies;
+    mapping(bytes32 moduleName => uint256 pendingValidatorIndex) pendingValidatorIndices;
     /**
      * @dev Mapping of a module name to validator queue
      * Slot 5

@@ -223,7 +223,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 numberOfMonths
     ) internal {
-        uint256 validatorIndex = $.pendingValidatorIndicies[moduleName];
+        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
 
         // No need for SafeCast
         $.validators[moduleName][validatorIndex] = Validator({
@@ -238,7 +238,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Increment indices for this module and number of validators registered
         unchecked {
-            ++$.pendingValidatorIndicies[moduleName];
+            ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
             ++$.numberOfValidatorsRegisteredInThisInterval;
             ++$.activePufferValidators;
@@ -625,7 +625,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        uint256 numOfValidators = $.pendingValidatorIndicies[moduleName];
+        uint256 numOfValidators = $.pendingValidatorIndices[moduleName];
 
         Validator[] memory validators = new Validator[](numOfValidators);
 
@@ -694,7 +694,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.pendingValidatorIndicies[moduleName];
+        return $.pendingValidatorIndices[moduleName];
     }
 
     /**
