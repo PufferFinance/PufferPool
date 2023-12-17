@@ -25,7 +25,7 @@ contract PufferProtocolTest is TestHelper {
     bytes32[] fullWithdrawalMerkleProofData;
 
     event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
+    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
     event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
@@ -107,7 +107,7 @@ contract PufferProtocolTest is TestHelper {
         bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
         moduleSelecitonIdx = pufferProtocol.getModuleSelectIndex();
         assertEq(moduleSelecitonIdx, 1, "module idx changed");
@@ -645,14 +645,14 @@ contract PufferProtocolTest is TestHelper {
 
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(zeroPubKey, 0, NO_RESTAKING);
+        emit SuccessfullyProvisioned(zeroPubKey, 0, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
 
         bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(bobPubKey, 1, NO_RESTAKING);
+        emit SuccessfullyProvisioned(bobPubKey, 1, NO_RESTAKING);
         pufferProtocol.provisionNode(bobSignatures);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 1);
@@ -663,7 +663,7 @@ contract PufferProtocolTest is TestHelper {
 
         signatures = _getGuardianSignatures(zeroPubKey);
 
-        emit SuccesfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
+        emit SuccessfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
     }
 
@@ -703,7 +703,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("bob")), 0, NO_RESTAKING);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -715,7 +715,7 @@ contract PufferProtocolTest is TestHelper {
         signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")));
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
         pufferProtocol.provisionNode(signatures);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -766,7 +766,7 @@ contract PufferProtocolTest is TestHelper {
         signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
 
         vm.expectEmit(true, true, true, true);
-        emit SuccesfullyProvisioned(_getPubKey(bytes32("alice")), 1, NO_RESTAKING);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures);
     }
 

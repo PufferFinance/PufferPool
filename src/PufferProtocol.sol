@@ -300,7 +300,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Transfer 32 ETH to the module
         POOL.transferETH(address(module), 32 ether);
 
-        emit SuccesfullyProvisioned(validatorPubKey, index, moduleName);
+        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }

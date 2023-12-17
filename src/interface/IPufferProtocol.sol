@@ -44,7 +44,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
-     * @dev Signature "0xa00523fd"
+     * @dev Signature "0xd9873182"
      */
     error ValidatorLimitPerIntervalReached();
 
@@ -207,9 +207,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @dev Signature "0x09290f1d819767ba40f9616823cb23f1e925c228f0d02e5e4818a4fa05d6c487"
+     * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
+    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator key is failed to be provisioned
@@ -310,7 +310,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setValidatorLimitPerInterval(uint256 newLimit) external;
 
     /**
-     * @notice Sets the smmothing commitment amounts
+     * @notice Sets the smoothing commitment amounts
      * @dev Restricted to DAO
      */
     function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
