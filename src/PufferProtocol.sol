@@ -856,8 +856,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _setValidatorLimitPerInterval(uint256 newLimit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.validatorLimitPerInterval = SafeCastLib.toUint16(newLimit);
         uint256 oldLimit = uint256($.validatorLimitPerInterval);
+        $.validatorLimitPerInterval = SafeCastLib.toUint16(newLimit);
         emit ValidatorLimitPerIntervalChanged(oldLimit, newLimit);
     }
 
