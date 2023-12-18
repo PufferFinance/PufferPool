@@ -33,6 +33,9 @@ contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
      * @inheritdoc IPufferPool
      */
     function depositETH() public payable restricted returns (uint256) {
+        if (msg.value == 0) {
+            revert InvalidETHAmount();
+        }
         uint256 pufETHAmount = _calculateETHToPufETHAmount(msg.value);
 
         emit Deposited(msg.sender, msg.value, pufETHAmount);
@@ -85,7 +88,7 @@ contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
     }
 
     function _getPufETHtoETHExchangeRate() internal view returns (uint256) {
-        PufferPoolStorage memory data = PUFFER_PROTOCOL.getPuferPoolStorage();
+        PufferPoolStorage memory data = PUFFER_PROTOCOL.getPufferPoolStorage();
         // slither-disable-next-line incorrect-equality
         if (data.pufETHTotalSupply == 0) {
             return FixedPointMathLib.WAD;

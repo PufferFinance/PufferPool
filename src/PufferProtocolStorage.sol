@@ -29,7 +29,7 @@ abstract contract PufferProtocolStorage is IPufferProtocolStorage {
      */
     bytes32 private constant _PUFFER_POOL_STORAGE = 0x3d9197675aec7b7f62441149aba7986872b7337d003616efa547249bb6c43900;
 
-    function getPuferPoolStorage() external pure returns (PufferPoolStorage memory) {
+    function getPufferPoolStorage() external pure returns (PufferPoolStorage memory) {
         PufferPoolStorage storage $;
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -39,7 +39,7 @@ abstract contract PufferProtocolStorage is IPufferProtocolStorage {
         return $;
     }
 
-    function _getPuferPoolStorage() internal pure returns (PufferPoolStorage storage $) {
+    function _getPufferPoolStorage() internal pure returns (PufferPoolStorage storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := _PUFFER_POOL_STORAGE

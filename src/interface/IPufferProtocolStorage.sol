@@ -7,5 +7,5 @@ interface IPufferProtocolStorage {
     /**
      * @notice Returns the PufferPool storage
      */
-    function getPuferPoolStorage() external pure returns (PufferPoolStorage memory);
+    function getPufferPoolStorage() external pure returns (PufferPoolStorage memory);
 }

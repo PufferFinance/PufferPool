@@ -10,6 +10,12 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
  */
 interface IPufferPool is IERC20 {
     /**
+     * @notice Thrown if the sender did not send enough ETH in the transaction
+     * @dev Signature "0x242b035c"
+     */
+    error InvalidETHAmount();
+
+    /**
      * Thrown if the "rescued" token is pufETH
      * @dev Signature "0x961c9a4f"
      */

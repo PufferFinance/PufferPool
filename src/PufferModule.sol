@@ -142,7 +142,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         address initialAuthority,
         string calldata metadataURI,
         address delegationApprover
-    ) public initializer {
+    ) external initializer {
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;

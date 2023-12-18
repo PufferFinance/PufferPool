@@ -522,7 +522,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 numberOfActiveValidators,
         bytes[] calldata guardianSignatures
     ) external {
-        PufferPoolStorage storage $ = _getPuferPoolStorage();
+        PufferPoolStorage storage $ = _getPufferPoolStorage();
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProofOfReserve({
