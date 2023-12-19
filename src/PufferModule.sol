@@ -150,7 +150,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @dev Claiming rewards from EigenPod's is a 2 step process.
+     * @dev Claiming rewards from an EigenPod is a 2 step process.
      * We queue it with this function, and we claim it with `claimNonRestakingRewards`
      */
     function queueNonRestakingRewards() external {
@@ -165,7 +165,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     function claimNonRestakingRewards() external {
-        EIGEN_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(this), 10);
+        EIGEN_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(this), type(uint256).max);
     }
 
     function collectRestakingRewards() external {

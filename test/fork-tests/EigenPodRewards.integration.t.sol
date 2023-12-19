@@ -31,6 +31,9 @@ contract EigenPodRewards is IntegrationTestHelper {
         // 4. Queue the withdrawal
         module.queueNonRestakingRewards();
 
+        // Try claiming right away, it doesn't revert, but the amount claimed is 0
+        module.claimNonRestakingRewards();
+
         // 5. Fast forward 10 days into the future
         vm.roll(18_794_775);
 

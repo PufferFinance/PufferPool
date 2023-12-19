@@ -843,7 +843,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         emit NewPufferModuleCreated(address(module));
-        _setValidatorLimitPerModule(moduleName, 10);
+        _setValidatorLimitPerModule(moduleName, 1000);
         return address(module);
     }
 
