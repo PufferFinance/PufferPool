@@ -63,7 +63,6 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
     function removeLeafX509(bytes32 hashedCert) external restricted {
         delete _validLeafX509s[hashedCert].modulus;
         delete _validLeafX509s[hashedCert].exponent;
-
         emit RemovedPubKey(hashedCert);
     }
 

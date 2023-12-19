@@ -459,7 +459,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Posts the full withdrawals root
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number of a withdrawal root
-     * @param modules is the array from which modules we are redestributing ETH
+     * @param modules is the array from which modules we are redistributing ETH
      * @param amounts is the array of ETH amounts to pull from modules
      */
     function postFullWithdrawalsRoot(
@@ -774,6 +774,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 amount = msg.value - bond;
 
         // If we are above burst threshold, take everything to the treasury
+        // this number division doesn't revert
         if (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD) {
             _sendETH(TREASURY, amount, _ONE_HUNDRED_WAD);
             return;
