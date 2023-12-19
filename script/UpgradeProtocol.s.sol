@@ -22,7 +22,7 @@ contract UpgradeProtocol is BaseScript {
             withdrawalPool: WithdrawalPool(payable(0x378b738c0Cd4e5B373f943b1c9951730E5a29E5b)),
             pool: PufferPool(payable(0x90Daec4Cee7e7A4E5499e9E864a1eb89Bb19b8Ed)),
             guardianModule: GuardianModule(payable(0x66eb09811E1e46D60eD1421884E9FD76cbE555cA)),
-            treasury: payable(0x0000000000000000000000000000000000000539),
+            treasury: payable(0x61A44645326846F9b5d9c6f91AD27C3aD28EA390),
             moduleFactory: 0x05B9c7bc894DDB37BC6Cc42EE1D2de45782aeA80
         });
 

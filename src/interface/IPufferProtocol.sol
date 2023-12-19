@@ -5,6 +5,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
@@ -46,6 +47,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0xa00523fd"
      */
     error ValidatorLimitPerIntervalReached();
+
+    /**
+     * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
+     * @dev Signature "0xb75c5781"
+     */
+    error ValidatorLimitForModuleReached();
 
     /**
      * @notice Thrown when the number of BLS private key shares doesn't match guardians number
@@ -112,6 +119,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
      */
     event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
+
+    /**
+     * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
+     * @dev Signature "0x21e92cbdc47ef718b9c77ea6a6ee50ff4dd6362ee22041ab77a46dacb93f5355"
+     */
+    event ValidatorLimitPerModuleChanged(uint256 oldLimit, uint256 newLimit);
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -261,6 +274,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setModuleWeights(bytes32[] calldata newModuleWeights) external;
 
     /**
+     * @notice Sets the module limits for `moduleName` to `limit`
+     * @dev Restricted to DAO
+     */
+    function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
+
+    /**
      * @notice Sets the protocol fee rate
      * @dev 1% equals `1 * FixedPointMathLib.WAD`
      *
@@ -334,6 +353,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the Withdrawal Pool
      */
     function WITHDRAWAL_POOL() external view returns (IWithdrawalPool);
+
+    /**
+     * @notice Returns the Puffer Module Factory
+     */
+    function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
 
     /**
      * @notice Returns the protocol fee rate

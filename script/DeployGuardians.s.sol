@@ -8,11 +8,8 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Strings } from "openzeppelin/utils/Strings.sol";
 import { GuardiansDeployment } from "./DeploymentStructs.sol";
 
-// forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0x5F9a7EA6A79Ef04F103bfe7BD45dA65476a5155C]" 1
+// forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1
 contract DeployGuardians is BaseScript {
-    address internal safeProxy;
-    address internal safeImplementation;
-
     function run(address[] calldata guardians, uint256 threshold)
         public
         broadcast

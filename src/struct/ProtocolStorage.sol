@@ -6,6 +6,11 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
+ * @dev +-----------------------------------------------------------+
+ *      |                                                           |
+ *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+ *      |                                                           |
+ *      +-----------------------------------------------------------+
  */
 struct ProtocolStorage {
     /**
@@ -84,4 +89,14 @@ struct ProtocolStorage {
      * Slot 9
      */
     uint256[] smoothingCommitments;
+    /**
+     * @dev Mapping of Module name => Module limit
+     * Slot 10
+     */
+    mapping(bytes32 moduleName => ModuleLimit moduleLimit) moduleLimits;
+}
+
+struct ModuleLimit {
+    uint128 allowedLimit;
+    uint128 numberOfActiveValidators;
 }

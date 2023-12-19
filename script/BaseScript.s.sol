@@ -18,7 +18,7 @@ abstract contract BaseScript is Script {
 
     constructor() {
         // For local chain (ANVIL) hardcode the deployer as first account from the blockchain
-        if (block.chainid == 31337) {
+        if (isAnvil()) {
             // Fist account from ANVIL
             _deployerPrivateKey = uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
             _broadcaster = vm.addr(_deployerPrivateKey);
@@ -29,5 +29,13 @@ abstract contract BaseScript is Script {
         vm.startBroadcast(_deployerPrivateKey);
         _;
         vm.stopBroadcast();
+    }
+
+    function isMainnet() internal view returns (bool) {
+        return (block.chainid == 1);
+    }
+
+    function isAnvil() internal view returns (bool) {
+        return (block.chainid == 31337);
     }
 }

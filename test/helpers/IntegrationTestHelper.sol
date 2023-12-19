@@ -2,39 +2,72 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { DeployEverything } from "script/DeployEverything.s.sol";
 import { DeployGuardians } from "script/DeployGuardians.s.sol";
+import { DeployPuffer } from "script/DeployPuffer.s.sol";
+import { PufferDeployment } from "script/DeploymentStructs.sol";
 import { GuardiansDeployment } from "script/DeploymentStructs.sol";
+import { GuardianModule } from "puffer/GuardianModule.sol";
+import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
+import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import { DeployEverything } from "script/DeployEverything.s.sol";
+import { PufferDeployment } from "script/DeploymentStructs.sol";
+import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
-    address safeProxyFactory = 0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2; // mainnet
-    address safeImplementation = 0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552; // mainnet
+    PufferPool public pool;
+    PufferProtocol public pufferProtocol;
+    IWithdrawalPool public withdrawalPool;
+    UpgradeableBeacon public beacon;
+    PufferModuleFactory public moduleFactory;
 
-    PufferPool pool;
+    GuardianModule public guardianModule;
 
-    function deployContracts() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 17784482);
+    AccessManager public accessManager;
+    IEnclaveVerifier public verifier;
 
-        address[] memory guardians = new address[](1);
+    function deployContracts() public virtual {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 18_722_775);
+
+        address[] memory guardians = new address[](3);
         guardians[0] = address(this);
 
-        // 1. Deploy guardians safe
-        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, 1);
-
-        new DeployPuffer().run(guardiansDeployment);
-        // vm.label(address(pool), "PufferPool");
+        _deployAndLabel(guardians, 1);
     }
 
-    function deployContractsGoerli() public {
+    function deployContractsGoerli() public virtual {
         vm.createSelectFork(vm.rpcUrl("goerli"), 9717928);
 
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);
 
-        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, 1);
+        _deployAndLabel(guardians, 1);
+    }
 
-        new DeployPuffer().run(guardiansDeployment);
-        // vm.label(address(pool), "PufferPool");
+    function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
+        // Deploy everything with one script
+        PufferDeployment memory pufferDeployment = new DeployEverything().run(guardians, threshold);
+
+        pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
+        vm.label(address(pufferProtocol), "PufferProtocol");
+        accessManager = AccessManager(pufferDeployment.accessManager);
+        vm.label(address(accessManager), "AccessManager");
+        pool = PufferPool(payable(pufferDeployment.pufferPool));
+        vm.label(address(pool), "PufferPool");
+        withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
+        vm.label(address(withdrawalPool), "WithdrawalPool");
+        verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
+        vm.label(address(verifier), "EnclaveVerifier");
+        guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
+        vm.label(address(guardianModule), "GuardianModule");
+        beacon = UpgradeableBeacon(pufferDeployment.beacon);
+        vm.label(address(beacon), "PufferModuleBeacon");
+        moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
+        vm.label(address(moduleFactory), "PufferModuleFactory");
     }
 }
