@@ -24,8 +24,6 @@ contract PufferPoolTest is TestHelper {
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
 
-    event DepositRateChanged(uint256 oldValue, uint256 newValue);
-
     address rewardsRecipient = makeAddr("rewardsRecipient");
 
     function setUp() public override {
@@ -105,7 +103,7 @@ contract PufferPoolTest is TestHelper {
             blockNumber: 50350,
             numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 10_000 ether,
                     lockedETH: 320 ether,
                     pufETHTotalSupply: 10_000 ether,
@@ -187,7 +185,7 @@ contract PufferPoolTest is TestHelper {
             blockNumber: 50401,
             numberOfActiveValidators: 100,
             guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages.getProofOfReserveMessage({
+                LibGuardianMessages._getProofOfReserveMessage({
                     ethAmount: 2 ether,
                     lockedETH: 0 ether,
                     pufETHTotalSupply: 1 ether,
@@ -207,7 +205,7 @@ contract PufferPoolTest is TestHelper {
         assertEq(minted, 0.5 ether, "ratio didn't change");
     }
 
-    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) internal {
+    function testRatioChangeSandwichAttack(uint256 numberOfValidators, uint256 attackerAmount) public {
         numberOfValidators = bound(numberOfValidators, 10, 1000);
 
         attackerAmount = bound(attackerAmount, 1 ether, 100 ether);
@@ -249,12 +247,15 @@ contract PufferPoolTest is TestHelper {
 
         uint256 gasConsumedForWithdrawal = (gasBefore - gasAfter) * GWEI; // gas * gwei to get ETH amount;
 
-        // @todo revisit this
-        // assertTrue(
-        //     attacker.balance < (attackerAmount - (gasConsumedForWithdrawal + gasConsumedForDeposit)),
-        //     "attacker is in profit"
-        // );
-        // assertApproxEqRel(attacker.balance, 10 ether, 1e16, "balance is bad"); // diff 1%
+        assertTrue(
+            attacker.balance < (attackerAmount - (gasConsumedForWithdrawal + gasConsumedForDeposit)),
+            "attacker is in profit"
+        );
+    }
+
+    function testMintZero() public {
+        uint256 minted = pool.depositETH{ value: 0 }();
+        assertEq(minted, 0, "zero");
     }
 
     function testStorageS() public {

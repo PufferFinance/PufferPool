@@ -12,6 +12,37 @@ contract WithdrawalPoolTest is TestHelper {
         _skipDefaultFuzzAddresses();
     }
 
+    function testWithdrawSomebodyElsesPufETHReverts() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+        address random = makeAddr("random");
+
+        vm.deal(address(withdrawalPool), 100 ether);
+        vm.deal(bob, 10 ether);
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(bob);
+        pool.depositETH{ value: 10 ether }();
+        vm.startPrank(alice);
+        pool.depositETH{ value: 10 ether }();
+
+        // Alice approves pufETH the traditional way
+        pool.approve(address(withdrawalPool), type(uint256).max);
+
+        // Normal withdrawal should fail
+        vm.startPrank(random);
+        vm.expectRevert();
+        withdrawalPool.withdrawETH(random, 10 ether);
+
+        Permit memory fakePermit;
+        fakePermit.owner = alice;
+        fakePermit.amount = 10 ether;
+
+        // Permit withdrawal should fail
+        vm.expectRevert();
+        withdrawalPool.withdrawETH(random, fakePermit);
+    }
+
     // Test withdraw ETH if there is neough liquidity
     function testWithdrawETH() public {
         address bob = makeAddr("bob");
@@ -49,7 +80,7 @@ contract WithdrawalPoolTest is TestHelper {
 
         assertTrue(charlie.balance == 0, "charlie should be poor");
 
-        vm.prank(pufETHDepositor);
+        vm.startPrank(pufETHDepositor);
         pool.depositETH{ value: 1000 ether }();
 
         withdrawalPool.withdrawETH(charlie, permit);

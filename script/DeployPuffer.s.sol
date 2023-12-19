@@ -14,6 +14,7 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
+import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -44,6 +45,11 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
 
+    address payable treasury;
+
+    address eigenPodManager;
+    address delayedWithdrawalRouter;
+
     function run(GuardiansDeployment calldata guardiansDeployment) public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
 
@@ -51,15 +57,30 @@ contract DeployPuffer is BaseScript {
         bytes32 poolSalt = bytes32("pufferPool");
         bytes32 withdrawalPoolSalt = bytes32("withdrawalPool");
 
+        if (isMainnet()) {
+            // Mainnet / Mainnet fork
+            treasury = payable(vm.envAddress("TREASURY"));
+            eigenPodManager = vm.envAddress("EIGENPOD_MANAGER");
+            delayedWithdrawalRouter = vm.envAddress("DELAYED_WITHDRAWAL_ROUTER");
+        } else if (isAnvil()) {
+            // Local chain / tests
+            treasury = payable(address(1337));
+            eigenPodManager = address(new EigenPodManagerMock());
+            delayedWithdrawalRouter = address(0);
+        } else {
+            // Testnets
+            treasury = payable(vm.envOr("TREASURY", address(1337)));
+            eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
+            delayedWithdrawalRouter = vm.envOr("DELAYED_WITHDRAWAL_ROUTER", address(0));
+        }
+
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
-            // PufferTreasury
-            address payable treasury = payable(vm.envOr("TREASURY", address(1337)));
-
-            address eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
-
-            PufferModule moduleImplementation = new PufferModule(IEigenPodManager(eigenPodManager));
+            PufferModule moduleImplementation = new PufferModule(
+                PufferProtocol(payable(proxy)), eigenPodManager, IDelayedWithdrawalRouter(delayedWithdrawalRouter)
+            );
+            vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             vm.serializeAddress(obj, "moduleBeacon", address(beacon));
@@ -75,19 +96,27 @@ contract DeployPuffer is BaseScript {
                 hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
             );
 
-            moduleFactory =
-            new PufferModuleFactory({beacon: address(beacon), pufferProtocol: address(proxy), authority: address(accessManager)});
+            moduleFactory = new PufferModuleFactory({
+                beacon: address(beacon),
+                pufferProtocol: address(proxy),
+                authority: address(accessManager)
+            });
 
             // Puffer Service implementation
-            pufferProtocolImpl =
-            new PufferProtocol({withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)), pool: PufferPool(payable(predictedPool)), guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)), treasury: treasury, moduleFactory: address(moduleFactory) });
+            pufferProtocolImpl = new PufferProtocol({
+                withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)),
+                pool: PufferPool(payable(predictedPool)),
+                guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
+                treasury: treasury,
+                moduleFactory: address(moduleFactory)
+            });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
-        pool = new PufferPool{salt: poolSalt}(pufferProtocol, address(accessManager));
+        pool = new PufferPool{ salt: poolSalt }(pufferProtocol, address(accessManager));
 
-        withdrawalPool = new WithdrawalPool{salt: withdrawalPoolSalt}(pool, address(accessManager));
+        withdrawalPool = new WithdrawalPool{ salt: withdrawalPoolSalt }(pool, address(accessManager));
 
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
@@ -117,6 +146,16 @@ contract DeployPuffer is BaseScript {
             noRestakingModule: address(noRestaking),
             smoothingCommitments: smoothingCommitments
         });
+
+        vm.label(address(accessManager), "AccessManager");
+        vm.label(address(proxy), "PufferProtocolProxy");
+        vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
+        vm.label(address(pool), "PufferPool");
+        vm.label(address(withdrawalPool), "WithdrawalPool");
+        vm.label(address(moduleFactory), "PufferModuleFactory");
+        vm.label(address(beacon), "PufferModuleBeacon");
+        vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
+        vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
@@ -148,7 +187,7 @@ contract DeployPuffer is BaseScript {
 
     function getStakingContract() internal returns (address) {
         // Mainnet
-        if (block.chainid == 1) {
+        if (isMainnet()) {
             return 0x00000000219ab540356cBB839Cbe05303d7705Fa;
         }
 
@@ -163,7 +202,7 @@ contract DeployPuffer is BaseScript {
         }
 
         // Tests / local chain
-        if (block.chainid == 31337) {
+        if (isAnvil()) {
             return address(new BeaconMock());
         }
 

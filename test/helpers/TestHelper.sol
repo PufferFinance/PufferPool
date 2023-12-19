@@ -9,6 +9,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
+import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferDeployment } from "script/DeploymentStructs.sol";
@@ -134,7 +135,7 @@ contract TestHelper is Test, BaseScript {
         // Deploy everything with one script
         PufferDeployment memory pufferDeployment = new DeployEverything().run(guardians, 1);
 
-        pufferProtocol = PufferProtocol(pufferDeployment.pufferProtocol);
+        pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         pool = PufferPool(payable(pufferDeployment.pufferPool));
         withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
@@ -152,6 +153,9 @@ contract TestHelper is Test, BaseScript {
 
         // mrenclave and mrsigner are the same for all evidences
         vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.MrEnclaveChanged(bytes32(0), guardian1Rave.mrenclave());
+        emit IGuardianModule.MrSignerChanged(bytes32(0), guardian1Rave.mrsigner());
         guardianModule.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
         vm.stopPrank();
 
@@ -172,6 +176,8 @@ contract TestHelper is Test, BaseScript {
 
         // Register enclave keys for guardians
         vm.startPrank(guardians[0]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
         guardianModule.rotateGuardianKey(
             0,
             guardian1EnclavePubKey,
@@ -184,6 +190,8 @@ contract TestHelper is Test, BaseScript {
         vm.stopPrank();
 
         vm.startPrank(guardians[1]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
         guardianModule.rotateGuardianKey(
             0,
             guardian2EnclavePubKey,
@@ -196,6 +204,8 @@ contract TestHelper is Test, BaseScript {
         vm.stopPrank();
 
         vm.startPrank(guardians[2]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
         guardianModule.rotateGuardianKey(
             0,
             guardian3EnclavePubKey,

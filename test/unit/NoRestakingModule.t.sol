@@ -45,7 +45,7 @@ contract NoRestakingModuleTest is TestHelper {
         vm.assume(_noRestakingModule.getLastProofOfRewardsBlock() < blockNumber);
 
         bytes32 signedMessageHash =
-            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot, blockNumber);
+            LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot, blockNumber);
 
         bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
 
@@ -167,7 +167,7 @@ contract NoRestakingModuleTest is TestHelper {
     }
 
     // Anybody should be able to claim for Charlie, Charlie should get ETH
-    function testRewardsClaimingForAnotherUser(address msgSender) public assumeEOA(msg.sender) {
+    function testRewardsClaimingForAnotherUser(address msgSender) public assumeEOA(msgSender) {
         _setupMerkleRoot();
 
         uint256[] memory blockNumbers = new uint256[](1);
@@ -235,7 +235,7 @@ contract NoRestakingModuleTest is TestHelper {
         bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
 
         bytes32 signedMessageHash =
-            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+            LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
 
         bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
 
@@ -254,9 +254,9 @@ contract NoRestakingModuleTest is TestHelper {
         bytes32 merkleRoot2 = hex"361520123168ffc3c2d93e1eaaaa5188616fef4a47f68e868a7414f2c2350313";
 
         bytes32 signedMessageHash1 =
-            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
+            LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
         bytes32 signedMessageHash2 =
-            LibGuardianMessages.getNoRestakingModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot2, 150);
+            LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot2, 150);
 
         bytes[] memory signatures1 = _getGuardianEOASignatures(signedMessageHash1);
         bytes[] memory signatures2 = _getGuardianEOASignatures(signedMessageHash2);
