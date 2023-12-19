@@ -167,7 +167,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @dev Claiming rewards from EigenPod's is a 2 step process.
+     * @dev Claiming rewards from an EigenPod is a 2 step process.
      * We queue it by calling this function and then after a delay we claim it with `claimNonRestakingRewards`
      * Rewards get deposited to this PufferModule smart contract.
      * The guardians then generate the Rewards MerkleTree and the node operators claim their Beacon Chain rewards by `collectRewards`
@@ -184,7 +184,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     function claimNonRestakingRewards() external {
-        EIGEN_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(this), 10);
+        EIGEN_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(this), type(uint256).max);
     }
 
     function collectRestakingRewards() external {
