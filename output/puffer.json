@@ -1,13 +1,14 @@
 {
   "": "",
-  "consensusVault": "0xA050383C1b02D5D31C47FFA6496458502B82a9A9",
-  "enclaveVerifier": "0xBdEb03B426f8d0BA39A37eA98A6C51706D0D6bDA",
-  "executionRewardsVault": "0x1bEda62FAADA89ef21e047011bcBa47C3684aFDE",
-  "guardianModule": "0x7B973E7C9734bA21e776dE8F8bb9B53CDEf2Ffa3",
-  "guardians": "0x01c2A98a2ef35CBf4af9d3b407d178627291f813",
-  "pufferPool": "0x181Da01Bbfb444a3c2D9eD66cC8C4B05ccE86430",
-  "pufferServiceManagerImplementation": "0x028ea09BDDc13E3E4788093f3C9E5F2113D7f5Be",
-  "safeImplementation": "0x17ff65CFC23Ff5fa35718fd3378Ec468B0313496",
-  "safeProxyFactory": "0x51f658C3c6B1a177fe5D7E2654A49f4342A78Cf0",
-  "withdrawalPool": "0xA55d1077254fE04aFB1Eb5df5Bed5648731C4331"
+  "PufferProtocol": "0x773559Ee80eDE685FBBd5F0Ebd60608DF51b777D",
+  "PufferProtocolImplementation": "0xE6D876EA7c4B41a2c86DFAFb2E162c686CC95Fb5",
+  "accessManager": "0x482CDc9277Ae7d4636c0EbA7342C8d440fE7E442",
+  "enclaveVerifier": "0xB3fAb5f8FDce34FeEf691ccCE6ed20E6b3a0B6fB",
+  "guardianModule": "0xd4c8730F555F9E9d969BC37280805104c1B039A1",
+  "moduleBeacon": "0x1BB06aA4c8C8627adb352Dd8C01E38c0482C1c6A",
+  "moduleFactory": "0x5cd853e676BC218Ec78e4CB904b7dF58db50b8e4",
+  "noRestakingModule": "0x49CE199bbA75926ab5C6fc16fEDD11d418cB2EDf",
+  "pauser": "0xeb1D5EE982DbEFf6E57e5Ca3CA45F35bBE229FFE",
+  "pufferPool": "0xfE7e307d24cB0953b4b5A71E780d6f622525638c",
+  "withdrawalPool": "0xDAb95f41709473d55EBF7c3b5873b96149A14353"
 }
