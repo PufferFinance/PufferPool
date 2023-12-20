@@ -168,9 +168,7 @@ contract NoRestakingModuleTest is TestHelper {
 
     // Zero withdrawal reverts
     function testCollectRewardsRevertsForZeroValues() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bytes32(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bytes32(0)));
         _noRestakingModule.collectRewards({
             node: address(0),
             pubKeyHash: bytes32(0),
