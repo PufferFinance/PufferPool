@@ -60,10 +60,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @dev Number of blocks
-     * 7141 * 12(avg block time) = 85692 seconds
-     * 85692 seconds ~ 23.8 hours
+     * 3600 * 12(avg block time) = 43200 seconds
+     * 43200 seconds ~ 12 hours
      */
-    uint256 internal constant _UPDATE_INTERVAL = 7141;
+    uint256 internal constant _UPDATE_INTERVAL = 3600;
 
     /**
      * @dev Puffer Finance treasury
@@ -499,7 +499,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.ethAmount = ethAmount;
         $.lockedETH = lockedETH;
         $.pufETHTotalSupply = pufETHTotalSupply;
-        $.lastUpdate = blockNumber;
+        $.lastUpdate = block.number;
 
         ProtocolStorage storage protocolStorage = _getPufferProtocolStorage();
         // gas optimization to skip zero value
