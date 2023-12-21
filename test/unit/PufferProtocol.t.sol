@@ -1014,6 +1014,24 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
     }
 
+    function testValidatorGriefingAttack() external {
+        vm.deal(address(pool), 100 ether);
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
+        // Register and provision Alice
+        // Alice may be an active validator or it can be exited, doesn't matter
+        pufferProtocol.provisionNode(guardianSignatures);
+
+        // Register another validator with using the same data
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        // Try to provision it with the original message (replay attack)
+        // It should revert
+        vm.expectRevert(Unauthorized.selector);
+        pufferProtocol.provisionNode(guardianSignatures);
+    }
+
     function testValidatorLimitPerModule() external {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
@@ -1083,6 +1101,7 @@ contract PufferProtocolTest is TestHelper {
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            pendingIdx,
             pubKey,
             validator.signature,
             withdrawalCredentials,

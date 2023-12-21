@@ -216,48 +216,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _transferFunds($, validatorBond);
     }
 
-    function _storeValidatorInformation(
-        ProtocolStorage storage $,
-        ValidatorKeyData calldata data,
-        uint256 pufETHAmount,
-        bytes32 moduleName,
-        uint256 numberOfMonths
-    ) internal {
-        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
-
-        // No need for SafeCast
-        $.validators[moduleName][validatorIndex] = Validator({
-            pubKey: data.blsPubKey,
-            signature: data.signature,
-            status: Status.PENDING,
-            module: address($.modules[moduleName]),
-            bond: uint64(pufETHAmount),
-            monthsCommitted: uint24(numberOfMonths),
-            node: msg.sender
-        });
-
-        // Increment indices for this module and number of validators registered
-        unchecked {
-            ++$.pendingValidatorIndices[moduleName];
-            ++$.moduleLimits[moduleName].numberOfActiveValidators;
-            ++$.numberOfValidatorsRegisteredInThisInterval;
-            ++$.activePufferValidators;
-        }
-
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
-        external
-        pure
-        returns (bytes32)
-    {
-        return LibBeaconchainContract.getDepositDataRoot(pubKey, signature, withdrawalCredentials);
-    }
-
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -286,6 +244,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
+            validatorIndex: index,
             pubKey: validatorPubKey,
             signature: validatorSignature,
             depositDataRoot: depositDataRoot,
@@ -614,6 +573,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
+    function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
+        external
+        pure
+        returns (bytes32)
+    {
+        return LibBeaconchainContract.getDepositDataRoot(pubKey, signature, withdrawalCredentials);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function getValidatorLimitPerInterval() external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return uint256($.validatorLimitPerInterval);
@@ -761,6 +731,37 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 ethAmount = validatorBond + $.smoothingCommitments[numberOfMonths - 1];
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
+    }
+
+    function _storeValidatorInformation(
+        ProtocolStorage storage $,
+        ValidatorKeyData calldata data,
+        uint256 pufETHAmount,
+        bytes32 moduleName,
+        uint256 numberOfMonths
+    ) internal {
+        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
+
+        // No need for SafeCast
+        $.validators[moduleName][validatorIndex] = Validator({
+            pubKey: data.blsPubKey,
+            signature: data.signature,
+            status: Status.PENDING,
+            module: address($.modules[moduleName]),
+            bond: uint64(pufETHAmount),
+            monthsCommitted: uint24(numberOfMonths),
+            node: msg.sender
+        });
+
+        // Increment indices for this module and number of validators registered
+        unchecked {
+            ++$.pendingValidatorIndices[moduleName];
+            ++$.moduleLimits[moduleName].numberOfActiveValidators;
+            ++$.numberOfValidatorsRegisteredInThisInterval;
+            ++$.activePufferValidators;
+        }
+
+        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
     function _setSmoothingCommitments(uint256[] calldata smoothingCommitments) internal {

@@ -89,6 +89,7 @@ interface IGuardianModule {
 
     /**
      * @notice Validates the node provisioning calldata
+     * @param validatorIndex is the validator index in Puffer
      * @param pubKey The public key
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
@@ -96,6 +97,7 @@ interface IGuardianModule {
      * @param guardianEnclaveSignatures The guardian enclave signatures
      */
     function validateProvisionNode(
+        uint256 validatorIndex,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,

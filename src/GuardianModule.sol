@@ -184,6 +184,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProvisionNode(
+        uint256 validatorIndex,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -192,7 +193,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pubKey, signature, withdrawalCredentials, depositDataRoot
+            validatorIndex, pubKey, signature, withdrawalCredentials, depositDataRoot
         );
 
         // Check the signatures
