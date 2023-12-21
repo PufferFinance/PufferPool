@@ -10,9 +10,7 @@ PufferPool.sol is a **non upgradeable** ERC20Permit token.
 <!-- 
 <sub>The ERC-20 permit feature is an extension to the ERC-20 standard that allows token holders to approve transfers without the need for two separate transactions. </sub> -->
 
-It takes ETH deposits from stakers and mints `pufETH` ERC20 token in return. This can be achieved in 2 ways:
-- Triggering the payable `receive()` function on this smart contract
-- Sending ETH to the payable `depositETH()` function
+The payable `depositETH()` function allows stakers to deposit ETH and mints the `pufETH` ERC20 token in return.
 
 The `depositETHWithoutMinting()` function is used in the case where ETH is deposited to the PufferPool but no pufETH is minted in return. This is needed for depositing Smoothing Commitments and restaking rewards.
 
@@ -53,7 +51,7 @@ The PufferPool accesses state variables within [PufferPoolStorage](../src/struct
 function depositETH() external payable returns (uint256)
 ```
 
-This function allows the caller to send ETH to the `PufferPool` contract, minting pufETH in return. This function is also called whenever ETH is sent to the `PufferPool` contract, triggered via the `receive()` function.
+This function allows the caller to send ETH to the `PufferPool` contract, minting pufETH in return.
 
 *Effects*:
 * Mints new pufETH and sends it to the caller

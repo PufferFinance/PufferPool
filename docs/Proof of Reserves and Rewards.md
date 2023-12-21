@@ -6,9 +6,14 @@ The purpose of Proof of Reserves is to post information about the outstanding su
 
 The purpose of Proof of Rewards is to determine the amount of rewards each NoOp has earned as a result of running their validators as well as opting into AVSs via the [PufferModules](./PufferModule.md). Posting Proof of Rewards allows NoOps to claim their due rewards.
 
-Although these are currently implemented as trusted operations performed by Guardians, anyone may verify Guardians are doing their job correctly by following the processes described below.
+Although these are currently implemented as trusted operations performed by Guardians, anyone may verify Guardians are doing their job correctly by following the processes described below. In the future these operations will be replaced with trustless Zero Knowledge Proofs.
 
 ## Proof of Reserves
+
+<div style={{textAlign: 'center'}}>
+
+![Proof of Reserves](./images/Proof%20of%20Reserves.png)
+</div>
 
 #### NoRestakingModule
 
@@ -32,7 +37,16 @@ The motivation, then, is to separate these ETH amounts by moving all of the full
 
 Now, when either the protocol or anyone wishes to know the exchange rate between ETH and pufETH, they may call the functions `calculatePufETHtoETHAmount()` and `calculateETHToPufETHAmount()` on the `PufferPool` contract, and these will use the updated values, returning the most up-to-date exchange ratio.
 
+#### RestakingModule
+
+EigenLayer is in the process of specifying their EigenPod partial withdrawal flow. More info will be added here as it becomes available.
+
 ## Proof of Rewards
+
+<div style={{textAlign: 'center'}}>
+
+![Proof of Reserves](./images/Proof%20of%20Rewards.png)
+</div>
 
 #### NoRestakingModule
 
@@ -43,4 +57,8 @@ To calculate and post Proof of Rewards, allowing NoOps to claim their due reward
 3. Guardians create a merkle tree with this information and post the root on-chain via a call to the function `postRewardsRoot()` on the `NoRestakingModule` contract
 
 Now, this allows Puffer NoOps to submit a merkle proof, proving their due consensus rewards, in order to claim them, via a call to `collectNonRestakingRewards` on the `NoRestakingModule` contract. This function will verify the merkle proof and send the NoOps their due rewards.
+
+#### RestakingModule
+
+EigenLayer is in the process of specifying their EigenPod partial withdrawal flow. More info will be added here as it becomes available.
 

@@ -193,7 +193,7 @@ Allows anyone to submit a merkle proof proving a validator's full withdrawal fro
 function skipProvisioning(bytes32 moduleName) external
 ```
 
-Skips provisioning of a validator, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp.
+Skips provisioning of a validator, making the next node in the queue the next node to provision. Returns the skipped validator's bond back to the NoOp. This function is used in the event that a validator's deposit message is invalid or Guardians failed to receive custody
 
 *Effects*:
 * Changes the status of the skipped validator node to SKIPPED

@@ -77,7 +77,7 @@ This function sets values for `mrEnclave` and `mrSigner` to the specified values
 * Changes the following internal variables used for Intel SGX: `bytes32 internal _mrsigner` and `bytes32 internal _mrenclave`
 
 *Requirements*:
-* May only be called by Guardians
+* May only be called by the protocol DAO
 
 `validateGuardianSignatures`
 
@@ -100,25 +100,6 @@ Validates that the Guardians' enclaves have signed the particular data
 * The signatures must be valid
 * The required threshold of valid number of signatures must be met
 
-`getMessageToBeSigned`
-
-```solidity
-function getMessageToBeSigned(
-    bytes memory pubKey,
-    bytes calldata signature,
-    bytes calldata withdrawalCredentials,
-    bytes32 depositDataRoot
-) external pure returns (bytes32)
-```
-
-Returns the message that the Guardians' enclaves must sign
-
-*Effects*:
-* N/A; View function
-
-*Requirements*: 
-* N/A; Callable by anyone
-
 `rotateGuardianKey`
 
 ```solidity
@@ -133,6 +114,7 @@ Allows Guardians to update their enclave keypair
 *Requirements*:
 * May only be called by Guardians
 * Must submit a valid ECDSA public key
+* Must submit valid remote attestation evidence
 
 ---
 
@@ -164,7 +146,7 @@ Removes a whitelisted leaf x509 RSA public key
 * Removes the modulus and exponent fields from the entry within `mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s`, indexed by the provided `hashedCert`
 
 *Requirements*:
-* May only be called by Guardians
+* May only be called by the protocol DAO
 
 
 #### `verifyEvidence`
