@@ -30,7 +30,11 @@ library LibBeaconchainContract {
         return sha256(
             abi.encodePacked(
                 sha256(abi.encodePacked(pubKeyRoot, withdrawalCredentials)),
-                sha256(abi.encodePacked(hex"0040597307000000000000000000000000000000000000000000000000000000", signatureRoot))
+                sha256(
+                    abi.encodePacked(
+                        hex"0040597307000000000000000000000000000000000000000000000000000000", signatureRoot
+                    )
+                )
             )
         );
     }

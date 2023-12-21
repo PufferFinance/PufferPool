@@ -13,9 +13,11 @@ import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
+import { DelegationManagerMock } from "../test/mocks/DelegationManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
 import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
@@ -49,6 +51,7 @@ contract DeployPuffer is BaseScript {
 
     address eigenPodManager;
     address delayedWithdrawalRouter;
+    address delegationManager;
 
     function run(GuardiansDeployment calldata guardiansDeployment) public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
@@ -62,23 +65,29 @@ contract DeployPuffer is BaseScript {
             treasury = payable(vm.envAddress("TREASURY"));
             eigenPodManager = vm.envAddress("EIGENPOD_MANAGER");
             delayedWithdrawalRouter = vm.envAddress("DELAYED_WITHDRAWAL_ROUTER");
+            delegationManager = vm.envAddress("DELEGATION_MANAGER");
         } else if (isAnvil()) {
             // Local chain / tests
             treasury = payable(address(1337));
             eigenPodManager = address(new EigenPodManagerMock());
             delayedWithdrawalRouter = address(0);
+            delegationManager = address(new DelegationManagerMock());
         } else {
             // Testnets
             treasury = payable(vm.envOr("TREASURY", address(1337)));
             eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
             delayedWithdrawalRouter = vm.envOr("DELAYED_WITHDRAWAL_ROUTER", address(0));
+            delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
             PufferModule moduleImplementation = new PufferModule(
-                PufferProtocol(payable(proxy)), eigenPodManager, IDelayedWithdrawalRouter(delayedWithdrawalRouter)
+                PufferProtocol(payable(proxy)),
+                eigenPodManager,
+                IDelayedWithdrawalRouter(delayedWithdrawalRouter),
+                IDelegationManager(delegationManager)
             );
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 

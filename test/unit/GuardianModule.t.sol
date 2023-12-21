@@ -25,7 +25,7 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
     }
 
-    function testRoateGuardianToInvalidPubKeyReverts() public {
+    function testRotateGuardianToInvalidPubKeyReverts() public {
         RaveEvidence memory evidence;
 
         vm.startPrank(guardian1);
@@ -78,7 +78,7 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.changeThreshold(5);
     }
 
-    function testRoateGuardianKeyWithInvalidRaveReverts() public {
+    function testRotateGuardianKeyWithInvalidRaveReverts() public {
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
 
         vm.startPrank(guardian1);
@@ -111,5 +111,23 @@ contract GuardianModuleTest is TestHelper {
         guardianSignatures[0] = abi.encodePacked(r, s, v);
         vm.expectRevert(Unauthorized.selector);
         guardianModule.validatePostFullWithdrawalsRoot(bytes32("root"), 100, modules, amounts, guardianSignatures);
+    }
+
+    function testSplitFundsRounding() external {
+        vm.deal(address(guardianModule), 2); // 2 wei, but 3 guardians
+        // shouldn't revert, but due to rounding down, they will not receive any eth
+        guardianModule.splitGuardianFunds();
+
+        assertEq(guardian1.balance, 0);
+        assertEq(guardian2.balance, 0);
+        assertEq(guardian3.balance, 0);
+
+        vm.deal(address(guardianModule), 32); // 32 wei on 3 guardians = 10 each, the rest stays in the module
+        guardianModule.splitGuardianFunds();
+
+        assertEq(guardian1.balance, 10);
+        assertEq(guardian2.balance, 10);
+        assertEq(guardian3.balance, 10);
+        assertEq(address(guardianModule).balance, 2);
     }
 }

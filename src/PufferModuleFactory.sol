@@ -37,14 +37,20 @@ contract PufferModuleFactory is IPufferModuleFactory {
     /**
      * @inheritdoc IPufferModuleFactory
      */
-    function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule module) {
+    function createNewPufferModule(bytes32 moduleName, string memory metadataURI, address delegationApprover)
+        external
+        returns (IPufferModule module)
+    {
         module = IPufferModule(
             Create2.deploy({
                 amount: 0,
                 salt: moduleName,
                 bytecode: abi.encodePacked(
                     type(BeaconProxy).creationCode,
-                    abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, AUTHORITY)))
+                    abi.encode(
+                        PUFFER_MODULE_BEACON,
+                        abi.encodeCall(PufferModule.initialize, (moduleName, AUTHORITY, metadataURI, delegationApprover))
+                    )
                     )
             })
         );

@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -33,7 +34,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     using SafeTransferLib for address;
 
     /**
-     * @notice Thrown if the rewards are already calimed for a `blockNumber`
+     * @notice Thrown if the rewards are already claimed for a `blockNumber`
      * @dev Signature "0x916ba7f3"
      */
     error AlreadyClaimed(uint256 blockNumber, bytes32 pubKeyHash);
@@ -64,6 +65,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Upgradeable contract from EigenLayer
      */
     IDelayedWithdrawalRouter public immutable EIGEN_WITHDRAWAL_ROUTER;
+
+    /**
+     * @dev Upgradeable contract from EigenLayer
+     */
+    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**
      * @dev Upgradeable PufferProtocol
@@ -111,11 +117,15 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         mapping(uint256 blockNumber => mapping(bytes32 pubKeyHash => bool claimed)) claimedRewards;
     }
 
-    constructor(IPufferProtocol protocol, address eigenPodManager, IDelayedWithdrawalRouter eigenWithdrawalRouter)
-        payable
-    {
+    constructor(
+        IPufferProtocol protocol,
+        address eigenPodManager,
+        IDelayedWithdrawalRouter eigenWithdrawalRouter,
+        IDelegationManager delegationManager
+    ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
+        EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
         _disableInitializers();
     }
@@ -127,12 +137,19 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _;
     }
 
-    function initialize(bytes32 moduleName, address initialAuthority) public initializer {
+    function initialize(
+        bytes32 moduleName,
+        address initialAuthority,
+        string calldata metadataURI,
+        address delegationApprover
+    ) external initializer {
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;
         IEigenPodManager(EIGEN_POD_MANAGER).createPod();
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.ownerToPod(address(this))));
+        //@todo
+        // _registerAsOperator(metadataURI, delegationApprover);
     }
 
     receive() external payable { }
@@ -151,7 +168,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @dev Claiming rewards from an EigenPod is a 2 step process.
-     * We queue it with this function, and we claim it with `claimNonRestakingRewards`
+     * We queue it by calling this function and then after a delay we claim it with `claimNonRestakingRewards`
+     * Rewards get deposited to this PufferModule smart contract.
+     * The guardians then generate the Rewards MerkleTree and the node operators claim their Beacon Chain rewards by `collectRewards`
      */
     function queueNonRestakingRewards() external {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
@@ -280,6 +299,33 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         return $.moduleName;
     }
+
+    // /**
+    //  * @notice Registers this module as the operator in EigenLayer
+    //  * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
+    //  * @param delegationApprover Address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
+    //  */
+    // function _registerAsOperator(string calldata metadataURI, address delegationApprover) internal {
+    //     EIGEN_DELEGATION_MANAGER.registerAsOperator(
+    //         IDelegationManager.OperatorDetails({
+    //             earningsReceiver: address(this), // All of the rewards go to this contract
+    //             delegationApprover: delegationApprover,
+    //             stakerOptOutWindowBlocks: 1000 // 1000 blocks
+    //          }),
+    //         metadataURI
+    //     );
+    // }
+
+    // //@todo unused at the moment
+    // function _modifyOperatorDetails(address delegationApprover, uint32 stakerOptOutWindowBlocks) internal {
+    //     EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(
+    //         IDelegationManager.OperatorDetails({
+    //             stakerOptOutWindowBlocks: stakerOptOutWindowBlocks,
+    //             delegationApprover: delegationApprover,
+    //             earningsReceiver: address(this)
+    //         })
+    //     );
+    // }
 
     function _getPufferProtocolStorage() internal pure returns (PufferModuleStorage storage $) {
         // solhint-disable-next-line

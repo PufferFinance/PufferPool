@@ -17,7 +17,7 @@ contract EigenPodRewards is IntegrationTestHelper {
     function testNoRestakingRewardsClaiming() public {
         // 1. Create a restaking module
         vm.startPrank(0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1);
-        pufferProtocol.createPufferModule(bytes32("EIGEN_DA"));
+        pufferProtocol.createPufferModule(bytes32("EIGEN_DA"), "", address(0));
         vm.stopPrank();
 
         // 2. Fetch the address of the module

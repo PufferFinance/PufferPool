@@ -34,7 +34,7 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     error InvalidBlockNumber(uint256 blockNumber);
 
     /**
-     * @notice Thrown if the rewards are already calimed for a `blockNumber`
+     * @notice Thrown if the rewards are already claimed for a `blockNumber`
      * @dev Signature "0x916ba7f3"
      */
     error AlreadyClaimed(uint256 blockNumber, bytes32 pubKeyHash);

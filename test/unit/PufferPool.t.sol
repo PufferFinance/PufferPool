@@ -254,12 +254,12 @@ contract PufferPoolTest is TestHelper {
     }
 
     function testMintZero() public {
+        vm.expectRevert(IPufferPool.InvalidETHAmount.selector);
         uint256 minted = pool.depositETH{ value: 0 }();
-        assertEq(minted, 0, "zero");
     }
 
     function testStorageS() public {
-        PufferPoolStorage memory data = pufferProtocol.getPuferPoolStorage();
+        PufferPoolStorage memory data = pufferProtocol.getPufferPoolStorage();
         assertEq(data.lastUpdate, 0, "last update");
     }
 

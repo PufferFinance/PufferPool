@@ -223,7 +223,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 numberOfMonths
     ) internal {
-        uint256 validatorIndex = $.pendingValidatorIndicies[moduleName];
+        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
 
         // No need for SafeCast
         $.validators[moduleName][validatorIndex] = Validator({
@@ -238,7 +238,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Increment indices for this module and number of validators registered
         unchecked {
-            ++$.pendingValidatorIndicies[moduleName];
+            ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
             ++$.numberOfValidatorsRegisteredInThisInterval;
             ++$.activePufferValidators;
@@ -300,7 +300,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Transfer 32 ETH to the module
         POOL.transferETH(address(module), 32 ether);
 
-        emit SuccesfullyProvisioned(validatorPubKey, index, moduleName);
+        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
@@ -459,7 +459,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Posts the full withdrawals root
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number of a withdrawal root
-     * @param modules is the array from which modules we are redestributing ETH
+     * @param modules is the array from which modules we are redistributing ETH
      * @param amounts is the array of ETH amounts to pull from modules
      */
     function postFullWithdrawalsRoot(
@@ -522,7 +522,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 numberOfActiveValidators,
         bytes[] calldata guardianSignatures
     ) external {
-        PufferPoolStorage storage $ = _getPuferPoolStorage();
+        PufferPoolStorage storage $ = _getPufferPoolStorage();
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProofOfReserve({
@@ -554,8 +554,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function createPufferModule(bytes32 moduleName) external restricted returns (address) {
-        return _createPufferModule(moduleName);
+    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        external
+        restricted
+        returns (address)
+    {
+        return _createPufferModule(moduleName, metadataURI, delegationApprover);
     }
 
     /**
@@ -621,7 +625,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        uint256 numOfValidators = $.pendingValidatorIndicies[moduleName];
+        uint256 numOfValidators = $.pendingValidatorIndices[moduleName];
 
         Validator[] memory validators = new Validator[](numOfValidators);
 
@@ -690,7 +694,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.pendingValidatorIndicies[moduleName];
+        return $.pendingValidatorIndices[moduleName];
     }
 
     /**
@@ -770,6 +774,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 amount = msg.value - bond;
 
         // If we are above burst threshold, take everything to the treasury
+        // this number division doesn't revert
         if (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD) {
             _sendETH(TREASURY, amount, _ONE_HUNDRED_WAD);
             return;
@@ -835,12 +840,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit WithdrawalPoolRateChanged(oldWithdrawalPoolRate, withdrawalPoolRate);
     }
 
-    function _createPufferModule(bytes32 moduleName) internal returns (address) {
+    function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        internal
+        returns (address)
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName);
+        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName, metadataURI, delegationApprover);
         $.modules[moduleName] = module;
         emit NewPufferModuleCreated(address(module));
         _setValidatorLimitPerModule(moduleName, 1000);
@@ -849,8 +857,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _setValidatorLimitPerInterval(uint256 newLimit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.validatorLimitPerInterval = SafeCastLib.toUint16(newLimit);
         uint256 oldLimit = uint256($.validatorLimitPerInterval);
+        $.validatorLimitPerInterval = SafeCastLib.toUint16(newLimit);
         emit ValidatorLimitPerIntervalChanged(oldLimit, newLimit);
     }
 

@@ -39,7 +39,7 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
     /**
      * @inheritdoc IEnclaveVerifier
      */
-    function getIntelRootCAPubKey() public pure returns (RSAPubKey memory) {
+    function getIntelRootCAPubKey() external pure returns (RSAPubKey memory) {
         return RSAPubKey({ modulus: _INTEL_RSA_MODULUS, exponent: _INTEL_EXPONENT });
     }
 
@@ -63,7 +63,6 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
     function removeLeafX509(bytes32 hashedCert) external restricted {
         delete _validLeafX509s[hashedCert].modulus;
         delete _validLeafX509s[hashedCert].exponent;
-
         emit RemovedPubKey(hashedCert);
     }
 

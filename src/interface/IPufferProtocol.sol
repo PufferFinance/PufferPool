@@ -44,7 +44,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
-     * @dev Signature "0xa00523fd"
+     * @dev Signature "0xd9873182"
      */
     error ValidatorLimitPerIntervalReached();
 
@@ -207,9 +207,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @dev Signature "0x09290f1d819767ba40f9616823cb23f1e925c228f0d02e5e4818a4fa05d6c487"
+     * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
-    event SuccesfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
+    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator key is failed to be provisioned
@@ -310,7 +310,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setValidatorLimitPerInterval(uint256 newLimit) external;
 
     /**
-     * @notice Sets the smmothing commitment amounts
+     * @notice Sets the smoothing commitment amounts
      * @dev Restricted to DAO
      */
     function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
@@ -405,9 +405,17 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Creates a new Puffer module with `moduleName`
+     * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
+     * @param delegationApprover is an address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
+     * @dev Signature verification follows these rules:
+     * 1) If this address is left as address(0), then any staker will be free to delegate to the operator, i.e. no signature verification will be performed.
+     * 2) If this address is an EOA (i.e. it has no code), then we follow standard ECDSA signature verification for delegations to the operator.
+     * 3) If this address is a contract (i.e. it has code) then we forward a call to the contract and verify that it returns the correct EIP-1271 "magic value".
      * @dev It will revert if you try to create two modules with the same name
      */
-    function createPufferModule(bytes32 moduleName) external returns (address);
+    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
+        external
+        returns (address);
 
     /**
      * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)

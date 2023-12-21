@@ -466,7 +466,7 @@ contract PufferProtocolHandler is Test {
             newWeights[i] = weights[i];
         }
 
-        try pufferProtocol.createPufferModule(moduleName) {
+        try pufferProtocol.createPufferModule(moduleName, "", address(0)) {
             newWeights[weights.length] = moduleName;
             pufferProtocol.setModuleWeights(newWeights);
             address createdModule = pufferProtocol.getModuleAddress(moduleName);

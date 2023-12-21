@@ -166,6 +166,18 @@ contract NoRestakingModuleTest is TestHelper {
         });
     }
 
+    // Zero withdrawal reverts
+    function testCollectRewardsRevertsForZeroValues() public {
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bytes32(0)));
+        _noRestakingModule.collectRewards({
+            node: address(0),
+            pubKeyHash: bytes32(0),
+            blockNumbers: new uint256[](1),
+            amounts: new uint256[](1),
+            merkleProofs: new bytes32[][](1)
+        });
+    }
+
     // Anybody should be able to claim for Charlie, Charlie should get ETH
     function testRewardsClaimingForAnotherUser(address msgSender) public assumeEOA(msgSender) {
         _setupMerkleRoot();
