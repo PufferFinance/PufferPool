@@ -244,15 +244,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external;
 
     /**
-     * @notice Stops the validator
+     * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
      * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
+     * Anybody can trigger a validator exit as long as the proofs submitted are valid
      * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @param withdrawalAmount is the amount of ETH from the full withdrawal
      * @param wasSlashed is the amount of pufETH that we are burning from the node operator
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
-    function stopValidator(
+    function retrieveBond(
         bytes32 moduleName,
         uint256 validatorIndex,
         uint256 blockNumber,

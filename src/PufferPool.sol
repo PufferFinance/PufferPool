@@ -77,7 +77,7 @@ contract PufferPool is IPufferPool, TokenRescuer, ERC20Permit, AccessManaged {
      * @inheritdoc IPufferPool
      */
     function calculatePufETHtoETHAmount(uint256 pufETHAmount) public view returns (uint256) {
-        return FixedPointMathLib.mulWad(pufETHAmount, getPufETHtoETHExchangeRate());
+        return FixedPointMathLib.mulWad(pufETHAmount, _getPufETHtoETHExchangeRate());
     }
 
     /**

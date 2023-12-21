@@ -824,7 +824,7 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(alice);
         // Invalid block number = invalid proof
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 150,
@@ -836,7 +836,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
 
         // Valid proof
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
@@ -847,7 +847,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Try again, now the validator will be in invalid state
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.EXITED));
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
@@ -863,7 +863,7 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH");
 
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: EIGEN_DA,
             validatorIndex: 0,
             blockNumber: 100,
@@ -876,7 +876,7 @@ contract PufferProtocolTest is TestHelper {
 
         bytes32[] memory charlieProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 2);
 
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 1,
             blockNumber: 100,
@@ -1068,7 +1068,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
 
         // Valid proof
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 200,
@@ -1081,7 +1081,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Valid proof for the same validator will revert
         vm.expectRevert();
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 200,

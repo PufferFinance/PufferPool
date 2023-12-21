@@ -373,7 +373,7 @@ contract PufferProtocolHandler is Test {
         uint256 pufETHBalanceBefore = pool.balanceOf(info1.node);
 
         // Claim proof 1
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: first.moduleName,
             validatorIndex: first.idx,
             blockNumber: blockNumber,
@@ -396,7 +396,7 @@ contract PufferProtocolHandler is Test {
         pufETHBalanceBefore = pool.balanceOf(info2.node);
 
         // Claim proof 2
-        pufferProtocol.stopValidator({
+        pufferProtocol.retrieveBond({
             moduleName: second.moduleName,
             validatorIndex: second.idx,
             blockNumber: blockNumber,

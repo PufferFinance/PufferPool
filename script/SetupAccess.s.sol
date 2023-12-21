@@ -200,7 +200,7 @@ contract SetupAccess is BaseScript {
 
         bytes4[] memory guardianSelectors = new bytes4[](4);
         guardianSelectors[0] = PufferProtocol.skipProvisioning.selector;
-        guardianSelectors[1] = PufferProtocol.stopValidator.selector;
+        guardianSelectors[1] = PufferProtocol.retrieveBond.selector;
         guardianSelectors[2] = PufferProtocol.proofOfReserve.selector;
         guardianSelectors[3] = PufferProtocol.postFullWithdrawalsRoot.selector;
 

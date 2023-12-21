@@ -322,10 +322,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
-     * @dev Anybody can trigger a validator exit as long as the proofs submitted are valid
+     * @inheritdoc IPufferProtocol
      */
-    function stopValidator(
+    function retrieveBond(
         bytes32 moduleName,
         uint256 validatorIndex,
         uint256 blockNumber,
