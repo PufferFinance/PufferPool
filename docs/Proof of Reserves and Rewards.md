@@ -37,6 +37,10 @@ The motivation, then, is to separate these ETH amounts by moving all of the full
 
 Now, when either the protocol or anyone wishes to know the exchange rate between ETH and pufETH, they may call the functions `calculatePufETHtoETHAmount()` and `calculateETHToPufETHAmount()` on the `PufferPool` contract, and these will use the updated values, returning the most up-to-date exchange ratio.
 
+:::note
+Note that in step 4, it is possible for one or more validators to have withdrawn close to when Proof of Reserves is calculated and posted, so the ETH from the withdrawal(s) may still be pending and not have reached the `NoRestakingModule` contract. In this case, the ETH was still accounted for during the API calls to beacon chain, but it will actually get moved off the `NoRestakingModule` contract upon the next time Proof of Reserves is calculated and posted
+:::
+
 #### RestakingModule
 
 EigenLayer is in the process of specifying their EigenPod partial withdrawal flow. More info will be added here as it becomes available.
