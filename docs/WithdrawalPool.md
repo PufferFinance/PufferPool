@@ -34,10 +34,10 @@ This document organizes methods according to the following themes (click each to
 function withdrawETH(address to, uint256 pufETHAmount) external returns (uint256)
 ```
 
-Burns pufETH, and sends the corresponding amount of ETH to `address to`, in accordance with the current exchange rate between pufETH and ETH
+Burns pufETH from the caller, and sends the corresponding amount of ETH to `address to`, in accordance with the current exchange rate between pufETH and ETH
 
 *Effects*:
-* Burns pufETH
+* Burns pufETH from the caller
 * Sends ETH to `address to`
 * Return value is the amount of ETH sent
 

@@ -63,9 +63,8 @@ See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
 | [`IEnclaveVerifier.sol`](../src/interface/IEnclaveVerifier.sol) | Singleton | / | YES |/ |
 | [`EnclaveVerifier.sol`](../src/EnclaveVerifier.sol) | Singleton | NO | YES | / |
 | [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
-| [`{Safe} Guardians`](https://safe.global/) | {Safe} multisig | YES | NO | / |
 
-The Guardians operate a [Safe multisig](https://github.com/safe-global/safe-contracts) and are a collective of respected community members who are deeply aligned with Ethereum's principles and values. They perform some trusted operations for our protocol, including:
+The Guardians are a collective of respected community members who are deeply aligned with Ethereum's principles and values. They perform some trusted operations for our protocol, including:
 
 * Reporting the amount of ETH backing pufETH
 * Ejecting validators

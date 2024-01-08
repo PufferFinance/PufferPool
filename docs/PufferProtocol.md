@@ -66,7 +66,7 @@ function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName
 This function initiates the process of provisioning a new validator for a NoOp. The NoOp must pay the smoothing commitment amount, and a bond of 2 ETH (1 ETH if using SGX or other TEE) upon calling this function
 
 *Effects*:
-* Smoothing commitment is taken from the NoOp and deposited into the pool as rewards
+* Smoothing commitment is taken from the NoOp and distributed among the PufferPool, WithdrawalPool, Treasury, and Guardians as rewards
 * ETH bond is taken from the NoOp and deposited into the pool, also minting a corresponding amount of pufETH, which is locked in the `PufferProtocol.sol` smart contract until the NoOp's validator exits
 * Information about the new validator is saved on-chain
 * The validator is pushed onto an on-chain queue of pending validators, waiting to be provisioned
@@ -120,6 +120,7 @@ Provisions the next validator that is in line for provisioning, given the `guard
 *Requirements*
 * The Guardians must have provided valid signatures in order to provision this node
 * The PufferPool contract must have enough ETH to fulfill this request
+* The `numberOfMonths` to provision the node for, provided within the calldata, must be a valid number
 
 #### `extendCommitment`
 
@@ -158,10 +159,10 @@ Allows a NoOp to stop their pending provisioning of a validator and exit themsel
 * Caller must be the corresponding NoOp for this pending validator
 * Validator must have pending status in the queue
 
-#### `stopValidator`
+#### `retrieveBond`
 
 ```solidity
-function stopValidator(
+function retrieveBond(
     bytes32 moduleName,
     uint256 validatorIndex,
     uint256 blockNumber,
@@ -210,7 +211,8 @@ function postFullWithdrawalsRoot(
     bytes32 root,
     uint256 blockNumber,
     address[] calldata modules,
-    uint256[] calldata amounts
+    uint256[] calldata amounts,
+    bytes[] calldata guardianSignatures
 ) external
 ```
 
@@ -227,7 +229,13 @@ Allows Guardians to post the merkle root for all full withdrawals that happened 
 #### `proofOfReserve`
 
 ```solidity
-function proofOfReserve(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber) external
+function proofOfReserve(
+    uint256 ethAmount, 
+    uint256 lockedETH, 
+    uint256 pufETHTotalSupply, 
+    uint256 blockNumber,
+    bytes[] calldata guardianSignatures
+) external
 ```
 
 Allows Guardians to post the amount of ETH backing pufETH

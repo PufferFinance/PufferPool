@@ -2,7 +2,7 @@
 
 [Guardians](./Guardians.md) have 2 important tasks that help the protocol continue running smoothly. These are to calculate and post Proof of Reserves and Proof of Rewards. 
 
-The purpose of Proof of Reserves is to post information about the outstanding supply of pufETH and the amount of ETH backing pufETH, so that the appropriate exchange rate between ETH and pufETH can be known and used within the protocol. This is calculated and posted once per day.
+The purpose of Proof of Reserves is to post information about the outstanding supply of pufETH and the amount of ETH backing pufETH, so that the appropriate exchange rate between ETH and pufETH can be known and used within the protocol. This is calculated and posted once every 12 hours.
 
 The purpose of Proof of Rewards is to determine the amount of rewards each NoOp has earned as a result of running their validators as well as opting into AVSs via the [PufferModules](./PufferModule.md). Posting Proof of Rewards allows NoOps to claim their due rewards.
 
@@ -33,7 +33,7 @@ The motivation, then, is to separate these ETH amounts by moving all of the full
 3. Guardians create a merkle tree with information regarding all of these full withdrawals and call the function `postFullWithdrawalRoot()`
 4. This function posts the merkle tree root on chain so that NoOps may prove their full withdrawals against it and retrieve their bond. It also causes all full withdrawal ETH to move from the `NoRestakingModule` contract to both the `PufferPool` and `WithdrawalPool` contracts, according to a ratio set by governance.
 5. Now that the `NoRestakingModule` contract contains no ETH amount backing pufETH, Guardians may simply query the ETH balance of the `PufferPool` and `WithdrawalPool` contracts
-6. Finally, Guardians find the total oustanding supply of pufETH by calling the `totalSupply()` function on the `PufferPool` contract. They post this along with the information collected above on-chain via the `proofOfReserve()` function on the `PufferProtocol`
+6. Finally, Guardians find the total outstanding supply of pufETH by calling the `totalSupply()` function on the `PufferPool` contract. They post this along with the information collected above on-chain via the `proofOfReserve()` function on the `PufferProtocol`
 
 Now, when either the protocol or anyone wishes to know the exchange rate between ETH and pufETH, they may call the functions `calculatePufETHtoETHAmount()` and `calculateETHToPufETHAmount()` on the `PufferPool` contract, and these will use the updated values, returning the most up-to-date exchange ratio.
 

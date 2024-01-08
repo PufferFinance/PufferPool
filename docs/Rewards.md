@@ -1,6 +1,6 @@
 # Rewards
 
-Since NoOps pay a smoothing commitment upon provisioning a validator, they are due the entirety of all their MEV rewards and consensus rewards earned during validating ETH PoS. To receive MEV rewards, they may point their fee receipient address to their own wallet address in their validator software. Here we describe the process of retrieving consensus rewards, as well as the initial pufETH bond which the NoOp locked at the time of provisioning a validator.  
+Since NoOps pay a smoothing commitment upon provisioning a validator, they are due the entirety of all their MEV rewards and consensus rewards earned during validating ETH PoS. To receive MEV rewards, they may point their fee recipient address to their own wallet address in their validator software. Here we describe the process of retrieving consensus rewards, as well as the initial pufETH bond which the NoOp locked at the time of provisioning a validator.  
 
 ## No Restaking Module
 

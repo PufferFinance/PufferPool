@@ -14,7 +14,7 @@ The payable `depositETH()` function allows stakers to deposit ETH and mints the 
 
 The `depositETHWithoutMinting()` function is used in the case where ETH is deposited to the PufferPool but no pufETH is minted in return. This is needed for depositing Smoothing Commitments and restaking rewards.
 
-As ETH is deposited and pufETH is minted, the exchange rate between ETH and pufETH will change. Assuming rewards exceed penalties, this means 1 pufETH will become redeemable for more than 1 ETH. To handle redemptions, the WithdrawalPool is used to burn pufETH to receive ETH, assuming sufficient ETH liquidity. Alternatively, since pufETH is a liquid ERC-20 token, it can be exchanged on a secondary market.
+As ETH is deposited and pufETH is minted, the exchange rate between ETH and pufETH will change. Note that this doesn't happen immediately, but will be reflected the next time Proof of Reserves is posted. Assuming rewards exceed penalties, this means 1 pufETH will become redeemable for more than 1 ETH. To handle redemptions, the WithdrawalPool is used to burn pufETH to receive ETH, assuming sufficient ETH liquidity. Alternatively, since pufETH is a liquid ERC-20 token, it can be exchanged on a secondary market.
 
 Withdrawals and exchanging of `pufETH` to ETH is possible through our [WithdrawalPool](./WithdrawalPool.md) smart contract or any third party exchange.
 
@@ -81,16 +81,16 @@ This is a special function that allows ETH to be sent to the `PufferPool` contra
 #### `burn`
 
 ```solidity
-function burn(address owner, uint256 pufETHAmount) external
+function burn(uint256 pufETHAmount) external
 ```
 
 This function allows pufETH to be burned upon redemption of ETH in exchange for pufETH.
 
 *Effects*:
-* Removes (burns) the specified amount of pufETH held by the owner
+* Removes (burns) the specified amount of pufETH held by the caller
 
 *Requirements*: 
-* Only callable by Guardians or the PufferProtocol smart contracts
+* N/A callable by anyone
 
 #### `recoverERC20`
 
