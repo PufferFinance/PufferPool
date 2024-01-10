@@ -509,7 +509,6 @@ contract SlasherMock is Initializable, OwnableUpgradeable, ISlasher, PausableMoc
          * be flipped to 'true', and we will use `getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
          * a race condition where the proper value of `insertAfter` changes while a transaction is pending.
          */
-
         bool runFallbackRoutine = false;
         // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
         if (insertAfter != HEAD) {

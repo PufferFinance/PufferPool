@@ -12,7 +12,6 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-
 contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
     /**
      * @dev RSA Public key for Intel: https://api.portal.trustedservices.intel.com/documentation

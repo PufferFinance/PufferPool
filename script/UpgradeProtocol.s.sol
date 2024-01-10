@@ -12,18 +12,18 @@ import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
  * @author Puffer Finance
  * @notice Calls the `depositETH` function on PufferPool
  * @dev Example on how to run the script
- *      forge script script/UpgradeProtocol.s.sol:UpgradeProtocol --rpc-url=$HOLESKY_RPC_URL --broadcast
+ *      PK=... forge script script/UpgradeProtocol.s.sol:UpgradeProtocol --rpc-url=$HOLESKY_RPC_URL --broadcast
  */
 contract UpgradeProtocol is BaseScript {
     function run() external broadcast {
-        address payable protocolProxy = payable(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D);
+        address payable protocolProxy = payable(0x773559Ee80eDE685FBBd5F0Ebd60608DF51b777D);
 
         PufferProtocol newImplementation = new PufferProtocol({
-            withdrawalPool: WithdrawalPool(payable(0x378b738c0Cd4e5B373f943b1c9951730E5a29E5b)),
-            pool: PufferPool(payable(0x90Daec4Cee7e7A4E5499e9E864a1eb89Bb19b8Ed)),
-            guardianModule: GuardianModule(payable(0x66eb09811E1e46D60eD1421884E9FD76cbE555cA)),
+            withdrawalPool: WithdrawalPool(payable(0xDAb95f41709473d55EBF7c3b5873b96149A14353)),
+            pool: PufferPool(payable(0xfE7e307d24cB0953b4b5A71E780d6f622525638c)),
+            guardianModule: GuardianModule(payable(0xd4c8730F555F9E9d969BC37280805104c1B039A1)),
             treasury: payable(0x61A44645326846F9b5d9c6f91AD27C3aD28EA390),
-            moduleFactory: 0x05B9c7bc894DDB37BC6Cc42EE1D2de45782aeA80
+            moduleFactory: 0x5cd853e676BC218Ec78e4CB904b7dF58db50b8e4
         });
 
         PufferProtocol(protocolProxy).upgradeToAndCall(address(newImplementation), "");

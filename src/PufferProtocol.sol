@@ -63,7 +63,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * 7141 * 12(avg block time) = 85692 seconds
      * 85692 seconds ~ 23.8 hours
      */
-    uint256 internal constant _UPDATE_INTERVAL = 7141;
+    uint256 internal constant _UPDATE_INTERVAL = 1;
 
     /**
      * @dev Puffer Finance treasury
@@ -417,7 +417,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             uint256 burnAmount = 0;
 
             if (withdrawalAmount < 32 ether) {
-                burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount);
+                burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount); //@audit we should round up
                 POOL.burn(burnAmount);
             }
 
