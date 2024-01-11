@@ -280,7 +280,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // No need for Safecast because of the validations above
-        validator.monthsCommitted = uint24(numberOfMonths);
+        validator.monthsCommitted += uint24(numberOfMonths);
 
         emit SmoothingCommitmentPaid(validator.pubKey, msg.value);
 

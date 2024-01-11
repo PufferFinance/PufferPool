@@ -231,7 +231,8 @@ contract PufferProtocolTest is TestHelper {
 
         validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
-        assertTrue(validator.monthsCommitted == 5, "lastPayment");
+        // Default registration is 1 month + 5
+        assertEq(validator.monthsCommitted, 6, "lastPayment");
     }
 
     // Try updating for future block
