@@ -12,9 +12,9 @@ struct GuardiansDeployment {
 }
 
 /**
- * @notice PufferDeployment
+ * @notice PufferProtocolDeployment
  */
-struct PufferDeployment {
+struct PufferProtocolDeployment {
     address pufferProtocolImplementation;
     address NoRestakingModule;
     address pufferPool;
@@ -26,4 +26,8 @@ struct PufferDeployment {
     address pauser;
     address beacon; // Beacon for Puffer modules
     address moduleFactory;
+    address pufferDepositor; // from pufETH repository (dependency)
+    address pufferVault; // from pufETH repository (dependency)
+    address stETH; // from pufETH repository (dependency)
+    address weth; // from pufETH repository (dependency)
 }

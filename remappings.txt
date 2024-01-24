@@ -14,3 +14,6 @@ solady/=lib/solady/src/
 rave/=lib/rave/src/
 rave-test/=lib/rave/test/
 murky/=lib/murky/src/
+pufETH/=lib/pufETH/src/
+pufETHTest/=lib/pufETH/test/
+pufETHScript/=lib/pufETH/script/

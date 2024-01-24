@@ -11,7 +11,7 @@ import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { PufferDeployment } from "./DeploymentStructs.sol";
+import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1;
 uint64 constant ROLE_ID_DAO = 77;
@@ -21,9 +21,9 @@ uint64 constant ROLE_ID_PAUSER = 999;
 contract SetupAccess is BaseScript {
     AccessManager internal accessManager;
 
-    PufferDeployment internal pufferDeployment;
+    PufferProtocolDeployment internal pufferDeployment;
 
-    function run(PufferDeployment memory deployment, address DAO) external broadcast {
+    function run(PufferProtocolDeployment memory deployment, address DAO) external broadcast {
         pufferDeployment = deployment;
         accessManager = AccessManager(payable(deployment.accessManager));
 
@@ -179,7 +179,7 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](10);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
         selectors[1] = PufferProtocol.setSmoothingCommitments.selector;
         selectors[2] = PufferProtocol.createPufferModule.selector;
@@ -188,8 +188,7 @@ contract SetupAccess is BaseScript {
         selectors[5] = PufferProtocol.changeModule.selector;
         selectors[6] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
         selectors[7] = PufferProtocol.setGuardiansFeeRate.selector;
-        selectors[8] = PufferProtocol.setWithdrawalPoolRate.selector;
-        selectors[9] = PufferProtocol.setValidatorLimitPerModule.selector;
+        selectors[8] = PufferProtocol.setValidatorLimitPerModule.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

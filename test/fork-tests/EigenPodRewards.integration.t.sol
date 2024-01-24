@@ -3,11 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { PufferDeployment } from "script/DeploymentStructs.sol";
+import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { PufferDeployment } from "script/DeploymentStructs.sol";
 
 contract EigenPodRewards is IntegrationTestHelper {
     function setUp() public {

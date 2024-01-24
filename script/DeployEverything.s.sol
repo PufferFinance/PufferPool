@@ -5,16 +5,27 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { DeployGuardians } from "script/DeployGuardians.s.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
-import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { DeployPuffETH, PufferDeployment } from "pufETHScript/DeployPuffETH.s.sol";
+import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold) public returns (PufferDeployment memory) {
-        // Deploy guardians
-        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(guardians, threshold);
+    function run(address[] calldata guardians, uint256 threshold) public returns (PufferProtocolDeployment memory) {
+        PufferDeployment memory puffETHDeployment = new DeployPuffETH().run();
 
-        PufferDeployment memory pufferDeployment = new DeployPuffer().run(guardiansDeployment);
+        // Deploy guardians
+        GuardiansDeployment memory guardiansDeployment =
+            new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
+
+        PufferProtocolDeployment memory pufferDeployment =
+            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, puffETHDeployment.weth);
+
+        pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
+        pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
+        pufferDeployment.stETH = puffETHDeployment.stETH;
+        pufferDeployment.weth = puffETHDeployment.weth;
 
         if (!isAnvil()) {
             DAO = _broadcaster;

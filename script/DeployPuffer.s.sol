@@ -16,11 +16,12 @@ import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { DelegationManagerMock } from "../test/mocks/DelegationManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
 import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
-import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
+import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
+import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title DeployPuffer
@@ -53,7 +54,11 @@ contract DeployPuffer is BaseScript {
     address delayedWithdrawalRouter;
     address delegationManager;
 
-    function run(GuardiansDeployment calldata guardiansDeployment) public broadcast returns (PufferDeployment memory) {
+    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth)
+        public
+        broadcast
+        returns (PufferProtocolDeployment memory)
+    {
         string memory obj = "";
 
         accessManager = AccessManager(guardiansDeployment.accessManager);
@@ -113,8 +118,8 @@ contract DeployPuffer is BaseScript {
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
-                withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)),
-                pool: PufferPool(payable(predictedPool)),
+                pufferVault: PufferVaultMainnet(payable(pufferVault)),
+                weth: IWETH(weth),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 treasury: treasury,
                 moduleFactory: address(moduleFactory)
@@ -179,7 +184,7 @@ contract DeployPuffer is BaseScript {
 
         vm.writeJson(finalJson, "./output/puffer.json");
         // return (pufferProtocol, pool, accessManager);
-        return PufferDeployment({
+        return PufferProtocolDeployment({
             pufferProtocolImplementation: address(pufferProtocolImpl),
             NoRestakingModule: address(noRestaking),
             pufferPool: address(pool),
@@ -190,8 +195,12 @@ contract DeployPuffer is BaseScript {
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
             pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
-            moduleFactory: address(moduleFactory)
-        });
+            moduleFactory: address(moduleFactory),
+            stETH: address(0), // overwritten in DeployEverything
+            pufferVault: address(0), // overwritten in DeployEverything
+            pufferDepositor: address(0), // overwritten in DeployEverything
+            weth: address(0) // overwritten in DeployEverything
+         });
     }
 
     function getStakingContract() internal returns (address) {

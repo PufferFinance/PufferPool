@@ -6,7 +6,7 @@ import "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IBeacon } from "openzeppelin/proxy/beacon/IBeacon.sol";
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
-    function slasher() external view returns (ISlasher) { }
+    function slasher() external pure returns (ISlasher) { }
 
     function createPod() external pure returns (address) {
         return (address(123123123));
@@ -16,29 +16,29 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
         return 55;
     }
 
-    function beaconChainETHStrategy() external view returns (IStrategy) { }
+    function beaconChainETHStrategy() external pure returns (IStrategy) { }
 
-    function eigenPodBeacon() external view returns (IBeacon) {
+    function eigenPodBeacon() external pure returns (IBeacon) {
         return IBeacon(address(99));
     }
 
-    function ethPOS() external view returns (IETHPOSDeposit) {
+    function ethPOS() external pure returns (IETHPOSDeposit) {
         return IETHPOSDeposit(address(99));
     }
 
-    function getBlockRootAtTimestamp(uint64 timestamp) external view returns (bytes32) {
+    function getBlockRootAtTimestamp(uint64 timestamp) external pure returns (bytes32) {
         return bytes32("asdf");
     }
 
-    function maxPods() external view returns (uint256) {
+    function maxPods() external pure returns (uint256) {
         return 100;
     }
 
-    function numPods() external view returns (uint256) {
+    function numPods() external pure returns (uint256) {
         return 10;
     }
 
-    function podOwnerShares(address podOwner) external view returns (int256) {
+    function podOwnerShares(address podOwner) external pure returns (int256) {
         return 5;
     }
 

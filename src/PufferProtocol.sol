@@ -5,9 +5,7 @@ import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -23,6 +21,8 @@ import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.s
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title PufferProtocol
@@ -78,12 +78,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferPool public immutable override POOL;
+    PufferVaultMainnet public immutable PUFFER_VAULT;
 
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    IWithdrawalPool public immutable override WITHDRAWAL_POOL;
+    IWETH public immutable WETH; //@todo figure if we need it
 
     /**
      * @inheritdoc IPufferProtocol
@@ -91,16 +88,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     IPufferModuleFactory public immutable override PUFFER_MODULE_FACTORY;
 
     constructor(
-        IWithdrawalPool withdrawalPool,
-        IPufferPool pool,
+        PufferVaultMainnet pufferVault,
+        IWETH weth,
         IGuardianModule guardianModule,
         address payable treasury,
         address moduleFactory
     ) payable {
         TREASURY = treasury;
         GUARDIAN_MODULE = guardianModule;
-        POOL = pool;
-        WITHDRAWAL_POOL = withdrawalPool;
+        PUFFER_VAULT = PufferVaultMainnet(payable(address(pufferVault)));
+        WETH = weth;
         PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
         _disableInitializers();
     }
@@ -113,7 +110,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     {
         __AccessManaged_init(accessManager);
         _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
-        _setWithdrawalPoolRate(10 * FixedPointMathLib.WAD); // 10 %
         _setGuardiansFeeRate(5 * 1e17); // 0.5 %
         _setValidatorLimitPerInterval(20);
         _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
@@ -152,11 +148,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Bond can be in pufETH
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
 
-        if (POOL.calculatePufETHtoETHAmount(permit.amount) < validatorBond) {
+        if (PUFFER_VAULT.previewWithdraw(permit.amount) < validatorBond) {
             revert InvalidETHAmount();
         }
 
-        try IERC20Permit(address(POOL)).permit({
+        try IERC20Permit(address(PUFFER_VAULT)).permit({
             owner: permit.owner,
             spender: address(this),
             value: permit.amount,
@@ -167,7 +163,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }) { } catch { }
 
         // slither-disable-next-line unchecked-transfer
-        POOL.transferFrom(msg.sender, address(this), permit.amount);
+        PUFFER_VAULT.transferFrom(msg.sender, address(this), permit.amount);
 
         _storeValidatorInformation({
             $: $,
@@ -202,7 +198,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // slither-disable-next-line arbitrary-send-eth
-        uint256 pufETHReceived = POOL.depositETH{ value: validatorBond }();
+        uint256 pufETHReceived = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
 
         _storeValidatorInformation({
             $: $,
@@ -257,7 +253,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         IPufferModule module = $.modules[moduleName];
 
         // Transfer 32 ETH to the module
-        POOL.transferETH(address(module), 32 ether);
+        PUFFER_VAULT.transferETH(address(module), 32 ether);
 
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
@@ -318,7 +314,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // slither-disable-next-line unchecked-transfer
-        POOL.transfer(validator.node, validator.bond);
+        PUFFER_VAULT.transfer(validator.node, validator.bond);
     }
 
     /**
@@ -370,17 +366,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Burn everything if the validator was slashed
         if (wasSlashed) {
-            POOL.burn(returnAmount);
+            PUFFER_VAULT.burn(PUFFER_VAULT.convertToShares(returnAmount));
         } else {
             uint256 burnAmount = 0;
 
             if (withdrawalAmount < 32 ether) {
-                burnAmount = POOL.calculateETHToPufETHAmount(32 ether - withdrawalAmount);
-                POOL.burn(burnAmount);
+                burnAmount = PUFFER_VAULT.previewDeposit(32 ether - withdrawalAmount);
+                PUFFER_VAULT.burn(PUFFER_VAULT.convertToShares(burnAmount));
             }
 
             // slither-disable-next-line unchecked-transfer
-            POOL.transfer(node, (returnAmount - burnAmount));
+            PUFFER_VAULT.transfer(node, (returnAmount - burnAmount));
         }
 
         emit ValidatorExited(pubKey, validatorIndex, moduleName);
@@ -405,7 +401,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Transfer pufETH to that node operator
         // slither-disable-next-line unchecked-transfer
-        POOL.transfer($.validators[moduleName][skippedIndex].node, $.validators[moduleName][skippedIndex].bond);
+        PUFFER_VAULT.transfer($.validators[moduleName][skippedIndex].node, $.validators[moduleName][skippedIndex].bond);
 
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
@@ -445,18 +441,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Allocate ETH capital back to the pool ASAP to fuel pool growth
         for (uint256 i = 0; i < modules.length; ++i) {
-            uint256 amount = amounts[i];
-
-            uint256 withdrawalPoolAmount = FixedPointMathLib.fullMulDiv(amount, $.withdrawalPoolRate, _ONE_HUNDRED_WAD);
-            uint256 pufferPoolAmount = amount - withdrawalPoolAmount;
-
-            // Withdrawal pool / pool don't revert on receive()
-
             // slither-disable-next-line calls-loop
-            IPufferModule(modules[i]).call(address(WITHDRAWAL_POOL), withdrawalPoolAmount, "");
-
-            // slither-disable-next-line calls-loop
-            IPufferModule(modules[i]).call(address(POOL), pufferPoolAmount, "");
+            IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
         }
 
         emit FullWithdrawalsRootPosted(blockNumber, root);
@@ -553,13 +539,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function setGuardiansFeeRate(uint256 newRate) external restricted {
         _setGuardiansFeeRate(newRate);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function setWithdrawalPoolRate(uint256 newRate) external restricted {
-        _setWithdrawalPoolRate(newRate);
     }
 
     /**
@@ -693,6 +672,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
+    function getGuardiansFeeRate() external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.guardiansFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     function getWithdrawalCredentials(address module) public view returns (bytes memory) {
         return IPufferModule(module).getWithdrawalCredentials();
     }
@@ -785,8 +772,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 remainder = amount - (treasuryAmount + guardiansAmount);
 
-        uint256 withdrawalPoolAmount = _sendETH(address(WITHDRAWAL_POOL), remainder, $.withdrawalPoolRate);
-        address(POOL).safeTransferETH(remainder - withdrawalPoolAmount);
+        address(PUFFER_VAULT).safeTransferETH(remainder);
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
@@ -831,13 +817,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 oldProtocolFee = $.protocolFeeRate;
         $.protocolFeeRate = SafeCastLib.toUint72(protocolFee);
         emit ProtocolFeeRateChanged(oldProtocolFee, protocolFee);
-    }
-
-    function _setWithdrawalPoolRate(uint256 withdrawalPoolRate) internal {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 oldWithdrawalPoolRate = $.withdrawalPoolRate;
-        $.withdrawalPoolRate = SafeCastLib.toUint72(withdrawalPoolRate);
-        emit WithdrawalPoolRateChanged(oldWithdrawalPoolRate, withdrawalPoolRate);
     }
 
     function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)

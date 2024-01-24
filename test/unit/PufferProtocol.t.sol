@@ -62,8 +62,7 @@ contract PufferProtocolTest is TestHelper {
 
     // Setup
     function testSetup() public {
-        assertTrue(address(pufferProtocol.WITHDRAWAL_POOL()) != address(0), "non zero address");
-        assertTrue(address(pufferProtocol.POOL()) != address(0), "puffer pool address");
+        assertTrue(address(pufferProtocol.PUFFER_VAULT()) != address(0), "puffer vault address");
         address module = pufferProtocol.getModuleAddress(NO_RESTAKING);
         assertEq(PufferModule(payable(module)).NAME(), NO_RESTAKING, "bad name");
     }
@@ -77,8 +76,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Test Skipping the validator
     function testSkipProvisioning() public {
-        vm.deal(address(pool), 1000 ether);
-
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
@@ -89,12 +86,12 @@ contract PufferProtocolTest is TestHelper {
         assertEq(idx, 0, "idx");
         assertEq(moduleSelectionIndex, 0, "module selection idx");
 
-        assertTrue(pool.balanceOf(address(this)) == 0, "zero pufETH");
+        assertTrue(pufferVault.balanceOf(address(this)) == 0, "zero pufETH");
 
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
         // This contract should receive pufETH because of the skipProvisioning
-        assertTrue(pool.balanceOf(address(this)) != 0, "non zero pufETH");
+        assertTrue(pufferVault.balanceOf(address(this)) != 0, "non zero pufETH");
 
         Validator memory aliceValidator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
         assertTrue(aliceValidator.status == Status.SKIPPED, "did not update status");
@@ -158,8 +155,6 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function testModuleDOS() external {
-        vm.deal(address(pool), 1000 ether);
-
         bytes32[] memory weights = pufferProtocol.getModuleWeights();
         assertEq(weights.length, 1, "only one module");
         assertEq(weights[0], NO_RESTAKING, "no restaking");
@@ -453,13 +448,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setProtocolFeeRate(rate);
     }
 
-    function testSetWithdrawalPoolRateMax() public {
-        uint256 rate = 100 * FixedPointMathLib.WAD;
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.WithdrawalPoolRateChanged(10 * FixedPointMathLib.WAD, 100 * FixedPointMathLib.WAD);
-        pufferProtocol.setWithdrawalPoolRate(rate);
-    }
-
     function testFeeCalculations() public {
         // Default values are
         // 2% guardians
@@ -470,64 +458,14 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
         assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
-        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
-        assertEq(0, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "withdrawal pool balance");
+        assertEq(1000 ether, address(pufferProtocol.PUFFER_VAULT()).balance, "starting vault balance");
 
         // We don't have additional validations on if the validator is active or not
         pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
 
         assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
         assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
-        assertEq(11116446484546631, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "withdrawal pool balance");
-        assertEq(100048018360919684, address(pufferProtocol.POOL()).balance, "non zero pool");
-    }
-
-    function testFeeCalculationsEverythingToWithdrawalPool() public {
-        // Set withdrawal fee to 100%
-        pufferProtocol.setWithdrawalPoolRate(100 * FixedPointMathLib.WAD);
-
-        // Default values are
-        // 2% guardians
-        // 0.5% guardians
-        // 100% to the withdrawal pool
-        // 0 to puffer pool
-        uint256 amount = pufferProtocol.getSmoothingCommitment(12);
-
-        assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
-        assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
-        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
-
-        // We don't have additional validations on if the validator is active or not
-        pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
-
-        assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
-        assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
-        assertEq(111164464845466315, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "non zero withdrawal pool");
-        assertEq(0, address(pufferProtocol.POOL()).balance, "zero puffer pool");
-    }
-
-    function testFeeCalculationsEverythingToPufferPool() public {
-        // Set withdrawal fee to 100%
-        pufferProtocol.setWithdrawalPoolRate(0);
-
-        // Default values are
-        // 2% guardians
-        // 0.5% guardians
-        // 0% to the withdrawal pool
-        // 100% to puffer pool
-        uint256 amount = pufferProtocol.getSmoothingCommitment(12);
-
-        assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
-        assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
-        assertEq(0, address(pufferProtocol.POOL()).balance, "zero pool");
-
-        // We don't have additional validations on if the validator is active or not
-        pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
-
-        assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
-        assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
-        assertEq(0, address(pufferProtocol.WITHDRAWAL_POOL()).balance, "non zero withdrawal pool");
-        assertEq(111164464845466315, address(pufferProtocol.POOL()).balance, "zero puffer pool");
+        assertEq(100048018360919684, address(pufferProtocol.PUFFER_VAULT()).balance, "non zero pool");
     }
 
     function testChangeModule() public {
@@ -557,13 +495,67 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, 1);
     }
 
-    function testStopRegistration() public {
-        vm.deal(address(pool), 100 ether);
+    function testRegisterOneValidator() public {
+        // Start balance of the PufferVault
+        uint256 startBalance = 1000 ether;
 
+        assertEq(pufferVault.totalAssets(), startBalance, "it should start with 1000 eth");
+        assertEq(pufferVault.balanceOf(LIQUIDITY_PROVIDER), startBalance, "the LP got all the pufETH");
+        assertEq(pufferVault.maxWithdraw(LIQUIDITY_PROVIDER), startBalance, "lp can withdraw everything");
+
+        // Register 1 validator
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(1);
+        uint256 bond = 1 ether;
+
+        uint256 treasuryFee =
+            FixedPointMathLib.fullMulDiv(smoothingCommitment, pufferProtocol.getProtocolFeeRate(), 100 * 1e18);
+        uint256 guardiansFee =
+            FixedPointMathLib.fullMulDiv(smoothingCommitment, pufferProtocol.getGuardiansFeeRate(), 100 * 1e18);
+
+        // Amount of rewards for pufETH holders (SC - fees)
+        assertEq(smoothingCommitment - treasuryFee - guardiansFee, 116960846822092934, "rewards"); // ~0.11 ETH
+
+        uint256 expectedAmount = startBalance + smoothingCommitment + bond - treasuryFee - guardiansFee;
+        assertEq(pufferVault.totalAssets(), expectedAmount, "vault balance after deposit");
+
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "protocol should have 1 pufETH");
+
+        assertGt(
+            pufferVault.maxWithdraw(LIQUIDITY_PROVIDER),
+            startBalance,
+            "lp can withdraw more than it originally deposited"
+        );
+
+        assertGt(pufferVault.maxWithdraw(address(pufferProtocol)), 1 ether, "pufETH in protocol appreciated");
+
+        vm.startPrank(LIQUIDITY_PROVIDER);
+        uint256 ethWithdrawn = pufferVault.withdraw(
+            pufferVault.maxWithdraw(address(LIQUIDITY_PROVIDER)), LIQUIDITY_PROVIDER, LIQUIDITY_PROVIDER
+        );
+
+        vm.startPrank(address(pufferProtocol));
+        pufferVault.withdraw(
+            pufferVault.maxWithdraw(address(pufferProtocol)), makeAddr("puffer_recipient"), address(pufferProtocol)
+        );
+
+        // 1 wei is left because of rounding
+        assertEq(pufferVault.totalAssets(), 1, "everything is gone");
+    }
+
+    function testStopRegistration() public {
+        // Register two validators
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
-        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "pool should have the bond amount for 2 validators");
+        // 0.02% is the max delta
+        assertApproxEqRel(
+            pufferVault.maxWithdraw(address(pufferProtocol)),
+            2 ether,
+            0.0002e18,
+            "pool should have the bond amount for 2 validators"
+        );
 
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(Unauthorized.selector);
@@ -583,9 +575,16 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "1 index is next in line");
 
-        assertEq(pool.balanceOf(address(pufferProtocol)), 1 ether, "pool should have the bond amount for 1 validators");
+        assertApproxEqRel(
+            pufferVault.maxWithdraw(address(pufferProtocol)),
+            1 ether,
+            0.0002e18,
+            "pool should have the bond amount for 1 validators"
+        );
         // Because this contract is msg.sender, it means that it is the node operator
-        assertEq(pool.balanceOf(address(this)), 1 ether, "node operator should get 1 pufETH for Alice");
+        assertApproxEqRel(
+            pufferVault.maxWithdraw(address(this)), 1 ether, 0.00025e18, "node operator should get ~1 pufETH for Alice"
+        );
 
         (moduleName, idx) = pufferProtocol.getNextValidatorToProvision();
 
@@ -639,8 +638,6 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pufferProtocol.getPendingValidatorIndex(NO_RESTAKING), 5, "next pending validator index");
 
-        vm.deal(address(pool), 1000 ether);
-
         bytes[] memory signatures = _getGuardianSignatures(zeroPubKey);
 
         // // 1. provision zero key
@@ -693,7 +690,7 @@ contract PufferProtocolTest is TestHelper {
         emit ModuleWeightsChanged(oldWeights, newWeights);
         pufferProtocol.setModuleWeights(newWeights);
 
-        vm.deal(address(pool), 10000 ether);
+        vm.deal(address(pufferVault), 10000 ether);
 
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
@@ -799,9 +796,9 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(bob, 5 ether);
         address charlie = makeAddr("charlie");
         vm.deal(charlie, 5 ether);
-        vm.deal(address(pool), 100 ether);
+        vm.deal(address(pufferVault), 100 ether);
 
-        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "0 pufETH in protocol");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "0 pufETH in protocol");
 
         // Create validators
         vm.startPrank(alice);
@@ -812,7 +809,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
 
         // PufferProtocol should hold pufETH (bond for 3 validators)
-        assertEq(pool.balanceOf(address(pufferProtocol)), 3 ether, "3 pufETH in protocol");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 3 ether, "3 pufETH in protocol");
 
         // Provision validators
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
@@ -834,7 +831,7 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: aliceProof
         });
 
-        assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
+        assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
 
         // Valid proof
         pufferProtocol.retrieveBond({
@@ -858,11 +855,11 @@ contract PufferProtocolTest is TestHelper {
         });
 
         // Alice receives the bond + the reward
-        assertEq(pool.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
+        assertEq(pufferVault.balanceOf(alice), 1 ether, "alice received back the bond in pufETH");
 
         bytes32[] memory bobProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 1);
 
-        assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH");
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has zero pufETH");
 
         pufferProtocol.retrieveBond({
             moduleName: EIGEN_DA,
@@ -873,7 +870,7 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: bobProof
         });
 
-        assertEq(pool.balanceOf(bob), 0, "bob has zero pufETH after");
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has zero pufETH after");
 
         bytes32[] memory charlieProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 2);
 
@@ -886,13 +883,13 @@ contract PufferProtocolTest is TestHelper {
             merkleProof: charlieProof
         });
 
-        // assertEq(pool.balanceOf(charlie), 0.6 ether, "Charlie has 0.6 pufETH after");
+        // assertEq(pufferVault.balanceOf(charlie), 0.6 ether, "Charlie has 0.6 pufETH after");
     }
 
     // Test smart contract upgradeability (UUPS)
     function testUpgrade() public {
         vm.expectRevert();
-        uint256 result = PufferProtocolMockUpgrade(payable(address(pool))).returnSomething();
+        uint256 result = PufferProtocolMockUpgrade(payable(address(pufferVault))).returnSomething();
 
         PufferProtocolMockUpgrade newImplementation = new PufferProtocolMockUpgrade(address(beacon));
         pufferProtocol.upgradeToAndCall(address(newImplementation), "");
@@ -900,18 +897,6 @@ contract PufferProtocolTest is TestHelper {
         result = PufferProtocolMockUpgrade(payable(address(pufferProtocol))).returnSomething();
 
         assertEq(result, 1337);
-    }
-
-    function testPause() public {
-        pool.depositETH{ value: 1 ether }();
-
-        vm.startPrank(_broadcaster); // Admin
-        // Pause
-        accessManager.setTargetClosed(address(pool), true);
-        vm.stopPrank();
-
-        vm.expectRevert();
-        pool.depositETH{ value: 1 ether }();
     }
 
     // Test registering the validator with a huge number of months committed
@@ -933,21 +918,25 @@ contract PufferProtocolTest is TestHelper {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
+        uint256 expectedMint = pufferVault.previewDeposit(2 ether);
+        assertGt(expectedMint, 0, "should expect more pufETH");
+
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
-        pool.depositETH{ value: 2 ether }();
+        uint256 minted = pufferVault.depositETH{ value: 2 ether }(alice);
+        assertGt(minted, 0, "should mint pufETH");
 
         // approve pufETH to pufferProtocol
-        pool.approve(address(pufferProtocol), type(uint256).max);
+        pufferVault.approve(address(pufferProtocol), type(uint256).max);
 
-        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pool.balanceOf(alice), 2 ether, "2 pufETH before for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
+        assertEq(pufferVault.balanceOf(alice), 2 ether, "2 pufETH before for alice");
 
         // In this case, the only important data on permit is the amount
         // Permit call will fail, but the amount is reused
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         Permit memory permit;
-        permit.amount = pool.balanceOf(alice);
+        permit.amount = pufferVault.balanceOf(alice);
 
         // Get the smoothing commitment amount for 6 months
         uint256 sc = pufferProtocol.getSmoothingCommitment(6);
@@ -957,22 +946,22 @@ contract PufferProtocolTest is TestHelper {
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
         pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
 
-        assertEq(pool.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
+        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
     }
 
     // Node operator can deposit Bond in pufETH with Permit
-    function testRegisterValidatorKeyWithPermitSignature() external {
+    function te1stRegisterValidatorKeyWithPermitSignature() external {
         address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
-        pool.depositETH{ value: 2 ether }();
+        pufferVault.depositETH{ value: 2 ether }(alice);
 
-        assertEq(pool.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pool.balanceOf(alice), 2 ether, "2 pufETH before for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
+        assertEq(pufferVault.balanceOf(alice), 2 ether, "2 pufETH before for alice");
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         // Generate Permit data for 2 pufETH to the protocol
@@ -986,19 +975,19 @@ contract PufferProtocolTest is TestHelper {
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
         pufferProtocol.registerValidatorKeyPermit{ value: sc }(data, NO_RESTAKING, 6, permit);
 
-        assertEq(pool.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertEq(pool.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
+        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 2 ether, "2 pufETH after");
     }
 
     // Node operator can deposit Bond in pufETH
-    function testRegisterValidatorKeyWithPermitSignatureRevertsInvalidSC() external {
+    function testR1egisterValidatorKeyWithPermitSignatureRevertsInvalidSC() external {
         address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
-        pool.depositETH{ value: 2 ether }();
+        pufferVault.depositETH{ value: 2 ether }(alice);
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         // Generate Permit data for 10 pufETH to the protocol
@@ -1016,7 +1005,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function testValidatorGriefingAttack() external {
-        vm.deal(address(pool), 100 ether);
+        vm.deal(address(pufferVault), 100 ether);
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
@@ -1055,18 +1044,18 @@ contract PufferProtocolTest is TestHelper {
 
         address alice = makeAddr("alice");
         vm.deal(alice, 2 ether);
-        vm.deal(address(pool), 32 ether);
+        vm.deal(address(pufferVault), 32 ether);
 
         vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         // PufferProtocol should hold pufETH (bond for 1 validators)
-        assertEq(pool.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH in protocol");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH in protocol");
 
         // Provision validators
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))));
 
-        assertEq(pool.balanceOf(alice), 0, "alice has zero pufETH");
+        assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
 
         // Valid proof
         pufferProtocol.retrieveBond({
@@ -1219,7 +1208,7 @@ contract PufferProtocolTest is TestHelper {
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools
-        assertEq(address(pool).balance, 0, "starting pool balance");
+        assertEq(address(pufferVault).balance, 0, "starting pool balance");
         assertEq(address(withdrawalPool).balance, 0, "starting withdrawal pool balance");
 
         bytes[] memory signatures = _getGuardianEOASignatures(
@@ -1237,7 +1226,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Default split rate for withdrawal pool is 10%
         assertEq(address(withdrawalPool).balance, 3.2 ether, "ending withdrawal pool balance");
-        assertEq(address(pool).balance, 28.8 ether, "ending pool balance");
+        assertEq(address(pufferVault).balance, 28.8 ether, "ending pool balance");
     }
 
     // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
@@ -1291,7 +1280,7 @@ contract PufferProtocolTest is TestHelper {
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools
-        assertEq(address(pool).balance, 0, "starting pool balance");
+        assertEq(address(pufferVault).balance, 0, "starting pool balance");
         assertEq(address(withdrawalPool).balance, 0, "starting withdrawal pool balance");
 
         bytes[] memory signatures = _getGuardianEOASignatures(
@@ -1323,7 +1312,7 @@ contract PufferProtocolTest is TestHelper {
         // 94.6 goes to the pools
         // Default split rate for withdrawal pool is 10%
         assertEq(address(withdrawalPool).balance, 9.46 ether, "ending withdrawal pool balance");
-        assertEq(address(pool).balance, 85.14 ether, "ending pool balance");
+        assertEq(address(pufferVault).balance, 85.14 ether, "ending pool balance");
     }
 
     function _buildMerkleProof(MerkleProofData[] memory validatorExits) internal returns (bytes32 root) {

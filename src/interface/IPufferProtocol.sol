@@ -4,9 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "puffer/struct/Validator.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
-import { IPufferPool } from "puffer/interface/IPufferPool.sol";
+import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
@@ -113,12 +112,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0xdc450026d966b67c62d26cf532d9a568be6c73c01251576c5d6a71bb19463d2f"
      */
     event GuardiansFeeRateChanged(uint256 oldRate, uint256 newRate);
-
-    /**
-     * @notice Emitted when the Withdrawal Pool rate is changed from `oldRate` to `newRate`
-     * @dev Signature "0x7b574a9dff23e9e2774a4ee52a42ad285a36eb8dd120eeebc5568d3b02f0683c"
-     */
-    event WithdrawalPoolRateChanged(uint256 oldRate, uint256 newRate);
 
     /**
      * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
@@ -289,14 +282,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setProtocolFeeRate(uint256 protocolFeeRate) external;
 
     /**
-     * @notice Sets the withdrawal pool rate
-     * @dev 1% equals `1 * FixedPointMathLib.WAD`
-     *
-     * Restricted to DAO
-     */
-    function setWithdrawalPoolRate(uint256 newRate) external;
-
-    /**
      * @notice Sets guardians fee rate
      * @dev 1% equals `1 * FixedPointMathLib.WAD`
      *
@@ -346,14 +331,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function GUARDIAN_MODULE() external view returns (IGuardianModule);
 
     /**
-     * @notice Returns the Puffer Pool
+     * @notice Returns the Puffer Vault
      */
-    function POOL() external view returns (IPufferPool);
-
-    /**
-     * @notice Returns the Withdrawal Pool
-     */
-    function WITHDRAWAL_POOL() external view returns (IWithdrawalPool);
+    function PUFFER_VAULT() external view returns (PufferVaultMainnet);
 
     /**
      * @notice Returns the Puffer Module Factory
@@ -364,6 +344,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the protocol fee rate
      */
     function getProtocolFeeRate() external view returns (uint256);
+
+    /**
+     * @notice Returns the guardians fee rate
+     */
+    function getGuardiansFeeRate() external view returns (uint256);
 
     /**
      * @notice Returns the current module weights

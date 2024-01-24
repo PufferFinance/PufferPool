@@ -12,11 +12,18 @@ import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { PufferDeployment } from "script/DeploymentStructs.sol";
+import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Permit } from "puffer/struct/Permit.sol";
+import { PufferDepositor } from "pufETH/PufferDepositor.sol";
+import { PufferVault } from "pufETH/PufferVault.sol";
+import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
+import { IWETH } from "pufETH/interface/Other/IWETH.sol";
+import { UpgradePuffETH } from "pufETHScript/UpgradePuffETH.s.sol";
+import "forge-std/console.sol";
 
 contract TestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -64,6 +71,11 @@ contract TestHelper is Test, BaseScript {
     bytes public guardian3EnclavePubKey =
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
 
+    PufferDepositor public pufferDepositor;
+    PufferVaultMainnet public pufferVault;
+    stETHMock public stETH;
+    IWETH public weth;
+
     PufferPool public pool;
     PufferProtocol public pufferProtocol;
     IWithdrawalPool public withdrawalPool;
@@ -76,6 +88,8 @@ contract TestHelper is Test, BaseScript {
     IEnclaveVerifier public verifier;
 
     address public DAO = makeAddr("DAO");
+
+    address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -133,7 +147,7 @@ contract TestHelper is Test, BaseScript {
         guardians[2] = guardian3;
 
         // Deploy everything with one script
-        PufferDeployment memory pufferDeployment = new DeployEverything().run(guardians, 1);
+        PufferProtocolDeployment memory pufferDeployment = new DeployEverything().run(guardians, 1);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
@@ -144,6 +158,16 @@ contract TestHelper is Test, BaseScript {
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
 
+        // pufETH dependencies
+        pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));
+        pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));
+        stETH = stETHMock(payable(pufferDeployment.stETH));
+        weth = IWETH(payable(pufferDeployment.weth));
+
+        _upgradePufferVaultToMainnet();
+
+        vm.label(address(pufferVault), "PufferVault");
+        vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
@@ -225,6 +249,36 @@ contract TestHelper is Test, BaseScript {
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
         assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
         assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
+    }
+
+    function _upgradePufferVaultToMainnet() internal {
+        // When we run any script in the test environment `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` is the msg.sender
+        // That means that the _deployer in scripts is that address
+        // Because of that, we grant it `upgrader`, so that it can run the upgrade script successfully
+        vm.startPrank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+        accessManager.grantRole(1, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, 0);
+
+        uint64 protocolRoleId = 12345;
+        accessManager.grantRole(protocolRoleId, address(pufferProtocol), 0);
+
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferVaultMainnet.transferETH.selector;
+        accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
+        vm.stopPrank();
+
+        // Run the upgrade script
+        new UpgradePuffETH().run(address(pufferVault));
+
+        _depositLiquidityToPufferVault();
+    }
+
+    function _depositLiquidityToPufferVault() internal {
+        // DEPOSIT 1k ETH to the pool so that we have enough liquidity for provisioning
+        vm.deal(LIQUIDITY_PROVIDER, 1000 ether);
+
+        vm.startPrank(LIQUIDITY_PROVIDER);
+        pufferVault.depositETH{ value: 1000 ether }(LIQUIDITY_PROVIDER);
+        vm.stopPrank();
     }
 
     function _getGuardianEOASignatures(bytes32 digest) internal view returns (bytes[] memory) {
