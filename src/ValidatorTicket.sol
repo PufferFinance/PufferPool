@@ -28,6 +28,7 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
     address payable _pufferVault;
     address payable _guardians;
     address payable _treasury;
+    /// @dev The amount of ETH needed to mint 1 VT
     uint256 _mintPrice;
     /// @dev This is how much ETH we immediately send to the PufferVault, holding the rest to later give to Guardians and Treasury
     uint256 _sendOnReceive;
@@ -94,14 +95,18 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
         emit MintPriceUpdated(oldPrice, newPrice);
     }
 
-    // Mints sender VT corresponding to sent ETH
-    // Sends PufferVault due share, holding back rest to later distribute between Treasury and Guardians
-    function mint() external payable whenNotPaused() {
+    /**
+     * @notice Mints sender VT corresponding to sent ETH
+     * @notice Sends PufferVault due share, holding back rest to later distribute between Treasury and Guardians
+     */
+    function mint() external payable whenNotPaused {
         _mint(msg.sender, msg.value / _mintPrice);
         _sendETH(_pufferVault, msg.value, _sendOnReceive);
     }
 
-    // This function distributes the contract's balance to Guardians and the Treasury
+    /**
+     * @notice This function distributes the contract's balance to Guardians and the Treasury
+     */
     function distribute() external onlyGuardians {
         _sendETH(_treasury, address(this).balance, _treasuryFee);
         _guardians.safeTransferETH(address(this).balance);
@@ -117,11 +122,11 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
         }
     }
 
-    function _msgSender() internal view override (Context, ContextUpgradeable) returns (address) {
+    function _msgSender() internal view override(Context, ContextUpgradeable) returns (address) {
         return msg.sender;
     }
 
-    function _msgData() internal view override (Context, ContextUpgradeable) returns (bytes calldata) {
+    function _msgData() internal view override(Context, ContextUpgradeable) returns (bytes calldata) {
         return msg.data;
     }
 }
