@@ -5,13 +5,16 @@ import { ERC20PermitUpgradeable } from "openzeppelin-upgrades/token/ERC20/extens
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { ContextUpgradeable } from "openzeppelin-upgrades/utils/ContextUpgradeable.sol";
 
 /**
  * @title ValidatorTicket
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract ValidatorTicket is ERC20PermitUpgradeable {
+contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
     using SafeERC20 for address;
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
@@ -93,7 +96,7 @@ contract ValidatorTicket is ERC20PermitUpgradeable {
 
     // Mints sender VT corresponding to sent ETH
     // Sends PufferVault due share, holding back rest to later distribute between Treasury and Guardians
-    function mint() external payable {
+    function mint() external payable whenNotPaused() {
         _mint(msg.sender, msg.value / _mintPrice);
         _sendETH(_pufferVault, msg.value, _sendOnReceive);
     }
@@ -112,5 +115,13 @@ contract ValidatorTicket is ERC20PermitUpgradeable {
             emit TransferredETH(to, toSend);
             to.safeTransferETH(toSend);
         }
+    }
+
+    function _msgSender() internal view override (Context, ContextUpgradeable) returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view override (Context, ContextUpgradeable) returns (bytes calldata) {
+        return msg.data;
     }
 }
