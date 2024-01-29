@@ -34,6 +34,12 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     using SafeTransferLib for address;
 
     /**
+     * @notice Thrown if provided invalid merkle proof
+     * @dev Signature "0x4f4a4e8e"
+     */
+    error InvalidProof();
+
+    /**
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
      * @dev Signature "0x916ba7f3"
      */
@@ -237,6 +243,8 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
                 $.claimedRewards[blockNumbers[i]][node] = true;
                 ethToSend += amounts[i];
             }
+            else
+                revert InvalidProof();
         }
 
         if (ethToSend == 0) {
