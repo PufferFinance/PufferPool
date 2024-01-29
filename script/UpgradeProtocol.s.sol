@@ -6,6 +6,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
@@ -21,6 +22,7 @@ contract UpgradeProtocol is BaseScript {
 
         PufferProtocol newImplementation = new PufferProtocol({
             pufferVault: PufferVaultMainnet(payable(address(0))),
+            validatorTicket: ValidatorTicket((address(0))),
             weth: IWETH(address(0)),
             guardianModule: GuardianModule(payable(0xd4c8730F555F9E9d969BC37280805104c1B039A1)),
             treasury: payable(0x61A44645326846F9b5d9c6f91AD27C3aD28EA390),

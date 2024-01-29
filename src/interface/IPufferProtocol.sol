@@ -10,6 +10,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 /**
  * @title IPufferProtocol
@@ -329,6 +330,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the guardian module
      */
     function GUARDIAN_MODULE() external view returns (IGuardianModule);
+    
+    /**
+     * @notice Returns the Validator ticket ERC20 token
+     */
+    function VALIDATOR_TICKET() external view returns (ValidatorTicket);
 
     /**
      * @notice Returns the Puffer Vault

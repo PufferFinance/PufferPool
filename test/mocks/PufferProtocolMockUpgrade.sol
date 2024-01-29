@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
@@ -17,7 +18,8 @@ contract PufferProtocolMockUpgrade is PufferProtocol {
             IWETH(address(0)),
             GuardianModule(payable(address(0))),
             payable(address(0)),
-            address(0)
+            address(0),
+            ValidatorTicket(address(0))
         )
     { }
 }

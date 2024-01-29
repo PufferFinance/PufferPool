@@ -22,6 +22,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
@@ -78,6 +79,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
+    ValidatorTicket public immutable VALIDATOR_TICKET;
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
     PufferVaultMainnet public immutable PUFFER_VAULT;
 
     IWETH public immutable WETH; //@todo figure if we need it
@@ -92,13 +98,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         IWETH weth,
         IGuardianModule guardianModule,
         address payable treasury,
-        address moduleFactory
+        address moduleFactory,
+        ValidatorTicket validatorTicket
     ) payable {
         TREASURY = treasury;
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultMainnet(payable(address(pufferVault)));
         WETH = weth;
         PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
+        VALIDATOR_TICKET = validatorTicket;
         _disableInitializers();
     }
 

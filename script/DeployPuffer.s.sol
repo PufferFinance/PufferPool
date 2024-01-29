@@ -20,7 +20,9 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
@@ -42,6 +44,7 @@ contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocolImpl;
     AccessManager accessManager;
     ERC1967Proxy proxy;
+    ERC1967Proxy validatorTicketProxy;
     PufferProtocol pufferProtocol;
     PufferPool pool;
     WithdrawalPool withdrawalPool;
@@ -85,6 +88,17 @@ contract DeployPuffer is BaseScript {
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
+        validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury));
+
+        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
+            address(validatorTicketImplementation),
+            abi.encodeCall(
+                ValidatorTicket.initialize,
+                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17, 0.01 ether) //todo recheck 5% treasury, 0.5% guardians
+            )
+        );
+
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
@@ -119,6 +133,7 @@ contract DeployPuffer is BaseScript {
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultMainnet(payable(pufferVault)),
+                validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 weth: IWETH(weth),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 treasury: treasury,
@@ -162,6 +177,8 @@ contract DeployPuffer is BaseScript {
         });
 
         vm.label(address(accessManager), "AccessManager");
+        vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");
+        vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
         vm.label(address(pool), "PufferPool");
@@ -185,6 +202,7 @@ contract DeployPuffer is BaseScript {
         vm.writeJson(finalJson, "./output/puffer.json");
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
+            validatorTicket: address(validatorTicketProxy),
             pufferProtocolImplementation: address(pufferProtocolImpl),
             NoRestakingModule: address(noRestaking),
             pufferPool: address(pool),

@@ -26,6 +26,7 @@ struct PufferProtocolDeployment {
     address pauser;
     address beacon; // Beacon for Puffer modules
     address moduleFactory;
+    address validatorTicket;
     address pufferDepositor; // from pufETH repository (dependency)
     address pufferVault; // from pufETH repository (dependency)
     address stETH; // from pufETH repository (dependency)

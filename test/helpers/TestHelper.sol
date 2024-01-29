@@ -23,6 +23,7 @@ import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 import { UpgradePuffETH } from "pufETHScript/UpgradePuffETH.s.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import "forge-std/console.sol";
 
 contract TestHelper is Test, BaseScript {
@@ -81,6 +82,7 @@ contract TestHelper is Test, BaseScript {
     IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
+    ValidatorTicket public validatorTicket;
 
     GuardianModule public guardianModule;
 
@@ -122,6 +124,7 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
         fuzzedAddressMapping[address(pool)] = true;
+        fuzzedAddressMapping[address(validatorTicket)] = true;
     }
 
     function _deployContractAndSetupGuardians() public {
@@ -157,6 +160,7 @@ contract TestHelper is Test, BaseScript {
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
+        validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
 
         // pufETH dependencies
         pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));

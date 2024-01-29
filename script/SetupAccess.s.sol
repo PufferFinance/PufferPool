@@ -12,6 +12,8 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1;
 uint64 constant ROLE_ID_DAO = 77;
@@ -32,8 +34,9 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferProtocolRoles = _setupPufferProtocolRoles();
         bytes[] memory pufferPoolRoles = _setupPufferPoolRoles();
         bytes[] memory noRestakingModuleRoles = _setupNoRestakingModuleRoles();
+        bytes[] memory validatorTicketRoles = _setupValidatorTicketsAccess();
 
-        bytes[] memory calldatas = new bytes[](15);
+        bytes[] memory calldatas = new bytes[](17);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupWithdrawalPoolRoles();
@@ -53,9 +56,39 @@ contract SetupAccess is BaseScript {
         calldatas[13] = noRestakingModuleRoles[1];
         calldatas[14] = noRestakingModuleRoles[2];
 
+        calldatas[15] = validatorTicketRoles[0];
+        calldatas[16] = validatorTicketRoles[1];
+
         // calldatas[16] = _setupPauser();
 
         accessManager.multicall(calldatas);
+    }
+
+    function _setupValidatorTicketsAccess() internal returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](2);
+
+        bytes4[] memory selectors = new bytes4[](5);
+        selectors[0] = ValidatorTicket.transferETHToPufferVault.selector;
+        selectors[1] = ValidatorTicket.transferETHToGuardians.selector;
+        selectors[2] = ValidatorTicket.setProtocolFeeRate.selector;
+        selectors[3] = ValidatorTicket.setMintPrice.selector;
+        selectors[4] = UUPSUpgradeable.upgradeToAndCall.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO
+        );
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = ValidatorTicket.purchaseValidatorTicket.selector;
+
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.validatorTicket,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
+        );
+
+        return calldatas;
     }
 
     function _setupPauser() internal view returns (bytes memory) {
@@ -186,7 +219,7 @@ contract SetupAccess is BaseScript {
         selectors[3] = PufferProtocol.setModuleWeights.selector;
         selectors[4] = PufferProtocol.setValidatorLimitPerInterval.selector;
         selectors[5] = PufferProtocol.changeModule.selector;
-        selectors[6] = bytes4(hex"4f1ef286"); // signature for UUPS.upgradeToAndCall(address newImplementation, bytes memory data)
+        selectors[6] = UUPSUpgradeable.upgradeToAndCall.selector;
         selectors[7] = PufferProtocol.setGuardiansFeeRate.selector;
         selectors[8] = PufferProtocol.setValidatorLimitPerModule.selector;
 
