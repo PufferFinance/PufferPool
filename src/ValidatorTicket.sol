@@ -120,6 +120,14 @@ contract ValidatorTicket is
     }
 
     /**
+     * @notice Burns `amount` from the transaction sender
+     * @dev Signature "0x42966c68"
+     */
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
+    /**
      * @notice Transfers ETH to the specified guardians address
      * @param guardians The address of the guardians to transfer ETH to
      * @dev Restricted access with timelock

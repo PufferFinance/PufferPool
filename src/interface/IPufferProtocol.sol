@@ -330,7 +330,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the guardian module
      */
     function GUARDIAN_MODULE() external view returns (IGuardianModule);
-    
+
     /**
      * @notice Returns the Validator ticket ERC20 token
      */
