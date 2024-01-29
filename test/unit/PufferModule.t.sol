@@ -184,7 +184,7 @@ contract PufferModuleTest is TestHelper {
         // Bob claiming with Charlie's prof (charlie did not claim yet)
         // It will revert with nothing to claim because the proof is not valid for bob
         vm.expectRevert(
-            abi.encodeWithSelector(PufferModule.InvalidProof.selector)
+            abi.encodeWithSelector(PufferModule.NothingToClaim.selector, bob)
         );
         PufferModule(payable(module)).collectRewards({
             node: bob,

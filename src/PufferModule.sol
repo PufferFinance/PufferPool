@@ -243,8 +243,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
                 $.claimedRewards[blockNumbers[i]][node] = true;
                 ethToSend += amounts[i];
             }
-            else
-                revert InvalidProof();
         }
 
         if (ethToSend == 0) {
