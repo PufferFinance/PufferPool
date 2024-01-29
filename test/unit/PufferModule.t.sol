@@ -140,7 +140,6 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(alice);
         PufferModule(payable(module)).collectRewards({
             node: alice,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -150,12 +149,11 @@ contract PufferModuleTest is TestHelper {
         // Double claim in different transactions should revert
         vm.expectRevert(
             abi.encodeWithSelector(
-                PufferModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(abi.encodePacked((alice)))
+                PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         PufferModule(payable(module)).collectRewards({
             node: alice,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -165,12 +163,11 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                PufferModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(abi.encodePacked(alice))
+                PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         PufferModule(payable(module)).collectRewards({
             node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -187,11 +184,10 @@ contract PufferModuleTest is TestHelper {
         // Bob claiming with Charlie's prof (charlie did not claim yet)
         // It will revert with nothing to claim because the proof is not valid for bob
         vm.expectRevert(
-            abi.encodeWithSelector(PufferModule.NothingToClaim.selector, keccak256(abi.encodePacked(charlie)))
+            abi.encodeWithSelector(PufferModule.NothingToClaim.selector, charlie)
         );
         PufferModule(payable(module)).collectRewards({
             node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(charlie)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: charlieProofs
@@ -200,7 +196,6 @@ contract PufferModuleTest is TestHelper {
         // Bob claiming for charlie (bob is msg.sender)
         PufferModule(payable(module)).collectRewards({
             node: charlie,
-            pubKeyHash: keccak256(abi.encodePacked(charlie)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: charlieProofs
@@ -213,7 +208,6 @@ contract PufferModuleTest is TestHelper {
 
         PufferModule(payable(module)).collectRewards({
             node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(bob)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: bobProofs

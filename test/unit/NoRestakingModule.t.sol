@@ -79,7 +79,6 @@ contract NoRestakingModuleTest is TestHelper {
         vm.startPrank(alice);
         _noRestakingModule.collectRewards({
             node: alice,
-            pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -88,12 +87,11 @@ contract NoRestakingModuleTest is TestHelper {
         // Double claim in different transactions should revert
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         _noRestakingModule.collectRewards({
             node: alice,
-            pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -104,12 +102,11 @@ contract NoRestakingModuleTest is TestHelper {
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         _noRestakingModule.collectRewards({
             node: bob,
-            pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -117,11 +114,10 @@ contract NoRestakingModuleTest is TestHelper {
 
         // Bob claiming with a valid proof that is not his
         vm.expectRevert(
-            abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, keccak256(bytes.concat(bytes32("bob"))))
+            abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bob)
         );
         _noRestakingModule.collectRewards({
             node: bob,
-            pubKeyHash: keccak256(bytes.concat(bytes32("bob"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -154,12 +150,11 @@ contract NoRestakingModuleTest is TestHelper {
         vm.startPrank(alice);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(bytes.concat(bytes32("alice")))
+                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         _noRestakingModule.collectRewards({
             node: alice,
-            pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -168,10 +163,9 @@ contract NoRestakingModuleTest is TestHelper {
 
     // Zero withdrawal reverts
     function testCollectRewardsRevertsForZeroValues() public {
-        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bytes32(0)));
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, address(0)));
         _noRestakingModule.collectRewards({
             node: address(0),
-            pubKeyHash: bytes32(0),
             blockNumbers: new uint256[](1),
             amounts: new uint256[](1),
             merkleProofs: new bytes32[][](1)
@@ -199,7 +193,6 @@ contract NoRestakingModuleTest is TestHelper {
         vm.startPrank(msgSender);
         _noRestakingModule.collectRewards({
             node: charlie,
-            pubKeyHash: keccak256(bytes.concat(bytes32("charlie"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
@@ -234,7 +227,6 @@ contract NoRestakingModuleTest is TestHelper {
 
         _noRestakingModule.collectRewards({
             node: alice,
-            pubKeyHash: keccak256(bytes.concat(bytes32("alice"))),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: merkleProofs
