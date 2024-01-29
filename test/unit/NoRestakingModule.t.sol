@@ -70,8 +70,8 @@ contract NoRestakingModuleTest is TestHelper {
 
         bytes32[][] memory merkleProofs = new bytes32[][](1);
         bytes32[] memory proof = new bytes32[](2);
-        proof[0] = hex"298198477089f9ce85de12fe6747b5d26250dd855e1e7eb15f067ae57ad400b5";
-        proof[1] = hex"32c9503e9b3e27152cbd70e660517e961b8b3b7fe580fa76fa2f883025e1a3e2";
+        proof[0] = hex"3c96586c7b865e20062ef47a0faca2d5358ecf9b5ebbef06016a674253b614c7";
+        proof[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
         merkleProofs[0] = proof;
 
         assertEq(alice.balance, 0, "alice should start with zero balance");
@@ -102,7 +102,7 @@ contract NoRestakingModuleTest is TestHelper {
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
+                NoRestakingModule.NothingToClaim.selector, bob
             )
         );
         _noRestakingModule.collectRewards({
@@ -138,10 +138,10 @@ contract NoRestakingModuleTest is TestHelper {
         bytes32[][] memory merkleProofs = new bytes32[][](2);
         bytes32[] memory proof = new bytes32[](2);
         bytes32[] memory proof2 = new bytes32[](2);
-        proof[0] = hex"298198477089f9ce85de12fe6747b5d26250dd855e1e7eb15f067ae57ad400b5";
-        proof[1] = hex"32c9503e9b3e27152cbd70e660517e961b8b3b7fe580fa76fa2f883025e1a3e2";
-        proof2[0] = hex"298198477089f9ce85de12fe6747b5d26250dd855e1e7eb15f067ae57ad400b5";
-        proof2[1] = hex"32c9503e9b3e27152cbd70e660517e961b8b3b7fe580fa76fa2f883025e1a3e2";
+        proof[0] = hex"3c96586c7b865e20062ef47a0faca2d5358ecf9b5ebbef06016a674253b614c7";
+        proof[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
+        proof2[0] = hex"3c96586c7b865e20062ef47a0faca2d5358ecf9b5ebbef06016a674253b614c7";
+        proof2[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
         merkleProofs[0] = proof;
         merkleProofs[1] = proof2;
 
@@ -184,7 +184,7 @@ contract NoRestakingModuleTest is TestHelper {
 
         bytes32[][] memory merkleProofs = new bytes32[][](1);
         bytes32[] memory proof = new bytes32[](1);
-        proof[0] = hex"23c812ec1c3edb02b46b62af473d75c341e2ceb95c39e712f5e24e97d4bcde4f";
+        proof[0] = hex"1f10980ebf8a2fa0f1888e174f5487867589d59b15b3845792f5424c7a22e0f0";
         merkleProofs[0] = proof;
 
         assertEq(charlie.balance, 0, "charlie should start with zero balance");
@@ -215,11 +215,13 @@ contract NoRestakingModuleTest is TestHelper {
 
         bytes32[][] memory merkleProofs = new bytes32[][](2);
         bytes32[] memory proof1 = new bytes32[](2);
+        // first array of proofs from value 1 (first script)
         proof1[0] = hex"3c96586c7b865e20062ef47a0faca2d5358ecf9b5ebbef06016a674253b614c7";
         proof1[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
         bytes32[] memory proof2 = new bytes32[](2);
-        proof2[0] = hex"26a5782ddbab7b3cb32a5f58587a878fef42140018c108dd19f93bad679e7bb4";
-        proof2[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
+        // Second array of proofs from value 2 (run script again)
+        proof2[0] = hex"7cf8ac19900bd2891ad7ad3bbdef859e7b335aa1fe95774e3ec27eeda71831c8";
+        proof2[1] = hex"80d19ea204fac2c5559ba004190fb74186d17b1eb00ddadb5d0c4935e8661a47";
         merkleProofs[0] = proof1;
         merkleProofs[1] = proof2;
 
