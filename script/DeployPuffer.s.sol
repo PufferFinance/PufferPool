@@ -145,8 +145,8 @@ contract DeployPuffer is BaseScript {
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(address(validatorTicketImplementation), "");
         */
 
+        // TODO: Deploy this contract properly with the proxy pattern
         validatorTicket = new ValidatorTicket();
-        
         validatorTicket.initialize(address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18);
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
