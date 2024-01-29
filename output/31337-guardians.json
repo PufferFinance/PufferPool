@@ -1,8 +1,7 @@
 {
   "": "",
-  "enclaveVerifier": "0xd60DeE1b240f14A4bd22aeA4363D08FA6dA40F25",
-  "guardianModule": "0xf55C5aa17a2a985316639882F3735Ee103737da5",
-  "guardians": "0x76d1b66f91044A909C7A3BB834bd302840cd3E4a",
-  "safeImplementation": "0xc54e6F16A1940d000C6ADEE341D11570490a86F6",
-  "safeProxyFactory": "0xE25E53220Df33D41b0422FeDBD2D23A94045cFf3"
+  "accessManager": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "enclaveVerifier": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  "guardianModule": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  "pauser": "0xeb1D5EE982DbEFf6E57e5Ca3CA45F35bBE229FFE"
 }

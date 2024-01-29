@@ -21,6 +21,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferDeployment } from "./DeploymentStructs.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 /**
  * @title DeployPuffer
@@ -46,6 +47,9 @@ contract DeployPuffer is BaseScript {
     WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
+    ERC1967Proxy validatorTicketProxy;
+    ValidatorTicket validatorTicket;
+    ValidatorTicket validatorTicketImplementation;
 
     address payable treasury;
 
@@ -121,6 +125,30 @@ contract DeployPuffer is BaseScript {
             });
         }
 
+        // UUPS proxy for ValidatorTicket
+        /*
+        bytes32 validatorTicketSalt = bytes32("validatorTicket");
+        validatorTicketProxy = new ERC1967Proxy{ salt: validatorTicketSalt }(address(new NoImplementation()), "");
+        vm.label(address(validatorTicketProxy), "ValidatorTicket");
+        */
+
+        /*
+        // Deploy ValidatorTicket implementation
+        validatorTicketImplementation =
+            new ValidatorTicket();
+        //vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
+
+        validatorTicketProxy = ERC1967Proxy(payable(address(new NoImplementation())));
+
+        validatorTicket = ValidatorTicket(payable(address(validatorTicketProxy)));
+
+        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(address(validatorTicketImplementation), "");
+        */
+
+        validatorTicket = new ValidatorTicket();
+        
+        validatorTicket.initialize(address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18);
+
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
         pool = new PufferPool{ salt: poolSalt }(pufferProtocol, address(accessManager));
@@ -165,6 +193,8 @@ contract DeployPuffer is BaseScript {
         vm.label(address(beacon), "PufferModuleBeacon");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
+        vm.label(address(validatorTicket), "validatorTicket");
+        vm.label(address(treasury), "treasury");
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
@@ -174,6 +204,8 @@ contract DeployPuffer is BaseScript {
         vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
         vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
+        vm.serializeAddress(obj, "validatorTicket", address(validatorTicket));
+        vm.serializeAddress(obj, "treasury", address(treasury));
 
         string memory finalJson = vm.serializeString(obj, "", "");
 
@@ -190,7 +222,8 @@ contract DeployPuffer is BaseScript {
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
             pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
-            moduleFactory: address(moduleFactory)
+            moduleFactory: address(moduleFactory),
+            validatorTicket: address(validatorTicket)
         });
     }
 

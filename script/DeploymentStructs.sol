@@ -26,4 +26,5 @@ struct PufferDeployment {
     address pauser;
     address beacon; // Beacon for Puffer modules
     address moduleFactory;
+    address validatorTicket;
 }

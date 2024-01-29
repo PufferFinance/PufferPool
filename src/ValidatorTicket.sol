@@ -60,7 +60,7 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
     }
 
     constructor() payable {
-        _disableInitializers();
+        //_disableInitializers();
     }
 
     function initialize(

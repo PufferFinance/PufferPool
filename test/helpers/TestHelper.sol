@@ -17,6 +17,7 @@ import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Permit } from "puffer/struct/Permit.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 contract TestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -69,6 +70,7 @@ contract TestHelper is Test, BaseScript {
     IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
+    ValidatorTicket public validatorTicket;
 
     GuardianModule public guardianModule;
 
@@ -108,6 +110,7 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
         fuzzedAddressMapping[address(pool)] = true;
+        fuzzedAddressMapping[address(validatorTicket)] = true;
     }
 
     function _deployContractAndSetupGuardians() public {
@@ -143,6 +146,7 @@ contract TestHelper is Test, BaseScript {
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
+        validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
 
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
