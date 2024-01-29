@@ -215,11 +215,11 @@ contract NoRestakingModuleTest is TestHelper {
 
         bytes32[][] memory merkleProofs = new bytes32[][](2);
         bytes32[] memory proof1 = new bytes32[](2);
-        proof1[0] = hex"298198477089f9ce85de12fe6747b5d26250dd855e1e7eb15f067ae57ad400b5";
-        proof1[1] = hex"32c9503e9b3e27152cbd70e660517e961b8b3b7fe580fa76fa2f883025e1a3e2";
+        proof1[0] = hex"3c96586c7b865e20062ef47a0faca2d5358ecf9b5ebbef06016a674253b614c7";
+        proof1[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
         bytes32[] memory proof2 = new bytes32[](2);
-        proof2[0] = hex"6d4b23e4f81df0bb176d65cd2456a1d19f123228558bfaf7767d66690d600923";
-        proof2[1] = hex"e6914098f54129e35649cf5d7c62ab7afaa3a2c709e226f55d716e7a75c64ad2";
+        proof2[0] = hex"26a5782ddbab7b3cb32a5f58587a878fef42140018c108dd19f93bad679e7bb4";
+        proof2[1] = hex"c6f0836b2023b5fd91c6df8de68d3511c0e4e0984cd09df23d26227717a8ccb2";
         merkleProofs[0] = proof1;
         merkleProofs[1] = proof2;
 
@@ -236,7 +236,7 @@ contract NoRestakingModuleTest is TestHelper {
     }
 
     function testPostingRewardsForSameBlockReverts() public {
-        bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
+        bytes32 merkleRoot1 = hex"415eab63c87f7cb27d1ae7c58d634c68901523ff3773671cbdc09d2b002a80e1";
 
         bytes32 signedMessageHash =
             LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);
@@ -254,8 +254,8 @@ contract NoRestakingModuleTest is TestHelper {
         // Merkle roots are hardcoded, we have two of them
         vm.deal(address(_noRestakingModule), 1000 ether);
 
-        bytes32 merkleRoot1 = hex"4059b3b5d8c24bf58c7fab0ea81c2cd8409d7a26d9dc2c75f464945681d81371";
-        bytes32 merkleRoot2 = hex"361520123168ffc3c2d93e1eaaaa5188616fef4a47f68e868a7414f2c2350313";
+        bytes32 merkleRoot1 = hex"415eab63c87f7cb27d1ae7c58d634c68901523ff3773671cbdc09d2b002a80e1";
+        bytes32 merkleRoot2 = hex"657fabde691fbafeb450b72bf921e575f1f822c2283513b7c67da69e9dac3429";
 
         bytes32 signedMessageHash1 =
             LibGuardianMessages._getModuleRewardsRootMessage(bytes32("NO_RESTAKING"), merkleRoot1, 1);

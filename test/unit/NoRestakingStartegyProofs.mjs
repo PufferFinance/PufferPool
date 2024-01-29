@@ -16,7 +16,7 @@ const valuesProof2 = [
 ];
 
 // (2)
-const tree = StandardMerkleTree.of(values, ["address", "uint256"]);
+const tree = StandardMerkleTree.of(valuesProof2, ["address", "uint256"]);
 
 // (3)
 console.log('Merkle Root:', tree.root);

@@ -155,7 +155,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = bytes4(hex"6f06f422"); // collectRewards
+        publicSelectors[0] = bytes4(hex"e5704a2a"); // collectRewards
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

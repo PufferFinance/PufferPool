@@ -5,3 +5,5 @@ simulation/
 .env
 .vscode
 .DS_Store
+test/unit/node_modules/
+package-lock.json
