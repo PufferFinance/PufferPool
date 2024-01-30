@@ -231,7 +231,7 @@ contract PufferProtocolTest is TestHelper {
 
         validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
-        assertTrue(validator.monthsCommitted == 5, "lastPayment");
+        assertTrue(validator.daysCommitted == 5, "lastPayment");
     }
 
     // Try updating for future block

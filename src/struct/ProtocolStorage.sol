@@ -94,6 +94,11 @@ struct ProtocolStorage {
      * Slot 10
      */
     mapping(bytes32 moduleName => ModuleLimit moduleLimit) moduleLimits;
+   /**
+    * @dev Mapping of node operator to number of days committed
+    * Slot 11
+    */
+    mapping(address node => uint24 daysCommitted) daysCommitted;
 }
 
 struct ModuleLimit {

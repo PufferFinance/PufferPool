@@ -117,6 +117,7 @@ contract DeployPuffer is BaseScript {
             pufferProtocolImpl = new PufferProtocol({
                 withdrawalPool: WithdrawalPool(payable(predictedWithdrawalPool)),
                 pool: PufferPool(payable(predictedPool)),
+                validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 treasury: treasury,
                 moduleFactory: address(moduleFactory)

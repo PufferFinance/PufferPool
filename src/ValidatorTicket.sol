@@ -99,6 +99,10 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable, UUPSUpgradeable, A
         emit MintPriceUpdated(oldPrice, newPrice);
     }
 
+    function getMintPrice() external returns (uint256) {
+        return _mintPrice;
+    }
+
     /**
      * @notice Mints sender VT corresponding to sent ETH
      * @notice Sends PufferVault due share, holding back rest to later distribute between Treasury and Guardians

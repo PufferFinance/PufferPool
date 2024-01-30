@@ -11,6 +11,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
+import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 /**
  * @title IPufferProtocol
@@ -137,6 +138,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x84e6610d0de4b996419eca9cf06b11fc13c256051f73673c802822674928fb9a"
      */
     event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 amountPaid);
+
+    /**
+     * @notice Emitted when the smoothing commitment is extended
+     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     */
+    event VTDeposited(address node, uint24 numberOfDays);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
@@ -360,6 +367,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
 
     /**
+     * @notice Returns the Validator ticket ERC20 token
+     */
+    function VALIDATOR_TICKET() external view returns (ValidatorTicket);
+
+    /**
      * @notice Returns the protocol fee rate
      */
     function getProtocolFeeRate() external view returns (uint256);
@@ -418,9 +430,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
         returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
+     * @notice Returns the smoothing commitment for a `numberOfDays` (in wei)
      */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
+    function getSmoothingCommitment(uint256 numberOfDays) external view returns (uint256);
 
     /**
      * @notice Registers a new validator key in a `moduleName` queue with a permit
@@ -431,13 +443,13 @@ interface IPufferProtocol is IPufferProtocolStorage {
      *
      * @param data The validator key data
      * @param moduleName The name of the module
-     * @param numberOfMonths The number of months for the registration
+     * @param numberOfDays The number of days for the registration
      * @param permit The permit for the registration
      */
     function registerValidatorKeyPermit(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfMonths,
+        uint256 numberOfDays,
         Permit calldata permit
     ) external payable;
 
@@ -445,17 +457,24 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Registers a new validator in a `moduleName` queue
      * @dev There is a queue per moduleName and it is FIFO
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfDays)
         external
         payable;
 
     /**
-     * @notice Extends the commitment for a validator in a specific module
-     * @param moduleName The name of the module
-     * @param validatorIndex The index of the validator in the module
-     * @param numberOfMonths The number of months to extend the commitment for
+-     * @notice Extends the commitment for a validator in a specific module
+-     * @param moduleName The name of the module
+-     * @param validatorIndex The index of the validator in the module
+-     * @param numberOfDays The number of days to extend the commitment for
+      */
+    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfDays) external payable;
+    
+    /**
+     * @notice Extends the commitment for all of a node operator's validators
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
      */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
+    function depositVT(address node, uint24 numberOfDays) external payable;
 
     /**
      * @notice Returns the pending validator index for `moduleName`

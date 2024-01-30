@@ -9,7 +9,7 @@ import { Status } from "puffer/struct/Status.sol";
 struct Validator {
     address node; // Address of the Node operator
     address module; // In which module is the Validator participating
-    uint24 monthsCommitted; // Number of months
+    uint24 daysCommitted; // Number of days the Validator has committed via locked VT
     uint64 bond; // Validator bond (in pufETH)
     Status status; // Validator status
     bytes pubKey; // Validator public key
