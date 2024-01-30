@@ -258,6 +258,36 @@ contract PufferProtocolTest is TestHelper {
         assertEq(newCommitment, oldCommitment + 5);
     }
 
+    // Test depositVTPermit by minting some ValidatorTickets then constructing a permit to send them to protocol
+    function testDepositVTPermit() public {
+        address alice = makeAddr("alice");
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.deal(alice, 10 ether);
+        
+        // Set mint price on VT contract
+        vm.startPrank(address(1));
+        pufferProtocol.VALIDATOR_TICKET().setMintPrice(1);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        uint24 oldCommitment = pufferProtocol.getCommitment(alice);
+
+        vm.warp(1000);
+
+        // Mint some VTs
+        pufferProtocol.VALIDATOR_TICKET().mint{value: 5 ether}();
+
+        Permit memory signed = _signPermitVT(_testTemps("alice", address(pufferProtocol), 5 ether, type(uint256).max));
+
+        // Deposit VTs to the protocol
+        pufferProtocol.depositVTPermit(alice, 5, signed);
+        vm.stopPrank();
+
+        uint24 newCommitment = pufferProtocol.getCommitment(alice);
+
+        assertEq(newCommitment, oldCommitment + 5);
+    }
+
     // Test depositVTApproved by minting some ValidatorTickets then approving them to the protocol
     function testDepositVTApproved() public {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
