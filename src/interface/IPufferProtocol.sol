@@ -477,6 +477,22 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function depositVT(address node, uint24 numberOfDays) external payable;
 
     /**
+     * @notice Extends the commitment for all of a node operator's validators by depositing VT
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
+     * @param permit The permit for ERC20 VT token
+     */
+    function depositVTPermit(address node, uint24 numberOfDays, Permit calldata permit) external;
+
+    /**
+     * @notice Extends the commitment for all of a node operator's validators by depositing VT
+     * @notice Assumes msg.sender has already approved VT to be transferred to contract
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
+     */
+    function depositVTApproved(address node, uint24 numberOfDays) external;
+
+    /**
      * @notice Returns the pending validator index for `moduleName`
      */
     function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256);

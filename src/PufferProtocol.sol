@@ -353,7 +353,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
-        //VALIDATOR_TICKET.safeTransferFrom(msg.sender, address(this), numberOfDays);
 
         // No need for Safecast because of the validations above
         $.daysCommitted[node] += uint24(numberOfDays);
@@ -361,6 +360,44 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit VTDeposited(node, numberOfDays);
 
         _transferFunds($, 0);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function depositVTPermit(address node, uint24 numberOfDays, Permit calldata permit) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        try IERC20Permit(address(VALIDATOR_TICKET)).permit({
+            owner: permit.owner,
+            spender: address(this),
+            value: permit.amount,
+            deadline: permit.deadline,
+            v: permit.v,
+            s: permit.s,
+            r: permit.r
+        }) { } catch { }
+
+        SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
+
+        // No need for Safecast because of the validations above
+        $.daysCommitted[node] += uint24(numberOfDays);
+
+        emit VTDeposited(node, numberOfDays);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function depositVTApproved(address node, uint24 numberOfDays) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
+
+        // No need for Safecast because of the validations above
+        $.daysCommitted[node] += uint24(numberOfDays);
+
+        emit VTDeposited(node, numberOfDays);
     }
 
     /**
