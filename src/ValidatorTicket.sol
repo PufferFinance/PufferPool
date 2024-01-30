@@ -96,6 +96,8 @@ contract ValidatorTicket is
             revert InvalidAmount();
         }
 
+        //@todo burst threshold
+
         // Send ETH to treasury
         _sendETH(TREASURY, msg.value, $.protocolFeeRate);
 
@@ -103,8 +105,7 @@ contract ValidatorTicket is
         uint256 guardiansAmount = FixedPointMathLib.fullMulDiv(msg.value, $.guardiansFeeRate, _ONE_HUNDRED_WAD);
         $.guardiansBalance += SafeCastLib.toUint72(guardiansAmount);
 
-        // The remainder is belongs to PufferVault
-
+        // The remainder belongs to PufferVault
         _mint(recipient, msg.value / mintPrice);
     }
 

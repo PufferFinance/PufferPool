@@ -150,31 +150,10 @@ contract DeployPuffer is BaseScript {
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
 
-        uint256[] memory smoothingCommitments = new uint256[](14);
-
-        smoothingCommitments[0] = 0.11995984289445429 ether;
-        smoothingCommitments[1] = 0.11989208274022745 ether;
-        smoothingCommitments[2] = 0.1197154447609346 ether;
-        smoothingCommitments[3] = 0.11928478246786729 ether;
-        smoothingCommitments[4] = 0.11838635147178002 ether;
-        smoothingCommitments[5] = 0.11699999999999999 ether;
-        smoothingCommitments[6] = 0.11561364852821997 ether;
-        smoothingCommitments[7] = 0.11471521753213271 ether;
-        smoothingCommitments[8] = 0.1142845552390654 ether;
-        smoothingCommitments[9] = 0.11410791725977254 ether;
-        smoothingCommitments[10] = 0.1140401571055457 ether;
-        smoothingCommitments[11] = 0.11401483573893981 ether;
-        smoothingCommitments[12] = 0.1140054663071664 ether;
-        smoothingCommitments[13] = 0.1140020121007828 ether;
-
         NoImplementation(payable(address(proxy))).upgradeToAndCall(address(pufferProtocolImpl), "");
 
         // Initialize the Pool
-        pufferProtocol.initialize({
-            accessManager: address(accessManager),
-            noRestakingModule: address(noRestaking),
-            smoothingCommitments: smoothingCommitments
-        });
+        pufferProtocol.initialize({ accessManager: address(accessManager), noRestakingModule: address(noRestaking) });
 
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");

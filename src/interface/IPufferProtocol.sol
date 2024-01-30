@@ -127,10 +127,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event TransferredETH(address indexed to, uint256 amount);
 
     /**
-     * @notice Emitted when the smoothing commitment is paid
-     * @dev Signature "0x84e6610d0de4b996419eca9cf06b11fc13c256051f73673c802822674928fb9a"
+     * @notice Emitted when VT is deposited to the protocol
+     * @dev Signature "0xd47eb90c0b945baf5f3ae3f1384a7a524a6f78f1461b354c4a09c4001a5cee9c"
      */
-    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 amountPaid);
+    event ValidatorTicketsDeposited(address indexed node, address indexed depositor, uint256 amount);
+
+    /**
+     * @notice Emitted when VT is withdrawn from the protocol
+     * @dev Signature "0xdf7e884ecac11650e1285647b057fa733a7bb9f1da100e7a8c22aafe4bdf6f40"
+     */
+    event ValidatorTicketsWithdrawn(address indexed node, address indexed recipient, uint256 amount);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
@@ -150,12 +156,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param pufETHTotalSupply is the total supply of the pufETH
      */
     event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
-
-    /**
-     * @notice Emitted when the smoothing commitments are changed
-     * @dev Signature "0xa1c728453af1b7abc9e0f6046d262db82ac81ccb163125d0cf365bae5dc94475"
-     */
-    event CommitmentsChanged(uint256[] oldCommitments, uint256[] newCommitments);
 
     /**
      * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
@@ -275,32 +275,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
 
     /**
-     * @notice Sets the protocol fee rate
-     * @dev 1% equals `1 * FixedPointMathLib.WAD`
-     *
-     * Restricted to DAO
-     */
-    function setProtocolFeeRate(uint256 protocolFeeRate) external;
-
-    /**
-     * @notice Sets guardians fee rate
-     * @dev 1% equals `1 * FixedPointMathLib.WAD`
-     *
-     * Restricted to DAO
-     */
-    function setGuardiansFeeRate(uint256 newRate) external;
-
-    /**
      * @notice Sets the validator limit per interval to `newLimit`
      * @dev Restricted to DAO
      */
     function setValidatorLimitPerInterval(uint256 newLimit) external;
-
-    /**
-     * @notice Sets the smoothing commitment amounts
-     * @dev Restricted to DAO
-     */
-    function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
 
     /**
      * @notice Updates the proof of reserve by checking the signatures of the guardians
@@ -345,16 +323,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the Puffer Module Factory
      */
     function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
-
-    /**
-     * @notice Returns the protocol fee rate
-     */
-    function getProtocolFeeRate() external view returns (uint256);
-
-    /**
-     * @notice Returns the guardians fee rate
-     */
-    function getGuardiansFeeRate() external view returns (uint256);
 
     /**
      * @notice Returns the current module weights
@@ -410,11 +378,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
         returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
-     */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
-
-    /**
      * @notice Registers a new validator key in a `moduleName` queue with a permit
      * @dev There is a queue per moduleName and it is FIFO
      *
@@ -423,31 +386,17 @@ interface IPufferProtocol is IPufferProtocolStorage {
      *
      * @param data The validator key data
      * @param moduleName The name of the module
-     * @param numberOfMonths The number of months for the registration
-     * @param permit The permit for the registration
+     * @param numberOfDays The number of days for the registration
+     * @param pufETHPermit The permit for the pufETH
+     * @param vtPermit The permit for the ValidatorTicket
      */
-    function registerValidatorKeyPermit(
+    function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfMonths,
-        Permit calldata permit
+        uint256 numberOfDays,
+        Permit calldata pufETHPermit,
+        Permit calldata vtPermit
     ) external payable;
-
-    /**
-     * @notice Registers a new validator in a `moduleName` queue
-     * @dev There is a queue per moduleName and it is FIFO
-     */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
-        external
-        payable;
-
-    /**
-     * @notice Extends the commitment for a validator in a specific module
-     * @param moduleName The name of the module
-     * @param validatorIndex The index of the validator in the module
-     * @param numberOfMonths The number of months to extend the commitment for
-     */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
 
     /**
      * @notice Returns the pending validator index for `moduleName`

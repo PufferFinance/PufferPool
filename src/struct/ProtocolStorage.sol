@@ -19,21 +19,6 @@ struct ProtocolStorage {
      */
     bytes32[] moduleWeights;
     /**
-     * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 1
-     */
-    uint72 protocolFeeRate;
-    /**
-     * @dev WithdrawalPool rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 1
-     */
-    uint72 withdrawalPoolRate;
-    /**
-     * @dev Guardians fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-     * Slot 1
-     */
-    uint72 guardiansFeeRate;
-    /**
      * @dev Number of validators registered in this interval
      * Slot 1
      */
@@ -94,6 +79,12 @@ struct ProtocolStorage {
      * Slot 10
      */
     mapping(bytes32 moduleName => ModuleLimit moduleLimit) moduleLimits;
+    mapping(address node => NodeInfo info) vtBalances;
+}
+
+struct NodeInfo {
+    uint128 validatorCount;
+    uint128 vtBalance;
 }
 
 struct ModuleLimit {

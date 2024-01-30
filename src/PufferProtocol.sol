@@ -112,16 +112,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     receive() external payable { }
 
-    function initialize(address accessManager, address noRestakingModule, uint256[] calldata smoothingCommitments)
-        external
-        initializer
-    {
+    function initialize(address accessManager, address noRestakingModule) external initializer {
         __AccessManaged_init(accessManager);
-        _setProtocolFeeRate(2 * FixedPointMathLib.WAD); // 2%
-        _setGuardiansFeeRate(5 * 1e17); // 0.5 %
         _setValidatorLimitPerInterval(20);
         _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
-        _setSmoothingCommitments(smoothingCommitments);
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _NO_RESTAKING;
         _setModuleWeights(weights);
@@ -133,35 +127,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
+     * @notice Deposits validator tickets for the `node`
      */
-    function registerValidatorKeyPermit(
-        ValidatorKeyData calldata data,
-        bytes32 moduleName,
-        uint256 numberOfMonths,
-        Permit calldata permit
-    ) external payable restricted {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
-
-        // panic for invalid `numberOfMonths`
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
-
-        // SC is paid in ETH
-        if (msg.value != smoothingCommitment) {
-            revert InvalidETHAmount();
-        }
-
-        // Bond can be in pufETH
-        uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-
-        if (PUFFER_VAULT.previewWithdraw(permit.amount) < validatorBond) {
-            revert InvalidETHAmount();
-        }
-
-        try IERC20Permit(address(PUFFER_VAULT)).permit({
-            owner: permit.owner,
+    function depositValidatorTicket(Permit calldata permit, address node) external {
+        try IERC20Permit(address(VALIDATOR_TICKET)).permit({
+            owner: msg.sender,
             spender: address(this),
             value: permit.amount,
             deadline: permit.deadline,
@@ -170,54 +140,118 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             r: permit.r
         }) { } catch { }
 
-        // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transferFrom(msg.sender, address(this), permit.amount);
+        VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
 
-        _storeValidatorInformation({
-            $: $,
-            data: data,
-            pufETHAmount: permit.amount,
-            moduleName: moduleName,
-            numberOfMonths: numberOfMonths
-        });
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        $.vtBalances[node].vtBalance += SafeCastLib.toUint128(permit.amount);
+        emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
+    }
 
-        // We've received bond in pufETH, so the second param is 0
-        _transferFunds($, 0);
+    function withdrawValidatorTicket(uint256 amount, address recipient) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        //@todo restrict how much of VT can be withdrawn based on the validator number
+
+        $.vtBalances[msg.sender].vtBalance -= SafeCastLib.toUint128(amount);
+        emit ValidatorTicketsWithdrawn(msg.sender, recipient, amount);
     }
 
     /**
-     * @inheritdoc IPufferProtocol
+     * @notice Used to register validator key
+     * @dev Permit for VT and pufETH is optional, if you do the normal .approve(address(this))
+     * Both permits will revert but the transaction overall will succeed, as .transferFrom will not revert in that case
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
-        external
-        payable
-        restricted
-    {
+    function registerValidatorKey(
+        ValidatorKeyData calldata data,
+        bytes32 moduleName,
+        uint256 numberOfDays,
+        Permit calldata pufETHPermit,
+        Permit calldata vtPermit
+    ) external payable restricted {
+        //@todo what is the min amount?
+        if (numberOfDays < 28) {
+            revert InvalidData();
+        }
+
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        // panic for invalid `numberOfMonths`
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
+        // If this value is 0, we don't do .transferFrom for pufETH
+        uint256 pufETHMintedForBond;
+        // If this value is 0, we don't do .transferFrom for VT
+        uint256 vtMinted;
+
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
 
-        if (msg.value != (smoothingCommitment + validatorBond)) {
-            revert InvalidETHAmount();
+        // If the user is sending ETH with the transaction
+        // That means he is paying for the VT/BOND or BOTH with ETH
+        if (msg.value > 0) {
+            (pufETHMintedForBond, vtMinted) = _handleETHPayment(pufETHPermit, vtPermit, numberOfDays, validatorBond);
+        } else {
+            _callPermit(address(VALIDATOR_TICKET), vtPermit);
+            _callPermit(address(PUFFER_VAULT), pufETHPermit);
         }
+        // If the permits fail, and the `msg.sender` did not `.approve` tokens for this contract
+        // `.transferFrom` will revert, and the transaction will fail
 
-        // slither-disable-next-line arbitrary-send-eth
-        uint256 pufETHReceived = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+        // If we did not mint any pufETH, we need to transfer the bond from the msg.sender
+        if (pufETHMintedForBond == 0) {
+            // slither-disable-next-line unchecked-transfer
+            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
+        }
+        // If we did not mint any VT, we need to transfer the VT from the msg.sender
+        if (vtMinted == 0) {
+            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays);
+        }
 
         _storeValidatorInformation({
             $: $,
             data: data,
-            pufETHAmount: pufETHReceived,
+            pufETHAmount: bondInPufETH,
             moduleName: moduleName,
-            numberOfMonths: numberOfMonths
+            numberOfDays: numberOfDays
         });
+    }
 
-        // Deduct validatorBond from msg.value
-        _transferFunds($, validatorBond);
+    function isOverBurstThreshold() external view returns (bool) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD);
+    }
+
+    // Handles the ETH payment for the VT/Bond or BOTH
+    function _handleETHPayment(
+        Permit calldata pufETHPermit,
+        Permit calldata vtPermit,
+        uint256 numberOfDays,
+        uint256 validatorBond
+    ) internal returns (uint256 pufETHMintedForBond, uint256 vtMinted) {
+        uint256 vtPayment = VALIDATOR_TICKET.getValidatorTicketPrice() * numberOfDays;
+
+        //@todo figure out if we need this
+        if (vtPayment == validatorBond) {
+            revert("Pls select another number of days");
+        }
+
+        // Paying for Both with ETH
+        if (msg.value == vtPayment + validatorBond) {
+            // slither-disable-next-line arbitrary-send-eth
+            pufETHMintedForBond = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
+            vtMinted = numberOfDays;
+        } else if (msg.value == validatorBond) {
+            // Paying only for the bond with ETH
+            pufETHMintedForBond = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            _callPermit(address(VALIDATOR_TICKET), vtPermit);
+        } else if (msg.value == vtPayment) {
+            // Only VT with ETH
+            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
+            vtMinted = numberOfDays;
+            _callPermit(address(PUFFER_VAULT), pufETHPermit);
+        } else {
+            revert InvalidETHAmount();
+        }
     }
 
     /**
@@ -266,29 +300,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        Validator storage validator = $.validators[moduleName][validatorIndex];
-
-        // Causes panic for invalid numberOfMonths
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
-
-        // Node operator can purchase commitment for multiple months
-        if ((msg.value != smoothingCommitment)) {
-            revert InvalidETHAmount();
-        }
-
-        // No need for Safecast because of the validations above
-        validator.monthsCommitted += uint24(numberOfMonths);
-
-        emit SmoothingCommitmentPaid(validator.pubKey, msg.value);
-
-        _transferFunds($, 0);
     }
 
     /**
@@ -364,7 +375,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Remove what we don't
         delete validator.module;
         delete validator.node;
-        delete validator.monthsCommitted;
         delete validator.bond;
         delete validator.pubKey;
         delete validator.signature;
@@ -447,7 +457,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.fullWithdrawalsRoots[blockNumber] = root;
 
-        // Allocate ETH capital back to the pool ASAP to fuel pool growth
+        // Allocate ETH capital back to the Vault ASAP to fuel Vault growth
         for (uint256 i = 0; i < modules.length; ++i) {
             // slither-disable-next-line calls-loop
             IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
@@ -531,27 +541,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external restricted {
-        _setSmoothingCommitments(smoothingCommitments);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function setProtocolFeeRate(uint256 protocolFeeRate) external restricted {
-        _setProtocolFeeRate(protocolFeeRate);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function setGuardiansFeeRate(uint256 newRate) external restricted {
-        _setGuardiansFeeRate(newRate);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
         _setValidatorLimitPerModule(moduleName, limit);
     }
@@ -590,14 +579,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         return validators;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.smoothingCommitments[numberOfMonths - 1];
     }
 
     /**
@@ -672,22 +653,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getProtocolFeeRate() external view returns (uint256) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.protocolFeeRate;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getGuardiansFeeRate() external view returns (uint256) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.guardiansFeeRate;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     function getWithdrawalCredentials(address module) public view returns (bytes memory) {
         return IPufferModule(module).getWithdrawalCredentials();
     }
@@ -711,7 +676,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfMonths)
+    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfDays)
         external
         view
         returns (bytes[] memory, bytes memory, uint256, uint256)
@@ -722,7 +687,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + $.smoothingCommitments[numberOfMonths - 1];
+        uint256 ethAmount = validatorBond + VALIDATOR_TICKET.getValidatorTicketPrice() * numberOfDays;
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
@@ -732,7 +697,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ValidatorKeyData calldata data,
         uint256 pufETHAmount,
         bytes32 moduleName,
-        uint256 numberOfMonths
+        uint256 numberOfDays
     ) internal {
         uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
 
@@ -743,12 +708,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint64(pufETHAmount),
-            monthsCommitted: uint24(numberOfMonths),
             node: msg.sender
         });
 
+        $.vtBalances[msg.sender].vtBalance += SafeCastLib.toUint128(numberOfDays);
+
         // Increment indices for this module and number of validators registered
         unchecked {
+            ++$.vtBalances[msg.sender].validatorCount;
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
             ++$.numberOfValidatorsRegisteredInThisInterval;
@@ -758,46 +725,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
-    function _setSmoothingCommitments(uint256[] calldata smoothingCommitments) internal {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256[] memory oldSmoothingCommitments = $.smoothingCommitments;
-        $.smoothingCommitments = smoothingCommitments;
-        emit CommitmentsChanged(oldSmoothingCommitments, smoothingCommitments);
-    }
-
-    function _transferFunds(ProtocolStorage storage $, uint256 bond) internal {
-        uint256 amount = msg.value - bond;
-
-        // If we are above burst threshold, take everything to the treasury
-        // this number division doesn't revert
-        if (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD) {
-            _sendETH(TREASURY, amount, _ONE_HUNDRED_WAD);
-            return;
-        }
-
-        uint256 treasuryAmount = _sendETH(TREASURY, amount, $.protocolFeeRate);
-        uint256 guardiansAmount = _sendETH(address(GUARDIAN_MODULE), amount, $.guardiansFeeRate);
-
-        uint256 remainder = amount - (treasuryAmount + guardiansAmount);
-
-        address(PUFFER_VAULT).safeTransferETH(remainder);
-    }
-
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 oldLimit = $.moduleLimits[moduleName].allowedLimit;
         $.moduleLimits[moduleName].allowedLimit = limit;
         emit ValidatorLimitPerModuleChanged(oldLimit, limit);
-    }
-
-    function _setGuardiansFeeRate(uint256 newRate) internal {
-        if (newRate > (2 * FixedPointMathLib.WAD)) {
-            revert InvalidData();
-        }
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 oldRate = $.guardiansFeeRate;
-        $.guardiansFeeRate = SafeCastLib.toUint72(newRate);
-        emit GuardiansFeeRateChanged(oldRate, newRate);
     }
 
     // _sendETH is sending ETH to trusted addresses (no reentrancy)
@@ -815,16 +747,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32[] memory oldModuleWeights = $.moduleWeights;
         $.moduleWeights = newModuleWeights;
         emit ModuleWeightsChanged(oldModuleWeights, newModuleWeights);
-    }
-
-    function _setProtocolFeeRate(uint256 protocolFee) internal {
-        if (protocolFee > (10 * FixedPointMathLib.WAD)) {
-            revert InvalidData();
-        }
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 oldProtocolFee = $.protocolFeeRate;
-        $.protocolFeeRate = SafeCastLib.toUint72(protocolFee);
-        emit ProtocolFeeRateChanged(oldProtocolFee, protocolFee);
     }
 
     function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
@@ -886,6 +808,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         $.modules[moduleName] = newModule;
         emit ModuleChanged(moduleName, address(oldModule), address(newModule));
+    }
+
+    function _callPermit(address token, Permit calldata permitData) internal {
+        try IERC20Permit(token).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

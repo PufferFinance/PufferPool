@@ -212,16 +212,13 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](9);
-        selectors[0] = PufferProtocol.setProtocolFeeRate.selector;
-        selectors[1] = PufferProtocol.setSmoothingCommitments.selector;
-        selectors[2] = PufferProtocol.createPufferModule.selector;
-        selectors[3] = PufferProtocol.setModuleWeights.selector;
-        selectors[4] = PufferProtocol.setValidatorLimitPerInterval.selector;
-        selectors[5] = PufferProtocol.changeModule.selector;
-        selectors[6] = UUPSUpgradeable.upgradeToAndCall.selector;
-        selectors[7] = PufferProtocol.setGuardiansFeeRate.selector;
-        selectors[8] = PufferProtocol.setValidatorLimitPerModule.selector;
+        bytes4[] memory selectors = new bytes4[](6);
+        selectors[0] = PufferProtocol.createPufferModule.selector;
+        selectors[1] = PufferProtocol.setModuleWeights.selector;
+        selectors[2] = PufferProtocol.setValidatorLimitPerInterval.selector;
+        selectors[3] = PufferProtocol.changeModule.selector;
+        selectors[4] = UUPSUpgradeable.upgradeToAndCall.selector;
+        selectors[5] = PufferProtocol.setValidatorLimitPerModule.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -243,9 +240,8 @@ contract SetupAccess is BaseScript {
             ROLE_ID_GUARDIANS
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](2);
+        bytes4[] memory publicSelectors = new bytes4[](1);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
-        publicSelectors[1] = PufferProtocol.registerValidatorKeyPermit.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

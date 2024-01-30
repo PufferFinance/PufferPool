@@ -18,6 +18,7 @@ import { Status } from "puffer/struct/Status.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { Permit } from "puffer/struct/Permit.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
@@ -52,6 +53,8 @@ contract PufferProtocolHandler is Test {
     EnumerableMap.AddressToUintMap _pufETHDepositors;
 
     EnumerableSet.AddressSet _nodeOperators;
+
+    Permit emptyPermit;
 
     struct Data {
         address owner;
@@ -621,8 +624,9 @@ contract PufferProtocolHandler is Test {
         internal
         returns (uint256 depositedETHAmount)
     {
-        uint256 momths = bound(block.timestamp, 0, 12);
-        uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(momths);
+        uint256 months = bound(block.timestamp, 0, 12);
+        // uint256 smoothingCommitment = pufferProtocol.getSmoothingCommitment(months);
+        uint256 smoothingCommitment = 0.5 ether;
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
@@ -634,7 +638,9 @@ contract PufferProtocolHandler is Test {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(validatorKeyData, moduleName, momths);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
+            validatorKeyData, moduleName, months, emptyPermit, emptyPermit
+        );
 
         return (smoothingCommitment + bond);
     }
