@@ -48,8 +48,6 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
     ERC1967Proxy validatorTicketProxy;
-    ValidatorTicket validatorTicket;
-    ValidatorTicket validatorTicketImplementation;
 
     address payable treasury;
 
@@ -125,29 +123,16 @@ contract DeployPuffer is BaseScript {
             });
         }
 
-        // UUPS proxy for ValidatorTicket
-        /*
-        bytes32 validatorTicketSalt = bytes32("validatorTicket");
-        validatorTicketProxy = new ERC1967Proxy{ salt: validatorTicketSalt }(address(new NoImplementation()), "");
-        vm.label(address(validatorTicketProxy), "ValidatorTicket");
-        */
+        validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket();
 
-        /*
-        // Deploy ValidatorTicket implementation
-        validatorTicketImplementation =
-            new ValidatorTicket();
-        //vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
-
-        validatorTicketProxy = ERC1967Proxy(payable(address(new NoImplementation())));
-
-        validatorTicket = ValidatorTicket(payable(address(validatorTicketProxy)));
-
-        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(address(validatorTicketImplementation), "");
-        */
-
-        // TODO: Deploy this contract properly with the proxy pattern
-        validatorTicket = new ValidatorTicket();
-        validatorTicket.initialize(address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18);
+        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
+            address(validatorTicketImplementation),
+            abi.encodeCall(
+                ValidatorTicket.initialize,
+                (address(accessManager), address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18)
+            )
+        );
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool
@@ -185,6 +170,8 @@ contract DeployPuffer is BaseScript {
         });
 
         vm.label(address(accessManager), "AccessManager");
+        vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");
+        vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
         vm.label(address(pool), "PufferPool");
@@ -193,7 +180,6 @@ contract DeployPuffer is BaseScript {
         vm.label(address(beacon), "PufferModuleBeacon");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
-        vm.label(address(validatorTicket), "validatorTicket");
         vm.label(address(treasury), "treasury");
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
@@ -204,7 +190,6 @@ contract DeployPuffer is BaseScript {
         vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
         vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
-        vm.serializeAddress(obj, "validatorTicket", address(validatorTicket));
         vm.serializeAddress(obj, "treasury", address(treasury));
 
         string memory finalJson = vm.serializeString(obj, "", "");
@@ -223,7 +208,7 @@ contract DeployPuffer is BaseScript {
             pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
             moduleFactory: address(moduleFactory),
-            validatorTicket: address(validatorTicket)
+            validatorTicket: address(validatorTicketProxy)
         });
     }
 

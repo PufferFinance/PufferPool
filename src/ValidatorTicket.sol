@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgrades/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
@@ -14,7 +16,7 @@ import { ContextUpgradeable } from "openzeppelin-upgrades/utils/ContextUpgradeab
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
+contract ValidatorTicket is ERC20PermitUpgradeable, Pausable, UUPSUpgradeable, AccessManagedUpgradeable {
     using SafeERC20 for address;
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
@@ -60,10 +62,11 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
     }
 
     constructor() payable {
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(
+        address accessManager,
         address oracle,
         address payable pufferVault,
         address payable guardians,
@@ -71,6 +74,7 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
         uint256 sendOnReceive,
         uint256 treasuryFee
     ) external initializer {
+        __AccessManaged_init(accessManager);
         __ERC20Permit_init("ValidatorTicket");
         __ERC20_init("ValidatorTicket", "VT");
         _oracle = oracle;
@@ -129,4 +133,6 @@ contract ValidatorTicket is ERC20PermitUpgradeable, Pausable {
     function _msgData() internal view override(Context, ContextUpgradeable) returns (bytes calldata) {
         return msg.data;
     }
+
+    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }
