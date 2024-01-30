@@ -82,6 +82,17 @@ contract DeployPuffer is BaseScript {
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
+        validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket();
+
+        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
+            address(validatorTicketImplementation),
+            abi.encodeCall(
+                ValidatorTicket.initialize,
+                (address(accessManager), address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18)
+            )
+        );
+
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
@@ -123,17 +134,6 @@ contract DeployPuffer is BaseScript {
                 moduleFactory: address(moduleFactory)
             });
         }
-
-        validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket();
-
-        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
-            address(validatorTicketImplementation),
-            abi.encodeCall(
-                ValidatorTicket.initialize,
-                (address(accessManager), address(1), payable(address(2)), payable(address(3)), payable(address(4)), 90*10**18, 10*10**18)
-            )
-        );
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
         // Deploy pool

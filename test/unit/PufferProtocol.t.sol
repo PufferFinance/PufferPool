@@ -234,6 +234,30 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(validator.daysCommitted == 5, "lastPayment");
     }
 
+    // Test depositVT function to extend validator commitment
+    function testDepositVT() public {
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.deal(address(this), 5 ether);
+
+        Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
+        assertTrue(validator.node == address(this), "node operator");
+
+        uint24 oldCommitment = pufferProtocol.getCommitment(validator.node);
+
+        vm.warp(1000);
+
+        // Set mint price on VT contract
+        vm.startPrank(address(1));
+        pufferProtocol.VALIDATOR_TICKET().setMintPrice(10**18);
+        vm.stopPrank();
+
+        pufferProtocol.depositVT{ value: 5 ether }(validator.node, 5);
+
+        uint24 newCommitment = pufferProtocol.getCommitment(validator.node);
+
+        assertEq(newCommitment, oldCommitment + 5);
+    }
+
     // Try updating for future block
     function testProofOfReserve() external {
         vm.roll(50401);

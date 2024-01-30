@@ -435,6 +435,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getSmoothingCommitment(uint256 numberOfDays) external view returns (uint256);
 
     /**
+     * @notice Returns the number of ValidatorTicket tokens that are locked for `node`
+     */
+    function getCommitment(address node) external view returns (uint24);
+
+    /**
      * @notice Registers a new validator key in a `moduleName` queue with a permit
      * @dev There is a queue per moduleName and it is FIFO
      *

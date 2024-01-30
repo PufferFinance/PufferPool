@@ -352,14 +352,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidETHAmount();
         }
 
-        SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
+        VALIDATOR_TICKET.mint{ value: msg.value }();
 
         // No need for Safecast because of the validations above
         $.daysCommitted[node] += uint24(numberOfDays);
 
         emit VTDeposited(node, numberOfDays);
-
-        _transferFunds($, 0);
     }
 
     /**
@@ -706,6 +704,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         return validators;
+    }
+
+    function getCommitment(address node) external view returns (uint24) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.daysCommitted[node];
     }
 
     /**
