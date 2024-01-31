@@ -37,13 +37,13 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
      * @dev Signature "0x916ba7f3"
      */
-    error AlreadyClaimed(uint256 blockNumber, bytes32 pubKeyHash);
+    error AlreadyClaimed(uint256 blockNumber, address node);
 
     /**
      * @notice Thrown if the there is nothing to be claimed for the provided information
      * @dev Signature "0xb9eec102"
      */
-    error NothingToClaim(bytes32 pubKeyHash);
+    error NothingToClaim(address node);
 
     /**
      * @notice Emitted when the rewards MerkleRoot `root` for a `blockNumber` is posted
@@ -66,9 +66,9 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     mapping(uint256 blockNumber => bytes32 root) public rewardsRoots;
 
     /**
-     * @notice Mapping that stores which validators have claimed the rewards for a certain blockNumber
+     * @notice Mapping that stores which node operators have claimed the rewards for a certain blockNumber
      */
-    mapping(uint256 blockNumber => mapping(bytes32 pubKeyHash => bool claimed)) public claimedRewards;
+    mapping(uint256 blockNumber => mapping(address node => bool claimed)) public claimedRewards;
 
     /**
      * @dev The last block number for when the rewards root was posted
@@ -109,41 +109,39 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     }
 
     /**
-     * @notice Submit a valid MerkleProof and the staking rewards will be sent to node operator
-     * @dev Anybody can trigger a claim of the rewards for any validator as long as the proofs submitted are valid
+     * @notice Submit a valid MerkleProof and all their validators' staking rewards will be sent to node operator
+     * @dev Anybody can trigger a claim of the rewards for any node operator as long as the proofs submitted are valid
      *
-     * @param node is a node operator's wallet
-     * @param pubKeyHash is a keccak256 hash of the validator's public key
+     * @param node is a node operator's wallet address
      * @param blockNumbers is the array of block numbers for which the sender is claiming the rewards
      * @param amounts is the array of amounts to claim
      * @param merkleProofs is the array of Merkle proofs
      */
     function collectRewards(
         address node,
-        bytes32 pubKeyHash,
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
     ) external restricted {
-        // Anybody can submit a valid proof and the ETH will be sent to the node
+        // Anybody can submit a valid proof and the ETH will be sent to the node operator
         uint256 ethToSend = 0;
 
         for (uint256 i = 0; i < amounts.length; ++i) {
-            if (claimedRewards[blockNumbers[i]][pubKeyHash]) {
-                revert AlreadyClaimed(blockNumbers[i], pubKeyHash);
+            if (claimedRewards[blockNumbers[i]][node]) {
+                revert AlreadyClaimed(blockNumbers[i], node);
             }
 
             bytes32 rewardsRoot = rewardsRoots[blockNumbers[i]];
-            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(node, pubKeyHash, amounts[i]))));
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(node, amounts[i]))));
 
             if (MerkleProof.verifyCalldata(merkleProofs[i], rewardsRoot, leaf)) {
-                claimedRewards[blockNumbers[i]][pubKeyHash] = true;
+                claimedRewards[blockNumbers[i]][node] = true;
                 ethToSend += amounts[i];
             }
         }
 
         if (ethToSend == 0) {
-            revert NothingToClaim(pubKeyHash);
+            revert NothingToClaim(node);
         }
 
         node.safeTransferETH(ethToSend);

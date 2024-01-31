@@ -108,11 +108,11 @@ contract PufferModuleTest is TestHelper {
         // Build a merkle proof for that
         MerkleProofData[] memory validatorRewards = new MerkleProofData[](3);
         validatorRewards[0] =
-            MerkleProofData({ node: alice, pubKeyHash: keccak256(abi.encodePacked(alice)), amount: 0.01308 ether });
+            MerkleProofData({ node: alice, amount: 0.01308 ether });
         validatorRewards[1] =
-            MerkleProofData({ node: bob, pubKeyHash: keccak256(abi.encodePacked(bob)), amount: 0.013 ether });
+            MerkleProofData({ node: bob, amount: 0.013 ether });
         validatorRewards[2] =
-            MerkleProofData({ node: charlie, pubKeyHash: keccak256(abi.encodePacked(charlie)), amount: 1 });
+            MerkleProofData({ node: charlie, amount: 1 });
 
         vm.deal(module, 0.01308 ether + 0.013 ether + 1);
         bytes32 merkleRoot = _buildMerkleProof(validatorRewards);
@@ -140,7 +140,6 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(alice);
         PufferModule(payable(module)).collectRewards({
             node: alice,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -150,12 +149,11 @@ contract PufferModuleTest is TestHelper {
         // Double claim in different transactions should revert
         vm.expectRevert(
             abi.encodeWithSelector(
-                PufferModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(abi.encodePacked((alice)))
+                PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         PufferModule(payable(module)).collectRewards({
             node: alice,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -165,12 +163,11 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                PufferModule.AlreadyClaimed.selector, blockNumbers[0], keccak256(abi.encodePacked(alice))
+                PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice
             )
         );
         PufferModule(payable(module)).collectRewards({
-            node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(alice)),
+            node: alice,
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: aliceProofs
@@ -187,11 +184,10 @@ contract PufferModuleTest is TestHelper {
         // Bob claiming with Charlie's prof (charlie did not claim yet)
         // It will revert with nothing to claim because the proof is not valid for bob
         vm.expectRevert(
-            abi.encodeWithSelector(PufferModule.NothingToClaim.selector, keccak256(abi.encodePacked(charlie)))
+            abi.encodeWithSelector(PufferModule.NothingToClaim.selector, bob)
         );
         PufferModule(payable(module)).collectRewards({
             node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(charlie)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: charlieProofs
@@ -200,7 +196,6 @@ contract PufferModuleTest is TestHelper {
         // Bob claiming for charlie (bob is msg.sender)
         PufferModule(payable(module)).collectRewards({
             node: charlie,
-            pubKeyHash: keccak256(abi.encodePacked(charlie)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: charlieProofs
@@ -213,7 +208,6 @@ contract PufferModuleTest is TestHelper {
 
         PufferModule(payable(module)).collectRewards({
             node: bob,
-            pubKeyHash: keccak256(abi.encodePacked(bob)),
             blockNumbers: blockNumbers,
             amounts: amounts,
             merkleProofs: bobProofs
@@ -238,7 +232,7 @@ contract PufferModuleTest is TestHelper {
         for (uint256 i = 0; i < validatorRewards.length; ++i) {
             MerkleProofData memory validatorData = validatorRewards[i];
             rewardsMerkleProofData[i] = keccak256(
-                bytes.concat(keccak256(abi.encode(validatorData.node, validatorData.pubKeyHash, validatorData.amount)))
+                bytes.concat(keccak256(abi.encode(validatorData.node, validatorData.amount)))
             );
         }
 
@@ -248,6 +242,5 @@ contract PufferModuleTest is TestHelper {
 
 struct MerkleProofData {
     address node;
-    bytes32 pubKeyHash;
     uint256 amount;
 }
