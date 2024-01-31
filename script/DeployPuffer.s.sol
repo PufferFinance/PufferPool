@@ -89,13 +89,14 @@ contract DeployPuffer is BaseScript {
         }
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury));
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury), payable(pufferVault));
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17, 0.01 ether) //todo recheck 5% treasury, 0.5% guardians
+                // TODO: No Oracle yet, but should replace address(1)
+                (address(accessManager), address(1), payable(guardiansDeployment.guardianModule), 90*10**18, 10*10**18, 10**18) 
             )
         );
 

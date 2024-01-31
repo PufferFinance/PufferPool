@@ -68,9 +68,9 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory selectors = new bytes4[](5);
-        selectors[0] = ValidatorTicket.transferETHToPufferVault.selector;
-        selectors[1] = ValidatorTicket.transferETHToGuardians.selector;
-        selectors[2] = ValidatorTicket.setProtocolFeeRate.selector;
+        selectors[0] = ValidatorTicket.distribute.selector;
+        selectors[1] = ValidatorTicket.setTreasuryFee.selector;
+        selectors[2] = ValidatorTicket.setSendOnReceive.selector;
         selectors[3] = ValidatorTicket.setMintPrice.selector;
         selectors[4] = UUPSUpgradeable.upgradeToAndCall.selector;
 

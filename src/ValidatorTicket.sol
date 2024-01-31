@@ -33,6 +33,11 @@ contract ValidatorTicket is
     address payable public immutable TREASURY;
 
     /**
+     * @dev Puffer Finance Puffer Vault 
+     */
+    address payable public immutable PUFFER_VAULT;
+
+    /**
      * @notice Emitted when the price to mint VT is updated
      */
     event MintPriceUpdated(uint256 oldPrice, uint256 newPrice);
@@ -44,16 +49,14 @@ contract ValidatorTicket is
     event TransferredETH(address indexed to, uint256 amount);
 
     /**
-     * @notice Emitted when the protocol fee rate is changed
-     * @dev Signature "0xb51bef650ff5ad43303dbe2e500a74d4fd1bdc9ae05f046bece330e82ae0ba87"
+     * @notice Emitted when the rate of deposited funds sent to PufferVault is changed
      */
-    event ProtocolFeeChanged(uint256 oldTreasuryFee, uint256 newTreasuryFee);
+    event SendOnReceiveFeeChanged(uint256 oldTreasuryFee, uint256 newTreasuryFee);
 
     /**
-     * @notice Emitted when the protocol fee rate is changed
-     * @dev Signature "0x0a3e0a163d4dfba5f018c5c1e2214007151b3abb0907e3ae402ae447c7e1bc47"
+     * @notice Emitted when the treasury fee rate is changed
      */
-    event GuardiansFeeChanged(uint256 oldGuardiansFee, uint256 newGuardiansFee);
+    event TreasuryFeeChanged(uint256 oldGuardiansFee, uint256 newGuardiansFee);
 
     /**
      * @notice Thrown if the oracle tries to submit invalid data
@@ -61,22 +64,27 @@ contract ValidatorTicket is
      */
     error InvalidData();
 
-    constructor(address payable treasury) {
+    constructor(address payable treasury, address payable pufferVault) {
         TREASURY = treasury;
+        PUFFER_VAULT = pufferVault;
         _disableInitializers();
     }
 
     function initialize(
         address accessManager,
-        uint256 treasuryFeeRate,
-        uint256 guardiansFeeRate,
-        uint56 initialMintPrice
+        address oracle,
+        address payable guardians,
+        uint256 sendOnReceive,
+        uint256 treasuryFee,
+        uint256 initialMintPrice
     ) external initializer {
         __AccessManaged_init(accessManager);
-        __ERC20_init("Puffer Validator Ticket", "VT");
-        __ERC20Permit_init("Puffer Validator Ticket");
-        _setProtocolFeeRate(treasuryFeeRate);
-        _setGuardiansFeeRate(guardiansFeeRate);
+        _setOracle(oracle);
+        _setGuardians(guardians);
+        __ERC20_init("Validator Ticket", "VT");
+        __ERC20Permit_init("Validator Ticket");
+        _setSendOnReceive(sendOnReceive);
+        _setTreasuryFee(treasuryFee);
         _setMintPrice(initialMintPrice);
     }
 
@@ -89,34 +97,18 @@ contract ValidatorTicket is
     function purchaseValidatorTicket(address recipient) external payable restricted {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
-        uint256 mintPrice = $.mintPrice;
+        _sendETH(PUFFER_VAULT, msg.value, $.sendOnReceive);
 
-        // We are only accepting deposits in multiples of mintPrice
-        if (msg.value % mintPrice != 0) {
-            revert InvalidAmount();
-        }
-
-        // Send ETH to treasury
-        _sendETH(TREASURY, msg.value, $.protocolFeeRate);
-
-        // Do guardians accounting
-        uint256 guardiansAmount = FixedPointMathLib.fullMulDiv(msg.value, $.guardiansFeeRate, _ONE_HUNDRED_WAD);
-        $.guardiansBalance += SafeCastLib.toUint72(guardiansAmount);
-
-        // The remainder is belongs to PufferVault
-
-        _mint(recipient, msg.value / mintPrice);
+        _mint(recipient, msg.value / $.mintPrice);
     }
 
     /**
-     * @notice Transfers the remaining ETH balance to the PufferVault
-     * @param pufferVault The address of the PufferVault to transfer ETH to
-     * @dev Restricted access with timelock
+     * @notice This function distributes the contract's balance to Guardians and the Treasury
      */
-    function transferETHToPufferVault(address pufferVault) external restricted {
+    function distribute() external restricted {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
-        uint256 amount = address(this).balance - $.guardiansBalance;
-        pufferVault.safeTransferETH(amount);
+        _sendETH(TREASURY, address(this).balance, $.treasuryFee);
+        $.guardians.safeTransferETH(address(this).balance);
     }
 
     /**
@@ -128,23 +120,29 @@ contract ValidatorTicket is
     }
 
     /**
-     * @notice Transfers ETH to the specified guardians address
-     * @param guardians The address of the guardians to transfer ETH to
-     * @dev Restricted access with timelock
+     * @notice Updates the treasury fee
+     * @dev Restricted access
+     * @param newTreasuryFee The new treasury fee to set
      */
-    function transferETHToGuardians(address guardians) external restricted {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        $.guardiansBalance = 0;
-        guardians.safeTransferETH($.guardiansBalance);
+    function setTreasuryFee(uint256 newTreasuryFee) external restricted {
+        _setTreasuryFee(newTreasuryFee);
     }
 
     /**
-     * @notice Updates the treasury fee
+     * @notice Updates the amount of ETH sent to PufferVault upon minting VTs
      * @dev Restricted access
-     * @param newProtocolFeeRate The new treasury fee to set
+     * @param newSendOnReceive The new fee to set
      */
-    function setProtocolFeeRate(uint256 newProtocolFeeRate) external restricted {
-        _setProtocolFeeRate(newProtocolFeeRate);
+    function setSendOnReceive(uint256 newSendOnReceive) external restricted {
+        _setSendOnReceive(newSendOnReceive);
+    }
+
+    /**
+     * @notice Updates the price to mint VT
+     * @param newPrice The new price to set for minting VT
+     */
+    function setMintPrice(uint256 newPrice) external restricted {
+        _setMintPrice(newPrice);
     }
 
     /**
@@ -160,29 +158,12 @@ contract ValidatorTicket is
      * @notice Retrieves the current protocol fee rate
      * @return The current protocol fee rate
      */
-    function getProtocolFeeRate() external view returns (uint256) {
+    function getSendOnReceiveFee() external view returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
-        return $.protocolFeeRate;
+        return $.sendOnReceive;
     }
 
-    /**
-     * @notice Retrieves the current balance held for guardians
-     * @return The current guardians balance
-     */
-    function getGuardiansBalance() external view returns (uint256) {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        return $.guardiansBalance;
-    }
-
-    /**
-     * @notice Updates the price to mint VT
-     * @param newPrice The new price to set for minting VT
-     */
-    function setMintPrice(uint56 newPrice) external restricted {
-        _setMintPrice(newPrice);
-    }
-
-    function _setMintPrice(uint56 newPrice) internal {
+    function _setMintPrice(uint256 newPrice) internal {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         uint256 oldPrice = $.mintPrice;
         $.mintPrice = newPrice;
@@ -201,26 +182,32 @@ contract ValidatorTicket is
         }
     }
 
-    function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal {
+    function _setSendOnReceive(uint256 newSendOnReceive) internal {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
-        // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * FixedPointMathLib.WAD)) {
-            revert InvalidData();
-        }
-        uint256 oldProtocolFeeRate = uint256($.protocolFeeRate);
-        $.protocolFeeRate = SafeCastLib.toUint64(newProtocolFeeRate);
-        emit ProtocolFeeChanged(oldProtocolFeeRate, newProtocolFeeRate);
+        uint256 oldSendOnReceive = uint256($.sendOnReceive);
+        $.sendOnReceive = newSendOnReceive;
+        emit SendOnReceiveFeeChanged(oldSendOnReceive, newSendOnReceive);
     }
 
-    function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal {
+    function _setTreasuryFee(uint256 newTreasuryFeeRate) internal {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * FixedPointMathLib.WAD)) {
+        if (newTreasuryFeeRate > (10 * FixedPointMathLib.WAD)) {
             revert InvalidData();
         }
-        uint256 oldGuardiansFeeRate = uint256($.guardiansFeeRate);
-        $.guardiansFeeRate = SafeCastLib.toUint64(newGuardiansFeeRate);
-        emit GuardiansFeeChanged(oldGuardiansFeeRate, newGuardiansFeeRate);
+        uint256 oldTreasuryFeeRate = uint256($.treasuryFee);
+        $.treasuryFee = SafeCastLib.toUint64(newTreasuryFeeRate);
+        emit TreasuryFeeChanged(oldTreasuryFeeRate, newTreasuryFeeRate);
+    }
+
+    function _setGuardians(address payable guardians) internal {
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        $.guardians = guardians;
+    }
+
+    function _setOracle(address oracle) internal {
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        $.oracle = oracle;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

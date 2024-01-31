@@ -174,6 +174,7 @@ contract TestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
+        vm.label(address(guardianModule), "GuardianModule");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();

@@ -12,29 +12,31 @@ abstract contract ValidatorTicketStorage {
          * @dev The amount of ETH needed to mint 1 ValidatorTicket
          * Slot 1
          */
-        uint56 mintPrice;
+        uint256 mintPrice;
         /**
-         * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         * Because we are using uint64, that means that the max protocol fee rate is 18.44%
-         * Slot 1
+         * @dev This is how much ETH we immediately send to the PufferVault, holding the rest to later give to Guardians and Treasury
+         * Slot 2
          */
-        uint64 protocolFeeRate;
+        uint256 sendOnReceive;
         /**
-         * @dev Guardians fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
-         * Because we are using uint64, that means that the max protocol fee rate is 18.44%
-         * Slot 1
+         * @dev This defines how much of this contract balance we give to the Treasury, giving the rest to Guardians
+         * Slot 3
          */
-        uint64 guardiansFeeRate;
+        uint64 treasuryFee;
         /**
-         * @dev ETH amount owned to the Guardians
-         * Slot 1
+         * @dev Puffer Finance Guardians address
+         * Slot 4
          */
-        uint72 guardiansBalance;
+        address payable guardians;
+        /**
+         * @dev Puffer Finance oracle address
+         * Slot 5
+         */
+         address oracle;
     }
     /**
      * @dev Constant representing 100%
      */
-
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
     /**
