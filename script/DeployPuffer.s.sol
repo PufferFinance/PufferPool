@@ -96,7 +96,14 @@ contract DeployPuffer is BaseScript {
             abi.encodeCall(
                 ValidatorTicket.initialize,
                 // TODO: No Oracle yet, but should replace address(1)
-                (address(accessManager), address(1), payable(guardiansDeployment.guardianModule), 90*10**18, 10*10**18, 10**18) 
+                (
+                    address(accessManager),
+                    address(1),
+                    payable(guardiansDeployment.guardianModule),
+                    90 * 10 ** 18,
+                    10 * 10 ** 18,
+                    10 ** 18
+                )
             )
         );
 

@@ -33,7 +33,7 @@ contract ValidatorTicket is
     address payable public immutable TREASURY;
 
     /**
-     * @dev Puffer Finance Puffer Vault 
+     * @dev Puffer Finance Puffer Vault
      */
     address payable public immutable PUFFER_VAULT;
 

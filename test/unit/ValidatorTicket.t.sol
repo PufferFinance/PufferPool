@@ -64,7 +64,7 @@ contract ValidatorTicketTest is TestHelper {
         vm.stopPrank();
 
         vm.prank(rewardsRecipient);
-        validatorTicket.purchaseValidatorTicket{value: 1 ether}(rewardsRecipient);
+        validatorTicket.purchaseValidatorTicket{ value: 1 ether }(rewardsRecipient);
 
         assertEq(validatorTicket.balanceOf(rewardsRecipient), 1);
         assertEq(validatorTicket.balanceOf(address(validatorTicket)), 0);
@@ -83,12 +83,12 @@ contract ValidatorTicketTest is TestHelper {
         vm.stopPrank();
 
         vm.prank(rewardsRecipient);
-        validatorTicket.purchaseValidatorTicket{value: 1 ether}(rewardsRecipient);
+        validatorTicket.purchaseValidatorTicket{ value: 1 ether }(rewardsRecipient);
 
         assertEq(validatorTicket.balanceOf(rewardsRecipient), 1);
         assertEq(validatorTicket.balanceOf(address(validatorTicket)), 0);
         assertEq(address(validatorTicket).balance, 1990000000000000000);
-        assertEq(address(pufferVault).balance, oldPufferVaultBalance + 10**16);
+        assertEq(address(pufferVault).balance, oldPufferVaultBalance + 10 ** 16);
     }
 
     // Test distribute function
@@ -102,7 +102,7 @@ contract ValidatorTicketTest is TestHelper {
 
         // Treasury should get 10**16 (1%)
         // Guardians should get 10 ** 18 - 10 ** 16 (99%)
-        assertEq(address(validatorTicket.TREASURY()).balance, 10**16);
-        assertEq(address(guardianModule).balance, 10**18 - 10**16);
+        assertEq(address(validatorTicket.TREASURY()).balance, 10 ** 16);
+        assertEq(address(guardianModule).balance, 10 ** 18 - 10 ** 16);
     }
 }

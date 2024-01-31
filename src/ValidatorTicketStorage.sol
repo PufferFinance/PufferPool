@@ -32,11 +32,12 @@ abstract contract ValidatorTicketStorage {
          * @dev Puffer Finance oracle address
          * Slot 5
          */
-         address oracle;
+        address oracle;
     }
     /**
      * @dev Constant representing 100%
      */
+
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
     /**
