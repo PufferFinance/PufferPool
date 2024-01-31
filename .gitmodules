@@ -21,4 +21,5 @@
 	url = https://github.com/dmfxyz/murky
 [submodule "lib/pufETH"]
 	path = lib/pufETH
+	branch = "feature/mainnet"
 	url = git@github.com:PufferFinance/pufETH
