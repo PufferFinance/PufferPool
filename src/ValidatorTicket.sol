@@ -39,6 +39,7 @@ contract ValidatorTicket is
 
     /**
      * @notice Emitted when the price to mint VT is updated
+     * @dev Signature "0x2e1c9e000c6e8dda4d03536adb13b7cb6034ccff90d17f01de381e4d5097b525"
      */
     event MintPriceUpdated(uint256 oldPrice, uint256 newPrice);
 
@@ -50,11 +51,13 @@ contract ValidatorTicket is
 
     /**
      * @notice Emitted when the rate of deposited funds sent to PufferVault is changed
+     * @dev Signature "0xac33dee2c4f3f5f235f679660c351c116a4d5dab91498a0954c85ad535bee25b"
      */
     event SendOnReceiveFeeChanged(uint256 oldTreasuryFee, uint256 newTreasuryFee);
 
     /**
      * @notice Emitted when the treasury fee rate is changed
+     * @dev Signature "0x77952d80680a32b88518cb8568afaa79f18db1b1239e2dc29350a2094e8a6a79"
      */
     event TreasuryFeeChanged(uint256 oldGuardiansFee, uint256 newGuardiansFee);
 
