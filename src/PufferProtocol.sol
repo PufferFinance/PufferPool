@@ -24,6 +24,7 @@ import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title PufferProtocol
@@ -33,6 +34,7 @@ import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
     using SafeTransferLib for address;
     using SafeTransferLib for address payable;
+    using SafeERC20 for address;
 
     /**
      * @dev Burst threshold
@@ -138,15 +140,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function registerValidatorKeyPermit(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfMonths,
+        uint256 numberOfDays,
         Permit calldata permit
     ) external payable restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        // panic for invalid `numberOfMonths`
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
+        // panic for invalid `numberOfDays`
+        uint256 smoothingCommitment = $.smoothingCommitments[numberOfDays - 1];
 
         // SC is paid in ETH
         if (msg.value != smoothingCommitment) {
@@ -178,7 +180,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             data: data,
             pufETHAmount: permit.amount,
             moduleName: moduleName,
-            numberOfMonths: numberOfMonths
+            numberOfDays: numberOfDays
         });
 
         // We've received bond in pufETH, so the second param is 0
@@ -188,7 +190,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfDays)
         external
         payable
         restricted
@@ -197,8 +199,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        // panic for invalid `numberOfMonths`
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
+        // panic for invalid `numberOfDays`
+        uint256 smoothingCommitment = $.smoothingCommitments[numberOfDays - 1];
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
 
         if (msg.value != (smoothingCommitment + validatorBond)) {
@@ -213,7 +215,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             data: data,
             pufETHAmount: pufETHReceived,
             moduleName: moduleName,
-            numberOfMonths: numberOfMonths
+            numberOfDays: numberOfDays
         });
 
         // Deduct validatorBond from msg.value
@@ -271,24 +273,83 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable {
+    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfDays) external payable {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         Validator storage validator = $.validators[moduleName][validatorIndex];
 
-        // Causes panic for invalid numberOfMonths
-        uint256 smoothingCommitment = $.smoothingCommitments[numberOfMonths - 1];
+        // Causes panic for invalid numberOfDays
+        uint256 smoothingCommitment = $.smoothingCommitments[numberOfDays - 1];
 
-        // Node operator can purchase commitment for multiple months
+        // Node operator can purchase commitment for multiple days
         if ((msg.value != smoothingCommitment)) {
             revert InvalidETHAmount();
         }
 
         // No need for Safecast because of the validations above
-        validator.monthsCommitted += uint24(numberOfMonths);
+        validator.daysCommitted += uint24(numberOfDays);
 
         emit SmoothingCommitmentPaid(validator.pubKey, msg.value);
 
         _transferFunds($, 0);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function depositVT(address node, uint24 numberOfDays) external payable {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 mintPrice = VALIDATOR_TICKET.getValidatorTicketPrice();
+
+        // Node operator can purchase commitment for multiple days
+        if ((msg.value != mintPrice * numberOfDays) || (numberOfDays == 0)) {
+            revert InvalidETHAmount();
+        }
+
+        VALIDATOR_TICKET.purchaseValidatorTicket{ value: msg.value }(msg.sender);
+
+        // No need for Safecast because of the validations above
+        $.daysCommitted[node] += uint24(numberOfDays);
+
+        emit VTDeposited(node, numberOfDays);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function depositVTPermit(address node, uint24 numberOfDays, Permit calldata permit) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        try IERC20Permit(address(VALIDATOR_TICKET)).permit({
+            owner: permit.owner,
+            spender: address(this),
+            value: permit.amount,
+            deadline: permit.deadline,
+            v: permit.v,
+            s: permit.s,
+            r: permit.r
+        }) { } catch { }
+
+        SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
+
+        // No need for Safecast because of the validations above
+        $.daysCommitted[node] += uint24(numberOfDays);
+
+        emit VTDeposited(node, numberOfDays);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function depositVTApproved(address node, uint24 numberOfDays) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        SafeERC20.safeTransferFrom(VALIDATOR_TICKET, msg.sender, address(this), numberOfDays * 10**18);
+
+        // No need for Safecast because of the validations above
+        $.daysCommitted[node] += uint24(numberOfDays);
+
+        emit VTDeposited(node, numberOfDays);
     }
 
     /**
@@ -364,7 +425,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Remove what we don't
         delete validator.module;
         delete validator.node;
-        delete validator.monthsCommitted;
+        delete validator.daysCommitted;
         delete validator.bond;
         delete validator.pubKey;
         delete validator.signature;
@@ -595,9 +656,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256) {
+    function getSmoothingCommitment(uint256 numberOfDays) external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.smoothingCommitments[numberOfMonths - 1];
+        return $.smoothingCommitments[numberOfDays - 1];
+    }
+
+    function getCommitment(address node) external view returns (uint24) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.daysCommitted[node];
     }
 
     /**
@@ -711,7 +777,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfMonths)
+    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfDays)
         external
         view
         returns (bytes[] memory, bytes memory, uint256, uint256)
@@ -722,7 +788,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + $.smoothingCommitments[numberOfMonths - 1];
+        uint256 ethAmount = validatorBond + $.smoothingCommitments[numberOfDays - 1];
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
@@ -732,7 +798,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ValidatorKeyData calldata data,
         uint256 pufETHAmount,
         bytes32 moduleName,
-        uint256 numberOfMonths
+        uint256 numberOfDays
     ) internal {
         uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
 
@@ -743,7 +809,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint64(pufETHAmount),
-            monthsCommitted: uint24(numberOfMonths),
+            daysCommitted: uint24(numberOfDays),
             node: msg.sender
         });
 

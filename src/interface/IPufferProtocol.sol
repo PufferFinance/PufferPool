@@ -97,6 +97,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error OutsideUpdateWindow();
 
     /**
+     * @notice Emitted when the smoothing commitment is extended
+     * @dev Signature "0x4da1ebc6cfcb95ee31e83fdca3079b1728e6f900f9fcd0c8a4ca098f48bb7be1"
+     */
+    event VTDeposited(address node, uint24 numberOfDays);
+
+    /**
      * @notice Emitted when the new Puffer module is created
      * @dev Signature "0xd95c47914545148df84d115c3a83350c2b0044a8efa7dbe2cff795a70fe129a1"
      */
@@ -410,9 +416,14 @@ interface IPufferProtocol is IPufferProtocolStorage {
         returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
+     * @notice Returns the smoothing commitment for a `numberOfDays` (in wei)
      */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
+    function getSmoothingCommitment(uint256 numberOfDays) external view returns (uint256);
+
+    /**
+     * @notice Returns the number of ValidatorTicket tokens that are locked for `node`
+     */
+    function getCommitment(address node) external view returns (uint24);
 
     /**
      * @notice Registers a new validator key in a `moduleName` queue with a permit
@@ -423,13 +434,13 @@ interface IPufferProtocol is IPufferProtocolStorage {
      *
      * @param data The validator key data
      * @param moduleName The name of the module
-     * @param numberOfMonths The number of months for the registration
+     * @param numberOfDays The number of days for the registration
      * @param permit The permit for the registration
      */
     function registerValidatorKeyPermit(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfMonths,
+        uint256 numberOfDays,
         Permit calldata permit
     ) external payable;
 
@@ -437,7 +448,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Registers a new validator in a `moduleName` queue
      * @dev There is a queue per moduleName and it is FIFO
      */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
+    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfDays)
         external
         payable;
 
@@ -445,9 +456,32 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Extends the commitment for a validator in a specific module
      * @param moduleName The name of the module
      * @param validatorIndex The index of the validator in the module
-     * @param numberOfMonths The number of months to extend the commitment for
+     * @param numberOfDays The number of days to extend the commitment for
      */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
+    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfDays) external payable;
+
+    /**
+     * @notice Extends the commitment for all of a node operator's validators
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
+     */
+    function depositVT(address node, uint24 numberOfDays) external payable;
+
+    /**
+     * @notice Extends the commitment for all of a node operator's validators by depositing VT
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
+     * @param permit The permit for ERC20 VT token
+     */
+    function depositVTPermit(address node, uint24 numberOfDays, Permit calldata permit) external;
+
+    /**
+     * @notice Extends the commitment for all of a node operator's validators by depositing VT
+     * @notice Assumes msg.sender has already approved VT to be transferred to contract
+     * @param node The node operator address
+     * @param numberOfDays The number of days to extend the commitment for
+     */
+    function depositVTApproved(address node, uint24 numberOfDays) external;
 
     /**
      * @notice Returns the pending validator index for `moduleName`

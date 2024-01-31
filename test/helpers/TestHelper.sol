@@ -332,6 +332,15 @@ contract TestHelper is Test, BaseScript {
         return Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
+    function _signPermitVT(_TestTemps memory t) internal view returns (Permit memory p) {
+        bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
+        bytes32 domainSeparator = validatorTicket.DOMAIN_SEPARATOR();
+        bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
+        (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
+
+        return Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+    }
+
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline)
         internal
         returns (_TestTemps memory t)

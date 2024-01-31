@@ -227,7 +227,93 @@ contract PufferProtocolTest is TestHelper {
         validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
         // Default registration is 1 month + 5
-        assertEq(validator.monthsCommitted, 6, "lastPayment");
+        assertEq(validator.daysCommitted, 6, "lastPayment");
+    }
+
+    // Test depositVT function to extend validator commitment
+    function testDepositVT() public {
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.deal(address(this), 5 ether);
+
+        Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
+        assertTrue(validator.node == address(this), "node operator");
+
+        uint24 oldCommitment = pufferProtocol.getCommitment(validator.node);
+
+        vm.warp(1000);
+
+        // Set mint price on VT contract
+        vm.startPrank(address(DAO));
+        pufferProtocol.VALIDATOR_TICKET().setMintPrice(10**18);
+        vm.stopPrank();
+
+        pufferProtocol.depositVT{ value: 5 ether }(validator.node, 5);
+
+        uint24 newCommitment = pufferProtocol.getCommitment(validator.node);
+
+        assertEq(newCommitment, oldCommitment + 5);
+    }
+
+    // Test depositVTPermit by minting some ValidatorTickets then constructing a permit to send them to protocol
+    function testDepositVTPermit() public {
+        address alice = makeAddr("alice");
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.deal(alice, 10 ether);
+
+        // Set mint price on VT contract
+        vm.startPrank(address(DAO));
+        pufferProtocol.VALIDATOR_TICKET().setMintPrice(1);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        uint24 oldCommitment = pufferProtocol.getCommitment(alice);
+
+        vm.warp(1000);
+
+        // Mint some VTs
+        pufferProtocol.VALIDATOR_TICKET().purchaseValidatorTicket{value: 5 ether}(address(this));
+
+        Permit memory signed = _signPermitVT(_testTemps("alice", address(pufferProtocol), 5 ether, type(uint256).max));
+
+        // Deposit VTs to the protocol
+        pufferProtocol.depositVTPermit(alice, 5, signed);
+        vm.stopPrank();
+
+        uint24 newCommitment = pufferProtocol.getCommitment(alice);
+
+        assertEq(newCommitment, oldCommitment + 5);
+    }
+
+    // Test depositVTApproved by minting some ValidatorTickets then approving them to the protocol
+    function testDepositVTApproved() public {
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        vm.deal(address(this), 5 ether);
+
+        Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
+        assertTrue(validator.node == address(this), "node operator");
+
+        uint24 oldCommitment = pufferProtocol.getCommitment(validator.node);
+
+        vm.warp(1000);
+
+        // Set mint price on VT contract
+        vm.startPrank(address(DAO));
+        pufferProtocol.VALIDATOR_TICKET().setMintPrice(1);
+        pufferProtocol.VALIDATOR_TICKET().setTreasuryFee(0);
+        pufferProtocol.VALIDATOR_TICKET().setSendOnReceive(0);
+        vm.stopPrank();
+
+        // Mint some VTs
+        pufferProtocol.VALIDATOR_TICKET().purchaseValidatorTicket{value: 4 ether}(address(this));
+
+        // Approve them to the protocol
+        pufferProtocol.VALIDATOR_TICKET().approve(address(pufferProtocol), 4 ether);
+
+        pufferProtocol.depositVTApproved(validator.node, 4);
+
+        uint24 newCommitment = pufferProtocol.getCommitment(validator.node);
+
+        assertEq(newCommitment, oldCommitment + 4);
     }
 
     // Try updating for future block
