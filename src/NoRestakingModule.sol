@@ -35,13 +35,13 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
 
     /**
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
-     * @dev Signature "0x916ba7f3"
+     * @dev Signature "0xa9214540"
      */
     error AlreadyClaimed(uint256 blockNumber, address node);
 
     /**
      * @notice Thrown if the there is nothing to be claimed for the provided information
-     * @dev Signature "0xb9eec102"
+     * @dev Signature "0x64ab3466"
      */
     error NothingToClaim(address node);
 
