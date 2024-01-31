@@ -29,7 +29,7 @@ contract ValidatorTicketTest is TestHelper {
         assertTrue(validatorTicket.TREASURY() != address(0), "treasury address");
     }
 
-    // Test that only guardians can call setSendOnReceive
+    // Test that only DAO can call setSendOnReceive
     function testSetSendOnReceive() public {
         vm.expectRevert();
         validatorTicket.setSendOnReceive(1 ether);
@@ -37,42 +37,72 @@ contract ValidatorTicketTest is TestHelper {
         validatorTicket.setSendOnReceive(1 ether);
     }
 
-/*
-    function test_funds_splitting() public {
-        uint256 vtPrice = validatorTicket.getValidatorTicketPrice();
-
-        uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
-        vm.deal(address(this), amount);
-
-        address treasury = validatorTicket.TREASURY();
-
-        assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
-        assertEq(validatorTicket.balanceOf(treasury), 0, "should start with 0");
-
-        validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
-
-        // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(validatorTicket.getGuardiansBalance(), 0.1 ether, "guardians balance");
-        // 5% from 20 ETH is 1 ETH
-        assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
+    // Test that only DAO can call setTreasuryFee
+    function testSetTreasuryFee() public {
+        vm.expectRevert();
+        validatorTicket.setTreasuryFee(1 ether);
+        vm.prank(DAO);
+        validatorTicket.setTreasuryFee(1 ether);
     }
 
-    function test_overflow_protocol_fee_rate() public {
+    // Test that only the oracle can call setMintPrice
+    function testSetMintPrice() public {
+        vm.expectRevert();
+        validatorTicket.setMintPrice(1 ether);
+        vm.prank(address(DAO));
+        validatorTicket.setMintPrice(1 ether);
+    }
+
+    // Test minting and check balances
+    function testMint() public {
+        vm.deal(rewardsRecipient, 1 ether);
+
         vm.startPrank(DAO);
-        vm.expectRevert(bytes4(hex"35278d12")); // Overflow() selector 0x35278d12
-        validatorTicket.setProtocolFeeRate(20 * FixedPointMathLib.WAD); // should revert because max fee is 18.44% (uint64)
+        validatorTicket.setMintPrice(1 ether);
+        validatorTicket.setSendOnReceive(0);
+        validatorTicket.setTreasuryFee(0);
+        vm.stopPrank();
+
+        vm.prank(rewardsRecipient);
+        validatorTicket.purchaseValidatorTicket{value: 1 ether}(rewardsRecipient);
+
+        assertEq(validatorTicket.balanceOf(rewardsRecipient), 1);
+        assertEq(validatorTicket.balanceOf(address(validatorTicket)), 0);
+        assertEq(address(validatorTicket).balance, 1 ether);
     }
 
-    function test_change_protocol_fee_rate() public {
+    function testMintAndSetOnReceiveFee() public {
+        uint256 oldPufferVaultBalance = address(pufferVault).balance;
+        vm.deal(rewardsRecipient, 1 ether);
+        vm.deal(address(validatorTicket), 1 ether);
+
         vm.startPrank(DAO);
+        validatorTicket.setMintPrice(1 ether);
+        validatorTicket.setSendOnReceive(1 ether);
+        validatorTicket.setTreasuryFee(0);
+        vm.stopPrank();
 
-        uint256 newFeeRate = 15 * FixedPointMathLib.WAD;
+        vm.prank(rewardsRecipient);
+        validatorTicket.purchaseValidatorTicket{value: 1 ether}(rewardsRecipient);
 
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorTicket.ProtocolFeeChanged(5 * FixedPointMathLib.WAD, newFeeRate);
-        validatorTicket.setProtocolFeeRate(newFeeRate);
-
-        assertEq(validatorTicket.getProtocolFeeRate(), newFeeRate, "updated");
+        assertEq(validatorTicket.balanceOf(rewardsRecipient), 1);
+        assertEq(validatorTicket.balanceOf(address(validatorTicket)), 0);
+        assertEq(address(validatorTicket).balance, 1990000000000000000);
+        assertEq(address(pufferVault).balance, oldPufferVaultBalance + 10**16);
     }
-    */
+
+    // Test distribute function
+    function testDistribute() public {
+        vm.deal(address(validatorTicket), 1 ether);
+
+        vm.startPrank(DAO);
+        validatorTicket.setTreasuryFee(1 ether);
+        validatorTicket.distribute();
+        vm.stopPrank();
+
+        // Treasury should get 10**16 (1%)
+        // Guardians should get 10 ** 18 - 10 ** 16 (99%)
+        assertEq(address(validatorTicket.TREASURY()).balance, 10**16);
+        assertEq(address(guardianModule).balance, 10**18 - 10**16);
+    }
 }
