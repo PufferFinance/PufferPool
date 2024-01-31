@@ -271,7 +271,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(1000);
 
         // Mint some VTs
-        pufferProtocol.VALIDATOR_TICKET().purchaseValidatorTicket{value: 5 ether}(address(this));
+        pufferProtocol.VALIDATOR_TICKET().purchaseValidatorTicket{value: 5 ether}(address(alice));
 
         Permit memory signed = _signPermitVT(_testTemps("alice", address(pufferProtocol), 5 ether, type(uint256).max));
 
@@ -299,8 +299,6 @@ contract PufferProtocolTest is TestHelper {
         // Set mint price on VT contract
         vm.startPrank(address(DAO));
         pufferProtocol.VALIDATOR_TICKET().setMintPrice(1);
-        pufferProtocol.VALIDATOR_TICKET().setTreasuryFee(0);
-        pufferProtocol.VALIDATOR_TICKET().setSendOnReceive(0);
         vm.stopPrank();
 
         // Mint some VTs
