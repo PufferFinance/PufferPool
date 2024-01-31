@@ -12,6 +12,10 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY_PUF }}
+
       - uses: actions/checkout@v4
 
       - name: Install Foundry
@@ -29,6 +33,10 @@ jobs:
   slither: 
     runs-on: ubuntu-latest
     steps:
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY_PUF }}
+          
       - uses: actions/checkout@v4
 
       - uses: crytic/slither-action@v0.3.0
