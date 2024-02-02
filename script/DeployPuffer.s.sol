@@ -23,7 +23,19 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { PufferOracle } from "puffer/PufferOracle.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
+import { IStETH } from "pufETH/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "pufETH/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IStrategy } from "pufETH/interface/EigenLayer/IStrategy.sol";
+import { IEigenLayer } from "pufETH/interface/EigenLayer/IEigenLayer.sol";
+import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
+import { WETH9 } from "pufETHTest/mocks/WETH9.sol";
+import { LidoWithdrawalQueueMock } from "pufETHTest/mocks/LidoWithdrawalQueueMock.sol";
+import { stETHStrategyMock } from "pufETHTest/mocks/stETHStrategyMock.sol";
+import { EigenLayerManagerMock } from "pufETHTest/mocks/EigenLayerManagerMock.sol";
 
 /**
  * @title DeployPuffer
@@ -88,8 +100,10 @@ contract DeployPuffer is BaseScript {
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
+        PufferOracle oracle = new PufferOracle(GuardianModule(payable(guardiansDeployment.guardianModule)));
+
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury));
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury), oracle);
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),

@@ -9,6 +9,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
 
 /**
  * @title ValidatorTicket
@@ -61,8 +62,11 @@ contract ValidatorTicket is
      */
     error InvalidData();
 
-    constructor(address payable treasury) {
+    IPufferOracle public immutable PUFFER_ORACLE;
+
+    constructor(address payable treasury, IPufferOracle pufferOracle) {
         TREASURY = treasury;
+        PUFFER_ORACLE = pufferOracle;
         _disableInitializers();
     }
 
@@ -97,9 +101,12 @@ contract ValidatorTicket is
         }
 
         //@todo burst threshold
+        //@todo
+        // treasury fee remains in this contract
+        // guardians and pufeth
 
         // Send ETH to treasury
-        _sendETH(TREASURY, msg.value, $.protocolFeeRate);
+        // _sendETH(TREASURY, msg.value, $.protocolFeeRate);
 
         // Do guardians accounting
         uint256 guardiansAmount = FixedPointMathLib.fullMulDiv(msg.value, $.guardiansFeeRate, _ONE_HUNDRED_WAD);

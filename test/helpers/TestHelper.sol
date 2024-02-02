@@ -270,9 +270,6 @@ contract TestHelper is Test, BaseScript {
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
         vm.stopPrank();
 
-        // Run the upgrade script
-        new UpgradePuffETH().run(address(pufferVault));
-
         _depositLiquidityToPufferVault();
     }
 
