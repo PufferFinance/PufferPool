@@ -34,11 +34,6 @@ contract ValidatorTicket is
     address payable public immutable TREASURY;
 
     /**
-     * @notice Emitted when the price to mint VT is updated
-     */
-    event MintPriceUpdated(uint256 oldPrice, uint256 newPrice);
-
-    /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
      * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
      */
@@ -64,24 +59,26 @@ contract ValidatorTicket is
 
     IPufferOracle public immutable PUFFER_ORACLE;
 
-    constructor(address payable treasury, IPufferOracle pufferOracle) {
-        TREASURY = treasury;
+    address payable public immutable GUARDIAN_MODULE;
+
+    address payable public immutable PUFFER_VAULT;
+
+    constructor(address payable guardianModule, address payable pufferVault, IPufferOracle pufferOracle) {
         PUFFER_ORACLE = pufferOracle;
+        GUARDIAN_MODULE = guardianModule;
+        PUFFER_VAULT = pufferVault;
         _disableInitializers();
     }
 
-    function initialize(
-        address accessManager,
-        uint256 treasuryFeeRate,
-        uint256 guardiansFeeRate,
-        uint56 initialMintPrice
-    ) external initializer {
+    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 guardiansFeeRate)
+        external
+        initializer
+    {
         __AccessManaged_init(accessManager);
         __ERC20_init("Puffer Validator Ticket", "VT");
         __ERC20Permit_init("Puffer Validator Ticket");
         _setProtocolFeeRate(treasuryFeeRate);
         _setGuardiansFeeRate(guardiansFeeRate);
-        _setMintPrice(initialMintPrice);
     }
 
     /**
@@ -93,75 +90,50 @@ contract ValidatorTicket is
     function purchaseValidatorTicket(address recipient) external payable restricted {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
-        uint256 mintPrice = $.mintPrice;
+        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
 
         // We are only accepting deposits in multiples of mintPrice
         if (msg.value % mintPrice != 0) {
             revert InvalidAmount();
         }
-
         //@todo burst threshold
-        //@todo
-        // treasury fee remains in this contract
-        // guardians and pufeth
 
-        // Send ETH to treasury
-        // _sendETH(TREASURY, msg.value, $.protocolFeeRate);
-
-        // Do guardians accounting
-        uint256 guardiansAmount = FixedPointMathLib.fullMulDiv(msg.value, $.guardiansFeeRate, _ONE_HUNDRED_WAD);
-        $.guardiansBalance += SafeCastLib.toUint72(guardiansAmount);
+        // Treasury amount is staying in this contract
+        uint256 treasuryAmount = FixedPointMathLib.fullMulDiv(msg.value, $.protocolFeeRate, _ONE_HUNDRED_WAD);
+        // Guardians get the cut right away
+        uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
+        // The remainder belongs to PufferVault
+        uint256 pufferVaultAmount = msg.value - (treasuryAmount + guardiansAmount);
+        PUFFER_VAULT.safeTransferETH(pufferVaultAmount);
 
         // The remainder belongs to PufferVault
         _mint(recipient, msg.value / mintPrice);
     }
 
     /**
-     * @notice Transfers the remaining ETH balance to the PufferVault
-     * @param pufferVault The address of the PufferVault to transfer ETH to
-     * @dev Restricted access with timelock
-     */
-    function transferETHToPufferVault(address pufferVault) external restricted {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        uint256 amount = address(this).balance - $.guardiansBalance;
-        pufferVault.safeTransferETH(amount);
-    }
-
-    /**
      * @notice Burns `amount` from the transaction sender
      * @dev Signature "0x42966c68"
      */
-    function burn(uint256 amount) external {
+    function burn(uint256 amount) external restricted {
         _burn(msg.sender, amount);
-    }
-
-    /**
-     * @notice Transfers ETH to the specified guardians address
-     * @param guardians The address of the guardians to transfer ETH to
-     * @dev Restricted access with timelock
-     */
-    function transferETHToGuardians(address guardians) external restricted {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        $.guardiansBalance = 0;
-        guardians.safeTransferETH($.guardiansBalance);
     }
 
     /**
      * @notice Updates the treasury fee
      * @dev Restricted access
-     * @param newProtocolFeeRate The new treasury fee to set
+     * @param newProtocolFeeRate The new treasury fee rate
      */
     function setProtocolFeeRate(uint256 newProtocolFeeRate) external restricted {
         _setProtocolFeeRate(newProtocolFeeRate);
     }
 
     /**
-     * @notice Retrieves the current mint price for a Validator Ticket
-     * @return The current mint price
+     * @notice Updates the guardians fee rate
+     * @dev Restricted access
+     * @param newGuardiansFeeRate The new guardians fee rate
      */
-    function getValidatorTicketPrice() external view returns (uint256) {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        return $.mintPrice;
+    function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external restricted {
+        _setGuardiansFeeRate(newGuardiansFeeRate);
     }
 
     /**
@@ -171,30 +143,6 @@ contract ValidatorTicket is
     function getProtocolFeeRate() external view returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         return $.protocolFeeRate;
-    }
-
-    /**
-     * @notice Retrieves the current balance held for guardians
-     * @return The current guardians balance
-     */
-    function getGuardiansBalance() external view returns (uint256) {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        return $.guardiansBalance;
-    }
-
-    /**
-     * @notice Updates the price to mint VT
-     * @param newPrice The new price to set for minting VT
-     */
-    function setMintPrice(uint56 newPrice) external restricted {
-        _setMintPrice(newPrice);
-    }
-
-    function _setMintPrice(uint56 newPrice) internal {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-        uint256 oldPrice = $.mintPrice;
-        $.mintPrice = newPrice;
-        emit MintPriceUpdated(oldPrice, newPrice);
     }
 
     /**

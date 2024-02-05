@@ -25,17 +25,6 @@ import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStruc
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { PufferOracle } from "puffer/PufferOracle.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
-import { IStETH } from "pufETH/interface/Lido/IStETH.sol";
-import { ILidoWithdrawalQueue } from "pufETH/interface/Lido/ILidoWithdrawalQueue.sol";
-import { IStrategy } from "pufETH/interface/EigenLayer/IStrategy.sol";
-import { IEigenLayer } from "pufETH/interface/EigenLayer/IEigenLayer.sol";
-import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
-import { WETH9 } from "pufETHTest/mocks/WETH9.sol";
-import { LidoWithdrawalQueueMock } from "pufETHTest/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "pufETHTest/mocks/stETHStrategyMock.sol";
-import { EigenLayerManagerMock } from "pufETHTest/mocks/EigenLayerManagerMock.sol";
 
 /**
  * @title DeployPuffer
@@ -100,16 +89,19 @@ contract DeployPuffer is BaseScript {
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
-        PufferOracle oracle = new PufferOracle(GuardianModule(payable(guardiansDeployment.guardianModule)));
+        PufferOracle oracle = new PufferOracle(
+            GuardianModule(payable(guardiansDeployment.guardianModule)), guardiansDeployment.accessManager
+        );
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury), oracle);
+        ValidatorTicket validatorTicketImplementation =
+            new ValidatorTicket(payable(guardiansDeployment.guardianModule), payable(pufferVault), oracle);
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17, 0.01 ether) //todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 
@@ -151,7 +143,8 @@ contract DeployPuffer is BaseScript {
                 weth: IWETH(weth),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 treasury: treasury,
-                moduleFactory: address(moduleFactory)
+                moduleFactory: address(moduleFactory),
+                oracle: oracle
             });
         }
 
@@ -207,6 +200,7 @@ contract DeployPuffer is BaseScript {
             pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
             moduleFactory: address(moduleFactory),
+            pufferOracle: address(oracle),
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything

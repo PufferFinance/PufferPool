@@ -15,9 +15,19 @@ interface IPufferOracle {
 
     /**
      * @notice Emitted when the Guardians update state of the protocol
-     * @param ethAmount is the ETH amount that is not locked in Beacon chain
+     * @param blockNumber is the block number of the update
      * @param lockedETH is the locked ETH amount in Beacon chain
-     * @param pufETHTotalSupply is the total supply of the pufETH
      */
-    event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
+    event BackingUpdated(uint256 indexed blockNumber, uint256 lockedETH);
+
+    /**
+     * @notice Emitted when the price to mint VT is updated
+     */
+    event ValidatorTicketMintPriceUpdated(uint256 oldPrice, uint256 newPrice);
+
+    /**
+     * @notice Retrieves the current mint price for a Validator Ticket
+     * @return The current mint price
+     */
+    function getValidatorTicketPrice() external view returns (uint256);
 }

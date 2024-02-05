@@ -67,12 +67,9 @@ contract SetupAccess is BaseScript {
     function _setupValidatorTicketsAccess() internal returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory selectors = new bytes4[](5);
-        selectors[0] = ValidatorTicket.transferETHToPufferVault.selector;
-        selectors[1] = ValidatorTicket.transferETHToGuardians.selector;
-        selectors[2] = ValidatorTicket.setProtocolFeeRate.selector;
-        selectors[3] = ValidatorTicket.setMintPrice.selector;
-        selectors[4] = UUPSUpgradeable.upgradeToAndCall.selector;
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = ValidatorTicket.setProtocolFeeRate.selector;
+        selectors[1] = UUPSUpgradeable.upgradeToAndCall.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO

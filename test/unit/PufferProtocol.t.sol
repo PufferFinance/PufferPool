@@ -115,7 +115,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     // Create an existing module should revert
-    function test_craete_Existing_module_fails() public {
+    function test_create_existing_module_fails() public {
         vm.startPrank(DAO);
         vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
         pufferProtocol.createPufferModule(NO_RESTAKING, "", address(0));
@@ -143,7 +143,7 @@ contract PufferProtocolTest is TestHelper {
 
     // Try registering with invalid module
     function testRegisterToInvalidModule() public {
-        uint256 smoothingCommitment = validatorTicket.getValidatorTicketPrice();
+        uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
@@ -282,7 +282,7 @@ contract PufferProtocolTest is TestHelper {
 
         uint256 balanceBefore = pufferProtocol.TREASURY().balance;
 
-        uint256 sc = validatorTicket.getValidatorTicketPrice() * 30;
+        uint256 sc = pufferOracle.getValidatorTicketPrice() * 30;
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
@@ -302,7 +302,7 @@ contract PufferProtocolTest is TestHelper {
 
     // Try registering without RAVE evidence
     function test_register_no_sgx() public {
-        uint256 vtPrice = validatorTicket.getValidatorTicketPrice() * 30;
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * 30;
 
         bytes memory pubKey = _getPubKey(bytes32("something"));
 
@@ -329,7 +329,7 @@ contract PufferProtocolTest is TestHelper {
 
     // Try registering with invalid BLS key length
     function test_register_invalid_bls_key() public {
-        uint256 smoothingCommitment = validatorTicket.getValidatorTicketPrice();
+        uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
 
         bytes memory pubKey = hex"aeaa";
 
@@ -379,7 +379,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
         // Third one should revert
-        uint256 smoothingCommitment = validatorTicket.getValidatorTicketPrice();
+        uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.ValidatorLimitPerIntervalReached.selector);
@@ -389,7 +389,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     // Try to provision a validator when there is nothing to provision
-    function test_provision() public {
+    function test_provision_reverts() public {
         (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
         assertEq(type(uint256).max, idx, "module");
 
@@ -424,7 +424,7 @@ contract PufferProtocolTest is TestHelper {
         // // 10% withdrawal fee pool
         // // 0.5% guardians
         // // rest to the PufferPool
-        // uint256 amount = validatorTicket.getValidatorTicketPrice();
+        // uint256 amount = pufferOracle.getValidatorTicketPrice();
 
         // assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
         // assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
@@ -438,12 +438,12 @@ contract PufferProtocolTest is TestHelper {
         // assertEq(100048018360919684, address(pufferProtocol.PUFFER_VAULT()).balance, "non zero pool");
     }
 
-    function testChangeModule() public {
+    function test_change_module() public {
         vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
         pufferProtocol.changeModule(NO_RESTAKING, PufferModule(payable(address(5))));
     }
 
-    function testChangeModuleToCustom() public {
+    function test_change_module_to_custom_module() public {
         pufferProtocol.changeModule(bytes32("RANDOM_MODULE"), PufferModule(payable(address(5))));
         address moduleAfterChange = pufferProtocol.getModuleAddress("RANDOM_MODULE");
         assertTrue(address(0) != moduleAfterChange, "module did not change");
@@ -454,7 +454,7 @@ contract PufferProtocolTest is TestHelper {
      */
     function _registerValidatorKey(bytes32 pubKeyPart, bytes32 moduleName) internal {
         uint256 numberOfDays = 30;
-        uint256 vtPrice = validatorTicket.getValidatorTicketPrice() * numberOfDays;
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         bytes memory pubKey = _getPubKey(pubKeyPart);
 
@@ -482,7 +482,7 @@ contract PufferProtocolTest is TestHelper {
     //     // Register 1 validator
     //     _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
-    //     uint256 smoothingCommitment = validatorTicket.getValidatorTicketPrice();
+    //     uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
     //     uint256 bond = 1 ether;
 
     //     uint256 treasuryFee =
@@ -520,7 +520,7 @@ contract PufferProtocolTest is TestHelper {
     //     assertEq(pufferVault.totalAssets(), 1, "everything is gone");
     // }
 
-    function testStopRegistration() public {
+    function test_stop_registration() public {
         // Register two validators
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
@@ -581,7 +581,7 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.stopRegistration(NO_RESTAKING, 0);
     }
 
-    function testRegisterMultipleValidatorKeysAndDequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
+    function test_register_multiple_validator_keys_and_dequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
         address bob = makeAddr("bob");
         vm.deal(bob, 10 ether);
         address alice = makeAddr("alice");
@@ -649,7 +649,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(registeredValidators[4].node, address(this), "this contract should should be the fifth one");
     }
 
-    function testProvisionNode() public {
+    function test_provision_node() public {
         pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
         pufferProtocol.createPufferModule(CRAZY_GAINS, "", address(0));
 
@@ -917,7 +917,7 @@ contract PufferProtocolTest is TestHelper {
         permit.amount = pufferVault.balanceOf(alice);
 
         // Get the smoothing commitment amount for 180 days
-        uint256 sc = validatorTicket.getValidatorTicketPrice() * 180;
+        uint256 sc = pufferOracle.getValidatorTicketPrice() * 180;
 
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
@@ -949,7 +949,7 @@ contract PufferProtocolTest is TestHelper {
 
         uint256 numberOfDays = 180;
         // Get the smoothing commitment amount for 6 months
-        uint256 sc = validatorTicket.getValidatorTicketPrice() * numberOfDays;
+        uint256 sc = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
@@ -967,7 +967,7 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(alice, 10 ether);
 
         uint256 numberOfDays = 200;
-        uint256 amount = validatorTicket.getValidatorTicketPrice() * numberOfDays;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
@@ -1006,7 +1006,7 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(alice, 10 ether);
 
         uint256 numberOfDays = 200;
-        uint256 amount = validatorTicket.getValidatorTicketPrice() * numberOfDays;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
@@ -1042,7 +1042,7 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(alice, 10 ether);
 
         uint256 numberOfDays = 200;
-        uint256 amount = validatorTicket.getValidatorTicketPrice() * numberOfDays;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
@@ -1090,7 +1090,7 @@ contract PufferProtocolTest is TestHelper {
         vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
         pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, NO_RESTAKING, 60, permit, emptyPermit);
 
-        uint256 sc = validatorTicket.getValidatorTicketPrice();
+        uint256 sc = pufferOracle.getValidatorTicketPrice();
 
         // Try to pay good amount for SC, but not enough pufETH for the bond
         vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
@@ -1123,7 +1123,7 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setValidatorLimitPerModule(NO_RESTAKING, 1);
 
         // Revert if the registration will be over the limit
-        uint256 smoothingCommitment = validatorTicket.getValidatorTicketPrice();
+        uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
         bytes memory pubKey = _getPubKey(bytes32("bob"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         uint256 bond = 1 ether;

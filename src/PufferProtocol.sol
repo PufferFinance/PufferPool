@@ -6,6 +6,7 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
+import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -93,13 +94,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     IPufferModuleFactory public immutable override PUFFER_MODULE_FACTORY;
 
+    IPufferOracle public immutable PUFFER_ORACLE;
+
     constructor(
         PufferVaultMainnet pufferVault,
         IWETH weth,
         IGuardianModule guardianModule,
         address payable treasury,
         address moduleFactory,
-        ValidatorTicket validatorTicket
+        ValidatorTicket validatorTicket,
+        IPufferOracle oracle
     ) payable {
         TREASURY = treasury;
         GUARDIAN_MODULE = guardianModule;
@@ -107,6 +111,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         WETH = weth;
         PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
         VALIDATOR_TICKET = validatorTicket;
+        PUFFER_ORACLE = oracle;
         _disableInitializers();
     }
 
@@ -227,7 +232,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 numberOfDays,
         uint256 validatorBond
     ) internal returns (uint256 pufETHMintedForBond, uint256 vtMinted) {
-        uint256 vtPayment = VALIDATOR_TICKET.getValidatorTicketPrice() * numberOfDays;
+        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
 
         //@todo figure out if we need this
         if (vtPayment == validatorBond) {
@@ -687,7 +692,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + VALIDATOR_TICKET.getValidatorTicketPrice() * numberOfDays;
+        uint256 ethAmount = validatorBond + PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }

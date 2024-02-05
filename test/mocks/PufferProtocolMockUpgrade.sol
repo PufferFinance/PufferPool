@@ -5,6 +5,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
@@ -19,7 +20,8 @@ contract PufferProtocolMockUpgrade is PufferProtocol {
             GuardianModule(payable(address(0))),
             payable(address(0)),
             address(0),
-            ValidatorTicket(address(0))
+            ValidatorTicket(address(0)),
+            IPufferOracle(address(0))
         )
     { }
 }

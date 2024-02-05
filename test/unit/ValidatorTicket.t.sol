@@ -24,11 +24,13 @@ contract ValidatorTicketTest is TestHelper {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), 5 * 1e18, "protocol fee rate"); // 5%
-        assertTrue(validatorTicket.TREASURY() != address(0), "treasury address");
+        assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0), "oracle");
+        assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0), "guardians");
+        assertTrue(validatorTicket.PUFFER_VAULT() != address(0), "vault");
     }
 
     function test_funds_splitting() public {
-        uint256 vtPrice = validatorTicket.getValidatorTicketPrice();
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
         uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
         vm.deal(address(this), amount);
@@ -36,15 +38,15 @@ contract ValidatorTicketTest is TestHelper {
         address treasury = validatorTicket.TREASURY();
 
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
-        assertEq(validatorTicket.balanceOf(treasury), 0, "should start with 0");
-        assertEq(validatorTicket.getGuardiansBalance(), 0, "should start with 0");
+        assertEq(address(validatorTicket).balance, 0, "treasury balance should start with 0");
+        assertEq(address(guardianModule).balance, 0, "guardian balance should start with 0");
 
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(validatorTicket.getGuardiansBalance(), 0.1 ether, "guardians balance");
+        assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
         // 5% from 20 ETH is 1 ETH
-        assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
+        assertEq(address(validatorTicket).balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
 
     function test_overflow_protocol_fee_rate() public {

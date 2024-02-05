@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferOracle } from "puffer/PufferOracle.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
@@ -83,6 +84,7 @@ contract TestHelper is Test, BaseScript {
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
     ValidatorTicket public validatorTicket;
+    PufferOracle public pufferOracle;
 
     GuardianModule public guardianModule;
 
@@ -161,6 +163,7 @@ contract TestHelper is Test, BaseScript {
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
+        pufferOracle = PufferOracle(pufferDeployment.pufferOracle);
 
         // pufETH dependencies
         pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));
