@@ -107,7 +107,7 @@ contract ValidatorTicket is
         PUFFER_VAULT.safeTransferETH(pufferVaultAmount);
 
         // The remainder belongs to PufferVault
-        _mint(recipient, msg.value / mintPrice);
+        _mint(recipient, (msg.value / mintPrice) * 1 ether); // * 1 ether is to upscale amount to 18 decimals
     }
 
     /**

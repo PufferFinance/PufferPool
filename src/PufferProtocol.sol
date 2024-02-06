@@ -204,7 +204,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
-            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays);
+            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to upscale amount to 18 decimals
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
