@@ -4,8 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BaseScript } from "script/BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
@@ -32,32 +30,27 @@ contract SetupAccess is BaseScript {
         // We do one multicall to setup everything
         bytes[] memory rolesCalldatas = _grantRoles(DAO);
         bytes[] memory pufferProtocolRoles = _setupPufferProtocolRoles();
-        bytes[] memory pufferPoolRoles = _setupPufferPoolRoles();
         bytes[] memory noRestakingModuleRoles = _setupNoRestakingModuleRoles();
         bytes[] memory validatorTicketRoles = _setupValidatorTicketsAccess();
 
-        bytes[] memory calldatas = new bytes[](17);
+        bytes[] memory calldatas = new bytes[](14);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
-        calldatas[2] = _setupWithdrawalPoolRoles();
-        calldatas[3] = _setupUpgradeableBeacon();
-        calldatas[4] = rolesCalldatas[0];
-        calldatas[5] = rolesCalldatas[1];
-        calldatas[6] = rolesCalldatas[2];
+        calldatas[2] = _setupUpgradeableBeacon();
+        calldatas[3] = rolesCalldatas[0];
+        calldatas[4] = rolesCalldatas[1];
+        calldatas[5] = rolesCalldatas[2];
 
-        calldatas[7] = pufferProtocolRoles[0];
-        calldatas[8] = pufferProtocolRoles[1];
-        calldatas[9] = pufferProtocolRoles[2];
+        calldatas[6] = pufferProtocolRoles[0];
+        calldatas[7] = pufferProtocolRoles[1];
+        calldatas[8] = pufferProtocolRoles[2];
 
-        calldatas[10] = pufferPoolRoles[0];
-        calldatas[11] = pufferPoolRoles[1];
+        calldatas[9] = noRestakingModuleRoles[0];
+        calldatas[10] = noRestakingModuleRoles[1];
+        calldatas[11] = noRestakingModuleRoles[2];
 
-        calldatas[12] = noRestakingModuleRoles[0];
-        calldatas[13] = noRestakingModuleRoles[1];
-        calldatas[14] = noRestakingModuleRoles[2];
-
-        calldatas[15] = validatorTicketRoles[0];
-        calldatas[16] = validatorTicketRoles[1];
+        calldatas[12] = validatorTicketRoles[0];
+        calldatas[13] = validatorTicketRoles[1];
 
         // calldatas[16] = _setupPauser();
 
@@ -97,19 +90,6 @@ contract SetupAccess is BaseScript {
         );
     }
 
-    function _setupWithdrawalPoolRoles() internal view returns (bytes memory) {
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = bytes4(hex"4782f779"); // IWithdrawalPool.withdrawETH.selector;
-        selectors[1] = bytes4(hex"945fca09"); // IWithdrawalPool.withdrawETH Permit version
-
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.withdrawalPool,
-            selectors,
-            accessManager.PUBLIC_ROLE()
-        );
-    }
-
     function _setupGuardianModuleRoles() internal view returns (bytes memory) {
         bytes4[] memory selectors = new bytes4[](4);
         selectors[0] = GuardianModule.setGuardianEnclaveMeasurements.selector;
@@ -120,32 +100,6 @@ contract SetupAccess is BaseScript {
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.guardianModule, selectors, ROLE_ID_DAO
         );
-    }
-
-    function _setupPufferPoolRoles() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
-
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferPool.transferETH.selector;
-
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.pufferPool,
-            selectors,
-            ROLE_ID_PUFFER_PROTOCOL
-        );
-
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferPool.depositETH.selector;
-
-        calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.pufferPool,
-            publicSelectors,
-            accessManager.PUBLIC_ROLE()
-        );
-
-        return calldatas;
     }
 
     function _setupUpgradeableBeacon() internal view returns (bytes memory) {

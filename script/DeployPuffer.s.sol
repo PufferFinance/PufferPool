@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
 import { NoImplementation } from "puffer/NoImplementation.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
@@ -29,7 +27,7 @@ import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
- * @notice Deploys PufferPool Contracts
+ * @notice Deploys PufferProtocol Contracts
  * @dev
  *
  *
@@ -47,8 +45,6 @@ contract DeployPuffer is BaseScript {
     ERC1967Proxy proxy;
     ERC1967Proxy validatorTicketProxy;
     PufferProtocol pufferProtocol;
-    PufferPool pool;
-    WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
 
@@ -66,8 +62,6 @@ contract DeployPuffer is BaseScript {
         string memory obj = "";
 
         accessManager = AccessManager(guardiansDeployment.accessManager);
-        bytes32 poolSalt = bytes32("pufferPool");
-        bytes32 withdrawalPoolSalt = bytes32("withdrawalPool");
 
         if (isMainnet()) {
             // Mainnet / Mainnet fork
@@ -119,17 +113,6 @@ contract DeployPuffer is BaseScript {
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
-            // Predict Pool address
-            address predictedPool = computeCreate2Address(
-                poolSalt, hashInitCode(type(PufferPool).creationCode, abi.encode(proxy, address(accessManager)))
-            );
-
-            // Predict Withdrawal pool address
-            address predictedWithdrawalPool = computeCreate2Address(
-                withdrawalPoolSalt,
-                hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
-            );
-
             moduleFactory = new PufferModuleFactory({
                 beacon: address(beacon),
                 pufferProtocol: address(proxy),
@@ -149,10 +132,6 @@ contract DeployPuffer is BaseScript {
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
-        // Deploy pool
-        pool = new PufferPool{ salt: poolSalt }(pufferProtocol, address(accessManager));
-
-        withdrawalPool = new WithdrawalPool{ salt: withdrawalPoolSalt }(pool, address(accessManager));
 
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
@@ -167,8 +146,6 @@ contract DeployPuffer is BaseScript {
         vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
-        vm.label(address(pool), "PufferPool");
-        vm.label(address(withdrawalPool), "WithdrawalPool");
         vm.label(address(moduleFactory), "PufferModuleFactory");
         vm.label(address(beacon), "PufferModuleBeacon");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
@@ -176,8 +153,6 @@ contract DeployPuffer is BaseScript {
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
-        vm.serializeAddress(obj, "pufferPool", address(pool));
-        vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
         vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
         vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
@@ -191,8 +166,6 @@ contract DeployPuffer is BaseScript {
             validatorTicket: address(validatorTicketProxy),
             pufferProtocolImplementation: address(pufferProtocolImpl),
             NoRestakingModule: address(noRestaking),
-            pufferPool: address(pool),
-            withdrawalPool: address(withdrawalPool),
             pufferProtocol: address(proxy),
             guardianModule: guardiansDeployment.guardianModule,
             accessManager: guardiansDeployment.accessManager,

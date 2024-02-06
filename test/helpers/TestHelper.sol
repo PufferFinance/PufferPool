@@ -4,12 +4,10 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferOracle } from "puffer/PufferOracle.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
@@ -78,9 +76,7 @@ contract TestHelper is Test, BaseScript {
     stETHMock public stETH;
     IWETH public weth;
 
-    PufferPool public pool;
     PufferProtocol public pufferProtocol;
-    IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
     ValidatorTicket public validatorTicket;
@@ -119,13 +115,11 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_CHEATS] = true;
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
-        fuzzedAddressMapping[address(withdrawalPool)] = true;
         fuzzedAddressMapping[address(guardianModule)] = true;
         fuzzedAddressMapping[address(verifier)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
-        fuzzedAddressMapping[address(pool)] = true;
         fuzzedAddressMapping[address(validatorTicket)] = true;
     }
 
@@ -156,8 +150,6 @@ contract TestHelper is Test, BaseScript {
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
-        pool = PufferPool(payable(pufferDeployment.pufferPool));
-        withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
@@ -175,7 +167,6 @@ contract TestHelper is Test, BaseScript {
 
         vm.label(address(pufferVault), "PufferVault");
         vm.label(address(pufferDepositor), "PufferDepositor");
-        vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();

@@ -37,6 +37,12 @@ contract PufferProtocolTest is TestHelper {
 
     Permit emptyPermit;
 
+    // 0.02% is the small delta @todo naming -.-
+    uint256 smallDelta = 0.0002e18;
+
+    // 0.2% delta
+    uint256 bigDelta = 0.002e18;
+
     function setUp() public override {
         super.setUp();
 
@@ -529,7 +535,7 @@ contract PufferProtocolTest is TestHelper {
         assertApproxEqRel(
             pufferVault.maxWithdraw(address(pufferProtocol)),
             2 ether,
-            0.0002e18,
+            smallDelta,
             "pool should have the bond amount for 2 validators"
         );
 
@@ -554,7 +560,7 @@ contract PufferProtocolTest is TestHelper {
         assertApproxEqRel(
             pufferVault.maxWithdraw(address(pufferProtocol)),
             1 ether,
-            0.0002e18,
+            smallDelta,
             "pool should have the bond amount for 1 validators"
         );
         // Because this contract is msg.sender, it means that it is the node operator
@@ -976,6 +982,10 @@ contract PufferProtocolTest is TestHelper {
         // Alice purchases VT
         validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
 
+        // Because Alice purchased a lot of VT's, it changed the conversion rate
+        // Because of that the registerValidatorKey will .transferFrom a smaller amount of pufETH
+        uint256 leftOverPufETH = pufferVault.balanceOf(alice) - pufferVault.convertToShares(1 ether);
+
         assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
         assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
         assertEq(validatorTicket.balanceOf(alice), numberOfDays, "VT before for alice");
@@ -994,9 +1004,9 @@ contract PufferProtocolTest is TestHelper {
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
         pufferProtocol.registerValidatorKey(data, NO_RESTAKING, numberOfDays, pufETHPermit, vtPermit);
 
-        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
+        assertEq(pufferVault.balanceOf(alice), leftOverPufETH, "alice should have some leftover pufETH");
         assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), bond, "1 pufETH after");
+        assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), bond, 0.002e18, "1 pufETH after");
     }
 
     // Node operator can deposit both VT and pufETH with .approve
@@ -1374,10 +1384,6 @@ contract PufferProtocolTest is TestHelper {
         validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: 31.6 ether, wasSlashed: 0 });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
-        // Assert starting state of the pools
-        assertEq(address(pufferVault).balance, 0, "starting pool balance");
-        assertEq(address(withdrawalPool).balance, 0, "starting withdrawal pool balance");
-
         bytes[] memory signatures = _getGuardianEOASignatures(
             LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 100, modules, amounts)
         );
@@ -1406,7 +1412,6 @@ contract PufferProtocolTest is TestHelper {
 
         // 94.6 goes to the pools
         // Default split rate for withdrawal pool is 10%
-        assertEq(address(withdrawalPool).balance, 9.46 ether, "ending withdrawal pool balance");
         assertEq(address(pufferVault).balance, 85.14 ether, "ending pool balance");
     }
 

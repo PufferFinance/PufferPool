@@ -188,6 +188,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 vtMinted;
 
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        // convertToShares is rounding down, @todo double check
         uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
 
         // If the user is sending ETH with the transaction

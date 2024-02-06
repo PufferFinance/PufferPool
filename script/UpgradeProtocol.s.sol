@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "script/BaseScript.s.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
