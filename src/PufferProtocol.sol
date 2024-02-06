@@ -6,7 +6,7 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
-import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -178,44 +178,50 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidData();
         }
 
+        // Revert if the permit amounts are non zero, but the msg.value is also non zero
+        if (vtPermit.amount != 0 && pufETHPermit.amount != 0 && msg.value > 0) {
+            revert InvalidETHAmount();
+        }
+
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        // If this value is 0, we don't do .transferFrom for pufETH
-        uint256 pufETHMintedForBond;
-        // If this value is 0, we don't do .transferFrom for VT
-        uint256 vtMinted;
-
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        // convertToShares is rounding down, @todo double check
+        // convertToShares is rounding down, @todo double check if we care for this case
         uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
+        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
 
-        // If the user is sending ETH with the transaction
-        // That means he is paying for the VT/BOND or BOTH with ETH
-        if (msg.value > 0) {
-            (pufETHMintedForBond, vtMinted) = _handleETHPayment(pufETHPermit, vtPermit, numberOfDays, validatorBond);
+        // If the user overpaid
+        if (msg.value > (validatorBond + vtPayment)) {
+            revert InvalidETHAmount();
+        }
+
+        uint256 pufETHMinted;
+
+        // If the VT permit amount is zero, that means that the user is paying for VT with ETH
+        if (vtPermit.amount == 0) {
+            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
-            _callPermit(address(PUFFER_VAULT), pufETHPermit);
-        }
-        // If the permits fail, and the `msg.sender` did not `.approve` tokens for this contract
-        // `.transferFrom` will revert, and the transaction will fail
-
-        // If we did not mint any pufETH, we need to transfer the bond from the msg.sender
-        if (pufETHMintedForBond == 0) {
-            // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
-        }
-        // If we did not mint any VT, we need to transfer the VT from the msg.sender
-        if (vtMinted == 0) {
             VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays);
         }
+
+        // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
+        if (pufETHPermit.amount == 0) {
+            pufETHMinted = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+        } else {
+            _callPermit(address(PUFFER_VAULT), pufETHPermit);
+            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
+        }
+
+        // Store the bond amount
+        uint256 bondAmount = pufETHMinted > 0 ? pufETHMinted : bondInPufETH;
 
         _storeValidatorInformation({
             $: $,
             data: data,
-            pufETHAmount: bondInPufETH,
+            pufETHAmount: bondAmount,
             moduleName: moduleName,
             numberOfDays: numberOfDays
         });
@@ -224,40 +230,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function isOverBurstThreshold() external view returns (bool) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD);
-    }
-
-    // Handles the ETH payment for the VT/Bond or BOTH
-    function _handleETHPayment(
-        Permit calldata pufETHPermit,
-        Permit calldata vtPermit,
-        uint256 numberOfDays,
-        uint256 validatorBond
-    ) internal returns (uint256 pufETHMintedForBond, uint256 vtMinted) {
-        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
-
-        //@todo figure out if we need this
-        if (vtPayment == validatorBond) {
-            revert("Pls select another number of days");
-        }
-
-        // Paying for Both with ETH
-        if (msg.value == vtPayment + validatorBond) {
-            // slither-disable-next-line arbitrary-send-eth
-            pufETHMintedForBond = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
-            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
-            vtMinted = numberOfDays;
-        } else if (msg.value == validatorBond) {
-            // Paying only for the bond with ETH
-            pufETHMintedForBond = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
-            _callPermit(address(VALIDATOR_TICKET), vtPermit);
-        } else if (msg.value == vtPayment) {
-            // Only VT with ETH
-            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
-            vtMinted = numberOfDays;
-            _callPermit(address(PUFFER_VAULT), pufETHPermit);
-        } else {
-            revert InvalidETHAmount();
-        }
     }
 
     /**

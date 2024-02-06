@@ -49,7 +49,7 @@ contract TestHelper is Test, BaseScript {
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
-    // In our test setup we have 3 guardians and 3 guaridan enclave keys
+    // In our test setup we have 3 guardians and 3 guardian enclave keys
     uint256[] public guardiansEnclavePks;
     address public guardian1;
     uint256 public guardian1SK;
@@ -90,6 +90,10 @@ contract TestHelper is Test, BaseScript {
     address public DAO = makeAddr("DAO");
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
+
+    // We use the same values in DeployPuffETH.s.sol
+    address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
+    address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -188,7 +192,7 @@ contract TestHelper is Test, BaseScript {
         verifier = guardianModule.ENCLAVE_VERIFIER();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
-        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
+        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys don't match");
 
         assertEq(
             blockhash(block.number),

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 
 /**
@@ -76,9 +76,12 @@ contract PufferOracle is IPufferOracle, AccessManaged {
     }
 
     function _setMintPrice(uint56 newPrice) internal {
-        uint256 oldPrice = _validatorTicketPrice;
+        emit ValidatorTicketMintPriceUpdated(_validatorTicketPrice, newPrice);
         _validatorTicketPrice = newPrice;
-        emit ValidatorTicketMintPriceUpdated(oldPrice, newPrice);
+    }
+
+    function getLockedEthAmount() external view returns (uint256) {
+        return lockedETH;
     }
 
     /**

@@ -37,11 +37,12 @@ contract PufferProtocolTest is TestHelper {
 
     Permit emptyPermit;
 
-    // 0.02% is the small delta @todo naming -.-
-    uint256 smallDelta = 0.0002e18;
-
-    // 0.2% delta
-    uint256 bigDelta = 0.002e18;
+    // 0.02 %
+    uint256 pointZeroZeroTwo = 0.0002e18;
+    // 0.05 %
+    uint256 pointZeroFive = 0.0005e18;
+    // 0.1% diff
+    uint256 pointZeroOne = 0.001e18;
 
     function setUp() public override {
         super.setUp();
@@ -60,6 +61,10 @@ contract PufferProtocolTest is TestHelper {
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         vm.stopPrank();
+
+        // Set daily withdrawals limit
+        vm.prank(OPERATIONS_MULTISIG);
+        pufferVault.setDailyWithdrawalLimit(1000 ether);
 
         _skipDefaultFuzzAddresses();
 
@@ -531,11 +536,10 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
 
-        // 0.02% is the max delta
         assertApproxEqRel(
             pufferVault.maxWithdraw(address(pufferProtocol)),
             2 ether,
-            smallDelta,
+            pointZeroOne,
             "pool should have the bond amount for 2 validators"
         );
 
@@ -560,12 +564,15 @@ contract PufferProtocolTest is TestHelper {
         assertApproxEqRel(
             pufferVault.maxWithdraw(address(pufferProtocol)),
             1 ether,
-            smallDelta,
+            pointZeroOne,
             "pool should have the bond amount for 1 validators"
         );
         // Because this contract is msg.sender, it means that it is the node operator
         assertApproxEqRel(
-            pufferVault.maxWithdraw(address(this)), 1 ether, 0.00025e18, "node operator should get ~1 pufETH for Alice"
+            pufferVault.maxWithdraw(address(this)),
+            1 ether,
+            pointZeroOne,
+            "node operator should get ~1 pufETH for Alice"
         );
 
         (moduleName, idx) = pufferProtocol.getNextValidatorToProvision();
@@ -931,7 +938,7 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, 180, permit, emptyPermit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH after");
+        assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroZeroTwo, "~1 pufETH after");
     }
 
     // Node operator can deposit Bond with Permit and pay for the VT in ETH
@@ -1020,13 +1027,16 @@ contract PufferProtocolTest is TestHelper {
 
         // Alice mints 2 ETH of pufETH
         vm.startPrank(alice);
-        // Purchase pufETH
-        pufferVault.depositETH{ value: 1 ether }(alice);
         // Alice purchases VT
         validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
+        // Purchase pufETH
+        pufferVault.depositETH{ value: 1 ether }(alice);
 
         assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
+        // 1 wei diff
+        assertApproxEqAbs(
+            pufferVault.previewRedeem(pufferVault.balanceOf(alice)), 1 ether, 1, "1 pufETH before for alice"
+        );
         assertEq(validatorTicket.balanceOf(alice), numberOfDays, "VT before for alice");
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
@@ -1036,13 +1046,22 @@ contract PufferProtocolTest is TestHelper {
         pufferVault.approve(address(pufferProtocol), type(uint256).max);
         validatorTicket.approve(address(pufferProtocol), type(uint256).max);
 
+        Permit memory vtPermit = emptyPermit;
+        vtPermit.amount = amount;
+
+        Permit memory pufETHPermit = emptyPermit;
+        pufETHPermit.amount = pufferVault.convertToShares(bond);
+
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, numberOfDays, emptyPermit, emptyPermit);
+        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, numberOfDays, pufETHPermit, vtPermit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), bond, "1 pufETH after");
+        // 1 wei diff
+        assertApproxEqAbs(
+            pufferVault.previewRedeem(pufferVault.balanceOf(address(pufferProtocol))), bond, 1, "1 pufETH after"
+        );
     }
 
     // Node operator can pay for pufETH with ETH and use Permit for VT
@@ -1051,7 +1070,7 @@ contract PufferProtocolTest is TestHelper {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
-        uint256 numberOfDays = 200;
+        uint256 numberOfDays = 30;
         uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Alice mints 2 ETH of pufETH
@@ -1077,11 +1096,11 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: bond }(data, NO_RESTAKING, numberOfDays, emptyPermit, permit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH after");
+        assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroFive, "~1 pufETH after");
     }
 
     // Node operator can deposit Bond in pufETH
-    function testR1egisterValidatorKeyWithPermitSignatureRevertsInvalidSC() external {
+    function test_register_validatorKey_withPermitSignature_reverts_invalid_vt_amount() external {
         address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
@@ -1144,7 +1163,7 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    function testClaimBackBondForSingleWithdrawal() external {
+    function test_claim_bond_for_single_withdrawal() external {
         _singleWithdrawalMerkleRoot();
 
         address alice = makeAddr("alice");

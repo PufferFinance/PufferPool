@@ -9,7 +9,7 @@ import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
-import { IPufferOracle } from "puffer/interface/IPufferOracle.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 
 /**
  * @title ValidatorTicket

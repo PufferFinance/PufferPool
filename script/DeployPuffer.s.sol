@@ -21,7 +21,7 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { PufferOracle } from "puffer/PufferOracle.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
@@ -54,7 +54,7 @@ contract DeployPuffer is BaseScript {
     address delayedWithdrawalRouter;
     address delegationManager;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth)
+    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth, address oracle)
         public
         broadcast
         returns (PufferProtocolDeployment memory)
@@ -83,13 +83,10 @@ contract DeployPuffer is BaseScript {
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
-        PufferOracle oracle = new PufferOracle(
-            GuardianModule(payable(guardiansDeployment.guardianModule)), guardiansDeployment.accessManager
-        );
-
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation =
-            new ValidatorTicket(payable(guardiansDeployment.guardianModule), payable(pufferVault), oracle);
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(
+            payable(guardiansDeployment.guardianModule), payable(pufferVault), IPufferOracle(oracle)
+        );
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),
@@ -127,7 +124,7 @@ contract DeployPuffer is BaseScript {
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 treasury: treasury,
                 moduleFactory: address(moduleFactory),
-                oracle: oracle
+                oracle: IPufferOracle(oracle)
             });
         }
 
