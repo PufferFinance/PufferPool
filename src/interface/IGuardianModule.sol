@@ -118,19 +118,16 @@ interface IGuardianModule {
     /**
      * @notice Validates the proof of reserve
      * @dev This function validates the proof of reserve by checking the signatures of the guardians
-     * @param ethAmount The amount of ETH
      * @param lockedETH The locked ETH amount
-     * @param pufETHTotalSupply The total supply of PUF-ETH tokens
-     * @param blockNumber The block number
-     * @param numberOfActiveValidators is the number of all active validators on Beacon Chain
+     * @param numberOfActivePufferValidators is the number of active Puffer Validators
+     * @param totalNumberOfValidators is the number of total Validators
      * @param guardianSignatures The guardian signatures
      */
     function validateProofOfReserve(
-        uint256 ethAmount,
         uint256 lockedETH,
-        uint256 pufETHTotalSupply,
         uint256 blockNumber,
-        uint256 numberOfActiveValidators,
+        uint256 numberOfActivePufferValidators,
+        uint256 totalNumberOfValidators,
         bytes[] calldata guardianSignatures
     ) external view;
 

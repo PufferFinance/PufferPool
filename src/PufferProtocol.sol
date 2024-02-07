@@ -14,17 +14,13 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ProtocolStorage } from "puffer/struct/ProtocolStorage.sol";
-import { PufferPoolStorage } from "puffer/struct/PufferPoolStorage.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title PufferProtocol
@@ -32,14 +28,6 @@ import { IWETH } from "pufETH/interface/Other/IWETH.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
-    using SafeTransferLib for address;
-    using SafeTransferLib for address payable;
-
-    /**
-     * @dev Burst threshold
-     */
-    uint256 internal constant _BURST_THRESHOLD = 22;
-
     /**
      * @dev BLS public keys are 48 bytes long
      */
@@ -61,18 +49,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     bytes32 internal constant _NO_RESTAKING = bytes32("NO_RESTAKING");
 
     /**
-     * @dev Number of blocks
-     * 3600 * 12(avg block time) = 43200 seconds
-     * 43200 seconds ~ 12 hours
-     */
-    uint256 internal constant _UPDATE_INTERVAL = 3600;
-
-    /**
-     * @dev Puffer Finance treasury
-     */
-    address payable public immutable TREASURY;
-
-    /**
      * @inheritdoc IPufferProtocol
      */
     IGuardianModule public immutable override GUARDIAN_MODULE;
@@ -80,55 +56,45 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    ValidatorTicket public immutable VALIDATOR_TICKET;
+    ValidatorTicket public immutable override VALIDATOR_TICKET;
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    PufferVaultMainnet public immutable PUFFER_VAULT;
-
-    IWETH public immutable WETH; //@todo figure if we need it
+    PufferVaultMainnet public immutable override PUFFER_VAULT;
 
     /**
      * @inheritdoc IPufferProtocol
      */
     IPufferModuleFactory public immutable override PUFFER_MODULE_FACTORY;
 
-    IPufferOracle public immutable PUFFER_ORACLE;
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    IPufferOracle public immutable override PUFFER_ORACLE;
 
     constructor(
         PufferVaultMainnet pufferVault,
-        IWETH weth,
         IGuardianModule guardianModule,
-        address payable treasury,
         address moduleFactory,
         ValidatorTicket validatorTicket,
         IPufferOracle oracle
-    ) payable {
-        TREASURY = treasury;
+    ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultMainnet(payable(address(pufferVault)));
-        WETH = weth;
         PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         _disableInitializers();
     }
 
-    receive() external payable { }
-
     function initialize(address accessManager, address noRestakingModule) external initializer {
         __AccessManaged_init(accessManager);
-        _setValidatorLimitPerInterval(20);
         _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _NO_RESTAKING;
         _setModuleWeights(weights);
         _changeModule(_NO_RESTAKING, IPufferModule(noRestakingModule));
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.numberOfActiveValidators = uint128(10000);
-        // Start at 1 (gas optimisation)
-        $.numberOfValidatorsRegisteredInThisInterval = uint16(1);
     }
 
     /**
@@ -163,6 +129,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @notice Used to register validator key
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * @dev Permit for VT and pufETH is optional, if you do the normal .approve(address(this))
      * Both permits will revert but the transaction overall will succeed, as .transferFrom will not revert in that case
      */
@@ -227,11 +194,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         });
     }
 
-    function isOverBurstThreshold() external view returns (bool) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return (($.activePufferValidators * 100 / $.numberOfActiveValidators) > _BURST_THRESHOLD);
-    }
-
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -277,6 +239,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
+        // Increase lockedETH on Puffer Oracle
+        PUFFER_ORACLE.provisionNode();
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
@@ -357,18 +321,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         delete validator.pubKey;
         delete validator.signature;
         validator.status = Status.EXITED;
-        $.activePufferValidators -= 1;
         $.moduleLimits[moduleName].numberOfActiveValidators -= 1;
 
         // Burn everything if the validator was slashed
         if (wasSlashed) {
-            PUFFER_VAULT.burn(PUFFER_VAULT.convertToShares(returnAmount));
+            PUFFER_VAULT.burn(returnAmount);
         } else {
             uint256 burnAmount = 0;
 
             if (withdrawalAmount < 32 ether) {
+                //@todo rounding down, recheck
                 burnAmount = PUFFER_VAULT.previewDeposit(32 ether - withdrawalAmount);
-                PUFFER_VAULT.burn(PUFFER_VAULT.convertToShares(burnAmount));
+                PUFFER_VAULT.burn(burnAmount);
             }
 
             // slither-disable-next-line unchecked-transfer
@@ -446,49 +410,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Restricted to the DAO
      */
     function changeModule(bytes32 moduleName, IPufferModule newModule) external restricted {
         _changeModule(moduleName, newModule);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function proofOfReserve(
-        uint256 ethAmount,
-        uint256 lockedETH,
-        uint256 pufETHTotalSupply,
-        uint256 blockNumber,
-        uint256 numberOfActiveValidators,
-        bytes[] calldata guardianSignatures
-    ) external {
-        PufferPoolStorage storage $ = _getPufferPoolStorage();
-
-        // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateProofOfReserve({
-            ethAmount: ethAmount,
-            lockedETH: lockedETH,
-            pufETHTotalSupply: pufETHTotalSupply,
-            blockNumber: blockNumber,
-            numberOfActiveValidators: numberOfActiveValidators,
-            guardianSignatures: guardianSignatures
-        });
-
-        if ((block.number - $.lastUpdate) < _UPDATE_INTERVAL) {
-            revert OutsideUpdateWindow();
-        }
-
-        $.ethAmount = ethAmount;
-        $.lockedETH = lockedETH;
-        $.pufETHTotalSupply = pufETHTotalSupply;
-        $.lastUpdate = block.number;
-
-        ProtocolStorage storage protocolStorage = _getPufferProtocolStorage();
-        // gas optimization to skip zero value
-        protocolStorage.numberOfValidatorsRegisteredInThisInterval = 1;
-        protocolStorage.numberOfActiveValidators = uint128(numberOfActiveValidators);
-
-        emit BackingUpdated(ethAmount, lockedETH, pufETHTotalSupply, blockNumber);
     }
 
     /**
@@ -512,13 +437,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function setValidatorLimitPerInterval(uint256 newLimit) external restricted {
-        _setValidatorLimitPerInterval(newLimit);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
         _setValidatorLimitPerModule(moduleName, limit);
     }
@@ -532,14 +450,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         returns (bytes32)
     {
         return LibBeaconchainContract.getDepositDataRoot(pubKey, signature, withdrawalCredentials);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    function getValidatorLimitPerInterval() external view returns (uint256) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return uint256($.validatorLimitPerInterval);
     }
 
     /**
@@ -696,8 +606,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.vtBalances[msg.sender].validatorCount;
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
-            ++$.numberOfValidatorsRegisteredInThisInterval;
-            ++$.activePufferValidators;
         }
 
         emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
@@ -708,16 +616,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 oldLimit = $.moduleLimits[moduleName].allowedLimit;
         $.moduleLimits[moduleName].allowedLimit = limit;
         emit ValidatorLimitPerModuleChanged(oldLimit, limit);
-    }
-
-    // _sendETH is sending ETH to trusted addresses (no reentrancy)
-    function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
-        toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
-
-        if (toSend != 0) {
-            emit TransferredETH(to, toSend);
-            to.safeTransferETH(toSend);
-        }
     }
 
     function _setModuleWeights(bytes32[] memory newModuleWeights) internal {
@@ -742,23 +640,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return address(module);
     }
 
-    function _setValidatorLimitPerInterval(uint256 newLimit) internal {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 oldLimit = uint256($.validatorLimitPerInterval);
-        $.validatorLimitPerInterval = SafeCastLib.toUint16(newLimit);
-        emit ValidatorLimitPerIntervalChanged(oldLimit, newLimit);
-    }
-
     function _checkValidatorRegistrationInputs(
         ProtocolStorage storage $,
         ValidatorKeyData calldata data,
         bytes32 moduleName
     ) internal view {
-        // validatorLimitPerInterval starts at 1, and +1 is to include check if the current registration will go over the limit
-        if (($.numberOfValidatorsRegisteredInThisInterval + 1) > $.validatorLimitPerInterval + 1) {
-            revert ValidatorLimitPerIntervalReached();
-        }
-
         // This acts as a validation if the module is existent
         // +1 is to validate the current transaction registration
         if (($.moduleLimits[moduleName].numberOfActiveValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {

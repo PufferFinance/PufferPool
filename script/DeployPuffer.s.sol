@@ -48,8 +48,6 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
 
-    address payable treasury;
-
     address eigenPodManager;
     address delayedWithdrawalRouter;
     address delegationManager;
@@ -65,19 +63,16 @@ contract DeployPuffer is BaseScript {
 
         if (isMainnet()) {
             // Mainnet / Mainnet fork
-            treasury = payable(vm.envAddress("TREASURY"));
             eigenPodManager = vm.envAddress("EIGENPOD_MANAGER");
             delayedWithdrawalRouter = vm.envAddress("DELAYED_WITHDRAWAL_ROUTER");
             delegationManager = vm.envAddress("DELEGATION_MANAGER");
         } else if (isAnvil()) {
             // Local chain / tests
-            treasury = payable(address(1337));
             eigenPodManager = address(new EigenPodManagerMock());
             delayedWithdrawalRouter = address(0);
             delegationManager = address(new DelegationManagerMock());
         } else {
             // Testnets
-            treasury = payable(vm.envOr("TREASURY", address(1337)));
             eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
             delayedWithdrawalRouter = vm.envOr("DELAYED_WITHDRAWAL_ROUTER", address(0));
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
@@ -120,9 +115,7 @@ contract DeployPuffer is BaseScript {
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultMainnet(payable(pufferVault)),
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
-                weth: IWETH(weth),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
-                treasury: treasury,
                 moduleFactory: address(moduleFactory),
                 oracle: IPufferOracle(oracle)
             });

@@ -7,7 +7,6 @@ import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";

@@ -19,6 +19,11 @@ contract PufferOracle is IPufferOracle, AccessManaged {
     uint256 internal constant _UPDATE_INTERVAL = 1;
 
     /**
+     * @dev Burst threshold
+     */
+    uint256 internal constant _BURST_THRESHOLD = 22;
+
+    /**
      * @dev Locked ETH amount in Beacon Chain
      * Slot 1
      */
@@ -34,26 +39,36 @@ contract PufferOracle is IPufferOracle, AccessManaged {
      */
     uint256 internal _validatorTicketPrice;
 
+    /**
+     * @dev Number of active Puffer validators
+     */
+    uint256 internal _numberOfActivePufferValidators;
+
+    /**
+     * @dev Total number of Validators
+     */
+    uint256 internal _totalNumberOfValidators;
+
     IGuardianModule public immutable GUARDIAN_MODULE;
 
     constructor(IGuardianModule guardianModule, address accessManager) AccessManaged(accessManager) {
         GUARDIAN_MODULE = guardianModule;
+        _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _setMintPrice(uint56(0.01 ether));
     }
 
     function proofOfReserve(
-        uint256 newLockedEthValue,
+        uint256 newLockedETH,
         uint256 blockNumber,
-        uint256 pufferMarketShare,
+        uint256 numberOfActivePufferValidators,
+        uint256 totalNumberOfValidators,
         bytes[] calldata guardianSignatures
     ) external {
-        //@todo update module Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProofOfReserve({
-            ethAmount: 0,
-            lockedETH: lockedETH,
-            pufETHTotalSupply: 0,
+            lockedETH: newLockedETH,
             blockNumber: blockNumber,
-            numberOfActiveValidators: 0,
+            numberOfActivePufferValidators: numberOfActivePufferValidators,
+            totalNumberOfValidators: totalNumberOfValidators,
             guardianSignatures: guardianSignatures
         });
 
@@ -61,15 +76,30 @@ contract PufferOracle is IPufferOracle, AccessManaged {
             revert OutsideUpdateWindow();
         }
 
-        lockedETH = newLockedEthValue;
+        lockedETH = newLockedETH;
         lastUpdate = blockNumber;
+        _numberOfActivePufferValidators = numberOfActivePufferValidators;
+        _totalNumberOfValidators = totalNumberOfValidators;
 
-        emit BackingUpdated(blockNumber, newLockedEthValue);
+        //@todo change the event
+        emit BackingUpdated(blockNumber, newLockedETH);
+    }
+
+    /**
+     * @notice Increases the lockedETH amount by 32 ETH
+     * @dev Restricted to PufferProtocol contract
+     */
+    function provisionNode() external restricted {
+        lockedETH += 32 ether;
+        unchecked {
+            ++_numberOfActivePufferValidators;
+        }
     }
 
     /**
      * @notice Updates the price to mint VT
      * @param newPrice The new price to set for minting VT
+     * @dev Restricted to the DAO
      */
     function setMintPrice(uint56 newPrice) external restricted {
         _setMintPrice(newPrice);
@@ -80,8 +110,18 @@ contract PufferOracle is IPufferOracle, AccessManaged {
         _validatorTicketPrice = newPrice;
     }
 
+    /**
+     * @inheritdoc IPufferOracle
+     */
     function getLockedEthAmount() external view returns (uint256) {
         return lockedETH;
+    }
+
+    /**
+     * @inheritdoc IPufferOracle
+     */
+    function isOverBurstThreshold() external view returns (bool) {
+        return ((_numberOfActivePufferValidators * 100 / _totalNumberOfValidators) > _BURST_THRESHOLD);
     }
 
     /**

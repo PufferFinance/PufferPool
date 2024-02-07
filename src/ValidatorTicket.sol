@@ -96,7 +96,15 @@ contract ValidatorTicket is
         if (msg.value % mintPrice != 0) {
             revert InvalidAmount();
         }
-        //@todo burst threshold
+
+        _mint(recipient, (msg.value / mintPrice) * 1 ether); // * 1 ether is to upscale amount to 18 decimals
+
+        // If we are over the burst threshold, keep everything
+        // That means that pufETH holders are not getting any new rewards until it goes under the threshold
+        if (PUFFER_ORACLE.isOverBurstThreshold()) {
+            // The remainder belongs to PufferVault
+            return;
+        }
 
         // Treasury amount is staying in this contract
         uint256 treasuryAmount = FixedPointMathLib.fullMulDiv(msg.value, $.protocolFeeRate, _ONE_HUNDRED_WAD);
@@ -105,9 +113,6 @@ contract ValidatorTicket is
         // The remainder belongs to PufferVault
         uint256 pufferVaultAmount = msg.value - (treasuryAmount + guardiansAmount);
         PUFFER_VAULT.safeTransferETH(pufferVaultAmount);
-
-        // The remainder belongs to PufferVault
-        _mint(recipient, (msg.value / mintPrice) * 1 ether); // * 1 ether is to upscale amount to 18 decimals
     }
 
     /**

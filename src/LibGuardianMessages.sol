@@ -59,23 +59,21 @@ library LibGuardianMessages {
 
     /**
      * @notice Returns the message to be signed for the proof of reserve
-     * @param ethAmount is the amount of ETH in the reserve
      * @param lockedETH is the amount of locked ETH in the reserve
-     * @param pufETHTotalSupply is the total supply of pufETH tokens
      * @param blockNumber is the block number of the proof of reserve
-     * @param numberOfActiveValidators is the number of all active validators on Beacon Chain
+     * @param numberOfActivePufferValidators is the number of active Puffer Validators
+     * @param totalNumberOfValidators is the number of total Validators
      * @return the message to be signed
      */
     function _getProofOfReserveMessage(
-        uint256 ethAmount,
         uint256 lockedETH,
-        uint256 pufETHTotalSupply,
         uint256 blockNumber,
-        uint256 numberOfActiveValidators
+        uint256 numberOfActivePufferValidators,
+        uint256 totalNumberOfValidators
     ) internal pure returns (bytes32) {
         // All guardians use the same nonce
         //solhint-disable-next-line func-named-parameters
-        return keccak256(abi.encode(ethAmount, lockedETH, pufETHTotalSupply, blockNumber, numberOfActiveValidators))
+        return keccak256(abi.encode(lockedETH, blockNumber, numberOfActivePufferValidators, totalNumberOfValidators))
             .toEthSignedMessageHash();
     }
 

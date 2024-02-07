@@ -155,20 +155,18 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProofOfReserve(
-        uint256 ethAmount,
         uint256 lockedETH,
-        uint256 pufETHTotalSupply,
         uint256 blockNumber,
-        uint256 numberOfActiveValidators,
+        uint256 numberOfActivePufferValidators,
+        uint256 totalNumberOfValidators,
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage({
-            ethAmount: ethAmount,
             lockedETH: lockedETH,
-            pufETHTotalSupply: pufETHTotalSupply,
             blockNumber: blockNumber,
-            numberOfActiveValidators: numberOfActiveValidators
+            totalNumberOfValidators: totalNumberOfValidators,
+            numberOfActivePufferValidators: numberOfActivePufferValidators
         });
 
         // Check the signatures

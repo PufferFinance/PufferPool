@@ -6,8 +6,8 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
@@ -17,13 +17,7 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferProtocol is IPufferProtocolStorage {
-    /**
-     * @notice Thrown when external call failed
-     * @dev Signature "0x625a40e6"
-     */
-    error Failed();
-
+interface IPufferProtocol {
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x8cdea6a6"
@@ -41,12 +35,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x2157f2d7"
      */
     error ModuleAlreadyExists();
-
-    /**
-     * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
-     * @dev Signature "0xd9873182"
-     */
-    error ValidatorLimitPerIntervalReached();
 
     /**
      * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
@@ -91,12 +79,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidPufferModule();
 
     /**
-     * @notice Thrown if Guardians try to re-submit the backing data
-     * @dev Signature "0xf93417f7"
-     */
-    error OutsideUpdateWindow();
-
-    /**
      * @notice Emitted when the new Puffer module is created
      * @dev Signature "0xd95c47914545148df84d115c3a83350c2b0044a8efa7dbe2cff795a70fe129a1"
      */
@@ -107,12 +89,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x7917c855c3fa228f8999ca691902e81578515c4cce59cb85a993a9b2a26f1faa"
      */
     event ModuleChanged(bytes32 indexed moduleName, address oldModule, address newModule);
-
-    /**
-     * @notice Emitted when the Guardians fee rate is changed from `oldRate` to `newRate`
-     * @dev Signature "0xdc450026d966b67c62d26cf532d9a568be6c73c01251576c5d6a71bb19463d2f"
-     */
-    event GuardiansFeeRateChanged(uint256 oldRate, uint256 newRate);
 
     /**
      * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
@@ -150,26 +126,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
-     * @notice Emitted when the Guardians update state of the protocol
-     * @param ethAmount is the ETH amount that is not locked in Beacon chain
-     * @param lockedETH is the locked ETH amount in Beacon chain
-     * @param pufETHTotalSupply is the total supply of the pufETH
-     */
-    event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
-
-    /**
-     * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
-     * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
-     */
-    event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the validator limit per interval is changed from `oldLimit` to `newLimit`
-     * @dev Signature "0xd6c37e61a7f770549c535431a7a63b047395ebed26acefc1cab277cbbeb1d8b7"
-     */
-    event ValidatorLimitPerIntervalChanged(uint256 oldLimit, uint256 newLimit);
-
-    /**
      * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
      * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
      */
@@ -204,14 +160,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
     event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
-
-    /**
-     * @notice Emitted when the Validator key is failed to be provisioned
-     * @param pubKey is the validator public key
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @dev Signature "0x8570512b93af33936e8fa6bfcd755f2c72c42c90569dc288b2e38e839943f0cd"
-     */
-    event FailedToProvision(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Emitted when the validator is dequeued by the Node operator
@@ -275,30 +223,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
 
     /**
-     * @notice Sets the validator limit per interval to `newLimit`
-     * @dev Restricted to DAO
-     */
-    function setValidatorLimitPerInterval(uint256 newLimit) external;
-
-    /**
-     * @notice Updates the proof of reserve by checking the signatures of the guardians
-     * @param ethAmount The amount of ETH
-     * @param lockedETH The locked ETH amount on Beacon Chain
-     * @param pufETHTotalSupply The total supply of pufETH tokens
-     * @param blockNumber The block number
-     * @param numberOfActiveValidators The number of all active validators on Beacon Chain
-     * @param guardianSignatures The guardian signatures
-     */
-    function proofOfReserve(
-        uint256 ethAmount,
-        uint256 lockedETH,
-        uint256 pufETHTotalSupply,
-        uint256 blockNumber,
-        uint256 numberOfActiveValidators,
-        bytes[] calldata guardianSignatures
-    ) external;
-
-    /**
      * @notice Changes the `moduleName` with `newModule`
      * @dev Restricted to DAO
      */
@@ -323,6 +247,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @notice Returns the Puffer Module Factory
      */
     function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
+
+    /**
+     * @notice Returns the Puffer Oracle
+     */
+    function PUFFER_ORACLE() external view returns (IPufferOracle);
 
     /**
      * @notice Returns the current module weights
@@ -416,17 +345,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getNextValidatorToProvision() external view returns (bytes32 moduleName, uint256 indexToBeProvisioned);
 
     /**
-     * @notice Returns the validator limit per interval
-     */
-    function getValidatorLimitPerInterval() external view returns (uint256);
-
-    /**
      * @notice Returns the withdrawal credentials for a `module`
      */
     function getWithdrawalCredentials(address module) external view returns (bytes memory);
-
-    /**
-     * @notice Returns the treasury address
-     */
-    function TREASURY() external view returns (address payable);
 }
