@@ -97,6 +97,7 @@ contract ValidatorTicket is
             revert InvalidAmount();
         }
 
+        // slither-disable-next-line divide-before-multiply
         _mint(recipient, (msg.value / mintPrice) * 1 ether); // * 1 ether is to upscale amount to 18 decimals
 
         // If we are over the burst threshold, keep everything

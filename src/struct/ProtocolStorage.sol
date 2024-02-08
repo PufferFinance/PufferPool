@@ -69,7 +69,7 @@ struct ProtocolStorage {
      * 1 DAY = 1e18
      * Slot 10
      */
-    uint256 minimumNumberOfVtsPerValidator;
+    uint256 minimumVtAmount;
 }
 
 struct NodeInfo {

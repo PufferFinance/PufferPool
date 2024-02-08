@@ -90,7 +90,7 @@ contract SetupAccess is BaseScript {
         return calldatas;
     }
 
-    function _setupPufferVaultMainnetAccess() internal returns (bytes[] memory) {
+    function _setupPufferVaultMainnetAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory publicSelectors = new bytes4[](1);
@@ -116,7 +116,7 @@ contract SetupAccess is BaseScript {
         return calldatas;
     }
 
-    function _setupValidatorTicketsAccess() internal returns (bytes[] memory) {
+    function _setupValidatorTicketsAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory selectors = new bytes4[](2);
@@ -213,12 +213,13 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = PufferProtocol.createPufferModule.selector;
         selectors[1] = PufferProtocol.setModuleWeights.selector;
         selectors[2] = PufferProtocol.changeModule.selector;
         selectors[3] = UUPSUpgradeable.upgradeToAndCall.selector;
         selectors[4] = PufferProtocol.setValidatorLimitPerModule.selector;
+        selectors[5] = PufferProtocol.changeMinimumVTAmount.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

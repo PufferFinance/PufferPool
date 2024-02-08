@@ -104,9 +104,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when the minimum number of days for ValidatorTickets is changed from `oldMinimumNumberOfDays` to `newMinimumNumberOfDays`
-     * @dev Signature "0x3c0d40bcc1f925c8237544a69818d5b4cd222ed415728f6bfbe17b9387f5bf5e"
+     * @dev Signature "0xc6f97db308054b44394df54aa17699adff6b9996e9cffb4dcbcb127e20b68abc"
      */
-    event MinimumNumberOfDaysChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
+    event MinimumVTAmountChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -196,7 +196,7 @@ interface IPufferProtocol {
 
     /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
-     * @dev Each active validator requires node operator to have at least `minimumNumberOfVtsPerValidator` locked
+     * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      */
     function withdrawValidatorTickets(uint128 amount, address recipient) external;
 
@@ -252,10 +252,10 @@ interface IPufferProtocol {
     function changeModule(bytes32 moduleName, IPufferModule newModule) external;
 
     /**
-     * @notice Changes the minimum number of days for VT
+     * @notice Changes the minimum number amount of VT that must be locked per validator
      * @dev Restricted to the DAO
      */
-    function changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) external;
+    function changeMinimumVTAmount(uint256 newMinimumVTAmount) external;
 
     /**
      * @notice Returns the guardian module
@@ -382,4 +382,9 @@ interface IPufferProtocol {
      * @notice Returns the withdrawal credentials for a `module`
      */
     function getWithdrawalCredentials(address module) external view returns (bytes memory);
+
+    /**
+     * @notice Returns the minimum amount of Validator Tokens to run a validator
+     */
+    function getMinimumVtAmount() external view returns (uint256);
 }

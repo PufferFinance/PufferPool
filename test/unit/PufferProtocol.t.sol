@@ -1243,6 +1243,15 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pufferProtocol.geValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
     }
 
+    function test_changeMinimumVTAmount() public {
+        assertEq(pufferProtocol.getMinimumVtAmount(), 28 ether, "initial value");
+
+        vm.startPrank(DAO);
+        pufferProtocol.changeMinimumVTAmount(50 ether);
+
+        assertEq(pufferProtocol.getMinimumVtAmount(), 50 ether, "value after change");
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);

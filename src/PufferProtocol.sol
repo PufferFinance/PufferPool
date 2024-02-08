@@ -95,6 +95,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         weights[0] = _NO_RESTAKING;
         _setModuleWeights(weights);
         _changeModule(_NO_RESTAKING, IPufferModule(noRestakingModule));
+        _changeMinimumVTAmount(28 ether); // 28 days
     }
 
     /**
@@ -112,6 +113,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             r: permit.r
         }) { } catch { }
 
+        // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -129,12 +131,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.vtBalances[msg.sender].vtBalance -= amount;
 
         // The user must have at least 30 VT for each active validator
-        uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * $.minimumNumberOfVtsPerValidator;
+        uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * $.minimumVtAmount;
         // If the remaining VT balance is less than the mandatory amount, revert
         if ($.vtBalances[msg.sender].vtBalance < mandatoryVTAmount) {
             revert InvalidValidatorTicketAmount(amount, mandatoryVTAmount);
         }
 
+        // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transfer(recipient, amount);
 
         emit ValidatorTicketsWithdrawn(msg.sender, recipient, amount);
@@ -154,7 +157,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Upscale number of days to 18 decimals
-        if ((numberOfDays * 1 ether) < $.minimumNumberOfVtsPerValidator) {
+        if ((numberOfDays * 1 ether) < $.minimumVtAmount) {
             revert InvalidData();
         }
 
@@ -182,6 +185,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
+            // slither-disable-next-line unchecked-transfer
             VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to upscale amount to 18 decimals
         }
 
@@ -190,6 +194,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             pufETHMinted = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
+            // slither-disable-next-line unchecked-transfer
             PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
         }
 
@@ -431,8 +436,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
-    function changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) external restricted {
-        _changeMinimumNumberOfDays(newMinimumNumberOfDays);
+    function changeMinimumVTAmount(uint256 newMinimumVTAmount) external restricted {
+        _changeMinimumVTAmount(newMinimumVTAmount);
     }
 
     /**
@@ -583,9 +588,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function geValidatorTicketsBalance(address owner) public returns (uint256) {
+    function geValidatorTicketsBalance(address owner) public view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.vtBalances[owner].vtBalance;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getMinimumVtAmount() public view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.minimumVtAmount;
     }
 
     /**
@@ -699,10 +712,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ModuleChanged(moduleName, address(oldModule), address(newModule));
     }
 
-    function _changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) internal {
+    function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        emit MinimumNumberOfDaysChanged($.minimumNumberOfVtsPerValidator, newMinimumNumberOfDays);
-        $.minimumNumberOfVtsPerValidator = newMinimumNumberOfDays;
+        emit MinimumVTAmountChanged($.minimumVtAmount, newMinimumVtAmount);
+        $.minimumVtAmount = newMinimumVtAmount;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
