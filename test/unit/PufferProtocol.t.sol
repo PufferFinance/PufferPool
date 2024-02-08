@@ -192,14 +192,14 @@ contract PufferProtocolTest is TestHelper {
 
         // If we stop registration for 0, it will advance the counter
         // Simulate that somebody registered more validators
-        // pufferProtocol.stopRegistration(NO_RESTAKING, 0);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 1);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 2);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 3);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 4);
+        // pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 1);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 2);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 3);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 4);
         // Skip 5, we want to provision 5
-        pufferProtocol.stopRegistration(NO_RESTAKING, 6);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 7);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 6);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 7);
 
         (bytes32 module, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
         assertEq(module, NO_RESTAKING, "module");
@@ -495,7 +495,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.prank(address(4123123)); // random sender
         vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
 
         (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
 
@@ -507,7 +507,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorDequeued(alicePubKey, 0);
-        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
 
         assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "1 index is next in line");
 
@@ -541,7 +541,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Invalid status
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.DEQUEUED));
-        pufferProtocol.stopRegistration(NO_RESTAKING, 0);
+        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
     }
 
     function test_register_multiple_validator_keys_and_dequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {

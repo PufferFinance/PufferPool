@@ -37,6 +37,12 @@ interface IPufferProtocol {
     error ModuleAlreadyExists();
 
     /**
+     * @notice Thrown when the Node operator tries to withdraw amount bigger than the minimum amount
+     * @dev Signature "0x2bcee45d"
+     */
+    error InvalidValidatorTicketAmount(uint256 amount, uint256 minimumVTAmount);
+
+    /**
      * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
      * @dev Signature "0xb75c5781"
      */
@@ -95,6 +101,12 @@ interface IPufferProtocol {
      * @dev Signature "0x21e92cbdc47ef718b9c77ea6a6ee50ff4dd6362ee22041ab77a46dacb93f5355"
      */
     event ValidatorLimitPerModuleChanged(uint256 oldLimit, uint256 newLimit);
+
+    /**
+     * @notice Emitted when the minimum number of days for ValidatorTickets is changed from `oldMinimumNumberOfDays` to `newMinimumNumberOfDays`
+     * @dev Signature "0x3c0d40bcc1f925c8237544a69818d5b4cd222ed415728f6bfbe17b9387f5bf5e"
+     */
+    event MinimumNumberOfDaysChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -178,12 +190,12 @@ interface IPufferProtocol {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
-     * @notice Stops the registration
+     * @notice Cancels the Validator registration
      * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
-    function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external;
+    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external;
 
     /**
      * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
@@ -212,21 +224,27 @@ interface IPufferProtocol {
 
     /**
      * @notice Sets the module weights array to `newModuleWeights`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external;
 
     /**
      * @notice Sets the module limits for `moduleName` to `limit`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
 
     /**
      * @notice Changes the `moduleName` with `newModule`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function changeModule(bytes32 moduleName, IPufferModule newModule) external;
+
+    /**
+     * @notice Changes the minimum number of days for VT
+     * @dev Restricted to the DAO
+     */
+    function changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) external;
 
     /**
      * @notice Returns the guardian module

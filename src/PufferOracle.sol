@@ -28,6 +28,7 @@ contract PufferOracle is IPufferOracle, AccessManaged {
      * Slot 1
      */
     uint256 public lockedETH;
+
     /**
      * @dev Block number for when the values were updated
      * Slot 2

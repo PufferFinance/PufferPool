@@ -64,6 +64,11 @@ struct ProtocolStorage {
      * Slot 9
      */
     mapping(address node => NodeInfo info) vtBalances;
+    /**
+     * @dev Minimum number of VT days required to be eligible register a validator
+     * Slot 10
+     */
+    uint256 vtMinimumNumberOfDays;
 }
 
 struct NodeInfo {

@@ -118,12 +118,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
     }
 
-    function withdrawValidatorTicket(uint256 amount, address recipient) external {
+    function withdrawValidatorTicket(uint128 amount, address recipient) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        //@todo restrict how much of VT can be withdrawn based on the validator number
+        $.vtBalances[msg.sender].vtBalance -= amount;
 
-        $.vtBalances[msg.sender].vtBalance -= SafeCastLib.toUint128(amount);
+        // The user must have at least 30 VT for each active validator
+        uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * 30 ether;
+        // If the remaining VT balance is less than the mandatory amount, revert
+        if ($.vtBalances[msg.sender].vtBalance < mandatoryVTAmount) {
+            revert InvalidValidatorTicketAmount(amount, mandatoryVTAmount);
+        }
+
+        VALIDATOR_TICKET.transfer(recipient, amount);
+
         emit ValidatorTicketsWithdrawn(msg.sender, recipient, amount);
     }
 
@@ -140,8 +148,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         Permit calldata pufETHPermit,
         Permit calldata vtPermit
     ) external payable restricted {
-        //@todo what is the min amount?
-        if (numberOfDays < 28) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        if (numberOfDays < $.vtMinimumNumberOfDays) {
             revert InvalidData();
         }
 
@@ -149,8 +158,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (vtPermit.amount != 0 && pufETHPermit.amount != 0 && msg.value > 0) {
             revert InvalidETHAmount();
         }
-
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
@@ -247,7 +254,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external {
+    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // `msg.sender` is the Node Operator
@@ -414,6 +421,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function changeModule(bytes32 moduleName, IPufferModule newModule) external restricted {
         _changeModule(moduleName, newModule);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to the DAO
+     */
+    function changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) external restricted {
+        _changeMinimumNumberOfDays(newMinimumNumberOfDays);
     }
 
     /**
@@ -613,16 +628,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 oldLimit = $.moduleLimits[moduleName].allowedLimit;
+        emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
         $.moduleLimits[moduleName].allowedLimit = limit;
-        emit ValidatorLimitPerModuleChanged(oldLimit, limit);
     }
 
     function _setModuleWeights(bytes32[] memory newModuleWeights) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        bytes32[] memory oldModuleWeights = $.moduleWeights;
+        emit ModuleWeightsChanged($.moduleWeights, newModuleWeights);
         $.moduleWeights = newModuleWeights;
-        emit ModuleWeightsChanged(oldModuleWeights, newModuleWeights);
     }
 
     function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
@@ -672,6 +685,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         $.modules[moduleName] = newModule;
         emit ModuleChanged(moduleName, address(oldModule), address(newModule));
+    }
+
+    function _changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        emit MinimumNumberOfDaysChanged($.vtMinimumNumberOfDays, newMinimumNumberOfDays);
+        $.vtMinimumNumberOfDays = newMinimumNumberOfDays;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
