@@ -190,6 +190,17 @@ interface IPufferProtocol {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
+     * @notice Deposits Validator Tickets for the `node`
+     */
+    function depositValidatorTickets(Permit calldata permit, address node) external;
+
+    /**
+     * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
+     * @dev Each active validator requires node operator to have at least `minimumNumberOfVtsPerValidator` locked
+     */
+    function withdrawValidatorTickets(uint128 amount, address recipient) external;
+
+    /**
      * @notice Cancels the Validator registration
      * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
@@ -354,6 +365,11 @@ interface IPufferProtocol {
      * @notice Returns the next validator index for provisioning for `moduleName`
      */
     function getNextValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256);
+
+    /**
+     * @notice Returns the amount of Validator Tickets in the PufferProtocol for the `owner`
+     */
+    function geValidatorTicketsBalance(address owner) external returns (uint256);
 
     /**
      * @notice Returns the next in line for provisioning

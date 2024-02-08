@@ -239,8 +239,10 @@ contract SetupAccess is BaseScript {
             ROLE_ID_GUARDIANS
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
+        bytes4[] memory publicSelectors = new bytes4[](3);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
+        publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
+        publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

@@ -1,5 +1,5 @@
-// // SPDX-License-Identifier: GPL-3.0
-// pragma solidity >=0.8.0 <0.9.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.0 <0.9.0;
 
 // import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 // import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";

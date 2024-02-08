@@ -98,9 +98,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @notice Deposits validator tickets for the `node`
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositValidatorTicket(Permit calldata permit, address node) external {
+    function depositValidatorTickets(Permit calldata permit, address node) external restricted {
         try IERC20Permit(address(VALIDATOR_TICKET)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -118,13 +119,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
     }
 
-    function withdrawValidatorTicket(uint128 amount, address recipient) external {
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function withdrawValidatorTickets(uint128 amount, address recipient) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         $.vtBalances[msg.sender].vtBalance -= amount;
 
         // The user must have at least 30 VT for each active validator
-        uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * 30 ether;
+        uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * $.minimumNumberOfVtsPerValidator;
         // If the remaining VT balance is less than the mandatory amount, revert
         if ($.vtBalances[msg.sender].vtBalance < mandatoryVTAmount) {
             revert InvalidValidatorTicketAmount(amount, mandatoryVTAmount);
@@ -136,10 +141,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @notice Used to register validator key
+     * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     * @dev Permit for VT and pufETH is optional, if you do the normal .approve(address(this))
-     * Both permits will revert but the transaction overall will succeed, as .transferFrom will not revert in that case
      */
     function registerValidatorKey(
         ValidatorKeyData calldata data,
@@ -150,7 +153,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) external payable restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        if (numberOfDays < $.vtMinimumNumberOfDays) {
+        // Upscale number of days to 18 decimals
+        if ((numberOfDays * 1 ether) < $.minimumNumberOfVtsPerValidator) {
             revert InvalidData();
         }
 
@@ -577,6 +581,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @inheritdoc IPufferProtocol
+     */
+    function geValidatorTicketsBalance(address owner) public returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.vtBalances[owner].vtBalance;
+    }
+
+    /**
      * @notice Returns necessary information to make Guardian's life easier
      */
     function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfDays)
@@ -689,8 +701,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _changeMinimumNumberOfDays(uint256 newMinimumNumberOfDays) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        emit MinimumNumberOfDaysChanged($.vtMinimumNumberOfDays, newMinimumNumberOfDays);
-        $.vtMinimumNumberOfDays = newMinimumNumberOfDays;
+        emit MinimumNumberOfDaysChanged($.minimumNumberOfVtsPerValidator, newMinimumNumberOfDays);
+        $.minimumNumberOfVtsPerValidator = newMinimumNumberOfDays;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
