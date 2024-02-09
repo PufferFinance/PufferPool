@@ -232,31 +232,47 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         //@todo refactor, make it good
         _validateGuardianSignatures($, moduleName, index, guardianEnclaveSignatures);
-        _activateValidator($, moduleName, index, queueOffset);
-    }
 
-    function _activateValidator(ProtocolStorage storage $, bytes32 moduleName, uint256 index, uint256 queueOffset)
-        internal
-    {
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
 
+        _updateVTBalance({
+            $: $,
+            moduleName: moduleName,
+            index: index,
+            registeringNewValidator: true,
+            queueOffset: queueOffset
+        });
+    }
+
+    function _updateVTBalance(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        bool registeringNewValidator,
+        uint256 queueOffset
+    ) internal {
         address node = $.validators[moduleName][index].node;
 
         uint256 previousVTBalance = $.vtBalances[node].vtBalance;
         uint256 previousActiveValidatorCount = $.vtBalances[node].validatorCount;
-        uint256 previousSpent = queueOffset * _VT_LOSS_RATE_PER_SECOND * previousActiveValidatorCount;
+        uint256 vtsSpent = queueOffset * _VT_LOSS_RATE_PER_SECOND * previousActiveValidatorCount;
 
         // Do the accounting on previous VTs
         uint256 toBurn = previousVTBalance - geValidatorTicketsBalance(node);
-        VALIDATOR_TICKET.burn(toBurn + previousSpent);
+        VALIDATOR_TICKET.burn(toBurn + vtsSpent);
 
-        // Increase the validator count
-        ++$.vtBalances[node].validatorCount;
+        if (registeringNewValidator) {
+            // Increase the validator count
+            ++$.vtBalances[node].validatorCount;
+        } else {
+            $.vtBalances[node].validatorCount -= 1;
+        }
+
         // Store the new time
         $.vtBalances[node].since = uint48(block.timestamp + queueOffset);
         // Adjust the VT balance for that node
-        $.vtBalances[node].vtBalance -= (uint160(toBurn) + uint160(previousSpent));
+        $.vtBalances[node].vtBalance -= (uint160(toBurn) + uint160(vtsSpent));
     }
 
     function _validateGuardianSignatures(
@@ -368,6 +384,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address node = validator.node;
         bytes memory pubKey = validator.pubKey;
 
+        _updateVTBalance({
+            $: $,
+            moduleName: moduleName,
+            index: validatorIndex,
+            registeringNewValidator: false,
+            queueOffset: 0
+        });
         // Remove what we don't
         delete validator.module;
         delete validator.node;
@@ -375,6 +398,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         delete validator.pubKey;
         delete validator.signature;
         validator.status = Status.EXITED;
+        // Decrease the validator number for that module
         $.moduleLimits[moduleName].numberOfActiveValidators -= 1;
 
         // Burn everything if the validator was slashed

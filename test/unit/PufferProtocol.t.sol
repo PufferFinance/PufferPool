@@ -1148,10 +1148,17 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(validator.bond, pufferVault.balanceOf(address(pufferProtocol)), "alice bond is in the protocol");
 
+        uint256 startTimestamp = 1707411226;
+
+        vm.warp(startTimestamp);
+
         // Provision validators
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 days);
 
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
+
+        // 15 days later
+        vm.warp(startTimestamp + 16 days);
 
         // Valid proof
         pufferProtocol.retrieveBond({
@@ -1182,6 +1189,13 @@ contract PufferProtocolTest is TestHelper {
             wasSlashed: false,
             merkleProof: proof2
         });
+
+        // Alice doesn't withdraw her VT's right away
+        vm.warp(startTimestamp + 50 days);
+
+        // After 50 days she should have 15 VT
+        uint256 vtsLeft = pufferProtocol.geValidatorTicketsBalance(alice);
+        assertApproxEqRel(vtsLeft, 15 ether, pointZeroZeroOne, "alice has 15 VTs left");
     }
 
     // Alice deposits VT for herself
