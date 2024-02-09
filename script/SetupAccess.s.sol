@@ -127,8 +127,9 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
+        bytes4[] memory publicSelectors = new bytes4[](2);
         publicSelectors[0] = ValidatorTicket.purchaseValidatorTicket.selector;
+        publicSelectors[1] = ValidatorTicket.burn.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

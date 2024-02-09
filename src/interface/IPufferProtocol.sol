@@ -299,9 +299,10 @@ interface IPufferProtocol {
 
     /**
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @param queueOffset is the wait queue for the validators in seconds
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset) external;
 
     /**
      * @notice Returns the deposit_data_root

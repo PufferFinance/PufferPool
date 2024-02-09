@@ -13,7 +13,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { ProtocolStorage } from "puffer/struct/ProtocolStorage.sol";
+import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
@@ -28,6 +28,11 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
+    /**
+     * @dev Validator ticket loss rate per second
+     */
+    uint256 internal constant _VT_LOSS_RATE_PER_SECOND = 11574074074075; // (1 ether / 1 days) rounded up
+
     /**
      * @dev BLS public keys are 48 bytes long
      */
@@ -213,13 +218,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures) external {
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
-
-        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
-        bytes memory validatorSignature = $.validators[moduleName][index].signature;
 
         // Increment next validator to be provisioned index, overflows if there is no validator for provisioning
         $.nextToBeProvisioned[moduleName] = index + 1;
@@ -227,6 +229,44 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Increment module selection index
             ++$.moduleSelectIndex;
         }
+
+        //@todo refactor, make it good
+        _validateGuardianSignatures($, moduleName, index, guardianEnclaveSignatures);
+        _activateValidator($, moduleName, index, queueOffset);
+    }
+
+    function _activateValidator(ProtocolStorage storage $, bytes32 moduleName, uint256 index, uint256 queueOffset)
+        internal
+    {
+        // Mark the validator as active
+        $.validators[moduleName][index].status = Status.ACTIVE;
+
+        address node = $.validators[moduleName][index].node;
+
+        uint256 previousVTBalance = $.vtBalances[node].vtBalance;
+        uint256 previousActiveValidatorCount = $.vtBalances[node].validatorCount;
+        uint256 previousSpent = queueOffset * _VT_LOSS_RATE_PER_SECOND * previousActiveValidatorCount;
+
+        // Do the accounting on previous VTs
+        uint256 toBurn = previousVTBalance - geValidatorTicketsBalance(node);
+        VALIDATOR_TICKET.burn(toBurn + previousSpent);
+
+        // Increase the validator count
+        ++$.vtBalances[node].validatorCount;
+        // Store the new time
+        $.vtBalances[node].since = uint48(block.timestamp + queueOffset);
+        // Adjust the VT balance for that node
+        $.vtBalances[node].vtBalance -= (uint160(toBurn) + uint160(previousSpent));
+    }
+
+    function _validateGuardianSignatures(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        bytes[] calldata guardianEnclaveSignatures
+    ) internal {
+        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+        bytes memory validatorSignature = $.validators[moduleName][index].signature;
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 
@@ -245,8 +285,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             withdrawalCredentials: withdrawalCredentials,
             guardianEnclaveSignatures: guardianEnclaveSignatures
         });
-
-        $.validators[moduleName][index].status = Status.ACTIVE;
 
         IPufferModule module = $.modules[moduleName];
 
@@ -590,7 +628,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function geValidatorTicketsBalance(address owner) public view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.vtBalances[owner].vtBalance;
+
+        NodeInfo memory nodeInfo = $.vtBalances[owner];
+
+        if (nodeInfo.since >= block.timestamp) {
+            return nodeInfo.vtBalance;
+        }
+
+        uint256 elapsedTime = block.timestamp - nodeInfo.since;
+        uint256 calculatedBalance =
+            nodeInfo.vtBalance - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.validatorCount);
+
+        return calculatedBalance;
     }
 
     /**
@@ -639,11 +688,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             node: msg.sender
         });
 
-        $.vtBalances[msg.sender].vtBalance += SafeCastLib.toUint128(numberOfDays);
+        $.vtBalances[msg.sender].vtBalance += uint160(numberOfDays * 1 ether); // upscale to 18 decimals
 
         // Increment indices for this module and number of validators registered
         unchecked {
-            ++$.vtBalances[msg.sender].validatorCount;
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
         }

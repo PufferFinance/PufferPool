@@ -73,8 +73,9 @@ struct ProtocolStorage {
 }
 
 struct NodeInfo {
-    uint128 validatorCount;
-    uint128 vtBalance;
+    uint48 since;
+    uint48 validatorCount;
+    uint160 vtBalance;
 }
 
 struct ModuleLimit {
