@@ -802,7 +802,7 @@ contract PufferProtocolTest is TestHelper {
         assertGt(
             pufferVault.maxWithdraw(alice),
             1 ether,
-            "alice received back the bond in pufETH which is worht more than she deposited"
+            "alice received back the bond in pufETH which is worth more than she deposited"
         );
 
         bytes32[] memory bobProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 1);
@@ -1386,10 +1386,10 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.geValidatorTicketsBalance(alice), 80 ether, pointZeroZeroOne, "alice should have ~80 VTS"
         );
 
-        // // Now we provision another Validator with 1 days offset
+        // Now we provision another Validator with 1 days offset
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 days);
 
-        // // Advance the time to start + 6 days
+        // Advance the time to start + 6 days
         vm.warp(newTime + 6 days);
 
         // That means that the Validator 2 is active for 5 days

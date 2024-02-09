@@ -327,6 +327,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorState(validator.status);
         }
 
+        //@todo 
+        // burn 10 days of VT, update VT balance for `node`
+
         if (msg.sender != validator.node) {
             revert Unauthorized();
         }
@@ -433,6 +436,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             skippedIndex: skippedIndex,
             guardianEOASignatures: guardianEOASignatures
         });
+
+        //@todo VT penalty as well same as cancelRegistration
 
         // Change the status of that validator
         $.validators[moduleName][skippedIndex].status = Status.SKIPPED;
