@@ -21,6 +21,7 @@ import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.s
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title PufferProtocol
@@ -218,7 +219,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset) external {
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset, uint256 vtBurnOffset)
+        external
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
@@ -236,14 +239,46 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
 
-        _updateVTBalance({
+        _provisionNodeVTUpdate({
             $: $,
             moduleName: moduleName,
             index: index,
-            registeringNewValidator: true,
-            queueOffset: queueOffset
+            queueOffset: queueOffset,
+            vtBurnOffset: vtBurnOffset
         });
     }
+
+    function _provisionNodeVTUpdate(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        uint256 queueOffset,
+        uint256 vtBurnOffset
+    ) internal {
+        address node = $.validators[moduleName][index].node;
+
+        // VTs spent on the active validators
+        uint256 previousBalance = $.vtBalances[node].vtBalance;
+        uint256 toBurn = previousBalance + vtBurnOffset - geValidatorTicketsBalance(node);
+
+        // Burn what is spent on the active validators,
+        VALIDATOR_TICKET.burn(toBurn);
+
+        // Increase the validator count
+        ++$.vtBalances[node].validatorCount;
+        // Store the new time
+        $.vtBalances[node].since = uint48(block.timestamp + queueOffset);
+        // Adjust the VT balance for that node
+        $.vtBalances[node].vtBalance = $.vtBalances[node].vtBalance - uint160(toBurn);
+    }
+
+    function _retrieveBondVTUpdate(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        bool registeringNewValidator,
+        uint256 queueOffset
+    ) internal { }
 
     function _updateVTBalance(
         ProtocolStorage storage $,
@@ -327,7 +362,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorState(validator.status);
         }
 
-        //@todo 
+        //@todo
         // burn 10 days of VT, update VT balance for `node`
 
         if (msg.sender != validator.node) {

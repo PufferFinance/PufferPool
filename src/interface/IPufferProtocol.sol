@@ -302,7 +302,8 @@ interface IPufferProtocol {
      * @param queueOffset is the wait queue for the validators in seconds
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset, uint256 vtBurnOffset)
+        external;
 
     /**
      * @notice Returns the deposit_data_root
