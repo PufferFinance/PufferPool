@@ -218,31 +218,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 queueOffset) external {
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 vtBurnOffset) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
 
-        // Increment next validator to be provisioned index, overflows if there is no validator for provisioning
+        // Increment next validator to be provisioned index, panics if there is no validator for provisioning
         $.nextToBeProvisioned[moduleName] = index + 1;
         unchecked {
             // Increment module selection index
             ++$.moduleSelectIndex;
         }
+        // Validator Tickets Accounting
+        _provisionNodeVTUpdate({ $: $, moduleName: moduleName, index: index, vtQueueOffset: vtBurnOffset });
 
-        //@todo refactor, make it good
-        _validateGuardianSignatures($, moduleName, index, guardianEnclaveSignatures);
+        _validateSignaturesAndProvisionValidator($, moduleName, index, guardianEnclaveSignatures);
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
-
-        _updateVTBalance({
-            $: $,
-            moduleName: moduleName,
-            index: index,
-            registeringNewValidator: true,
-            queueOffset: queueOffset
-        });
     }
 
     function _updateVTBalance(
@@ -275,45 +268,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.vtBalances[node].vtBalance -= (uint160(toBurn) + uint160(vtsSpent));
     }
 
-    function _validateGuardianSignatures(
-        ProtocolStorage storage $,
-        bytes32 moduleName,
-        uint256 index,
-        bytes[] calldata guardianEnclaveSignatures
-    ) internal {
-        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
-        bytes memory validatorSignature = $.validators[moduleName][index].signature;
-
-        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
-
-        bytes32 depositDataRoot = this.getDepositDataRoot({
-            pubKey: validatorPubKey,
-            signature: validatorSignature,
-            withdrawalCredentials: withdrawalCredentials
-        });
-
-        // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateProvisionNode({
-            validatorIndex: index,
-            pubKey: validatorPubKey,
-            signature: validatorSignature,
-            depositDataRoot: depositDataRoot,
-            withdrawalCredentials: withdrawalCredentials,
-            guardianEnclaveSignatures: guardianEnclaveSignatures
-        });
-
-        IPufferModule module = $.modules[moduleName];
-
-        // Transfer 32 ETH to the module
-        PUFFER_VAULT.transferETH(address(module), 32 ether);
-
-        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
-
-        // Increase lockedETH on Puffer Oracle
-        PUFFER_ORACLE.provisionNode();
-        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
-    }
-
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -322,17 +276,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // `msg.sender` is the Node Operator
         Validator storage validator = $.validators[moduleName][validatorIndex];
+        address node = validator.node;
 
         if (validator.status != Status.PENDING) {
             revert InvalidValidatorState(validator.status);
         }
 
-        //@todo 
-        // burn 10 days of VT, update VT balance for `node`
-
-        if (msg.sender != validator.node) {
+        if (msg.sender != node) {
             revert Unauthorized();
         }
+
+        _penalizeNodeOperator(node);
 
         // Update the status to DEQUEUED
         validator.status = Status.DEQUEUED;
@@ -348,7 +302,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(validator.node, validator.bond);
+        PUFFER_VAULT.transfer(node, validator.bond);
     }
 
     /**
@@ -430,6 +384,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
 
+        address node = $.validators[moduleName][skippedIndex].node;
+
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateSkipProvisioning({
             moduleName: moduleName,
@@ -437,14 +393,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             guardianEOASignatures: guardianEOASignatures
         });
 
-        //@todo VT penalty as well same as cancelRegistration
+        _penalizeNodeOperator(node);
 
         // Change the status of that validator
         $.validators[moduleName][skippedIndex].status = Status.SKIPPED;
 
         // Transfer pufETH to that node operator
         // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer($.validators[moduleName][skippedIndex].node, $.validators[moduleName][skippedIndex].bond);
+        PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
@@ -660,11 +616,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         NodeInfo memory nodeInfo = $.vtBalances[owner];
 
-        if (nodeInfo.since >= block.timestamp) {
-            return nodeInfo.vtBalance;
-        }
-
         uint256 elapsedTime = block.timestamp - nodeInfo.since;
+
         uint256 calculatedBalance =
             nodeInfo.vtBalance - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.validatorCount);
 
@@ -793,6 +746,83 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         emit MinimumVTAmountChanged($.minimumVtAmount, newMinimumVtAmount);
         $.minimumVtAmount = newMinimumVtAmount;
+    }
+
+    function _validateSignaturesAndProvisionValidator(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        bytes[] calldata guardianEnclaveSignatures
+    ) internal {
+        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+        bytes memory validatorSignature = $.validators[moduleName][index].signature;
+
+        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
+
+        bytes32 depositDataRoot = this.getDepositDataRoot({
+            pubKey: validatorPubKey,
+            signature: validatorSignature,
+            withdrawalCredentials: withdrawalCredentials
+        });
+
+        // Check the signatures (reverts if invalid)
+        GUARDIAN_MODULE.validateProvisionNode({
+            validatorIndex: index,
+            pubKey: validatorPubKey,
+            signature: validatorSignature,
+            depositDataRoot: depositDataRoot,
+            withdrawalCredentials: withdrawalCredentials,
+            guardianEnclaveSignatures: guardianEnclaveSignatures
+        });
+
+        IPufferModule module = $.modules[moduleName];
+
+        // Transfer 32 ETH to the module
+        PUFFER_VAULT.transferETH(address(module), 32 ether);
+
+        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
+
+        // Increase lockedETH on Puffer Oracle
+        PUFFER_ORACLE.provisionNode();
+        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+    }
+
+    function _penalizeNodeOperator(address node) internal {
+        // Burn 10 days of VT's from the node
+        VALIDATOR_TICKET.burn(10 ether);
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        $.vtBalances[node].vtBalance -= 10 ether;
+    }
+
+    /**
+     * @dev When the node operator registers a new validator, the VT balance is updated
+     * Because the entry queue varies, the guardians will credit node operator with the virtual VT's.
+     * That means that the VT decay will start when the provisioning happens, but because the node operator is credited
+     * Virtual VT's by the guardians, the end result will be the same.
+     */
+    function _provisionNodeVTUpdate(ProtocolStorage storage $, bytes32 moduleName, uint256 index, uint256 vtQueueOffset)
+        internal
+    {
+        address node = $.validators[moduleName][index].node;
+
+        uint256 oldVTBalance = $.vtBalances[node].vtBalance;
+
+        // Update the vtBalance with virtual offset in storage because `geValidatorTicketsBalance` uses the storage for calculations
+        $.vtBalances[node].vtBalance += uint160(vtQueueOffset);
+
+        uint256 newVTBalance = geValidatorTicketsBalance(node);
+
+        // The diff is the amount to burn
+        uint256 toBurn = oldVTBalance > newVTBalance ? (oldVTBalance - newVTBalance) : (newVTBalance - oldVTBalance);
+
+        // Burn what is spent on the active validators
+        VALIDATOR_TICKET.burn(toBurn);
+
+        // Update the node information
+        $.vtBalances[node].since = uint48(block.timestamp);
+        $.vtBalances[node].vtBalance = uint160(newVTBalance);
+        ++$.vtBalances[node].validatorCount;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
