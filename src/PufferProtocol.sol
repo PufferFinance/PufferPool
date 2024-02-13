@@ -118,6 +118,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             r: permit.r
         }) { } catch { }
 
+        //@todo update vt balance
+
         // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
 
@@ -134,6 +136,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         $.vtBalances[msg.sender].vtBalance -= amount;
+
+        //@todo vt update for validators
 
         // The user must have at least 30 VT for each active validator
         uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * $.minimumVtAmount;

@@ -1361,7 +1361,7 @@ contract PufferProtocolTest is TestHelper {
         );
 
         // Validator 1 - 11 days of validating
-        // Validator 2 - 10 days of validating
+        // Validator 2 - 10 days of validating (provisioning happened T+2 with 2 days offset)
         vm.warp(startTimestamp + 14 days); // 20 days in seconds
 
         assertApproxEqRel(
