@@ -123,12 +123,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             r: permit.r
         }) { } catch { }
 
-        //@todo update vt balance
-
         // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        _updateVTBalance($, node, 0);
+
         $.vtBalances[node].vtBalance += SafeCastLib.toUint128(permit.amount);
         emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
     }
@@ -142,7 +143,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.vtBalances[msg.sender].vtBalance -= amount;
 
-        //@todo vt update for validators
+        _updateVTBalance($, msg.sender, 0);
 
         // The user must have at least 30 VT for each active validator
         uint256 mandatoryVTAmount = $.vtBalances[msg.sender].validatorCount * $.minimumVtAmount;
@@ -245,31 +246,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
-    }
-
-    function _updateStopValidatorVTBalance(
-        ProtocolStorage storage $,
-        bytes32 moduleName,
-        uint256 index,
-        uint256 validatorStopTimestamp
-    ) internal {
-        address node = $.validators[moduleName][index].node;
-
-        uint256 previousVTBalance = $.vtBalances[node].vtBalance;
-
-        // Do the accounting on previous VTs
-        uint256 toBurn = previousVTBalance - _calculateValidatorTicketBalance(node, block.timestamp);
-        VALIDATOR_TICKET.burn(toBurn);
-
-        $.vtBalances[node].validatorCount -= 1;
-
-        // Credit virtual VT for the difference between the stop time and the current time
-        uint256 vtToCredit = (block.timestamp - validatorStopTimestamp) * _VT_LOSS_RATE_PER_SECOND_DOWN;
-
-        // Store the new time
-        $.vtBalances[node].since = uint48(block.timestamp);
-        // Adjust the VT balance for that node
-        $.vtBalances[node].vtBalance = uint160(previousVTBalance) + uint160(vtToCredit) - uint160(toBurn);
     }
 
     /**
@@ -614,18 +590,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getValidatorTicketsBalance(address owner) public view returns (uint256) {
-        return _calculateValidatorTicketBalance(owner, block.timestamp);
-    }
-
-    function _calculateValidatorTicketBalance(address owner, uint256 timestamp) internal view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         NodeInfo memory nodeInfo = $.vtBalances[owner];
 
-        uint256 elapsedTime = timestamp - nodeInfo.since;
+        uint256 elapsedTime = block.timestamp - nodeInfo.since;
 
-        uint256 calculatedBalance =
-            nodeInfo.vtBalance - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.validatorCount);
+        uint256 calculatedBalance = (nodeInfo.vtBalance + nodeInfo.virtualVTBalance)
+            - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.validatorCount);
 
         return calculatedBalance;
     }
@@ -812,23 +784,63 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     {
         address node = $.validators[moduleName][index].node;
 
+        _updateVTBalance($, node, vtQueueOffset);
+
+        ++$.vtBalances[node].validatorCount;
+    }
+
+    /**
+     * @dev When the node operator gets ejected / exits a validator, the node operator continues to lose VT.
+     * When the retrieveBond is called, we will credit that node operator with virtual VT's that can't be redeemed.
+     * If the node operator wants to retrieve unspent VT's and the bond, they are incentivized to do so as soon as possible.
+     */
+    function _updateStopValidatorVTBalance(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        uint256 validatorStopTimestamp
+    ) internal {
+        address node = $.validators[moduleName][index].node;
+
+        // We credit virtual VT's to the node operator for the time the validator was stopped
+        uint256 vtToCredit = (block.timestamp - validatorStopTimestamp) * _VT_LOSS_RATE_PER_SECOND_DOWN;
+
+        _updateVTBalance($, node, vtToCredit);
+
+        $.vtBalances[node].validatorCount -= 1;
+    }
+
+    function _updateVTBalance(ProtocolStorage storage $, address node, uint256 vtQueueOffset) internal {
         uint256 oldVTBalance = $.vtBalances[node].vtBalance;
+        uint256 oldVirtualVTBalance = $.vtBalances[node].virtualVTBalance;
 
-        // Update the vtBalance with virtual offset in storage because `getValidatorTicketsBalance` uses the storage for calculations
-        $.vtBalances[node].vtBalance += uint160(vtQueueOffset);
+        uint256 totalOldVTBalance = oldVTBalance + oldVirtualVTBalance;
 
+        // Returns the new total balance
         uint256 newVTBalance = getValidatorTicketsBalance(node);
 
-        // The diff is the amount to burn
-        uint256 toBurn = oldVTBalance > newVTBalance ? (oldVTBalance - newVTBalance) : (newVTBalance - oldVTBalance);
+        $.vtBalances[node].virtualVTBalance += vtQueueOffset;
 
-        // Burn what is spent on the active validators
-        VALIDATOR_TICKET.burn(toBurn);
+        // The diff is the amount to burn
+        uint256 toBurn =
+            totalOldVTBalance > newVTBalance ? (totalOldVTBalance - newVTBalance) : (newVTBalance - totalOldVTBalance);
+        uint256 burnAmount = 0;
+
+        // Take from the virtual balance first
+        if (toBurn < $.vtBalances[node].virtualVTBalance) {
+            $.vtBalances[node].virtualVTBalance -= toBurn;
+        } else {
+            burnAmount = toBurn - $.vtBalances[node].virtualVTBalance;
+            $.vtBalances[node].virtualVTBalance = 0;
+            VALIDATOR_TICKET.burn(burnAmount);
+        }
+
+        uint256 vtBalance = oldVTBalance - burnAmount;
 
         // Update the node information
         $.vtBalances[node].since = uint48(block.timestamp);
-        $.vtBalances[node].vtBalance = uint160(newVTBalance);
-        ++$.vtBalances[node].validatorCount;
+        $.vtBalances[node].vtBalance = uint160(vtBalance);
+        emit VTBalanceChanged(node, oldVTBalance, vtBalance, oldVirtualVTBalance, $.vtBalances[node].virtualVTBalance);
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {

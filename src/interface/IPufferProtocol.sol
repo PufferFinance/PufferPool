@@ -144,6 +144,18 @@ interface IPufferProtocol {
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
     /**
+     * @notice Emitted whenever VT balance is updated (deposit, withdraw, node provision by the guardians, retrieve bond)
+     * @dev Signature "0xa2db5b08bfaa7d199c195f5ff7695be9809b4198a03eee3bbda42307ea893b70"
+     */
+    event VTBalanceChanged(
+        address indexed node,
+        uint256 oldVTBalance,
+        uint256 newVTBalance,
+        uint256 oldVirtualVTBalance,
+        uint256 newVirtualVTBalance
+    );
+
+    /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
@@ -197,6 +209,7 @@ interface IPufferProtocol {
     /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
+     * Can not withdraw virtual VTs
      */
     function withdrawValidatorTickets(uint128 amount, address recipient) external;
 

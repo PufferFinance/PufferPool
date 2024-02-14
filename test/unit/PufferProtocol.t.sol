@@ -48,6 +48,8 @@ contract PufferProtocolTest is TestHelper {
     // 0.1% diff
     uint256 pointZeroOne = 0.001e18;
 
+    address alice = makeAddr("alice");
+
     function setUp() public override {
         super.setUp();
 
@@ -550,7 +552,7 @@ contract PufferProtocolTest is TestHelper {
     function test_register_multiple_validator_keys_and_dequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
         address bob = makeAddr("bob");
         vm.deal(bob, 10 ether);
-        address alice = makeAddr("alice");
+
         vm.deal(alice, 10 ether);
 
         bytes memory bobPubKey = _getPubKey(bobPubKeyPart);
@@ -732,7 +734,6 @@ contract PufferProtocolTest is TestHelper {
         // For us to test the withdrawal from the node operator, we must register and provision that validator
         // In our case we have 2 validators NO_RESTAKING and EIGEN_DA
 
-        address alice = makeAddr("alice");
         vm.deal(alice, 5 ether);
         address bob = makeAddr("bob");
         vm.deal(bob, 5 ether);
@@ -869,7 +870,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can deposit Bond in pufETH
     function test_register_pufETH_approve_buy_VT() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
@@ -907,7 +907,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can deposit Bond with Permit and pay for the VT in ETH
     function test_register_pufETH_permit_pay_VT() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
@@ -939,7 +938,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can deposit both VT and pufETH with Permit
     function test_register_both_permit() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
@@ -983,7 +981,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can deposit both VT and pufETH with .approve
     function test_register_both_approve() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
@@ -1031,7 +1028,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can pay for pufETH with ETH and use Permit for VT
     function test_register_pufETH_pay_vt_approve() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 10 ether);
 
@@ -1067,7 +1063,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Node operator can deposit Bond in pufETH
     function test_register_validator_key_with_permit_reverts_invalid_vt_amount() external {
-        address alice = makeAddr("alice");
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 100 ether);
 
@@ -1132,7 +1127,6 @@ contract PufferProtocolTest is TestHelper {
     function test_claim_bond_for_single_withdrawal() external {
         _singleWithdrawalMerkleRoot();
 
-        address alice = makeAddr("alice");
         vm.deal(alice, 2 ether);
 
         vm.startPrank(alice);
@@ -1207,7 +1201,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Alice deposits VT for herself
     function test_deposit_validator_tickets_approval() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         uint256 numberOfDays = 200;
@@ -1237,7 +1230,6 @@ contract PufferProtocolTest is TestHelper {
 
     // Alice deposits VT for bob
     function test_deposit_validator_tickets_permit_for_bob() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         uint256 numberOfDays = 200;
@@ -1277,7 +1269,6 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_vt_balance_single_validator() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
@@ -1324,7 +1315,6 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_vt_balance_different_provision_time() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
@@ -1344,7 +1334,7 @@ contract PufferProtocolTest is TestHelper {
         // Alice has 90 VTs because her validator is not yet provisioned
         assertEq(balance, 90 ether, "alice should have 90 VTs locked in the protocol");
 
-        // The wait queue is 3 days, the guardians provision the validator with 1 day offset
+        // The wait queue is 3 days, the guardians provision the validator with 3 days offset, we credit alice 3 virtual VT's
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 3 ether);
 
         // We offset the timestamp to + 2 days, Alice should still have 90 VT (because the validating is not live yet)
@@ -1359,6 +1349,14 @@ contract PufferProtocolTest is TestHelper {
 
         // At t + 2 days the new validator gets provisioned with 2 days queue
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 2 ether);
+
+        // 90 is the original deposit, +3 virtual for the first validator, but this is t+2 days, so it is +1, and +2 for this valdiator
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice),
+            93 ether,
+            pointZeroZeroOne,
+            "alice should still have ~ 93 VTS"
+        );
 
         // + 3 day offset + 1 day validating
         vm.warp(startTimestamp + 4 days);
@@ -1376,8 +1374,18 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
+    // Alice withdarws VT before provisioning
+    function test_withdraw_zero_vt() public {
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        pufferProtocol.withdrawValidatorTickets(30 ether, alice);
+     }
+
     function test_register_skip_provision_withdraw_vt() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
@@ -1405,7 +1413,6 @@ contract PufferProtocolTest is TestHelper {
     function test_stop_validator_provision_another_claim_bond_for_the_first() public {
         _setupMerkleRoot();
 
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
@@ -1458,7 +1465,7 @@ contract PufferProtocolTest is TestHelper {
         });
 
         assertApproxEqRel(
-            validatorTicket.balanceOf(address(pufferProtocol)), 67 ether, pointZeroZeroOne, "real vt balance"
+            validatorTicket.balanceOf(address(pufferProtocol)), 71 ether, pointZeroZeroOne, "real vt balance"
         );
 
         // Alice should have + 5 VT's because of the validator stop timestamp
@@ -1468,7 +1475,6 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_vt_balance_multiple_validators() public {
-        address alice = makeAddr("alice");
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);

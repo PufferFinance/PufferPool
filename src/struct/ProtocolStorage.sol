@@ -76,6 +76,7 @@ struct NodeInfo {
     uint48 since;
     uint48 validatorCount;
     uint160 vtBalance;
+    uint256 virtualVTBalance;
 }
 
 struct ModuleLimit {
