@@ -34,6 +34,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     uint256 internal constant _VT_LOSS_RATE_PER_SECOND = 11574074074075; // (1 ether / 1 days) rounded up
 
     /**
+     * @dev Validator ticket loss rate per second
+     */
+    uint256 internal constant _VT_LOSS_RATE_PER_SECOND_DOWN = 11574074074074; // (1 ether / 1 days) rounded down
+
+    /**
      * @dev BLS public keys are 48 bytes long
      */
     uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
@@ -242,34 +247,29 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.validators[moduleName][index].status = Status.ACTIVE;
     }
 
-    function _updateVTBalance(
+    function _updateStopValidatorVTBalance(
         ProtocolStorage storage $,
         bytes32 moduleName,
         uint256 index,
-        bool registeringNewValidator,
-        uint256 queueOffset
+        uint256 validatorStopTimestamp
     ) internal {
         address node = $.validators[moduleName][index].node;
 
         uint256 previousVTBalance = $.vtBalances[node].vtBalance;
-        uint256 previousActiveValidatorCount = $.vtBalances[node].validatorCount;
-        uint256 vtsSpent = queueOffset * _VT_LOSS_RATE_PER_SECOND * previousActiveValidatorCount;
 
         // Do the accounting on previous VTs
-        uint256 toBurn = previousVTBalance - geValidatorTicketsBalance(node);
-        VALIDATOR_TICKET.burn(toBurn + vtsSpent);
+        uint256 toBurn = previousVTBalance - _calculateValidatorTicketBalance(node, block.timestamp);
+        VALIDATOR_TICKET.burn(toBurn);
 
-        if (registeringNewValidator) {
-            // Increase the validator count
-            ++$.vtBalances[node].validatorCount;
-        } else {
-            $.vtBalances[node].validatorCount -= 1;
-        }
+        $.vtBalances[node].validatorCount -= 1;
+
+        // Credit virtual VT for the difference between the stop time and the current time
+        uint256 vtToCredit = (block.timestamp - validatorStopTimestamp) * _VT_LOSS_RATE_PER_SECOND_DOWN;
 
         // Store the new time
-        $.vtBalances[node].since = uint48(block.timestamp + queueOffset);
+        $.vtBalances[node].since = uint48(block.timestamp);
         // Adjust the VT balance for that node
-        $.vtBalances[node].vtBalance -= (uint160(toBurn) + uint160(vtsSpent));
+        $.vtBalances[node].vtBalance = uint160(previousVTBalance) + uint160(vtToCredit) - uint160(toBurn);
     }
 
     /**
@@ -318,6 +318,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 blockNumber,
         uint256 withdrawalAmount,
         bool wasSlashed,
+        uint256 validatorStopTimestamp,
         bytes32[] calldata merkleProof
     ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -328,13 +329,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorState(validator.status);
         }
 
-        bytes32 withdrawalRoot = $.fullWithdrawalsRoots[blockNumber];
-
         if (
             // Leaf
             !MerkleProof.verifyCalldata(
                 merkleProof,
-                withdrawalRoot,
+                $.fullWithdrawalsRoots[blockNumber],
                 keccak256(bytes.concat(keccak256(abi.encode(moduleName, validatorIndex, withdrawalAmount, wasSlashed))))
             )
         ) {
@@ -345,12 +344,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address node = validator.node;
         bytes memory pubKey = validator.pubKey;
 
-        _updateVTBalance({
+        _updateStopValidatorVTBalance({
             $: $,
             moduleName: moduleName,
             index: validatorIndex,
-            registeringNewValidator: false,
-            queueOffset: 0
+            validatorStopTimestamp: validatorStopTimestamp
         });
         // Remove what we don't
         delete validator.module;
@@ -615,12 +613,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function geValidatorTicketsBalance(address owner) public view returns (uint256) {
+    function getValidatorTicketsBalance(address owner) public view returns (uint256) {
+        return _calculateValidatorTicketBalance(owner, block.timestamp);
+    }
+
+    function _calculateValidatorTicketBalance(address owner, uint256 timestamp) internal view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         NodeInfo memory nodeInfo = $.vtBalances[owner];
 
-        uint256 elapsedTime = block.timestamp - nodeInfo.since;
+        uint256 elapsedTime = timestamp - nodeInfo.since;
 
         uint256 calculatedBalance =
             nodeInfo.vtBalance - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.validatorCount);
@@ -812,10 +814,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 oldVTBalance = $.vtBalances[node].vtBalance;
 
-        // Update the vtBalance with virtual offset in storage because `geValidatorTicketsBalance` uses the storage for calculations
+        // Update the vtBalance with virtual offset in storage because `getValidatorTicketsBalance` uses the storage for calculations
         $.vtBalances[node].vtBalance += uint160(vtQueueOffset);
 
-        uint256 newVTBalance = geValidatorTicketsBalance(node);
+        uint256 newVTBalance = getValidatorTicketsBalance(node);
 
         // The diff is the amount to burn
         uint256 toBurn = oldVTBalance > newVTBalance ? (oldVTBalance - newVTBalance) : (newVTBalance - oldVTBalance);

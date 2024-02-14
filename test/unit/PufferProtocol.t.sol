@@ -772,6 +772,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 150,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: aliceProof
         });
 
@@ -784,6 +785,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: aliceProof
         });
 
@@ -795,6 +797,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: aliceProof
         });
 
@@ -815,6 +818,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31 ether,
             wasSlashed: true,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: bobProof
         });
 
@@ -828,6 +832,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31.6 ether,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: charlieProof
         });
 
@@ -1167,6 +1172,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 200,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0)
         });
 
@@ -1187,6 +1193,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 200,
             withdrawalAmount: 0,
             wasSlashed: false,
+            validatorStopTimestamp: block.timestamp,
             merkleProof: proof2
         });
 
@@ -1194,7 +1201,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 50 days);
 
         // After 50 days she should have 15 VT
-        uint256 vtsLeft = pufferProtocol.geValidatorTicketsBalance(alice);
+        uint256 vtsLeft = pufferProtocol.getValidatorTicketsBalance(alice);
         assertApproxEqRel(vtsLeft, 15 ether, pointZeroZeroOne, "alice has 15 VTs left");
     }
 
@@ -1256,8 +1263,8 @@ contract PufferProtocolTest is TestHelper {
         emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
         pufferProtocol.depositValidatorTickets(vtPermit, bob);
 
-        assertEq(pufferProtocol.geValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.geValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
     }
 
     function test_changeMinimumVTAmount() public {
@@ -1278,7 +1285,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         // Alice registered validator on block.timestamp = 1
-        uint256 balance = pufferProtocol.geValidatorTicketsBalance(alice);
+        uint256 balance = pufferProtocol.getValidatorTicketsBalance(alice);
 
         uint256 startTimestamp = 1707411226;
 
@@ -1295,7 +1302,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 1 days);
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice),
+            pufferProtocol.getValidatorTicketsBalance(alice),
             30 ether,
             pointZeroZeroOne,
             "alice should still have ~ 30 because VTS"
@@ -1305,14 +1312,14 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 2 days);
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 29 ether, pointZeroZeroOne, "alice should have ~29 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 29 ether, pointZeroZeroOne, "alice should have ~29 VTS"
         );
 
         // 1 days for the validator start + 20 days
         vm.warp(startTimestamp + 21 days); // 20 days in seconds
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 10 ether, pointZeroZeroOne, "alice should have ~10 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 10 ether, pointZeroZeroOne, "alice should have ~10 VTS"
         );
     }
 
@@ -1327,7 +1334,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         // Alice registered validator on block.timestamp = 1
-        uint256 balance = pufferProtocol.geValidatorTicketsBalance(alice);
+        uint256 balance = pufferProtocol.getValidatorTicketsBalance(alice);
 
         uint256 startTimestamp = 1707411226;
 
@@ -1344,7 +1351,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 2 days);
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice),
+            pufferProtocol.getValidatorTicketsBalance(alice),
             91 ether,
             pointZeroZeroOne,
             "alice should still have ~ 91 VTS (+1 for offset)"
@@ -1357,7 +1364,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 4 days);
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 89 ether, pointZeroZeroOne, "alice should have ~89 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 89 ether, pointZeroZeroOne, "alice should have ~89 VTS"
         );
 
         // Validator 1 - 11 days of validating
@@ -1365,7 +1372,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp + 14 days); // 20 days in seconds
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 69 ether, pointZeroZeroOne, "alice should have ~69 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 69 ether, pointZeroZeroOne, "alice should have ~69 VTS"
         );
     }
 
@@ -1377,13 +1384,13 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
         );
 
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice),
+            pufferProtocol.getValidatorTicketsBalance(alice),
             20 ether,
             pointZeroZeroOne,
             "alice should have ~20 VTS -10 penalty"
@@ -1392,6 +1399,72 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.withdrawValidatorTickets(uint128(20 ether), alice);
 
         assertEq(validatorTicket.balanceOf(alice), 20 ether, "alice got her VT");
+    }
+
+    // Alice has two validators, stops one, registers and provisions another one, and after some time claims the bond for the stopped
+    function test_stop_validator_provision_another_claim_bond_for_the_first() public {
+        _setupMerkleRoot();
+
+        address alice = makeAddr("alice");
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        // Register 2 Validators, 2x30 VT
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 startFirstValidatorTimestamp = 1707411226;
+
+        vm.warp(startFirstValidatorTimestamp);
+
+        // Provision 2 validators in the same timestamp
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
+
+        vm.warp(startFirstValidatorTimestamp + 5 days);
+
+        // 2 Validators are consuming 2x4 VT's
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 82 ether, pointZeroZeroOne, "alice should have ~ 82 VTS"
+        );
+
+        bytes32[] memory aliceProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0);
+
+        vm.warp(startFirstValidatorTimestamp + 11 days);
+
+        // 2 Validators are consuming 2x10 VT's
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 70 ether, pointZeroZeroOne, "alice should have ~ 70 VTS"
+        );
+
+        // This will think that the validator that exited is still active
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
+
+        // 2 Validators are consuming 2x10 VT's + 1 virtual
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 71 ether, pointZeroZeroOne, "alice should have ~ 71 VTS"
+        );
+
+        // Valid proof
+        pufferProtocol.retrieveBond({
+            moduleName: NO_RESTAKING,
+            validatorIndex: 0,
+            blockNumber: 100,
+            withdrawalAmount: 32 ether,
+            wasSlashed: false,
+            validatorStopTimestamp: block.timestamp - 5 days, // 5 days ago
+            merkleProof: aliceProof
+        });
+
+        assertApproxEqRel(
+            validatorTicket.balanceOf(address(pufferProtocol)), 67 ether, pointZeroZeroOne, "real vt balance"
+        );
+
+        // Alice should have + 5 VT's because of the validator stop timestamp
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 76 ether, pointZeroZeroOne, "alice should have ~ 76 VTS"
+        );
     }
 
     function test_vt_balance_multiple_validators() public {
@@ -1405,7 +1478,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         // Alice registered validator on block.timestamp = 1
-        uint256 balance = pufferProtocol.geValidatorTicketsBalance(alice);
+        uint256 balance = pufferProtocol.getValidatorTicketsBalance(alice);
 
         uint256 startFirstValidatorTimestamp = 1707411226;
 
@@ -1423,7 +1496,7 @@ contract PufferProtocolTest is TestHelper {
 
         // At this point the Validator 1 is live
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice),
+            pufferProtocol.getValidatorTicketsBalance(alice),
             90 ether,
             pointZeroZeroOne,
             "alice should still have ~ 90 because VTS"
@@ -1436,7 +1509,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Validator 1 has been active for 10 days
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 80 ether, pointZeroZeroOne, "alice should have ~80 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 80 ether, pointZeroZeroOne, "alice should have ~80 VTS"
         );
 
         // Now we provision another Validator with 1 days offset
@@ -1445,7 +1518,7 @@ contract PufferProtocolTest is TestHelper {
         // VT balance should be 80, but because one validator just got provisioned
         // +1 is because of the offset, a validator just got provisioned with a wait time of 1 day
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 81 ether, pointZeroZeroOne, "alice should have ~81 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 81 ether, pointZeroZeroOne, "alice should have ~81 VTS"
         );
 
         // Advance the time to start + 6 days
@@ -1454,7 +1527,7 @@ contract PufferProtocolTest is TestHelper {
         // That means that the Validator 2 is active for 5 days
         // Validator 1 active for 16 days
         assertApproxEqRel(
-            pufferProtocol.geValidatorTicketsBalance(alice), 69 ether, pointZeroZeroOne, "alice should have ~69 VTS"
+            pufferProtocol.getValidatorTicketsBalance(alice), 69 ether, pointZeroZeroOne, "alice should have ~69 VTS"
         );
     }
 

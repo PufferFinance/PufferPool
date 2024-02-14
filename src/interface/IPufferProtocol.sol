@@ -216,6 +216,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @param withdrawalAmount is the amount of ETH from the full withdrawal
      * @param wasSlashed is the amount of pufETH that we are burning from the node operator
+     * @param validatorStopTimestamp is the timestamp of the validator stop
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
     function retrieveBond(
@@ -224,6 +225,7 @@ interface IPufferProtocol {
         uint256 blockNumber,
         uint256 withdrawalAmount,
         bool wasSlashed,
+        uint256 validatorStopTimestamp,
         bytes32[] calldata merkleProof
     ) external;
 
@@ -370,7 +372,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the amount of Validator Tickets in the PufferProtocol for the `owner`
      */
-    function geValidatorTicketsBalance(address owner) external returns (uint256);
+    function getValidatorTicketsBalance(address owner) external returns (uint256);
 
     /**
      * @notice Returns the next in line for provisioning
