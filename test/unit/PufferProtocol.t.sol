@@ -1374,16 +1374,30 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    // Alice withdarws VT before provisioning
-    function test_withdraw_zero_vt() public {
+    // Alice tries to withdraw all VT before provisioning
+    function test_withdraw_vt_before_provisioning() public {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
+        // Revert saying that at least 28 VT must be left in the protocol
+        vm.expectRevert(
+            abi.encodeWithSelector(IPufferProtocol.InvalidValidatorTicketAmount.selector, 30 ether, 28 ether)
+        );
         pufferProtocol.withdrawValidatorTickets(30 ether, alice);
-     }
+
+        address bob = makeAddr("bob");
+
+        assertEq(validatorTicket.balanceOf(bob), 0, "bob 0 VT");
+
+        // Alice can withdraw 2 VT to bob
+        pufferProtocol.withdrawValidatorTickets(2 ether, bob);
+
+        assertEq(validatorTicket.balanceOf(bob), 2 ether, "bob got 2 VT");
+        assertEq(validatorTicket.balanceOf(alice), 0, "alice 0 VT");
+    }
 
     function test_register_skip_provision_withdraw_vt() public {
         vm.deal(alice, 10 ether);
@@ -1404,7 +1418,7 @@ contract PufferProtocolTest is TestHelper {
             "alice should have ~20 VTS -10 penalty"
         );
 
-        pufferProtocol.withdrawValidatorTickets(uint128(20 ether), alice);
+        pufferProtocol.withdrawValidatorTickets(uint96(20 ether), alice);
 
         assertEq(validatorTicket.balanceOf(alice), 20 ether, "alice got her VT");
     }

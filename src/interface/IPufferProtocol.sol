@@ -11,6 +11,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 
 /**
  * @title IPufferProtocol
@@ -202,6 +203,13 @@ interface IPufferProtocol {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
+     * @notice Returns the node operator information
+     * @param node is the node operator address
+     * @return NodeInfo struct
+     */
+    function getNodeInfo(address node) external view returns (NodeInfo memory);
+
+    /**
      * @notice Deposits Validator Tickets for the `node`
      */
     function depositValidatorTickets(Permit calldata permit, address node) external;
@@ -211,7 +219,7 @@ interface IPufferProtocol {
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      * Can not withdraw virtual VTs
      */
-    function withdrawValidatorTickets(uint128 amount, address recipient) external;
+    function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
      * @notice Cancels the Validator registration
@@ -317,7 +325,7 @@ interface IPufferProtocol {
      * @param vtBurnOffset Is the amount in VT tokens that is credited to Node operator for the validating queue time
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint256 vtBurnOffset) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external;
 
     /**
      * @notice Returns the deposit_data_root
