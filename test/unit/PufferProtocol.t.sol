@@ -1228,7 +1228,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(validatorTicket.balanceOf(address(alice)), 0, "alice got 0");
     }
 
-    // Alice double deposit
+    // Alice double deposit VT
     function test_double_deposit_validator_tickets_approval() public {
         vm.deal(alice, 1000 ether);
 
@@ -1292,6 +1292,51 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
         assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
+    }
+
+    // Alice double deposit VT for Bob
+    function test_double_deposit_validator_tickets_permit_for_bob() public {
+        vm.deal(alice, 1000 ether);
+
+        uint256 numberOfDays = 1000;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
+
+        vm.startPrank(alice);
+        // Alice purchases VT
+        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
+
+        assertEq(validatorTicket.balanceOf(alice), 1000 ether, "alice got 1000 VT");
+        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
+
+        // Sign the permit
+        Permit memory vtPermit = _signPermit(
+            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(200), block.timestamp),
+            validatorTicket.DOMAIN_SEPARATOR()
+        );
+
+        address bob = makeAddr("bob");
+
+        // Deposit for Bob
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
+        pufferProtocol.depositValidatorTickets(vtPermit, bob);
+
+        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
+        assertEq(validatorTicket.balanceOf(alice), 800 ether, "Alice still has 800 VTs left in wallet");
+
+        vm.startPrank(alice);
+        // Deposit for Bob again
+        Permit memory vtPermit2 = _signPermit(
+            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(800), block.timestamp + 1000),
+            validatorTicket.DOMAIN_SEPARATOR()
+        );
+        validatorTicket.approve(address(pufferProtocol), 800 ether);
+        pufferProtocol.depositValidatorTickets(vtPermit2, bob);
+
+        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 1000 ether, "bob got the VTS in the protocol");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
+        assertEq(validatorTicket.balanceOf(alice), 0, "Alice has no more VTs");
     }
 
     function test_changeMinimumVTAmount() public {
