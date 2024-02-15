@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { NoImplementation } from "puffer/NoImplementation.sol";
+import { NoImplementation } from "pufETH/NoImplementation.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
