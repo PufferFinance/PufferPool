@@ -64,7 +64,7 @@ struct ProtocolStorage {
      * @dev Mapping of Node operator address => Node operator information
      * Slot 9
      */
-    mapping(address node => NodeInfo info) nodeOperatorInformation;
+    mapping(address node => NodeInfo info) nodeOperatorInfo;
     /**
      * @dev Minimum number of VT tokens per validator
      * 1 DAY = 1e18

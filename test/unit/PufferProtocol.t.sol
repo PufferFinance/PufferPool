@@ -1397,6 +1397,7 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(validatorTicket.balanceOf(bob), 2 ether, "bob got 2 VT");
         assertEq(validatorTicket.balanceOf(alice), 0, "alice 0 VT");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 28 ether, "alice got 28 VT in the protocol");
     }
 
     function test_register_skip_provision_withdraw_vt() public {
@@ -1506,12 +1507,12 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startFirstValidatorTimestamp);
 
         // Alice has 90 VTs because no validators are provisioned
-        assertEq(balance, 90 ether, "alice should have 30 VTs locked in the protocol");
+        assertEq(balance, 90 ether, "alice should have 90 VTs locked in the protocol");
 
         // The wait queue is 1 days, the guardians provision the validator with 1 day offset
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
 
-        // We offset the timestamp to + 1 days, Alice should still have 30 VT (because the validating is not live yet)
+        // We offset the timestamp to + 1 days, Alice should still have 90 VT (because the validating is not live yet)
         vm.warp(startFirstValidatorTimestamp + 1 days);
 
         // At this point the Validator 1 is live
