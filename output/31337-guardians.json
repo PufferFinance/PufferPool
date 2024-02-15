@@ -1,8 +1,10 @@
 {
   "": "",
-  "enclaveVerifier": "0xd60DeE1b240f14A4bd22aeA4363D08FA6dA40F25",
-  "guardianModule": "0xf55C5aa17a2a985316639882F3735Ee103737da5",
-  "guardians": "0x76d1b66f91044A909C7A3BB834bd302840cd3E4a",
-  "safeImplementation": "0xc54e6F16A1940d000C6ADEE341D11570490a86F6",
-  "safeProxyFactory": "0xE25E53220Df33D41b0422FeDBD2D23A94045cFf3"
+  "PufferDepositor": "0x9C3F1Fa235D5E7233AE049033358a48b18B548AC",
+  "PufferDepositorImplementation": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
+  "PufferVault": "0x023b8a2Fdb8B83b684177920527Df857ad5205E8",
+  "PufferVaultImplementation": "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
+  "accessManager": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "enclaveVerifier": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+  "guardianModule": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1"
 }
