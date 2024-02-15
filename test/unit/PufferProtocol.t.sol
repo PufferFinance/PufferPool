@@ -1380,8 +1380,11 @@ contract PufferProtocolTest is TestHelper {
 
         vm.startPrank(alice);
 
+        // Register Validator key registers validator with 30 VTs
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
+        // Alice tries to withdraw 28 VTs, but the tx is reverted
+        
         // Revert saying that at least 28 VT must be left in the protocol
         vm.expectRevert(
             abi.encodeWithSelector(IPufferProtocol.InvalidValidatorTicketAmount.selector, 30 ether, 28 ether)
