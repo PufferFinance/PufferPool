@@ -21,4 +21,4 @@
 	url = https://github.com/dmfxyz/murky
 [submodule "lib/pufETH"]
 	path = lib/pufETH
-	url = git@github.com:PufferFinance/pufETH
+	url = https://github.com/PufferFinance/pufETH
