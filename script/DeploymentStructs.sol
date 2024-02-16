@@ -17,8 +17,6 @@ struct GuardiansDeployment {
 struct PufferProtocolDeployment {
     address pufferProtocolImplementation;
     address NoRestakingModule;
-    address pufferPool;
-    address withdrawalPool;
     address pufferProtocol;
     address guardianModule;
     address accessManager;
@@ -27,6 +25,7 @@ struct PufferProtocolDeployment {
     address beacon; // Beacon for Puffer modules
     address moduleFactory;
     address validatorTicket;
+    address pufferOracle;
     address pufferDepositor; // from pufETH repository (dependency)
     address pufferVault; // from pufETH repository (dependency)
     address stETH; // from pufETH repository (dependency)

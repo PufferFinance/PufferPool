@@ -5,11 +5,11 @@ import { Status } from "puffer/struct/Status.sol";
 
 /**
  * @dev Validator struct
+ * @todo optimize struct
  */
 struct Validator {
     address node; // Address of the Node operator
     address module; // In which module is the Validator participating
-    uint24 monthsCommitted; // Number of months
     uint64 bond; // Validator bond (in pufETH)
     Status status; // Validator status
     bytes pubKey; // Validator public key

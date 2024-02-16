@@ -4,11 +4,10 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
+import { PufferOracle } from "puffer/PufferOracle.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
@@ -50,7 +49,7 @@ contract TestHelper is Test, BaseScript {
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
-    // In our test setup we have 3 guardians and 3 guaridan enclave keys
+    // In our test setup we have 3 guardians and 3 guardian enclave keys
     uint256[] public guardiansEnclavePks;
     address public guardian1;
     uint256 public guardian1SK;
@@ -77,12 +76,11 @@ contract TestHelper is Test, BaseScript {
     stETHMock public stETH;
     IWETH public weth;
 
-    PufferPool public pool;
     PufferProtocol public pufferProtocol;
-    IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
     ValidatorTicket public validatorTicket;
+    PufferOracle public pufferOracle;
 
     GuardianModule public guardianModule;
 
@@ -92,6 +90,10 @@ contract TestHelper is Test, BaseScript {
     address public DAO = makeAddr("DAO");
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
+
+    // We use the same values in DeployPuffETH.s.sol
+    address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
+    address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -117,13 +119,11 @@ contract TestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_CHEATS] = true;
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
-        fuzzedAddressMapping[address(withdrawalPool)] = true;
         fuzzedAddressMapping[address(guardianModule)] = true;
         fuzzedAddressMapping[address(verifier)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
-        fuzzedAddressMapping[address(pool)] = true;
         fuzzedAddressMapping[address(validatorTicket)] = true;
     }
 
@@ -154,13 +154,12 @@ contract TestHelper is Test, BaseScript {
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
-        pool = PufferPool(payable(pufferDeployment.pufferPool));
-        withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
+        pufferOracle = PufferOracle(pufferDeployment.pufferOracle);
 
         // pufETH dependencies
         pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));
@@ -172,7 +171,6 @@ contract TestHelper is Test, BaseScript {
 
         vm.label(address(pufferVault), "PufferVault");
         vm.label(address(pufferDepositor), "PufferDepositor");
-        vm.label(address(pool), "PufferPool");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
         Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
@@ -194,7 +192,7 @@ contract TestHelper is Test, BaseScript {
         verifier = guardianModule.ENCLAVE_VERIFIER();
         verifier.addLeafX509(guardian1Rave.signingCert());
 
-        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys dont match");
+        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys don't match");
 
         assertEq(
             blockhash(block.number),
@@ -270,9 +268,6 @@ contract TestHelper is Test, BaseScript {
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
         vm.stopPrank();
 
-        // Run the upgrade script
-        new UpgradePuffETH().run(address(pufferVault));
-
         _depositLiquidityToPufferVault();
     }
 
@@ -322,13 +317,12 @@ contract TestHelper is Test, BaseScript {
     }
 
     // Modified from https://github.com/Vectorized/solady/blob/2ced0d8382fd0289932010517d66efb28b07c3ce/test/ERC20.t.sol
-    function _signPermit(_TestTemps memory t) internal view returns (Permit memory p) {
+    function _signPermit(_TestTemps memory t, bytes32 domainSeparator) internal view returns (Permit memory p) {
         bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
-        bytes32 domainSeparator = pool.DOMAIN_SEPARATOR();
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
 
-        return Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+        return Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline)

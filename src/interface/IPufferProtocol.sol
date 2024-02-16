@@ -6,24 +6,19 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { IPufferProtocolStorage } from "puffer/interface/IPufferProtocolStorage.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 
 /**
  * @title IPufferProtocol
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferProtocol is IPufferProtocolStorage {
-    /**
-     * @notice Thrown when external call failed
-     * @dev Signature "0x625a40e6"
-     */
-    error Failed();
-
+interface IPufferProtocol {
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x8cdea6a6"
@@ -43,10 +38,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error ModuleAlreadyExists();
 
     /**
-     * @notice Thrown when the new validators tires to register, but the limit for this interval is already reached
-     * @dev Signature "0xd9873182"
+     * @notice Thrown when the Node operator tries to withdraw amount bigger than the minimum amount
+     * @dev Signature "0x2bcee45d"
      */
-    error ValidatorLimitPerIntervalReached();
+    error InvalidValidatorTicketAmount(uint256 amount, uint256 minimumVTAmount);
 
     /**
      * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
@@ -91,12 +86,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     error InvalidPufferModule();
 
     /**
-     * @notice Thrown if Guardians try to re-submit the backing data
-     * @dev Signature "0xf93417f7"
-     */
-    error OutsideUpdateWindow();
-
-    /**
      * @notice Emitted when the new Puffer module is created
      * @dev Signature "0xd95c47914545148df84d115c3a83350c2b0044a8efa7dbe2cff795a70fe129a1"
      */
@@ -109,16 +98,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event ModuleChanged(bytes32 indexed moduleName, address oldModule, address newModule);
 
     /**
-     * @notice Emitted when the Guardians fee rate is changed from `oldRate` to `newRate`
-     * @dev Signature "0xdc450026d966b67c62d26cf532d9a568be6c73c01251576c5d6a71bb19463d2f"
-     */
-    event GuardiansFeeRateChanged(uint256 oldRate, uint256 newRate);
-
-    /**
      * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
      * @dev Signature "0x21e92cbdc47ef718b9c77ea6a6ee50ff4dd6362ee22041ab77a46dacb93f5355"
      */
     event ValidatorLimitPerModuleChanged(uint256 oldLimit, uint256 newLimit);
+
+    /**
+     * @notice Emitted when the minimum number of days for ValidatorTickets is changed from `oldMinimumNumberOfDays` to `newMinimumNumberOfDays`
+     * @dev Signature "0xc6f97db308054b44394df54aa17699adff6b9996e9cffb4dcbcb127e20b68abc"
+     */
+    event MinimumVTAmountChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -127,10 +116,16 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event TransferredETH(address indexed to, uint256 amount);
 
     /**
-     * @notice Emitted when the smoothing commitment is paid
-     * @dev Signature "0x84e6610d0de4b996419eca9cf06b11fc13c256051f73673c802822674928fb9a"
+     * @notice Emitted when VT is deposited to the protocol
+     * @dev Signature "0xd47eb90c0b945baf5f3ae3f1384a7a524a6f78f1461b354c4a09c4001a5cee9c"
      */
-    event SmoothingCommitmentPaid(bytes indexed pubKey, uint256 amountPaid);
+    event ValidatorTicketsDeposited(address indexed node, address indexed depositor, uint256 amount);
+
+    /**
+     * @notice Emitted when VT is withdrawn from the protocol
+     * @dev Signature "0xdf7e884ecac11650e1285647b057fa733a7bb9f1da100e7a8c22aafe4bdf6f40"
+     */
+    event ValidatorTicketsWithdrawn(address indexed node, address indexed recipient, uint256 amount);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
@@ -144,36 +139,22 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
-     * @notice Emitted when the Guardians update state of the protocol
-     * @param ethAmount is the ETH amount that is not locked in Beacon chain
-     * @param lockedETH is the locked ETH amount in Beacon chain
-     * @param pufETHTotalSupply is the total supply of the pufETH
-     */
-    event BackingUpdated(uint256 ethAmount, uint256 lockedETH, uint256 pufETHTotalSupply, uint256 blockNumber);
-
-    /**
-     * @notice Emitted when the smoothing commitments are changed
-     * @dev Signature "0xa1c728453af1b7abc9e0f6046d262db82ac81ccb163125d0cf365bae5dc94475"
-     */
-    event CommitmentsChanged(uint256[] oldCommitments, uint256[] newCommitments);
-
-    /**
-     * @notice Emitted when the protocol fee changes from `oldValue` to `newValue`
-     * @dev Signature "0xff4822c8e0d70b6faad0b6d31ab91a6a9a16096f3e70328edbb21b483815b7e6"
-     */
-    event ProtocolFeeRateChanged(uint256 oldValue, uint256 newValue);
-
-    /**
-     * @notice Emitted when the validator limit per interval is changed from `oldLimit` to `newLimit`
-     * @dev Signature "0xd6c37e61a7f770549c535431a7a63b047395ebed26acefc1cab277cbbeb1d8b7"
-     */
-    event ValidatorLimitPerIntervalChanged(uint256 oldLimit, uint256 newLimit);
-
-    /**
      * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
      * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
      */
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
+
+    /**
+     * @notice Emitted whenever VT balance is updated (deposit, withdraw, node provision by the guardians, retrieve bond)
+     * @dev Signature "0xa2db5b08bfaa7d199c195f5ff7695be9809b4198a03eee3bbda42307ea893b70"
+     */
+    event VTBalanceChanged(
+        address indexed node,
+        uint256 oldVTBalance,
+        uint256 newVTBalance,
+        uint256 oldVirtualVTBalance,
+        uint256 newVirtualVTBalance
+    );
 
     /**
      * @notice Emitted when the Validator key is registered
@@ -206,14 +187,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
     event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
-     * @notice Emitted when the Validator key is failed to be provisioned
-     * @param pubKey is the validator public key
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @dev Signature "0x8570512b93af33936e8fa6bfcd755f2c72c42c90569dc288b2e38e839943f0cd"
-     */
-    event FailedToProvision(bytes indexed pubKey, uint256 validatorIndex);
-
-    /**
      * @notice Emitted when the validator is dequeued by the Node operator
      * @param pubKey is the public key of the Validator
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
@@ -230,12 +203,31 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
-     * @notice Stops the registration
+     * @notice Returns the node operator information
+     * @param node is the node operator address
+     * @return NodeInfo struct
+     */
+    function getNodeInfo(address node) external view returns (NodeInfo memory);
+
+    /**
+     * @notice Deposits Validator Tickets for the `node`
+     */
+    function depositValidatorTickets(Permit calldata permit, address node) external;
+
+    /**
+     * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
+     * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
+     * Can not withdraw virtual VTs
+     */
+    function withdrawValidatorTickets(uint96 amount, address recipient) external;
+
+    /**
+     * @notice Cancels the Validator registration
      * @param moduleName is the staking Module
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
      */
-    function stopRegistration(bytes32 moduleName, uint256 validatorIndex) external;
+    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external;
 
     /**
      * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
@@ -245,6 +237,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @param withdrawalAmount is the amount of ETH from the full withdrawal
      * @param wasSlashed is the amount of pufETH that we are burning from the node operator
+     * @param validatorStopTimestamp is the timestamp of the validator stop
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
     function retrieveBond(
@@ -253,6 +246,7 @@ interface IPufferProtocol is IPufferProtocolStorage {
         uint256 blockNumber,
         uint256 withdrawalAmount,
         bool wasSlashed,
+        uint256 validatorStopTimestamp,
         bytes32[] calldata merkleProof
     ) external;
 
@@ -264,67 +258,27 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Sets the module weights array to `newModuleWeights`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external;
 
     /**
      * @notice Sets the module limits for `moduleName` to `limit`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
 
     /**
-     * @notice Sets the protocol fee rate
-     * @dev 1% equals `1 * FixedPointMathLib.WAD`
-     *
-     * Restricted to DAO
-     */
-    function setProtocolFeeRate(uint256 protocolFeeRate) external;
-
-    /**
-     * @notice Sets guardians fee rate
-     * @dev 1% equals `1 * FixedPointMathLib.WAD`
-     *
-     * Restricted to DAO
-     */
-    function setGuardiansFeeRate(uint256 newRate) external;
-
-    /**
-     * @notice Sets the validator limit per interval to `newLimit`
-     * @dev Restricted to DAO
-     */
-    function setValidatorLimitPerInterval(uint256 newLimit) external;
-
-    /**
-     * @notice Sets the smoothing commitment amounts
-     * @dev Restricted to DAO
-     */
-    function setSmoothingCommitments(uint256[] calldata smoothingCommitments) external;
-
-    /**
-     * @notice Updates the proof of reserve by checking the signatures of the guardians
-     * @param ethAmount The amount of ETH
-     * @param lockedETH The locked ETH amount on Beacon Chain
-     * @param pufETHTotalSupply The total supply of pufETH tokens
-     * @param blockNumber The block number
-     * @param numberOfActiveValidators The number of all active validators on Beacon Chain
-     * @param guardianSignatures The guardian signatures
-     */
-    function proofOfReserve(
-        uint256 ethAmount,
-        uint256 lockedETH,
-        uint256 pufETHTotalSupply,
-        uint256 blockNumber,
-        uint256 numberOfActiveValidators,
-        bytes[] calldata guardianSignatures
-    ) external;
-
-    /**
      * @notice Changes the `moduleName` with `newModule`
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      */
     function changeModule(bytes32 moduleName, IPufferModule newModule) external;
+
+    /**
+     * @notice Changes the minimum number amount of VT that must be locked per validator
+     * @dev Restricted to the DAO
+     */
+    function changeMinimumVTAmount(uint256 newMinimumVTAmount) external;
 
     /**
      * @notice Returns the guardian module
@@ -347,14 +301,9 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function PUFFER_MODULE_FACTORY() external view returns (IPufferModuleFactory);
 
     /**
-     * @notice Returns the protocol fee rate
+     * @notice Returns the Puffer Oracle
      */
-    function getProtocolFeeRate() external view returns (uint256);
-
-    /**
-     * @notice Returns the guardians fee rate
-     */
-    function getGuardiansFeeRate() external view returns (uint256);
+    function PUFFER_ORACLE() external view returns (IPufferOracle);
 
     /**
      * @notice Returns the current module weights
@@ -373,9 +322,10 @@ interface IPufferProtocol is IPufferProtocolStorage {
 
     /**
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @param vtBurnOffset Is the amount in VT tokens that is credited to Node operator for the validating queue time
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external;
 
     /**
      * @notice Returns the deposit_data_root
@@ -410,11 +360,6 @@ interface IPufferProtocol is IPufferProtocolStorage {
         returns (address);
 
     /**
-     * @notice Returns the smoothing commitment for a `numberOfMonths` (in wei)
-     */
-    function getSmoothingCommitment(uint256 numberOfMonths) external view returns (uint256);
-
-    /**
      * @notice Registers a new validator key in a `moduleName` queue with a permit
      * @dev There is a queue per moduleName and it is FIFO
      *
@@ -423,31 +368,17 @@ interface IPufferProtocol is IPufferProtocolStorage {
      *
      * @param data The validator key data
      * @param moduleName The name of the module
-     * @param numberOfMonths The number of months for the registration
-     * @param permit The permit for the registration
+     * @param numberOfDays The number of days for the registration
+     * @param pufETHPermit The permit for the pufETH
+     * @param vtPermit The permit for the ValidatorTicket
      */
-    function registerValidatorKeyPermit(
+    function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfMonths,
-        Permit calldata permit
+        uint256 numberOfDays,
+        Permit calldata pufETHPermit,
+        Permit calldata vtPermit
     ) external payable;
-
-    /**
-     * @notice Registers a new validator in a `moduleName` queue
-     * @dev There is a queue per moduleName and it is FIFO
-     */
-    function registerValidatorKey(ValidatorKeyData calldata data, bytes32 moduleName, uint256 numberOfMonths)
-        external
-        payable;
-
-    /**
-     * @notice Extends the commitment for a validator in a specific module
-     * @param moduleName The name of the module
-     * @param validatorIndex The index of the validator in the module
-     * @param numberOfMonths The number of months to extend the commitment for
-     */
-    function extendCommitment(bytes32 moduleName, uint256 validatorIndex, uint256 numberOfMonths) external payable;
 
     /**
      * @notice Returns the pending validator index for `moduleName`
@@ -460,6 +391,11 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getNextValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256);
 
     /**
+     * @notice Returns the amount of Validator Tickets in the PufferProtocol for the `owner`
+     */
+    function getValidatorTicketsBalance(address owner) external returns (uint256);
+
+    /**
      * @notice Returns the next in line for provisioning
      * @dev The order in which the modules are selected is based on Module Weights
      * Every module has its own FIFO queue for provisioning
@@ -467,17 +403,12 @@ interface IPufferProtocol is IPufferProtocolStorage {
     function getNextValidatorToProvision() external view returns (bytes32 moduleName, uint256 indexToBeProvisioned);
 
     /**
-     * @notice Returns the validator limit per interval
-     */
-    function getValidatorLimitPerInterval() external view returns (uint256);
-
-    /**
      * @notice Returns the withdrawal credentials for a `module`
      */
     function getWithdrawalCredentials(address module) external view returns (bytes memory);
 
     /**
-     * @notice Returns the treasury address
+     * @notice Returns the minimum amount of Validator Tokens to run a validator
      */
-    function TREASURY() external view returns (address payable);
+    function getMinimumVtAmount() external view returns (uint256);
 }

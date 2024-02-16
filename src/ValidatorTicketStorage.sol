@@ -7,12 +7,8 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 abstract contract ValidatorTicketStorage {
+    //@todo optimize struct
     struct ValidatorTicket {
-        /**
-         * @dev The amount of ETH needed to mint 1 ValidatorTicket
-         * Slot 1
-         */
-        uint56 mintPrice;
         /**
          * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          * Because we are using uint64, that means that the max protocol fee rate is 18.44%

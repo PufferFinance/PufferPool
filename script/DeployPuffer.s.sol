@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { WithdrawalPool } from "puffer/WithdrawalPool.sol";
-import { NoImplementation } from "puffer/NoImplementation.sol";
+import { NoImplementation } from "pufETH/NoImplementation.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -23,12 +21,13 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title DeployPuffer
  * @author Puffer Finance
- * @notice Deploys PufferPool Contracts
+ * @notice Deploys PufferProtocol Contracts
  * @dev
  *
  *
@@ -46,18 +45,14 @@ contract DeployPuffer is BaseScript {
     ERC1967Proxy proxy;
     ERC1967Proxy validatorTicketProxy;
     PufferProtocol pufferProtocol;
-    PufferPool pool;
-    WithdrawalPool withdrawalPool;
     UpgradeableBeacon beacon;
     PufferModuleFactory moduleFactory;
-
-    address payable treasury;
 
     address eigenPodManager;
     address delayedWithdrawalRouter;
     address delegationManager;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth)
+    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth, address oracle)
         public
         broadcast
         returns (PufferProtocolDeployment memory)
@@ -65,37 +60,34 @@ contract DeployPuffer is BaseScript {
         string memory obj = "";
 
         accessManager = AccessManager(guardiansDeployment.accessManager);
-        bytes32 poolSalt = bytes32("pufferPool");
-        bytes32 withdrawalPoolSalt = bytes32("withdrawalPool");
 
         if (isMainnet()) {
             // Mainnet / Mainnet fork
-            treasury = payable(vm.envAddress("TREASURY"));
             eigenPodManager = vm.envAddress("EIGENPOD_MANAGER");
             delayedWithdrawalRouter = vm.envAddress("DELAYED_WITHDRAWAL_ROUTER");
             delegationManager = vm.envAddress("DELEGATION_MANAGER");
         } else if (isAnvil()) {
             // Local chain / tests
-            treasury = payable(address(1337));
             eigenPodManager = address(new EigenPodManagerMock());
             delayedWithdrawalRouter = address(0);
             delegationManager = address(new DelegationManagerMock());
         } else {
             // Testnets
-            treasury = payable(vm.envOr("TREASURY", address(1337)));
             eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
             delayedWithdrawalRouter = vm.envOr("DELAYED_WITHDRAWAL_ROUTER", address(0));
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
         }
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(payable(treasury));
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(
+            payable(guardiansDeployment.guardianModule), payable(pufferVault), IPufferOracle(oracle)
+        );
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17, 0.01 ether) //todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 
@@ -113,17 +105,6 @@ contract DeployPuffer is BaseScript {
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
-            // Predict Pool address
-            address predictedPool = computeCreate2Address(
-                poolSalt, hashInitCode(type(PufferPool).creationCode, abi.encode(proxy, address(accessManager)))
-            );
-
-            // Predict Withdrawal pool address
-            address predictedWithdrawalPool = computeCreate2Address(
-                withdrawalPoolSalt,
-                hashInitCode(type(WithdrawalPool).creationCode, abi.encode(predictedPool, address(accessManager)))
-            );
-
             moduleFactory = new PufferModuleFactory({
                 beacon: address(beacon),
                 pufferProtocol: address(proxy),
@@ -134,55 +115,27 @@ contract DeployPuffer is BaseScript {
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultMainnet(payable(pufferVault)),
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
-                weth: IWETH(weth),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
-                treasury: treasury,
-                moduleFactory: address(moduleFactory)
+                moduleFactory: address(moduleFactory),
+                oracle: IPufferOracle(oracle)
             });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
-        // Deploy pool
-        pool = new PufferPool{ salt: poolSalt }(pufferProtocol, address(accessManager));
-
-        withdrawalPool = new WithdrawalPool{ salt: withdrawalPoolSalt }(pool, address(accessManager));
 
         NoRestakingModule noRestaking =
             new NoRestakingModule(address(accessManager), pufferProtocol, getStakingContract(), bytes32("NO_RESTAKING"));
 
-        uint256[] memory smoothingCommitments = new uint256[](14);
-
-        smoothingCommitments[0] = 0.11995984289445429 ether;
-        smoothingCommitments[1] = 0.11989208274022745 ether;
-        smoothingCommitments[2] = 0.1197154447609346 ether;
-        smoothingCommitments[3] = 0.11928478246786729 ether;
-        smoothingCommitments[4] = 0.11838635147178002 ether;
-        smoothingCommitments[5] = 0.11699999999999999 ether;
-        smoothingCommitments[6] = 0.11561364852821997 ether;
-        smoothingCommitments[7] = 0.11471521753213271 ether;
-        smoothingCommitments[8] = 0.1142845552390654 ether;
-        smoothingCommitments[9] = 0.11410791725977254 ether;
-        smoothingCommitments[10] = 0.1140401571055457 ether;
-        smoothingCommitments[11] = 0.11401483573893981 ether;
-        smoothingCommitments[12] = 0.1140054663071664 ether;
-        smoothingCommitments[13] = 0.1140020121007828 ether;
-
         NoImplementation(payable(address(proxy))).upgradeToAndCall(address(pufferProtocolImpl), "");
 
         // Initialize the Pool
-        pufferProtocol.initialize({
-            accessManager: address(accessManager),
-            noRestakingModule: address(noRestaking),
-            smoothingCommitments: smoothingCommitments
-        });
+        pufferProtocol.initialize({ accessManager: address(accessManager), noRestakingModule: address(noRestaking) });
 
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");
         vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
-        vm.label(address(pool), "PufferPool");
-        vm.label(address(withdrawalPool), "WithdrawalPool");
         vm.label(address(moduleFactory), "PufferModuleFactory");
         vm.label(address(beacon), "PufferModuleBeacon");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
@@ -190,8 +143,6 @@ contract DeployPuffer is BaseScript {
 
         vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
         vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
-        vm.serializeAddress(obj, "pufferPool", address(pool));
-        vm.serializeAddress(obj, "withdrawalPool", address(withdrawalPool));
         vm.serializeAddress(obj, "PufferProtocol", address(proxy));
         vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
         vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
@@ -205,8 +156,6 @@ contract DeployPuffer is BaseScript {
             validatorTicket: address(validatorTicketProxy),
             pufferProtocolImplementation: address(pufferProtocolImpl),
             NoRestakingModule: address(noRestaking),
-            pufferPool: address(pool),
-            withdrawalPool: address(withdrawalPool),
             pufferProtocol: address(proxy),
             guardianModule: guardiansDeployment.guardianModule,
             accessManager: guardiansDeployment.accessManager,
@@ -214,6 +163,7 @@ contract DeployPuffer is BaseScript {
             pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
             moduleFactory: address(moduleFactory),
+            pufferOracle: address(oracle),
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything
