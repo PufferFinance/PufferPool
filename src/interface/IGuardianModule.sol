@@ -90,6 +90,7 @@ interface IGuardianModule {
     /**
      * @notice Validates the node provisioning calldata
      * @param validatorIndex is the validator index in Puffer
+     * @param vtBurnOffset is an offset used such that VTs only burn after the validator is active
      * @param pubKey The public key
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials

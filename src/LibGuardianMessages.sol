@@ -14,6 +14,7 @@ library LibGuardianMessages {
     /**
      * @notice Returns the message that the guardian's enclave needs to sign
      * @param validatorIndex is the validator index in Puffer
+     * @param vtBurnOffset is an offset used such that VTs only burn after the validator is active
      * @param signature is the BLS signature of the deposit data
      * @param withdrawalCredentials are the withdrawal credentials for this validator
      * @param depositDataRoot is the hash of the deposit data
