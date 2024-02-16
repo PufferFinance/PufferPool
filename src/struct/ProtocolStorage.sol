@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "puffer/struct/Validator.sol";
+import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 
 /**
@@ -63,18 +64,13 @@ struct ProtocolStorage {
      * @dev Mapping of Node operator address => Node operator information
      * Slot 9
      */
-    mapping(address node => NodeInfo info) vtBalances;
+    mapping(address node => NodeInfo info) nodeOperatorInfo;
     /**
      * @dev Minimum number of VT tokens per validator
      * 1 DAY = 1e18
      * Slot 10
      */
     uint256 minimumVtAmount;
-}
-
-struct NodeInfo {
-    uint128 validatorCount;
-    uint128 vtBalance;
 }
 
 struct ModuleLimit {

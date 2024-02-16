@@ -16,7 +16,7 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
     using SafeTransferLib for address;
 
-    address to = address(12345); //@todo figure out where to rescue stuff
+    address public to = address(12345); //@todo figure out where to rescue stuff
 
     /**
      * @notice Address of the Puffer Protocol

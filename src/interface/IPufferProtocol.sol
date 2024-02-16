@@ -11,6 +11,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 
 /**
  * @title IPufferProtocol
@@ -144,6 +145,18 @@ interface IPufferProtocol {
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
     /**
+     * @notice Emitted whenever VT balance is updated (deposit, withdraw, node provision by the guardians, retrieve bond)
+     * @dev Signature "0xa2db5b08bfaa7d199c195f5ff7695be9809b4198a03eee3bbda42307ea893b70"
+     */
+    event VTBalanceChanged(
+        address indexed node,
+        uint256 oldVTBalance,
+        uint256 newVTBalance,
+        uint256 oldVirtualVTBalance,
+        uint256 newVirtualVTBalance
+    );
+
+    /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
@@ -190,6 +203,13 @@ interface IPufferProtocol {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
+     * @notice Returns the node operator information
+     * @param node is the node operator address
+     * @return NodeInfo struct
+     */
+    function getNodeInfo(address node) external view returns (NodeInfo memory);
+
+    /**
      * @notice Deposits Validator Tickets for the `node`
      */
     function depositValidatorTickets(Permit calldata permit, address node) external;
@@ -197,8 +217,9 @@ interface IPufferProtocol {
     /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
+     * Can not withdraw virtual VTs
      */
-    function withdrawValidatorTickets(uint128 amount, address recipient) external;
+    function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
      * @notice Cancels the Validator registration
@@ -216,6 +237,7 @@ interface IPufferProtocol {
      * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @param withdrawalAmount is the amount of ETH from the full withdrawal
      * @param wasSlashed is the amount of pufETH that we are burning from the node operator
+     * @param validatorStopTimestamp is the timestamp of the validator stop
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
     function retrieveBond(
@@ -224,6 +246,7 @@ interface IPufferProtocol {
         uint256 blockNumber,
         uint256 withdrawalAmount,
         bool wasSlashed,
+        uint256 validatorStopTimestamp,
         bytes32[] calldata merkleProof
     ) external;
 
@@ -299,9 +322,10 @@ interface IPufferProtocol {
 
     /**
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @param vtBurnOffset Is the amount in VT tokens that is credited to Node operator for the validating queue time
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external;
 
     /**
      * @notice Returns the deposit_data_root
@@ -369,7 +393,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the amount of Validator Tickets in the PufferProtocol for the `owner`
      */
-    function geValidatorTicketsBalance(address owner) external returns (uint256);
+    function getValidatorTicketsBalance(address owner) external returns (uint256);
 
     /**
      * @notice Returns the next in line for provisioning

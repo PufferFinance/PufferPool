@@ -65,7 +65,7 @@ contract SetupAccess is BaseScript {
         accessManager.multicall(calldatas);
     }
 
-    function _setupPufferOracleAccess() internal returns (bytes[] memory) {
+    function _setupPufferOracleAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
         // Only for PufferProtocol
@@ -119,16 +119,18 @@ contract SetupAccess is BaseScript {
     function _setupValidatorTicketsAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory selectors = new bytes4[](2);
+        bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = ValidatorTicket.setProtocolFeeRate.selector;
         selectors[1] = UUPSUpgradeable.upgradeToAndCall.selector;
+        selectors[2] = ValidatorTicket.setGuardiansFeeRate.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
+        bytes4[] memory publicSelectors = new bytes4[](2);
         publicSelectors[0] = ValidatorTicket.purchaseValidatorTicket.selector;
+        publicSelectors[1] = ValidatorTicket.burn.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
