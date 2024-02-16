@@ -245,7 +245,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Validator Tickets Accounting
         _provisionNodeVTUpdate({ $: $, moduleName: moduleName, index: index, vtQueueOffset: vtBurnOffset });
 
-        _validateSignaturesAndProvisionValidator($, moduleName, index, guardianEnclaveSignatures);
+        _validateSignaturesAndProvisionValidator($, moduleName, index, vtBurnOffset, guardianEnclaveSignatures);
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
@@ -742,6 +742,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $,
         bytes32 moduleName,
         uint256 index,
+        uint256 vtBurnOffset,
         bytes[] calldata guardianEnclaveSignatures
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
@@ -758,6 +759,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
             validatorIndex: index,
+            vtBurnOffset: vtBurnOffset,
             pubKey: validatorPubKey,
             signature: validatorSignature,
             depositDataRoot: depositDataRoot,

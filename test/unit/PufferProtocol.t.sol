@@ -1642,6 +1642,7 @@ contract PufferProtocolTest is TestHelper {
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
             pendingIdx,
+            0,
             pubKey,
             validator.signature,
             withdrawalCredentials,

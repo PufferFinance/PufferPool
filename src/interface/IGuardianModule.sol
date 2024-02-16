@@ -98,6 +98,7 @@ interface IGuardianModule {
      */
     function validateProvisionNode(
         uint256 validatorIndex,
+        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,

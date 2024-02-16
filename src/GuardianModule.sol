@@ -183,6 +183,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function validateProvisionNode(
         uint256 validatorIndex,
+        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -192,6 +193,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
             validatorIndex: validatorIndex,
+            vtBurnOffset: vtBurnOffset,
             pubKey: pubKey,
             signature: signature,
             withdrawalCredentials: withdrawalCredentials,

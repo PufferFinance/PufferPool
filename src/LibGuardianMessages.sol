@@ -21,6 +21,7 @@ library LibGuardianMessages {
      */
     function _getBeaconDepositMessageToBeSigned(
         uint256 validatorIndex,
+        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes memory signature,
         bytes memory withdrawalCredentials,
