@@ -244,7 +244,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Validator Tickets Accounting
         _provisionNodeVTUpdate({ $: $, moduleName: moduleName, index: index, vtQueueOffset: vtBurnOffset });
 
-        _validateSignaturesAndProvisionValidator($, moduleName, index, vtBurnOffset, guardianEnclaveSignatures);
+        _validateSignaturesAndProvisionValidator({
+            $: $,
+            moduleName: moduleName,
+            index: index,
+            vtBurnOffset: vtBurnOffset,
+            guardianEnclaveSignatures: guardianEnclaveSignatures
+        });
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;

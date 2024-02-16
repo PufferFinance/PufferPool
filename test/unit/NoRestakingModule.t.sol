@@ -85,11 +85,7 @@ contract NoRestakingModuleTest is TestHelper {
         });
 
         // Double claim in different transactions should revert
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice));
         _noRestakingModule.collectRewards({
             node: alice,
             blockNumbers: blockNumbers,
@@ -100,11 +96,7 @@ contract NoRestakingModuleTest is TestHelper {
 
         // Bob claiming with Alice's proof
         vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                NoRestakingModule.NothingToClaim.selector, bob
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bob));
         _noRestakingModule.collectRewards({
             node: bob,
             blockNumbers: blockNumbers,
@@ -113,9 +105,7 @@ contract NoRestakingModuleTest is TestHelper {
         });
 
         // Bob claiming with a valid proof that is not his
-        vm.expectRevert(
-            abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bob)
-        );
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.NothingToClaim.selector, bob));
         _noRestakingModule.collectRewards({
             node: bob,
             blockNumbers: blockNumbers,
@@ -148,11 +138,7 @@ contract NoRestakingModuleTest is TestHelper {
         assertEq(alice.balance, 0, "alice should start with zero balance");
 
         vm.startPrank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(NoRestakingModule.AlreadyClaimed.selector, blockNumbers[0], alice));
         _noRestakingModule.collectRewards({
             node: alice,
             blockNumbers: blockNumbers,

@@ -35,7 +35,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
-     * @dev Signature "0xa9214540" 
+     * @dev Signature "0xa9214540"
      */
     error AlreadyClaimed(uint256 blockNumber, address node);
 

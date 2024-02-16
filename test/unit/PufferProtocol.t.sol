@@ -1260,7 +1260,9 @@ contract PufferProtocolTest is TestHelper {
         // Perform a second deposit of 800 VT
         vtPermit.amount = 800 ether;
         pufferProtocol.depositValidatorTickets((vtPermit), alice);
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 1000 ether, "alice should have 1000 vt in the protocol");
+        assertEq(
+            pufferProtocol.getValidatorTicketsBalance(alice), 1000 ether, "alice should have 1000 vt in the protocol"
+        );
     }
 
     // Alice deposits VT for bob
@@ -1464,7 +1466,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
         // Alice tries to withdraw 28 VTs, but the tx is reverted
-        
+
         // Revert saying that at least 28 VT must be left in the protocol
         vm.expectRevert(
             abi.encodeWithSelector(IPufferProtocol.InvalidValidatorTicketAmount.selector, 30 ether, 28 ether)
