@@ -12,6 +12,7 @@ import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { PufferOracle } from "puffer/PufferOracle.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ROLE_ID_OPERATIONS, ROLE_ID_PUFFER_PROTOCOL } from "pufETHScript/Roles.sol";
@@ -181,7 +182,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory selectorsForGuardians = new bytes4[](1);
-        selectorsForGuardians[0] = bytes4(hex"abfaad62"); // signature for `function postRewardsRoot(bytes32 root, uint256 blockNumber)`
+        selectorsForGuardians[0] = NoRestakingModule.postRewardsRoot.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -191,7 +192,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = bytes4(hex"6f06f422"); // collectRewards
+        publicSelectors[0] = NoRestakingModule.collectRewards.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
