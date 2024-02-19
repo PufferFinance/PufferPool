@@ -15,6 +15,7 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import { ROLE_ID_OPERATIONS, ROLE_ID_PUFFER_PROTOCOL } from "pufETHScript/Roles.sol";
 
 uint64 constant ROLE_ID_DAO = 77;
@@ -64,6 +65,11 @@ contract SetupAccess is BaseScript {
         calldatas[17] = pufferOracleAccess[1];
 
         accessManager.multicall(calldatas);
+
+        // This will be executed by the operations multisig on mainnet
+        bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferProtocol);
+        (bool s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
     function _setupPufferOracleAccess() internal view returns (bytes[] memory) {

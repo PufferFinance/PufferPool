@@ -68,7 +68,6 @@ contract PufferProtocolTest is TestHelper {
         vm.stopPrank();
 
         // Set daily withdrawals limit
-        vm.prank(OPERATIONS_MULTISIG);
         pufferVault.setDailyWithdrawalLimit(1000 ether);
 
         _skipDefaultFuzzAddresses();
