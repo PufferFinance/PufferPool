@@ -1164,7 +1164,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 200,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: (startTimestamp + 16 days)
         });
 
         // Valid proof
@@ -1540,7 +1540,7 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 70 ether, pointZeroZeroOne, "alice should have ~ 70 VTS"
         );
 
-        // This will think that the validator that exited is still active
+        // Provision another validator with 1 day offset
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
 
         // 2 Validators are consuming 2x10 VT's + 1 virtual
@@ -1554,12 +1554,15 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp - 5 days // 5 days ago
-         });
+            validatorStopTimestamp: startFirstValidatorTimestamp + 6 days
+        });
 
-        // Valid proof
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
 
+        // We are at start + 11 days at the moment
+        // Validator 1 is still active - spent 10 VT's
+        // Validator 3 just got provisioned right now with 1 days offset
+        // Validator 2 exited, and was validating for 5 days
         assertApproxEqRel(
             validatorTicket.balanceOf(address(pufferProtocol)), 71 ether, pointZeroZeroOne, "real vt balance"
         );
@@ -1567,6 +1570,58 @@ contract PufferProtocolTest is TestHelper {
         // Alice should have + 5 VT's because of the validator stop timestamp
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice), 76 ether, pointZeroZeroOne, "alice should have ~ 76 VTS"
+        );
+    }
+
+    function test_vt_burning() public {
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 provisionedTimestamp = block.timestamp;
+        // 5 days VT queue
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 5 ether);
+
+        uint256 numberOfDays = 200;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
+
+        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
+        validatorTicket.approve(address(pufferProtocol), type(uint256).max);
+
+        vm.warp(provisionedTimestamp + 3 days);
+        // Alice should have + 2 VT's virtual
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 32 ether, pointZeroZeroOne, "alice should have ~ 32 VTS"
+        );
+
+        vm.warp(provisionedTimestamp + 5 days);
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~ 30 VTS"
+        );
+
+        vm.warp(provisionedTimestamp + 10 days);
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 25 ether, pointZeroZeroOne, "alice should have ~ 25 VTS"
+        );
+
+        // Real balance did not get burned or adjusted
+        assertApproxEqRel(
+            validatorTicket.balanceOf(address(pufferProtocol)), 30 ether, pointZeroZeroOne, "real vt balance"
+        );
+
+        Permit memory vtPermit = emptyPermit;
+        vtPermit.amount = 10 ether;
+        // deposit 10 VT's
+        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+
+        // 5 VT's real VT's got burned, 10 deposited
+        assertApproxEqRel(
+            validatorTicket.balanceOf(address(pufferProtocol)), 35 ether, pointZeroZeroOne, "real vt balance"
+        );
+
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 35 ether, pointZeroZeroOne, "alice should have ~ 35 VTS"
         );
     }
 
