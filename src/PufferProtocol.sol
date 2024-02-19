@@ -858,36 +858,45 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 burnedAmount = _burnVt($, node, totalOldVTBalance, newVTBalance);
 
-        uint256 vtBalance = oldVTBalance - burnedAmount;
+        uint256 realVTBalance = oldVTBalance - burnedAmount;
 
         // Update the node information
         $.nodeOperatorInfo[node].lastUpdate = uint48(block.timestamp);
-        $.nodeOperatorInfo[node].vtBalance = SafeCastLib.toUint96(vtBalance);
+        $.nodeOperatorInfo[node].vtBalance = SafeCastLib.toUint96(realVTBalance);
         emit VTBalanceChanged({
             node: node,
             oldVTBalance: oldVTBalance,
-            newVTBalance: vtBalance,
+            newVTBalance: realVTBalance,
             oldVirtualVTBalance: oldVirtualVTBalance,
             newVirtualVTBalance: $.nodeOperatorInfo[node].virtualVTBalance
         });
     }
 
+    /**
+     * @dev Burns the VT's from `node` and returns the amount burned
+     * newVTBalance can be bigger than `totalOldVTBalance`  because of the virtual VT's that we give to the node operator
+     */
     function _burnVt(ProtocolStorage storage $, address node, uint256 totalOldVTBalance, uint256 newVTBalance)
         internal
-        returns (uint256 burnedAmount)
+        returns (uint256)
     {
         // The diff is the amount to burn
         uint256 toBurn =
             totalOldVTBalance > newVTBalance ? (totalOldVTBalance - newVTBalance) : (newVTBalance - totalOldVTBalance);
 
-        // Take from the virtual balance first
-        if (toBurn < $.nodeOperatorInfo[node].virtualVTBalance) {
+        uint256 virtualVTBalance = $.nodeOperatorInfo[node].virtualVTBalance;
+
+        // First, try to deduct from the virtual VT balance
+        if (toBurn <= virtualVTBalance) {
             $.nodeOperatorInfo[node].virtualVTBalance -= SafeCastLib.toUint88(toBurn);
-        } else {
-            burnedAmount = toBurn - $.nodeOperatorInfo[node].virtualVTBalance;
-            $.nodeOperatorInfo[node].virtualVTBalance = 0;
-            VALIDATOR_TICKET.burn(burnedAmount);
+            return 0;
         }
+
+        // If the virtual VT balance is not enough, we first deduct from the virtual VT balance, and then burn from the VT balance
+        toBurn -= virtualVTBalance;
+        $.nodeOperatorInfo[node].virtualVTBalance = 0;
+        VALIDATOR_TICKET.burn(toBurn);
+        return toBurn;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
