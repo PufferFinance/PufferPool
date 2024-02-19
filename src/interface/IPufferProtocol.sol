@@ -12,6 +12,7 @@ import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title IPufferProtocol
@@ -233,22 +234,10 @@ interface IPufferProtocol {
      * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
      * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
      * Anybody can trigger a validator exit as long as the proofs submitted are valid
-     * @param moduleName is the staking Module
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @param withdrawalAmount is the amount of ETH from the full withdrawal
-     * @param wasSlashed is the amount of pufETH that we are burning from the node operator
-     * @param validatorStopTimestamp is the timestamp of the validator stop
+     * @param validatorInfo is the information about the stopped validator
      * @param merkleProof is the Merkle Proof for a withdrawal
      */
-    function retrieveBond(
-        bytes32 moduleName,
-        uint256 validatorIndex,
-        uint256 blockNumber,
-        uint256 withdrawalAmount,
-        bool wasSlashed,
-        uint256 validatorStopTimestamp,
-        bytes32[] calldata merkleProof
-    ) external;
+    function retrieveBond(StoppedValidatorInfo calldata validatorInfo, bytes32[] calldata merkleProof) external;
 
     /**
      * @notice Skips the next validator for `moduleName`

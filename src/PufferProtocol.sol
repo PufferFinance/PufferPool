@@ -21,6 +21,7 @@ import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.s
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title PufferProtocol
@@ -296,18 +297,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function retrieveBond(
-        bytes32 moduleName,
-        uint256 validatorIndex,
-        uint256 blockNumber,
-        uint256 withdrawalAmount,
-        bool wasSlashed,
-        uint256 validatorStopTimestamp,
-        bytes32[] calldata merkleProof
-    ) external {
+    function retrieveBond(StoppedValidatorInfo calldata validatorInfo, bytes32[] calldata merkleProof) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        Validator storage validator = $.validators[moduleName][validatorIndex];
+        Validator storage validator = $.validators[validatorInfo.moduleName][validatorInfo.validatorIndex];
 
         if (validator.status != Status.ACTIVE) {
             revert InvalidValidatorState(validator.status);
@@ -317,8 +310,19 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Leaf
             !MerkleProof.verifyCalldata(
                 merkleProof,
-                $.fullWithdrawalsRoots[blockNumber],
-                keccak256(bytes.concat(keccak256(abi.encode(moduleName, validatorIndex, withdrawalAmount, wasSlashed))))
+                $.fullWithdrawalsRoots[validatorInfo.blockNumber],
+                keccak256(
+                    bytes.concat(
+                        keccak256(
+                            abi.encode(
+                                validatorInfo.moduleName,
+                                validatorInfo.validatorIndex,
+                                validatorInfo.withdrawalAmount,
+                                validatorInfo.wasSlashed
+                            )
+                        )
+                    )
+                )
             )
         ) {
             revert InvalidMerkleProof();
@@ -330,9 +334,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _updateStopValidatorVTBalance({
             $: $,
-            moduleName: moduleName,
-            index: validatorIndex,
-            validatorStopTimestamp: validatorStopTimestamp
+            moduleName: validatorInfo.moduleName,
+            index: validatorInfo.validatorIndex,
+            validatorStopTimestamp: validatorInfo.validatorStopTimestamp
         });
         // Remove what we don't
         delete validator.module;
@@ -342,17 +346,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         delete validator.signature;
         validator.status = Status.EXITED;
         // Decrease the validator number for that module
-        $.moduleLimits[moduleName].numberOfActiveValidators -= 1;
+        $.moduleLimits[validatorInfo.moduleName].numberOfActiveValidators -= 1;
 
         // Burn everything if the validator was slashed
-        if (wasSlashed) {
+        if (validatorInfo.wasSlashed) {
             PUFFER_VAULT.burn(returnAmount);
         } else {
             uint256 burnAmount = 0;
 
-            if (withdrawalAmount < 32 ether) {
+            if (validatorInfo.withdrawalAmount < 32 ether) {
                 //@todo rounding down, recheck
-                burnAmount = PUFFER_VAULT.previewDeposit(32 ether - withdrawalAmount);
+                burnAmount = PUFFER_VAULT.previewDeposit(32 ether - validatorInfo.withdrawalAmount);
                 PUFFER_VAULT.burn(burnAmount);
             }
 
@@ -360,7 +364,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             PUFFER_VAULT.transfer(node, (returnAmount - burnAmount));
         }
 
-        emit ValidatorExited(pubKey, validatorIndex, moduleName);
+        emit ValidatorExited(pubKey, validatorInfo.validatorIndex, validatorInfo.moduleName);
     }
 
     /**
@@ -606,11 +610,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getValidatorTicketsBalance(address owner) public view returns (uint256) {
+        return _getValidatorTicketsBalance(owner, block.timestamp);
+    }
+
+    function _getValidatorTicketsBalance(address owner, uint256 timestamp) public view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         NodeInfo memory nodeInfo = $.nodeOperatorInfo[owner];
 
-        uint256 elapsedTime = block.timestamp - nodeInfo.lastUpdate;
+        uint256 elapsedTime = timestamp - nodeInfo.lastUpdate;
 
         uint256 calculatedBalance = (nodeInfo.vtBalance + nodeInfo.virtualVTBalance)
             - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.activeValidatorCount);
