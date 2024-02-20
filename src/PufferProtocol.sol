@@ -231,7 +231,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external {
+    function provisionNode(
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        uint88 vtBurnOffset
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
@@ -250,7 +254,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             moduleName: moduleName,
             index: index,
             vtBurnOffset: vtBurnOffset,
-            guardianEnclaveSignatures: guardianEnclaveSignatures
+            guardianEnclaveSignatures: guardianEnclaveSignatures,
+            validatorSignature: validatorSignature
         });
 
         // Mark the validator as active
@@ -343,7 +348,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         delete validator.node;
         delete validator.bond;
         delete validator.pubKey;
-        delete validator.signature;
         validator.status = Status.EXITED;
         // Decrease the validator number for that module
         $.moduleLimits[validatorInfo.moduleName].numberOfActiveValidators -= 1;
@@ -664,7 +668,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // No need for SafeCast
         $.validators[moduleName][validatorIndex] = Validator({
             pubKey: data.blsPubKey,
-            signature: data.signature,
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint64(pufETHAmount),
@@ -755,10 +758,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 index,
         uint256 vtBurnOffset,
-        bytes[] calldata guardianEnclaveSignatures
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
-        bytes memory validatorSignature = $.validators[moduleName][index].signature;
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 

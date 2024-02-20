@@ -13,5 +13,4 @@ struct Validator {
     uint64 bond; // Validator bond (in pufETH)
     Status status; // Validator status
     bytes pubKey; // Validator public key
-    bytes signature; // Signature of deposit data
 }
