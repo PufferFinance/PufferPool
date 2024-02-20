@@ -18,7 +18,6 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
@@ -85,7 +84,7 @@ contract DeployPuffer is BaseScript {
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 5 * 1 ether, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 

@@ -2,11 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Address } from "openzeppelin/utils/Address.sol";
 import { IERC1155Receiver } from "openzeppelin/token/ERC1155/IERC1155Receiver.sol";
 import { IERC1155 } from "openzeppelin/token/ERC1155/IERC1155.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721Receiver } from "openzeppelin/token/ERC721/IERC721Receiver.sol";
 import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
+import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title TokenRescuer
@@ -14,7 +16,8 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
  * @custom:security-contact security@puffer.fi
  */
 abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
-    using SafeTransferLib for address;
+    using Address for address;
+    using SafeERC20 for IERC20;
 
     // slither-disable-next-line constable-states
     address public to = address(12345); //@todo figure out where to rescue stuff
@@ -32,7 +35,7 @@ abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
      * @notice Transfers ERC20 `token`'s balance to treasury
      */
     function recoverERC20(address token) external virtual {
-        token.safeTransferAll(to);
+        IERC20(token).safeTransfer(to, IERC20(token).balanceOf(address(this)));
     }
 
     /**

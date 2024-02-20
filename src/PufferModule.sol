@@ -12,7 +12,7 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Address } from "openzeppelin/utils/Address.sol";
 
 /**
  * @dev Mainnet and latest `master` from EigenLayer are not the same
@@ -31,7 +31,8 @@ interface IEigenPodManager {
  * @custom:security-contact security@puffer.fi
  */
 contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
-    using SafeTransferLib for address;
+    using Address for address;
+    using Address for address payable;
 
     /**
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
@@ -243,7 +244,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
             revert NothingToClaim(node);
         }
 
-        node.safeTransferETH(ethToSend);
+        payable(node).sendValue(ethToSend);
     }
 
     /**

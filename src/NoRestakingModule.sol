@@ -8,7 +8,7 @@ import { TokenRescuer } from "puffer/TokenRescuer.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Address } from "openzeppelin/utils/Address.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 
@@ -19,7 +19,7 @@ import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
-    using SafeTransferLib for address;
+    using Address for address payable;
 
     /**
      * @notice Thrown if the deposit to beacon chain contract failed
@@ -144,7 +144,7 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
             revert NothingToClaim(node);
         }
 
-        node.safeTransferETH(ethToSend);
+        payable(node).sendValue(ethToSend);
     }
 
     /**
