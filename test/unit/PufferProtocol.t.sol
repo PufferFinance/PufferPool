@@ -18,6 +18,7 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "puffer/struct/Permit.sol";
 import { Merkle } from "murky/Merkle.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 import { console } from "forge-std/console.sol";
 
 contract PufferProtocolTest is TestHelper {
@@ -68,7 +69,6 @@ contract PufferProtocolTest is TestHelper {
         vm.stopPrank();
 
         // Set daily withdrawals limit
-        vm.prank(OPERATIONS_MULTISIG);
         pufferVault.setDailyWithdrawalLimit(1000 ether);
 
         _skipDefaultFuzzAddresses();
@@ -767,40 +767,35 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(alice);
         // Invalid block number = invalid proof
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
-        pufferProtocol.retrieveBond({
+
+        StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 150,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: aliceProof
+            validatorStopTimestamp: block.timestamp
         });
+
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
 
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
 
-        // Valid proof
-        pufferProtocol.retrieveBond({
+        validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: aliceProof
+            validatorStopTimestamp: block.timestamp
         });
+
+        // Valid proof
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
 
         // Try again, now the validator will be in invalid state
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.EXITED));
-        pufferProtocol.retrieveBond({
-            moduleName: NO_RESTAKING,
-            validatorIndex: 0,
-            blockNumber: 100,
-            withdrawalAmount: 32 ether,
-            wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: aliceProof
-        });
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
 
         // Alice receives the bond + the reward
         assertGt(
@@ -813,29 +808,33 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pufferVault.balanceOf(bob), 0, "bob has zero pufETH");
 
-        pufferProtocol.retrieveBond({
+        // Bob validator info
+        validatorInfo = StoppedValidatorInfo({
             moduleName: EIGEN_DA,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 31 ether,
             wasSlashed: true,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: bobProof
+            validatorStopTimestamp: block.timestamp
         });
+
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: bobProof });
 
         assertEq(pufferVault.balanceOf(bob), 0, "bob has zero pufETH after");
 
         bytes32[] memory charlieProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 2);
 
-        pufferProtocol.retrieveBond({
+        // Charlie validator info
+        validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             validatorIndex: 1,
             blockNumber: 100,
             withdrawalAmount: 31.6 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: charlieProof
+            validatorStopTimestamp: block.timestamp
         });
+
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: charlieProof });
 
         assertGt(pufferVault.maxWithdraw(charlie), 0.6 ether, "Charlie has 0.6 + extra that he earned after");
     }
@@ -1159,14 +1158,18 @@ contract PufferProtocolTest is TestHelper {
         // 15 days later
         vm.warp(startTimestamp + 16 days);
 
-        // Valid proof
-        pufferProtocol.retrieveBond({
+        StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 200,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
+            validatorStopTimestamp: (startTimestamp + 16 days)
+        });
+
+        // Valid proof
+        pufferProtocol.retrieveBond({
+            validatorInfo: validatorInfo,
             merkleProof: fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0)
         });
 
@@ -1181,15 +1184,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Valid proof for the same validator will revert
         vm.expectRevert();
-        pufferProtocol.retrieveBond({
-            moduleName: NO_RESTAKING,
-            validatorIndex: 0,
-            blockNumber: 200,
-            withdrawalAmount: 0,
-            wasSlashed: false,
-            validatorStopTimestamp: block.timestamp,
-            merkleProof: proof2
-        });
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: proof2 });
 
         // Alice doesn't withdraw her VT's right away
         vm.warp(startTimestamp + 50 days);
@@ -1545,7 +1540,7 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 70 ether, pointZeroZeroOne, "alice should have ~ 70 VTS"
         );
 
-        // This will think that the validator that exited is still active
+        // Provision another validator with 1 day offset
         pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 1 ether);
 
         // 2 Validators are consuming 2x10 VT's + 1 virtual
@@ -1553,17 +1548,21 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 71 ether, pointZeroZeroOne, "alice should have ~ 71 VTS"
         );
 
-        // Valid proof
-        pufferProtocol.retrieveBond({
+        StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             validatorIndex: 0,
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp - 5 days, // 5 days ago
-            merkleProof: aliceProof
+            validatorStopTimestamp: startFirstValidatorTimestamp + 6 days
         });
 
+        pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
+
+        // We are at start + 11 days at the moment
+        // Validator 1 is still active - spent 10 VT's
+        // Validator 3 just got provisioned right now with 1 days offset
+        // Validator 2 exited, and was validating for 5 days
         assertApproxEqRel(
             validatorTicket.balanceOf(address(pufferProtocol)), 71 ether, pointZeroZeroOne, "real vt balance"
         );
@@ -1571,6 +1570,58 @@ contract PufferProtocolTest is TestHelper {
         // Alice should have + 5 VT's because of the validator stop timestamp
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice), 76 ether, pointZeroZeroOne, "alice should have ~ 76 VTS"
+        );
+    }
+
+    function test_vt_burning() public {
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        uint256 provisionedTimestamp = block.timestamp;
+        // 5 days VT queue
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), 5 ether);
+
+        uint256 numberOfDays = 200;
+        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
+
+        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
+        validatorTicket.approve(address(pufferProtocol), type(uint256).max);
+
+        vm.warp(provisionedTimestamp + 3 days);
+        // Alice should have + 2 VT's virtual
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 32 ether, pointZeroZeroOne, "alice should have ~ 32 VTS"
+        );
+
+        vm.warp(provisionedTimestamp + 5 days);
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~ 30 VTS"
+        );
+
+        vm.warp(provisionedTimestamp + 10 days);
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 25 ether, pointZeroZeroOne, "alice should have ~ 25 VTS"
+        );
+
+        // Real balance did not get burned or adjusted
+        assertApproxEqRel(
+            validatorTicket.balanceOf(address(pufferProtocol)), 30 ether, pointZeroZeroOne, "real vt balance"
+        );
+
+        Permit memory vtPermit = emptyPermit;
+        vtPermit.amount = 10 ether;
+        // deposit 10 VT's
+        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+
+        // 5 VT's real VT's got burned, 10 deposited
+        assertApproxEqRel(
+            validatorTicket.balanceOf(address(pufferProtocol)), 35 ether, pointZeroZeroOne, "real vt balance"
+        );
+
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 35 ether, pointZeroZeroOne, "alice should have ~ 35 VTS"
         );
     }
 
