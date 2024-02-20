@@ -314,7 +314,7 @@ interface IPufferProtocol {
      * @param vtBurnOffset Is the amount in VT tokens that is credited to Node operator for the validating queue time
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, bytes calldata validatorSignature, uint88 vtBurnOffset) external;
 
     /**
      * @notice Returns the deposit_data_root

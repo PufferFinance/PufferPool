@@ -1,34 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
-import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
-import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
-import { Validator } from "puffer/struct/Validator.sol";
-import { Permit } from "puffer/struct/Permit.sol";
-import { Status } from "puffer/struct/Status.sol";
-import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
-import { Unauthorized } from "puffer/Errors.sol";
-import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
-import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
-import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
-import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
-import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
-import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
+import {IPufferProtocol} from "puffer/interface/IPufferProtocol.sol";
+import {AccessManagedUpgradeable} from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {UUPSUpgradeable} from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PufferProtocolStorage} from "puffer/PufferProtocolStorage.sol";
+import {IPufferModuleFactory} from "puffer/interface/IPufferModuleFactory.sol";
+import {IPufferOracle} from "pufETH/interface/IPufferOracle.sol";
+import {IGuardianModule} from "puffer/interface/IGuardianModule.sol";
+import {IPufferModule} from "puffer/interface/IPufferModule.sol";
+import {ValidatorKeyData} from "puffer/struct/ValidatorKeyData.sol";
+import {Validator} from "puffer/struct/Validator.sol";
+import {Permit} from "puffer/struct/Permit.sol";
+import {Status} from "puffer/struct/Status.sol";
+import {ProtocolStorage, NodeInfo} from "puffer/struct/ProtocolStorage.sol";
+import {Unauthorized} from "puffer/Errors.sol";
+import {LibBeaconchainContract} from "puffer/LibBeaconchainContract.sol";
+import {MerkleProof} from "openzeppelin/utils/cryptography/MerkleProof.sol";
+import {IERC20Permit} from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
+import {PufferVaultMainnet} from "pufETH/PufferVaultMainnet.sol";
+import {ValidatorTicket} from "puffer/ValidatorTicket.sol";
+import {StoppedValidatorInfo} from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title PufferProtocol
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
+contract PufferProtocol is
+    IPufferProtocol,
+    AccessManagedUpgradeable,
+    UUPSUpgradeable,
+    PufferProtocolStorage
+{
     /**
      * @dev Validator ticket loss rate per second
      */
@@ -99,7 +104,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
-    function initialize(address accessManager, address noRestakingModule) external initializer {
+    function initialize(
+        address accessManager,
+        address noRestakingModule
+    ) external initializer {
         __AccessManaged_init(accessManager);
         _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
         bytes32[] memory weights = new bytes32[](1);
@@ -113,16 +121,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositValidatorTickets(Permit calldata permit, address node) external restricted {
-        try IERC20Permit(address(VALIDATOR_TICKET)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permit.amount,
-            deadline: permit.deadline,
-            v: permit.v,
-            s: permit.s,
-            r: permit.r
-        }) { } catch { }
+    function depositValidatorTickets(
+        Permit calldata permit,
+        address node
+    ) external restricted {
+        try
+            IERC20Permit(address(VALIDATOR_TICKET)).permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permit.amount,
+                deadline: permit.deadline,
+                v: permit.v,
+                s: permit.s,
+                r: permit.r
+            })
+        {} catch {}
 
         // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
@@ -131,7 +144,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _updateVTBalance($, node, 0);
 
-        $.nodeOperatorInfo[node].vtBalance += SafeCastLib.toUint96(permit.amount);
+        $.nodeOperatorInfo[node].vtBalance += SafeCastLib.toUint96(
+            permit.amount
+        );
         emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
     }
 
@@ -139,7 +154,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function withdrawValidatorTickets(uint96 amount, address recipient) external restricted {
+    function withdrawValidatorTickets(
+        uint96 amount,
+        address recipient
+    ) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         $.nodeOperatorInfo[msg.sender].vtBalance -= amount;
@@ -147,9 +165,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _updateVTBalance($, msg.sender, 0);
 
         // The user must have at least `minimumVtAmount` VT for each active validator
-        uint256 mandatoryVTAmount = (
-            $.nodeOperatorInfo[msg.sender].activeValidatorCount + $.nodeOperatorInfo[msg.sender].pendingValidatorCount
-        ) * $.minimumVtAmount;
+        uint256 mandatoryVTAmount = ($
+            .nodeOperatorInfo[msg.sender]
+            .activeValidatorCount +
+            $.nodeOperatorInfo[msg.sender].pendingValidatorCount) *
+            $.minimumVtAmount;
         // If the remaining VT balance is less than the mandatory amount, revert
         if ($.nodeOperatorInfo[msg.sender].vtBalance < mandatoryVTAmount) {
             revert InvalidValidatorTicketAmount(amount, mandatoryVTAmount);
@@ -184,12 +204,19 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidETHAmount();
         }
 
-        _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
+        _checkValidatorRegistrationInputs({
+            $: $,
+            data: data,
+            moduleName: moduleName
+        });
 
-        uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 validatorBond = data.raveEvidence.length > 0
+            ? _ENCLAVE_VALIDATOR_BOND
+            : _NO_ENCLAVE_VALIDATOR_BOND;
         // convertToShares is rounding down, @todo double check if we care for this case
         uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
-        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
+        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() *
+            numberOfDays;
 
         // If the user overpaid
         if (msg.value > (validatorBond + vtPayment)) {
@@ -200,16 +227,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
         if (vtPermit.amount == 0) {
-            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
+            VALIDATOR_TICKET.purchaseValidatorTicket{value: vtPayment}(
+                address(this)
+            );
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
             // slither-disable-next-line unchecked-transfer
-            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to upscale amount to 18 decimals
+            VALIDATOR_TICKET.transferFrom(
+                msg.sender,
+                address(this),
+                numberOfDays * 1 ether
+            ); // * 1 ether is to upscale amount to 18 decimals
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
-            pufETHMinted = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            pufETHMinted = PUFFER_VAULT.depositETH{value: validatorBond}(
+                address(this)
+            );
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
             // slither-disable-next-line unchecked-transfer
@@ -231,7 +266,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, uint88 vtBurnOffset) external {
+    function provisionNode(
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        uint88 vtBurnOffset
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
@@ -243,14 +282,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleSelectIndex;
         }
         // Validator Tickets Accounting
-        _provisionNodeVTUpdate({ $: $, moduleName: moduleName, index: index, vtQueueOffset: vtBurnOffset });
+        _provisionNodeVTUpdate({
+            $: $,
+            moduleName: moduleName,
+            index: index,
+            vtQueueOffset: vtBurnOffset
+        });
 
         _validateSignaturesAndProvisionValidator({
             $: $,
             moduleName: moduleName,
             index: index,
             vtBurnOffset: vtBurnOffset,
-            guardianEnclaveSignatures: guardianEnclaveSignatures
+            guardianEnclaveSignatures: guardianEnclaveSignatures,
+            validatorSignature: validatorSignature
         });
 
         // Mark the validator as active
@@ -260,7 +305,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external {
+    function cancelRegistration(
+        bytes32 moduleName,
+        uint256 validatorIndex
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // `msg.sender` is the Node Operator
@@ -297,10 +345,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function retrieveBond(StoppedValidatorInfo calldata validatorInfo, bytes32[] calldata merkleProof) external {
+    function retrieveBond(
+        StoppedValidatorInfo calldata validatorInfo,
+        bytes32[] calldata merkleProof
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        Validator storage validator = $.validators[validatorInfo.moduleName][validatorInfo.validatorIndex];
+        Validator storage validator = $.validators[validatorInfo.moduleName][
+            validatorInfo.validatorIndex
+        ];
 
         if (validator.status != Status.ACTIVE) {
             revert InvalidValidatorState(validator.status);
@@ -343,7 +396,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         delete validator.node;
         delete validator.bond;
         delete validator.pubKey;
-        delete validator.signature;
         validator.status = Status.EXITED;
         // Decrease the validator number for that module
         $.moduleLimits[validatorInfo.moduleName].numberOfActiveValidators -= 1;
@@ -356,7 +408,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
             if (validatorInfo.withdrawalAmount < 32 ether) {
                 //@todo rounding down, recheck
-                burnAmount = PUFFER_VAULT.previewDeposit(32 ether - validatorInfo.withdrawalAmount);
+                burnAmount = PUFFER_VAULT.previewDeposit(
+                    32 ether - validatorInfo.withdrawalAmount
+                );
                 PUFFER_VAULT.burn(burnAmount);
             }
 
@@ -364,13 +418,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             PUFFER_VAULT.transfer(node, (returnAmount - burnAmount));
         }
 
-        emit ValidatorExited(pubKey, validatorInfo.validatorIndex, validatorInfo.moduleName);
+        emit ValidatorExited(
+            pubKey,
+            validatorInfo.validatorIndex,
+            validatorInfo.moduleName
+        );
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external {
+    function skipProvisioning(
+        bytes32 moduleName,
+        bytes[] calldata guardianEOASignatures
+    ) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
 
@@ -390,12 +451,19 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Transfer pufETH to that node operator
         // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
+        PUFFER_VAULT.transfer(
+            node,
+            $.validators[moduleName][skippedIndex].bond
+        );
 
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
-        emit ValidatorSkipped($.validators[moduleName][skippedIndex].pubKey, skippedIndex, moduleName);
+        emit ValidatorSkipped(
+            $.validators[moduleName][skippedIndex].pubKey,
+            skippedIndex,
+            moduleName
+        );
     }
 
     /**
@@ -431,7 +499,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Allocate ETH capital back to the Vault ASAP to fuel Vault growth
         for (uint256 i = 0; i < modules.length; ++i) {
             // slither-disable-next-line calls-loop
-            IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
+            IPufferModule(modules[i]).call(
+                address(PUFFER_VAULT),
+                amounts[i],
+                ""
+            );
         }
 
         emit FullWithdrawalsRootPosted(blockNumber, root);
@@ -441,7 +513,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
-    function changeModule(bytes32 moduleName, IPufferModule newModule) external restricted {
+    function changeModule(
+        bytes32 moduleName,
+        IPufferModule newModule
+    ) external restricted {
         _changeModule(moduleName, newModule);
     }
 
@@ -449,50 +524,64 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
-    function changeMinimumVTAmount(uint256 newMinimumVTAmount) external restricted {
+    function changeMinimumVTAmount(
+        uint256 newMinimumVTAmount
+    ) external restricted {
         _changeMinimumVTAmount(newMinimumVTAmount);
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
-        external
-        restricted
-        returns (address)
-    {
+    function createPufferModule(
+        bytes32 moduleName,
+        string calldata metadataURI,
+        address delegationApprover
+    ) external restricted returns (address) {
         return _createPufferModule(moduleName, metadataURI, delegationApprover);
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function setModuleWeights(bytes32[] calldata newModuleWeights) external restricted {
+    function setModuleWeights(
+        bytes32[] calldata newModuleWeights
+    ) external restricted {
         _setModuleWeights(newModuleWeights);
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
+    function setValidatorLimitPerModule(
+        bytes32 moduleName,
+        uint128 limit
+    ) external restricted {
         _setValidatorLimitPerModule(moduleName, limit);
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
-        external
-        pure
-        returns (bytes32)
-    {
-        return LibBeaconchainContract.getDepositDataRoot(pubKey, signature, withdrawalCredentials);
+    function getDepositDataRoot(
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes calldata withdrawalCredentials
+    ) external pure returns (bytes32) {
+        return
+            LibBeaconchainContract.getDepositDataRoot(
+                pubKey,
+                signature,
+                withdrawalCredentials
+            );
     }
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getValidators(bytes32 moduleName) external view returns (Validator[] memory) {
+    function getValidators(
+        bytes32 moduleName
+    ) external view returns (Validator[] memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         uint256 numOfValidators = $.pendingValidatorIndices[moduleName];
@@ -509,7 +598,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getNextValidatorToProvision() public view returns (bytes32, uint256) {
+    function getNextValidatorToProvision()
+        public
+        view
+        returns (bytes32, uint256)
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         uint256 moduleSelectionIndex = $.moduleSelectIndex;
@@ -518,7 +611,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 moduleWeightsLength = $.moduleWeights.length;
 
         // Read from the storage
-        bytes32 moduleName = $.moduleWeights[moduleSelectionIndex % moduleWeightsLength];
+        bytes32 moduleName = $.moduleWeights[
+            moduleSelectionIndex % moduleWeightsLength
+        ];
 
         // Iterate through all modules to see if there is a validator ready to be provisioned
         while (moduleSelectionIndex < moduleEndIndex) {
@@ -526,7 +621,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
 
             // Check the next 5 spots for that queue and try to find a validator in a valid state for provisioning
-            for (uint256 idx = validatorIndex; idx < validatorIndex + 5; ++idx) {
+            for (
+                uint256 idx = validatorIndex;
+                idx < validatorIndex + 5;
+                ++idx
+            ) {
                 // If we find it, return it
                 if ($.validators[moduleName][idx].status == Status.PENDING) {
                     return (moduleName, idx);
@@ -536,7 +635,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 // If not, try the next module
                 ++moduleSelectionIndex;
             }
-            moduleName = $.moduleWeights[moduleSelectionIndex % moduleWeightsLength];
+            moduleName = $.moduleWeights[
+                moduleSelectionIndex % moduleWeightsLength
+            ];
         }
 
         // No validators found
@@ -546,7 +647,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getNextValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256) {
+    function getNextValidatorToBeProvisionedIndex(
+        bytes32 moduleName
+    ) external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.nextToBeProvisioned[moduleName];
     }
@@ -554,7 +657,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256) {
+    function getPendingValidatorIndex(
+        bytes32 moduleName
+    ) external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.pendingValidatorIndices[moduleName];
     }
@@ -562,7 +667,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory) {
+    function getValidatorInfo(
+        bytes32 moduleName,
+        uint256 validatorIndex
+    ) external view returns (Validator memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.validators[moduleName][validatorIndex];
     }
@@ -578,7 +686,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getModuleAddress(bytes32 moduleName) external view returns (address) {
+    function getModuleAddress(
+        bytes32 moduleName
+    ) external view returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return address($.modules[moduleName]);
     }
@@ -586,7 +696,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getWithdrawalCredentials(address module) public view returns (bytes memory) {
+    function getWithdrawalCredentials(
+        address module
+    ) public view returns (bytes memory) {
         return IPufferModule(module).getWithdrawalCredentials();
     }
 
@@ -609,7 +721,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getValidatorTicketsBalance(address owner) public view returns (uint256) {
+    function getValidatorTicketsBalance(
+        address owner
+    ) public view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         NodeInfo memory nodeInfo = $.nodeOperatorInfo[owner];
@@ -619,8 +733,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ? block.timestamp - nodeInfo.lastUpdate
             : nodeInfo.lastUpdate - block.timestamp;
 
-        uint256 calculatedBalance = (nodeInfo.vtBalance + nodeInfo.virtualVTBalance)
-            - (_VT_LOSS_RATE_PER_SECOND * elapsedTime * nodeInfo.activeValidatorCount);
+        uint256 calculatedBalance = (nodeInfo.vtBalance +
+            nodeInfo.virtualVTBalance) -
+            (_VT_LOSS_RATE_PER_SECOND *
+                elapsedTime *
+                nodeInfo.activeValidatorCount);
 
         return calculatedBalance;
     }
@@ -636,18 +753,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfDays)
-        external
-        view
-        returns (bytes[] memory, bytes memory, uint256, uint256)
-    {
+    function getPayload(
+        bytes32 moduleName,
+        bool usingEnclave,
+        uint256 numberOfDays
+    ) external view returns (bytes[] memory, bytes memory, uint256, uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         bytes[] memory pubKeys = GUARDIAN_MODULE.getGuardiansEnclavePubkeys();
-        bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
+        bytes memory withdrawalCredentials = getWithdrawalCredentials(
+            address($.modules[moduleName])
+        );
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
-        uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
+        uint256 validatorBond = usingEnclave
+            ? _ENCLAVE_VALIDATOR_BOND
+            : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 ethAmount = validatorBond +
+            PUFFER_ORACLE.getValidatorTicketPrice() *
+            numberOfDays;
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
@@ -664,14 +787,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // No need for SafeCast
         $.validators[moduleName][validatorIndex] = Validator({
             pubKey: data.blsPubKey,
-            signature: data.signature,
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint64(pufETHAmount),
             node: msg.sender
         });
 
-        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCastLib.toUint96(numberOfDays * 1 ether); // upscale to 18 decimals
+        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCastLib.toUint96(
+            numberOfDays * 1 ether
+        ); // upscale to 18 decimals
 
         // Increment indices for this module and number of validators registered
         unchecked {
@@ -680,12 +804,23 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
         }
 
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
+        emit ValidatorKeyRegistered(
+            data.blsPubKey,
+            validatorIndex,
+            moduleName,
+            (data.raveEvidence.length > 0)
+        );
     }
 
-    function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
+    function _setValidatorLimitPerModule(
+        bytes32 moduleName,
+        uint128 limit
+    ) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
+        emit ValidatorLimitPerModuleChanged(
+            $.moduleLimits[moduleName].allowedLimit,
+            limit
+        );
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
 
@@ -695,15 +830,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.moduleWeights = newModuleWeights;
     }
 
-    function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
-        internal
-        returns (address)
-    {
+    function _createPufferModule(
+        bytes32 moduleName,
+        string calldata metadataURI,
+        address delegationApprover
+    ) internal returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName, metadataURI, delegationApprover);
+        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(
+            moduleName,
+            metadataURI,
+            delegationApprover
+        );
         $.modules[moduleName] = module;
         emit NewPufferModuleCreated(address(module));
         _setValidatorLimitPerModule(moduleName, 1000);
@@ -717,7 +857,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) internal view {
         // This acts as a validation if the module is existent
         // +1 is to validate the current transaction registration
-        if (($.moduleLimits[moduleName].numberOfActiveValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
+        if (
+            ($.moduleLimits[moduleName].numberOfActiveValidators + 1) >
+            $.moduleLimits[moduleName].allowedLimit
+        ) {
             revert ValidatorLimitForModuleReached();
         }
 
@@ -725,16 +868,25 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidBLSPubKey();
         }
 
-        if (data.blsEncryptedPrivKeyShares.length != GUARDIAN_MODULE.getGuardians().length) {
+        if (
+            data.blsEncryptedPrivKeyShares.length !=
+            GUARDIAN_MODULE.getGuardians().length
+        ) {
             revert InvalidBLSPrivateKeyShares();
         }
 
-        if (data.blsPubKeySet.length != (GUARDIAN_MODULE.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
+        if (
+            data.blsPubKeySet.length !=
+            (GUARDIAN_MODULE.getThreshold() * _BLS_PUB_KEY_LENGTH)
+        ) {
             revert InvalidBLSPublicKeySet();
         }
     }
 
-    function _changeModule(bytes32 moduleName, IPufferModule newModule) internal {
+    function _changeModule(
+        bytes32 moduleName,
+        IPufferModule newModule
+    ) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         IPufferModule oldModule = $.modules[moduleName];
         if (address(oldModule) != address(0)) {
@@ -755,12 +907,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 index,
         uint256 vtBurnOffset,
-        bytes[] calldata guardianEnclaveSignatures
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
-        bytes memory validatorSignature = $.validators[moduleName][index].signature;
 
-        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
+        bytes memory withdrawalCredentials = getWithdrawalCredentials(
+            $.validators[moduleName][index].module
+        );
 
         bytes32 depositDataRoot = this.getDepositDataRoot({
             pubKey: validatorPubKey,
@@ -788,7 +942,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Increase lockedETH on Puffer Oracle
         PUFFER_ORACLE.provisionNode();
-        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+        module.callStake({
+            pubKey: validatorPubKey,
+            signature: validatorSignature,
+            depositDataRoot: depositDataRoot
+        });
     }
 
     function _penalizeNodeOperator(address node) internal {
@@ -806,9 +964,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * That means that the VT decay will start when the provisioning happens, but because the node operator is credited
      * Virtual VT's by the guardians, the end result will be the same.
      */
-    function _provisionNodeVTUpdate(ProtocolStorage storage $, bytes32 moduleName, uint256 index, uint88 vtQueueOffset)
-        internal
-    {
+    function _provisionNodeVTUpdate(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 index,
+        uint88 vtQueueOffset
+    ) internal {
         address node = $.validators[moduleName][index].node;
 
         _updateVTBalance($, node, vtQueueOffset);
@@ -835,7 +996,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // If the lastUpdate is bigger, we need to credit the node operator with virtual VT's, because we counted his validator as `active` and burned his VT
         if (validatorStopTimestamp < $.nodeOperatorInfo[node].lastUpdate) {
             vtToCredit = SafeCastLib.toUint88(
-                ($.nodeOperatorInfo[node].lastUpdate - validatorStopTimestamp) * _VT_LOSS_RATE_PER_SECOND_DOWN
+                ($.nodeOperatorInfo[node].lastUpdate - validatorStopTimestamp) *
+                    _VT_LOSS_RATE_PER_SECOND_DOWN
             );
         }
 
@@ -845,7 +1007,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.nodeOperatorInfo[node].activeValidatorCount -= 1;
     }
 
-    function _updateVTBalance(ProtocolStorage storage $, address node, uint88 vtQueueOffset) internal {
+    function _updateVTBalance(
+        ProtocolStorage storage $,
+        address node,
+        uint88 vtQueueOffset
+    ) internal {
         uint256 oldVTBalance = $.nodeOperatorInfo[node].vtBalance;
         uint256 oldVirtualVTBalance = $.nodeOperatorInfo[node].virtualVTBalance;
 
@@ -856,13 +1022,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         $.nodeOperatorInfo[node].virtualVTBalance += vtQueueOffset;
 
-        uint256 burnedAmount = _burnVt($, node, totalOldVTBalance, newVTBalance);
+        uint256 burnedAmount = _burnVt(
+            $,
+            node,
+            totalOldVTBalance,
+            newVTBalance
+        );
 
         uint256 realVTBalance = oldVTBalance - burnedAmount;
 
         // Update the node information
         $.nodeOperatorInfo[node].lastUpdate = uint48(block.timestamp);
-        $.nodeOperatorInfo[node].vtBalance = SafeCastLib.toUint96(realVTBalance);
+        $.nodeOperatorInfo[node].vtBalance = SafeCastLib.toUint96(
+            realVTBalance
+        );
         emit VTBalanceChanged({
             node: node,
             oldVTBalance: oldVTBalance,
@@ -876,19 +1049,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Burns the VT's from `node` and returns the amount burned
      * newVTBalance can be bigger than `totalOldVTBalance`  because of the virtual VT's that we give to the node operator
      */
-    function _burnVt(ProtocolStorage storage $, address node, uint256 totalOldVTBalance, uint256 newVTBalance)
-        internal
-        returns (uint256)
-    {
+    function _burnVt(
+        ProtocolStorage storage $,
+        address node,
+        uint256 totalOldVTBalance,
+        uint256 newVTBalance
+    ) internal returns (uint256) {
         // The diff is the amount to burn
-        uint256 toBurn =
-            totalOldVTBalance > newVTBalance ? (totalOldVTBalance - newVTBalance) : (newVTBalance - totalOldVTBalance);
+        uint256 toBurn = totalOldVTBalance > newVTBalance
+            ? (totalOldVTBalance - newVTBalance)
+            : (newVTBalance - totalOldVTBalance);
 
         uint256 virtualVTBalance = $.nodeOperatorInfo[node].virtualVTBalance;
 
         // First, try to deduct from the virtual VT balance
         if (toBurn <= virtualVTBalance) {
-            $.nodeOperatorInfo[node].virtualVTBalance -= SafeCastLib.toUint88(toBurn);
+            $.nodeOperatorInfo[node].virtualVTBalance -= SafeCastLib.toUint88(
+                toBurn
+            );
             return 0;
         }
 
@@ -900,16 +1078,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
-        try IERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try
+            IERC20Permit(token).permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            })
+        {} catch {}
     }
 
-    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override restricted {}
 }
