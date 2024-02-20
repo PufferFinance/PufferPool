@@ -15,13 +15,12 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
     - MerkleProof
     - MessageHashUtils
     - Strings
+    - Address
+    - SafeCast
 - [Openzeppelin upgradeable smart contracts](https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable)
     - AccessManagedUpgradeable
     - UUPSUpgradeable
     - Initializable
-- [Solady](https://github.com/Vectorized/solady)
-    - FixedPointMathLib
-    - SafeTransferLib
 - [EigenLayer](https://github.com/Layr-Labs/eigenlayer-contracts)
 
 
