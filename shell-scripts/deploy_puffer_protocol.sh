@@ -9,6 +9,9 @@ export IS_LOCAL_ANVIL=true
 export MR_ENCLAVE=2f1488bd64b2c85fc3fe4fa535a89cfa5282ae960e902664ff5390909333e78c
 export MR_SIGNER=83d719e77deaca1470f6baf62a4d774303c899db69020f9c70ee1dfc08c7ce9e
 
+# 500 ETHER, replace with whatever amount you want to deposit
+export ETH_AMOUNT=500000000000000000000
+
 echo "DEPLOYING"
 forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1 --broadcast
 
@@ -20,3 +23,6 @@ forge script script/AddLeafX509.s.sol:AddLeaftX509 --rpc-url=$RPC_URL --broadcas
 
 # Send 10 ETH to PUFFER_SHARED_WALLET
 cast send 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0 --value 10ether --private-key $PK --rpc-url=$RPC_URL
+
+echo "Deposit initial liquidity for PufferVault 500 ETH"
+forge script script/DepositETH.s.sol:DepositETH --rpc-url=$RPC_URL --broadcast --sig "run(uint256)" $ETH_AMOUNT -vvvv --private-key $PK

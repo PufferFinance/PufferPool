@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { Strings } from "openzeppelin/utils/Strings.sol";
 
 /**
  * @title Deposit ETH script
@@ -15,8 +14,7 @@ import { Strings } from "openzeppelin/utils/Strings.sol";
  */
 contract SetEnclaveMeasurements is BaseScript {
     function run(bytes32 mrenclave, bytes32 mrsigner) external broadcast {
-        string memory guardiansDeployment =
-            vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+        string memory guardiansDeployment = vm.readFile("./output/puffer.json");
 
         address payable module = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 

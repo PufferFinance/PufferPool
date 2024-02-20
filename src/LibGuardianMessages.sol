@@ -29,9 +29,10 @@ library LibGuardianMessages {
         bytes32 depositDataRoot
     ) internal pure returns (bytes32) {
         return keccak256(
-            //solhint-disable-next-line func-named-parameters
             abi.encode(validatorIndex, vtBurnOffset, pubKey, withdrawalCredentials, signature, depositDataRoot)
-        ).toEthSignedMessageHash();
+        )
+            //solhint-disable-next-line func-named-parameters
+            .toEthSignedMessageHash();
     }
 
     /**

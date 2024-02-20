@@ -21,7 +21,6 @@ import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.s
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
-import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title DeployPuffer
