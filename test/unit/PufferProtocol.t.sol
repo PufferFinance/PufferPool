@@ -332,41 +332,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
     }
 
-    // function testSetProtocolFeeRate() public {
-    //     uint256 rate = 10 * FixedPointMathLib.WAD;
-    //     pufferProtocol.setProtocolFeeRate(rate); // 10%
-    //     assertEq(pufferProtocol.getProtocolFeeRate(), rate, "new rate");
-    // }
-
-    // function testSetGuardiansFeeRateOverTheLimit() public {
-    //     uint256 rate = 30 * FixedPointMathLib.WAD;
-    //     vm.expectRevert(IPufferProtocol.InvalidData.selector);
-    //     pufferProtocol.setGuardiansFeeRate(rate);
-    // }
-
-    // function testSetProtocolFeeRateOverTheLimit() public {
-    //     uint256 rate = 30 * FixedPointMathLib.WAD;
-    //     vm.expectRevert(IPufferProtocol.InvalidData.selector);
-    //     pufferProtocol.setProtocolFeeRate(rate);
-    // }
-
-    function test_fee_calculations() public {
-        // // Default values are
-        // // 2% guardians
-        // // 10% withdrawal fee pool
-        // // 0.5% guardians
-        // // rest to the PufferPool
-        // uint256 amount = pufferOracle.getValidatorTicketPrice();
-        // assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
-        // assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
-        // assertEq(1000 ether, address(pufferProtocol.PUFFER_VAULT()).balance, "starting vault balance");
-        // // We don't have additional validations on if the validator is active or not
-        // // pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
-        // assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
-        // assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
-        // assertEq(100048018360919684, address(pufferProtocol.PUFFER_VAULT()).balance, "non zero pool");
-    }
-
     function test_change_module() public {
         vm.expectRevert(IPufferProtocol.InvalidPufferModule.selector);
         pufferProtocol.changeModule(NO_RESTAKING, PufferModule(payable(address(5))));
