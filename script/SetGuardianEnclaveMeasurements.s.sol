@@ -10,7 +10,7 @@ import { stdJson } from "forge-std/StdJson.sol";
  * @author Puffer Finance
  * @notice Calls the `depositETH` function on PufferPool
  * @dev Example on how to run the script
- *      forge script script/SetGuardianEnclaveMeasurements.s.sol:SetEnclaveMeasurements --rpc-url=$EPHEMERY_RPC_URL --broadcast --sig "run(bytes32,bytes32)" -vvvv 0xaa00000000000000000000000000000000000000000000000000000000000000 0xaa00000000000000000000000000000000000000000000000000000000000000
+ *      forge script script/SetGuardianEnclaveMeasurements.s.sol:SetEnclaveMeasurements --rpc-url=$RPC_URL --broadcast --sig "run(bytes32,bytes32)" -vvvv 0x${MR_ENCLAVE} 0x${MR_SIGNER}
  */
 contract SetEnclaveMeasurements is BaseScript {
     function run(bytes32 mrenclave, bytes32 mrsigner) external broadcast {
