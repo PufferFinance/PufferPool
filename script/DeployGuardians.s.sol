@@ -5,7 +5,6 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { Strings } from "openzeppelin/utils/Strings.sol";
 import { GuardiansDeployment } from "./DeploymentStructs.sol";
 
 // forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1
@@ -20,15 +19,6 @@ contract DeployGuardians is BaseScript {
         EnclaveVerifier verifier = new EnclaveVerifier(100, address(accessManager));
 
         GuardianModule module = new GuardianModule(verifier, guardians, threshold, address(accessManager));
-
-        string memory obj = "";
-        vm.serializeAddress(obj, "accessManager", address(accessManager));
-        vm.serializeAddress(obj, "guardianModule", address(module));
-        vm.serializeAddress(obj, "enclaveVerifier", address(verifier));
-
-        string memory finalJson = vm.serializeString(obj, "", "");
-
-        vm.writeJson(finalJson, string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
 
         GuardiansDeployment memory deployment;
         deployment.accessManager = address(accessManager);

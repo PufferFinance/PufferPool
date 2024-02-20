@@ -223,14 +223,6 @@ interface IPufferProtocol {
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
-     * @notice Cancels the Validator registration
-     * @param moduleName is the staking Module
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
-     */
-    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external;
-
-    /**
      * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
      * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
      * Anybody can trigger a validator exit as long as the proofs submitted are valid

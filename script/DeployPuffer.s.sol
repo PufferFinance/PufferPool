@@ -57,8 +57,6 @@ contract DeployPuffer is BaseScript {
         broadcast
         returns (PufferProtocolDeployment memory)
     {
-        string memory obj = "";
-
         accessManager = AccessManager(guardiansDeployment.accessManager);
 
         if (isMainnet()) {
@@ -103,7 +101,6 @@ contract DeployPuffer is BaseScript {
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
-            vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
             moduleFactory = new PufferModuleFactory({
                 beacon: address(beacon),
@@ -141,16 +138,6 @@ contract DeployPuffer is BaseScript {
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
 
-        vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
-        vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
-        vm.serializeAddress(obj, "PufferProtocol", address(proxy));
-        vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
-        vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
-        vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
-
-        string memory finalJson = vm.serializeString(obj, "", "");
-
-        vm.writeJson(finalJson, "./output/puffer.json");
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
             validatorTicket: address(validatorTicketProxy),
@@ -160,7 +147,6 @@ contract DeployPuffer is BaseScript {
             guardianModule: guardiansDeployment.guardianModule,
             accessManager: guardiansDeployment.accessManager,
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
-            pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
             moduleFactory: address(moduleFactory),
             pufferOracle: address(oracle),
