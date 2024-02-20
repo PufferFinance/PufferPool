@@ -9,7 +9,7 @@ import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";

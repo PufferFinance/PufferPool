@@ -15,13 +15,12 @@ import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferVault } from "pufETH/PufferVault.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
-import { UpgradePuffETH } from "pufETHScript/UpgradePuffETH.s.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import "forge-std/console.sol";
 

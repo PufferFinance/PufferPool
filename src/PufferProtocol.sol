@@ -11,7 +11,7 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";

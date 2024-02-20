@@ -15,7 +15,7 @@ pragma solidity >=0.8.0 <0.9.0;
 // import { TestHelper } from "../helpers/TestHelper.sol";
 // import { Address } from "openzeppelin/utils/Address.sol";
 // import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
-// import { Permit } from "puffer/struct/Permit.sol";
+// import { Permit } from "pufETH/structs/Permit.sol";
 // import { Merkle } from "murky/Merkle.sol";
 // import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 // import { ROLE_ID_PUFFER_PROTOCOL } from "script/SetupAccess.s.sol";
