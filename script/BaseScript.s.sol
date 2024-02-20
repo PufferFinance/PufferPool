@@ -10,6 +10,11 @@ import "forge-std/Script.sol";
 abstract contract BaseScript is Script {
     uint256 internal PK = 55358659325830545179143827536745912452716312441367500916455484419538098489698; // makeAddr("pufferDeployer")
 
+    // Anvil and `forge test` environment share the same chainId
+    // Our shell-scripts/deploy_puffer_protocol.sh is setting this env variable
+    // So that we can adapt our deployment for local testing
+    bool internal _localAnvil = vm.envOr("IS_LOCAL_ANVIL", false);
+
     /**
      * @dev Deployer private key is in `PK` env variable
      */
@@ -19,7 +24,7 @@ abstract contract BaseScript is Script {
     constructor() {
         // For local chain (ANVIL) hardcode the deployer as first account from the blockchain
         if (isAnvil()) {
-            // Fist account from ANVIL
+            // Fist account from ANVIL: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
             _deployerPrivateKey = uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
             _broadcaster = vm.addr(_deployerPrivateKey);
         }

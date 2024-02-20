@@ -10,17 +10,18 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
-
+import { Address } from "openzeppelin/utils/Address.sol";
 /**
  * @title Guardian module
  * @author Puffer Finance
  * @dev This contract is responsible for storing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
+
 contract GuardianModule is AccessManaged, IGuardianModule {
     using ECDSA for bytes32;
-    using SafeTransferLib for address;
+    using Address for address;
+    using Address for address payable;
     using MessageHashUtils for bytes32;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -103,7 +104,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         for (uint256 i = 0; i < numGuardians; ++i) {
             // slither-disable-start reentrancy-unlimited-gas
             // slither-disable-next-line calls-loop
-            _guardians.at(i).safeTransferETH(amountPerGuardian);
+            payable(_guardians.at(i)).sendValue(amountPerGuardian);
             // slither-disable-end reentrancy-unlimited-gas
         }
     }

@@ -10,7 +10,6 @@ eigenlayer-test/=lib/eigenlayer-contracts/src/test
 openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 puffer/=src/
 script/=script/
-solady/=lib/solady/src/
 rave/=lib/rave/src/
 rave-test/=lib/rave/test/
 murky/=lib/murky/src/

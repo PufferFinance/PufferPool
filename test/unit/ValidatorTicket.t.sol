@@ -2,15 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 contract ValidatorTicketTest is TestHelper {
     using ECDSA for bytes32;
-    using SafeTransferLib for address;
-    using SafeTransferLib for address payable;
+    using Address for address;
+    using Address for address payable;
 
     address rewardsRecipient = makeAddr("rewardsRecipient");
 
@@ -51,17 +50,17 @@ contract ValidatorTicketTest is TestHelper {
 
     function test_overflow_protocol_fee_rate() public {
         vm.startPrank(DAO);
-        vm.expectRevert(bytes4(hex"35278d12")); // Overflow() selector 0x35278d12
-        validatorTicket.setProtocolFeeRate(20 * FixedPointMathLib.WAD); // should revert because max fee is 18.44% (uint64)
+        vm.expectRevert();
+        validatorTicket.setProtocolFeeRate(20 * 1 ether); // should revert because max fee is 18.44% (uint64)
     }
 
     function test_change_protocol_fee_rate() public {
         vm.startPrank(DAO);
 
-        uint256 newFeeRate = 15 * FixedPointMathLib.WAD;
+        uint256 newFeeRate = 15 * 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorTicket.ProtocolFeeChanged(5 * FixedPointMathLib.WAD, newFeeRate);
+        emit ValidatorTicket.ProtocolFeeChanged(5 * 1 ether, newFeeRate);
         validatorTicket.setProtocolFeeRate(newFeeRate);
 
         assertEq(validatorTicket.getProtocolFeeRate(), newFeeRate, "updated");

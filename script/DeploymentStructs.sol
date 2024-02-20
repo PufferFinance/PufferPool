@@ -8,7 +8,6 @@ struct GuardiansDeployment {
     address accessManager;
     address guardianModule;
     address enclaveVerifier;
-    address pauser;
 }
 
 /**
@@ -21,7 +20,6 @@ struct PufferProtocolDeployment {
     address guardianModule;
     address accessManager;
     address enclaveVerifier;
-    address pauser;
     address beacon; // Beacon for Puffer modules
     address moduleFactory;
     address validatorTicket;

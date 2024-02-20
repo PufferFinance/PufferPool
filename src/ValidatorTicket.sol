@@ -5,10 +5,9 @@ import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgrad
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC20PermitUpgradeable } from "openzeppelin-upgrades/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
+import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
-import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 
 /**
@@ -23,8 +22,8 @@ contract ValidatorTicket is
     ERC20PermitUpgradeable
 {
     using SafeERC20 for address;
-    using SafeTransferLib for address;
-    using SafeTransferLib for address payable;
+    using Address for address;
+    using Address for address payable;
 
     error InvalidAmount();
 
@@ -108,12 +107,12 @@ contract ValidatorTicket is
         }
 
         // Treasury amount is staying in this contract
-        uint256 treasuryAmount = FixedPointMathLib.fullMulDiv(msg.value, $.protocolFeeRate, _ONE_HUNDRED_WAD);
+        uint256 treasuryAmount = msg.value * $.protocolFeeRate / _ONE_HUNDRED_WAD;
         // Guardians get the cut right away
         uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
         // The remainder belongs to PufferVault
         uint256 pufferVaultAmount = msg.value - (treasuryAmount + guardiansAmount);
-        PUFFER_VAULT.safeTransferETH(pufferVaultAmount);
+        PUFFER_VAULT.sendValue(pufferVaultAmount);
     }
 
     /**
@@ -155,33 +154,33 @@ contract ValidatorTicket is
      * @dev _sendETH is sending ETH to trusted addresses (no reentrancy protection)
      */
     function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
-        toSend = FixedPointMathLib.fullMulDiv(amount, rate, _ONE_HUNDRED_WAD);
+        toSend = amount * rate / _ONE_HUNDRED_WAD;
 
         if (toSend != 0) {
             emit TransferredETH(to, toSend);
-            to.safeTransferETH(toSend);
+            payable(to).sendValue(toSend);
         }
     }
 
     function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * FixedPointMathLib.WAD)) {
+        if ($.protocolFeeRate > (10 * 1 ether)) {
             revert InvalidData();
         }
         uint256 oldProtocolFeeRate = uint256($.protocolFeeRate);
-        $.protocolFeeRate = SafeCastLib.toUint64(newProtocolFeeRate);
+        $.protocolFeeRate = SafeCast.toUint64(newProtocolFeeRate);
         emit ProtocolFeeChanged(oldProtocolFeeRate, newProtocolFeeRate);
     }
 
     function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * FixedPointMathLib.WAD)) {
+        if ($.protocolFeeRate > (10 * 1 ether)) {
             revert InvalidData();
         }
         uint256 oldGuardiansFeeRate = uint256($.guardiansFeeRate);
-        $.guardiansFeeRate = SafeCastLib.toUint64(newGuardiansFeeRate);
+        $.guardiansFeeRate = SafeCast.toUint64(newGuardiansFeeRate);
         emit GuardiansFeeChanged(oldGuardiansFeeRate, newGuardiansFeeRate);
     }
 

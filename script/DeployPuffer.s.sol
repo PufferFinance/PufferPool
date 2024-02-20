@@ -18,11 +18,9 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
-import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 
 /**
  * @title DeployPuffer
@@ -57,8 +55,6 @@ contract DeployPuffer is BaseScript {
         broadcast
         returns (PufferProtocolDeployment memory)
     {
-        string memory obj = "";
-
         accessManager = AccessManager(guardiansDeployment.accessManager);
 
         if (isMainnet()) {
@@ -87,7 +83,7 @@ contract DeployPuffer is BaseScript {
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * FixedPointMathLib.WAD, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 5 * 1 ether, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 
@@ -103,7 +99,6 @@ contract DeployPuffer is BaseScript {
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
             beacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
-            vm.serializeAddress(obj, "moduleBeacon", address(beacon));
 
             moduleFactory = new PufferModuleFactory({
                 beacon: address(beacon),
@@ -141,16 +136,6 @@ contract DeployPuffer is BaseScript {
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
         vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
 
-        vm.serializeAddress(obj, "PufferProtocolImplementation", address(pufferProtocolImpl));
-        vm.serializeAddress(obj, "noRestakingModule", address(noRestaking));
-        vm.serializeAddress(obj, "PufferProtocol", address(proxy));
-        vm.serializeAddress(obj, "moduleFactory", address(moduleFactory));
-        vm.serializeAddress(obj, "guardianModule", guardiansDeployment.guardianModule);
-        vm.serializeAddress(obj, "accessManager", guardiansDeployment.accessManager);
-
-        string memory finalJson = vm.serializeString(obj, "", "");
-
-        vm.writeJson(finalJson, "./output/puffer.json");
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
             validatorTicket: address(validatorTicketProxy),
@@ -160,7 +145,6 @@ contract DeployPuffer is BaseScript {
             guardianModule: guardiansDeployment.guardianModule,
             accessManager: guardiansDeployment.accessManager,
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
-            pauser: guardiansDeployment.pauser,
             beacon: address(beacon),
             moduleFactory: address(moduleFactory),
             pufferOracle: address(oracle),

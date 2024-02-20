@@ -7,7 +7,6 @@ pragma solidity >=0.8.0 <0.9.0;
 enum Status {
     UNINITIALIZED,
     PENDING,
-    DEQUEUED,
     SKIPPED,
     ACTIVE,
     FROZEN,

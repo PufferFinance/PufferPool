@@ -9,7 +9,7 @@ import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
@@ -221,14 +221,6 @@ interface IPufferProtocol {
      * Can not withdraw virtual VTs
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
-
-    /**
-     * @notice Cancels the Validator registration
-     * @param moduleName is the staking Module
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
-     * @dev Can only be called by the Node Operator, and Validator must be in `Pending` state
-     */
-    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external;
 
     /**
      * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed

@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BaseScript } from "script/BaseScript.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { Strings } from "openzeppelin/utils/Strings.sol";
 
 /**
  * @title Deposit ETH script
@@ -15,8 +14,7 @@ import { Strings } from "openzeppelin/utils/Strings.sol";
  */
 contract AddLeaftX509 is BaseScript {
     function run(bytes calldata leafX509Cert) external broadcast {
-        string memory guardiansDeployment =
-            vm.readFile(string.concat("./output/", Strings.toString(block.chainid), "-guardians.json"));
+        string memory guardiansDeployment = vm.readFile("./output/puffer.json");
         address payable enclaveVerifier = payable(stdJson.readAddress(guardiansDeployment, ".enclaveVerifier"));
 
         IEnclaveVerifier(enclaveVerifier).addLeafX509(leafX509Cert);

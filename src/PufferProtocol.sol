@@ -11,14 +11,13 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
-import { Unauthorized } from "puffer/Errors.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
-import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
@@ -131,7 +130,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _updateVTBalance($, node, 0);
 
-        $.nodeOperatorInfo[node].vtBalance += SafeCastLib.toUint96(permit.amount);
+        $.nodeOperatorInfo[node].vtBalance += SafeCast.toUint96(permit.amount);
         emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
     }
 
@@ -265,43 +264,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function cancelRegistration(bytes32 moduleName, uint256 validatorIndex) external {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        // `msg.sender` is the Node Operator
-        Validator storage validator = $.validators[moduleName][validatorIndex];
-        address node = validator.node;
-
-        if (validator.status != Status.PENDING) {
-            revert InvalidValidatorState(validator.status);
-        }
-
-        if (msg.sender != node) {
-            revert Unauthorized();
-        }
-
-        _penalizeNodeOperator(node);
-
-        // Update the status to DEQUEUED
-        validator.status = Status.DEQUEUED;
-
-        emit ValidatorDequeued(validator.pubKey, validatorIndex);
-
-        // If this validator was next in line to be provisioned
-        // Increment the counter
-        if ($.nextToBeProvisioned[moduleName] == validatorIndex) {
-            unchecked {
-                ++$.nextToBeProvisioned[moduleName];
-            }
-        }
-
-        // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(node, validator.bond);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     function retrieveBond(StoppedValidatorInfo calldata validatorInfo, bytes32[] calldata merkleProof) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -376,6 +338,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
 
         address node = $.validators[moduleName][skippedIndex].node;
@@ -529,8 +492,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Read the index for that moduleName
             uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
 
-            // Check the next 5 spots for that queue and try to find a validator in a valid state for provisioning
-            for (uint256 idx = validatorIndex; idx < validatorIndex + 5; ++idx) {
+            // Check the next 15 spots for that queue and try to find a validator in a valid state for provisioning
+            for (uint256 idx = validatorIndex; idx < validatorIndex + 15; ++idx) {
                 // If we find it, return it
                 if ($.validators[moduleName][idx].status == Status.PENDING) {
                     return (moduleName, idx);
@@ -674,7 +637,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             node: msg.sender
         });
 
-        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCastLib.toUint96(numberOfDays * 1 ether); // upscale to 18 decimals
+        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(numberOfDays * 1 ether); // upscale to 18 decimals
 
         // Increment indices for this module and number of validators registered
         unchecked {
@@ -837,7 +800,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // If the lastUpdate is bigger, we need to credit the node operator with virtual VT's, because we counted his validator as `active` and burned his VT
         if (validatorStopTimestamp < $.nodeOperatorInfo[node].lastUpdate) {
-            vtToCredit = SafeCastLib.toUint88(
+            vtToCredit = SafeCast.toUint88(
                 ($.nodeOperatorInfo[node].lastUpdate - validatorStopTimestamp) * _VT_LOSS_RATE_PER_SECOND_DOWN
             );
         }
@@ -865,7 +828,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Update the node information
         $.nodeOperatorInfo[node].lastUpdate = uint48(block.timestamp);
-        $.nodeOperatorInfo[node].vtBalance = SafeCastLib.toUint96(realVTBalance);
+        $.nodeOperatorInfo[node].vtBalance = SafeCast.toUint96(realVTBalance);
         emit VTBalanceChanged({
             node: node,
             oldVTBalance: oldVTBalance,
@@ -891,7 +854,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // First, try to deduct from the virtual VT balance
         if (toBurn <= virtualVTBalance) {
-            $.nodeOperatorInfo[node].virtualVTBalance -= SafeCastLib.toUint88(toBurn);
+            $.nodeOperatorInfo[node].virtualVTBalance -= SafeCast.toUint88(toBurn);
             return 0;
         }
 

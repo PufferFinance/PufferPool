@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -16,10 +15,9 @@ import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
-import { Permit } from "puffer/struct/Permit.sol";
+import { Permit } from "pufETH/structs/Permit.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
-import { console } from "forge-std/console.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -121,7 +119,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(moduleName, NO_RESTAKING, "module");
         assertEq(idx, 1, "idx should be 1");
 
-        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
+        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")), 0);
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, NO_RESTAKING);
@@ -176,60 +174,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.registerValidatorKey{ value: 5 ether }(
             validatorKeyData, NO_RESTAKING, 30, emptyPermit, emptyPermit
         );
-    }
-
-    function test_module_DOS() external {
-        bytes32[] memory weights = pufferProtocol.getModuleWeights();
-        assertEq(weights.length, 1, "only one module");
-        assertEq(weights[0], NO_RESTAKING, "no restaking");
-
-        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("charlie"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("dave"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("emma"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("ford"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("greg"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("hannah"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("ian"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("joan"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("kim"), NO_RESTAKING);
-
-        // If we stop registration for 0, it will advance the counter
-        // Simulate that somebody registered more validators
-        // pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 1);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 2);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 3);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 4);
-        // Skip 5, we want to provision 5
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 6);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 7);
-
-        (bytes32 module, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(module, NO_RESTAKING, "module");
-        assertEq(idx, 0, "idx");
-
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 0);
-
-        uint256 next = pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING);
-        assertEq(next, 1, "next idx");
-
-        (module, idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(module, NO_RESTAKING, "module");
-        assertEq(idx, 5, "idx");
-
-        // Provision node updates the idx to current + 1
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("ford"))), _validatorSignature(), 0);
-
-        // That idx is 6
-        next = pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING);
-        assertEq(next, 6, "next idx");
-
-        // From there the counter of '5' starts before we return nothing to provision
-        (module, idx) = pufferProtocol.getNextValidatorToProvision();
-        assertEq(module, NO_RESTAKING, "module");
-        assertEq(idx, 8, "idx");
     }
 
     // Try updating for future block
@@ -382,45 +326,10 @@ contract PufferProtocolTest is TestHelper {
         assertEq(type(uint256).max, idx, "module");
 
         bytes[] memory signatures =
-            _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000");
+            _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000", 0);
 
         vm.expectRevert();
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
-    }
-
-    // function testSetProtocolFeeRate() public {
-    //     uint256 rate = 10 * FixedPointMathLib.WAD;
-    //     pufferProtocol.setProtocolFeeRate(rate); // 10%
-    //     assertEq(pufferProtocol.getProtocolFeeRate(), rate, "new rate");
-    // }
-
-    // function testSetGuardiansFeeRateOverTheLimit() public {
-    //     uint256 rate = 30 * FixedPointMathLib.WAD;
-    //     vm.expectRevert(IPufferProtocol.InvalidData.selector);
-    //     pufferProtocol.setGuardiansFeeRate(rate);
-    // }
-
-    // function testSetProtocolFeeRateOverTheLimit() public {
-    //     uint256 rate = 30 * FixedPointMathLib.WAD;
-    //     vm.expectRevert(IPufferProtocol.InvalidData.selector);
-    //     pufferProtocol.setProtocolFeeRate(rate);
-    // }
-
-    function test_fee_calculations() public {
-        // // Default values are
-        // // 2% guardians
-        // // 10% withdrawal fee pool
-        // // 0.5% guardians
-        // // rest to the PufferPool
-        // uint256 amount = pufferOracle.getValidatorTicketPrice();
-        // assertEq(0, pufferProtocol.TREASURY().balance, "zero treasury");
-        // assertEq(0, address(pufferProtocol.GUARDIAN_MODULE()).balance, "zero guardians");
-        // assertEq(1000 ether, address(pufferProtocol.PUFFER_VAULT()).balance, "starting vault balance");
-        // // We don't have additional validations on if the validator is active or not
-        // // pufferProtocol.extendCommitment{ value: amount }(NO_RESTAKING, 0, 12);
-        // assertEq(2280296714778796, pufferProtocol.TREASURY().balance, "non zero treasury");
-        // assertEq(570074178694699, address(pufferProtocol.GUARDIAN_MODULE()).balance, "non zero guardians");
-        // assertEq(100048018360919684, address(pufferProtocol.PUFFER_VAULT()).balance, "non zero pool");
     }
 
     function test_change_module() public {
@@ -432,118 +341,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.changeModule(bytes32("RANDOM_MODULE"), PufferModule(payable(address(5))));
         address moduleAfterChange = pufferProtocol.getModuleAddress("RANDOM_MODULE");
         assertTrue(address(0) != moduleAfterChange, "module did not change");
-    }
-
-    // function testRegisterOneValidator() public {
-    //     // Start balance of the PufferVault
-    //     uint256 startBalance = 1000 ether;
-
-    //     assertEq(pufferVault.totalAssets(), startBalance, "it should start with 1000 eth");
-    //     assertEq(pufferVault.balanceOf(LIQUIDITY_PROVIDER), startBalance, "the LP got all the pufETH");
-    //     assertEq(pufferVault.maxWithdraw(LIQUIDITY_PROVIDER), startBalance, "lp can withdraw everything");
-
-    //     // Register 1 validator
-    //     _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-
-    //     uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
-    //     uint256 bond = 1 ether;
-
-    //     uint256 treasuryFee =
-    //         FixedPointMathLib.fullMulDiv(smoothingCommitment, pufferProtocol.getProtocolFeeRate(), 100 * 1e18);
-    //     uint256 guardiansFee =
-    //         FixedPointMathLib.fullMulDiv(smoothingCommitment, pufferProtocol.getGuardiansFeeRate(), 100 * 1e18);
-
-    //     // Amount of rewards for pufETH holders (SC - fees)
-    //     assertEq(smoothingCommitment - treasuryFee - guardiansFee, 116960846822092934, "rewards"); // ~0.11 ETH
-
-    //     uint256 expectedAmount = startBalance + smoothingCommitment + bond - treasuryFee - guardiansFee;
-    //     assertEq(pufferVault.totalAssets(), expectedAmount, "vault balance after deposit");
-
-    //     assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "protocol should have 1 pufETH");
-
-    //     assertGt(
-    //         pufferVault.maxWithdraw(LIQUIDITY_PROVIDER),
-    //         startBalance,
-    //         "lp can withdraw more than it originally deposited"
-    //     );
-
-    //     assertGt(pufferVault.maxWithdraw(address(pufferProtocol)), 1 ether, "pufETH in protocol appreciated");
-
-    //     vm.startPrank(LIQUIDITY_PROVIDER);
-    //     uint256 ethWithdrawn = pufferVault.withdraw(
-    //         pufferVault.maxWithdraw(address(LIQUIDITY_PROVIDER)), LIQUIDITY_PROVIDER, LIQUIDITY_PROVIDER
-    //     );
-
-    //     vm.startPrank(address(pufferProtocol));
-    //     pufferVault.withdraw(
-    //         pufferVault.maxWithdraw(address(pufferProtocol)), makeAddr("puffer_recipient"), address(pufferProtocol)
-    //     );
-
-    //     // 1 wei is left because of rounding
-    //     assertEq(pufferVault.totalAssets(), 1, "everything is gone");
-    // }
-
-    function test_stop_registration() public {
-        // Register two validators
-        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-        _registerValidatorKey(bytes32("bob"), NO_RESTAKING);
-
-        assertApproxEqRel(
-            pufferVault.maxWithdraw(address(pufferProtocol)),
-            2 ether,
-            pointZeroOne,
-            "pool should have the bond amount for 2 validators"
-        );
-
-        vm.prank(address(4123123)); // random sender
-        vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
-
-        (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
-
-        assertEq(moduleName, NO_RESTAKING, "module");
-        assertEq(0, idx, "module");
-        assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 0, "zero index is next in line");
-
-        bytes memory alicePubKey = _getPubKey(bytes32("alice"));
-
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorDequeued(alicePubKey, 0);
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
-
-        assertEq(pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "1 index is next in line");
-
-        assertApproxEqRel(
-            pufferVault.maxWithdraw(address(pufferProtocol)),
-            1 ether,
-            pointZeroOne,
-            "pool should have the bond amount for 1 validators"
-        );
-        // Because this contract is msg.sender, it means that it is the node operator
-        assertApproxEqRel(
-            pufferVault.maxWithdraw(address(this)),
-            1 ether,
-            pointZeroOne,
-            "node operator should get ~1 pufETH for Alice"
-        );
-
-        (moduleName, idx) = pufferProtocol.getNextValidatorToProvision();
-
-        assertEq(moduleName, NO_RESTAKING, "module after");
-        assertEq(1, idx, "module after");
-
-        bytes[] memory signatures = _getGuardianSignatures(alicePubKey);
-
-        // Unauthorized, because the protocol is expecting signature for bob
-        vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
-
-        // Bob should be provisioned next
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))), _validatorSignature(), 0);
-
-        // Invalid status
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, Status.DEQUEUED));
-        pufferProtocol.cancelRegistration(NO_RESTAKING, 0);
     }
 
     function test_register_multiple_validator_keys_and_dequeue(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart) public {
@@ -579,14 +376,14 @@ contract PufferProtocolTest is TestHelper {
 
         assertEq(pufferProtocol.getPendingValidatorIndex(NO_RESTAKING), 5, "next pending validator index");
 
-        bytes[] memory signatures = _getGuardianSignatures(zeroPubKey);
+        bytes[] memory signatures = _getGuardianSignatures(zeroPubKey, 0);
 
         // // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(zeroPubKey, 0, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
 
-        bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey);
+        bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey, 0);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
@@ -599,7 +396,7 @@ contract PufferProtocolTest is TestHelper {
 
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
 
-        signatures = _getGuardianSignatures(zeroPubKey);
+        signatures = _getGuardianSignatures(zeroPubKey, 0);
 
         emit SuccessfullyProvisioned(zeroPubKey, 3, NO_RESTAKING);
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
@@ -646,7 +443,7 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(nextModule == NO_RESTAKING, "module selection");
         assertTrue(nextId == 0, "module selection");
 
-        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
+        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")), 0);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
@@ -659,7 +456,7 @@ contract PufferProtocolTest is TestHelper {
         // Id is zero, because that is the first in this queue
         assertTrue(nextId == 0, "module id");
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")), 0);
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
@@ -683,18 +480,18 @@ contract PufferProtocolTest is TestHelper {
         assertTrue(nextId == 1, "module id");
 
         // Provisioning of rocky should fail, because jason is next in line
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")), 0);
         vm.expectRevert(Unauthorized.selector);
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("jason")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("jason")), 0);
 
         // Provision Jason
         pufferProtocol.provisionNode(signatures, _validatorSignature(), 0);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")), 0);
 
         // Rocky is now in line
         assertTrue(nextModule == CRAZY_GAINS, "module selection");
@@ -710,7 +507,7 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getNextValidatorToBeProvisionedIndex(NO_RESTAKING), 1, "next idx for no restaking module"
         );
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
+        signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")), 0);
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, NO_RESTAKING);
@@ -754,9 +551,11 @@ contract PufferProtocolTest is TestHelper {
         );
 
         // Provision validators
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 0);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob"))), _validatorSignature(), 0);
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("charlie"))), _validatorSignature(), 0);
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice")), 0), _validatorSignature(), 0);
+        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("bob")), 0), _validatorSignature(), 0);
+        pufferProtocol.provisionNode(
+            _getGuardianSignatures(_getPubKey(bytes32("charlie")), 0), _validatorSignature(), 0
+        );
 
         bytes32[] memory aliceProof = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 0);
 
@@ -1087,7 +886,7 @@ contract PufferProtocolTest is TestHelper {
         vm.deal(address(pufferVault), 100 ether);
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-        bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
+        bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")), 0);
         // Register and provision Alice
         // Alice may be an active validator or it can be exited, doesn't matter
         pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), 0);
@@ -1149,7 +948,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Provision validators
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
@@ -1364,7 +1163,7 @@ contract PufferProtocolTest is TestHelper {
 
         // The wait queue is 1 days, the guardians provision the validator with 1 day offset
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         // We offset the timestamp to + 1 days, Alice should still have 30 VT (because the validating is not live yet)
@@ -1414,7 +1213,7 @@ contract PufferProtocolTest is TestHelper {
 
         // The wait queue is 3 days, the guardians provision the validator with 3 days offset, we credit alice 3 virtual VT's
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 3 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 3 ether), _validatorSignature(), 3 ether
         );
 
         // We offset the timestamp to + 2 days, Alice should still have 90 VT (because the validating is not live yet)
@@ -1429,7 +1228,7 @@ contract PufferProtocolTest is TestHelper {
 
         // At t + 2 days the new validator gets provisioned with 2 days queue
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 2 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 2 ether), _validatorSignature(), 2 ether
         );
 
         // 90 is the original deposit, +3 virtual for the first validator, but this is t+2 days, so it is +1, and +2 for this valdiator
@@ -1527,10 +1326,10 @@ contract PufferProtocolTest is TestHelper {
 
         // Provision 2 validators in the same timestamp
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         vm.warp(startFirstValidatorTimestamp + 5 days);
@@ -1551,7 +1350,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Provision another validator with 1 day offset
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         // 2 Validators are consuming 2x10 VT's + 1 virtual
@@ -1593,7 +1392,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 provisionedTimestamp = block.timestamp;
         // 5 days VT queue
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 5 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 5 ether), _validatorSignature(), 5 ether
         );
 
         uint256 numberOfDays = 200;
@@ -1660,7 +1459,7 @@ contract PufferProtocolTest is TestHelper {
 
         // The wait queue is 1 days, the guardians provision the validator with 1 day offset
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         // We offset the timestamp to + 1 days, Alice should still have 90 VT (because the validating is not live yet)
@@ -1686,7 +1485,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Now we provision another Validator with 1 days offset
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), 1 ether
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
         );
 
         // VT balance should be 80, but because one validator just got provisioned
@@ -1705,7 +1504,7 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
+    function _getGuardianSignatures(bytes memory pubKey, uint256 vtBurnOffset) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
         // If there is no module return empty byte array
@@ -1716,7 +1515,7 @@ contract PufferProtocolTest is TestHelper {
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
             pendingIdx,
-            0,
+            vtBurnOffset,
             pubKey,
             _validatorSignature(),
             withdrawalCredentials,
@@ -1855,7 +1654,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(address(pufferVault).balance, 1032 ether, "ending pool balance");
     }
 
-    // Sets the merkle root and makes sure that the funds get split between WithdrawalPool and PufferPool ASAP
+    // Sets the merkle root and makes sure that the funds get returned to the pool ASAP
     function _setupMerkleRoot() public {
         // Create EIGEN_DA module
         pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));

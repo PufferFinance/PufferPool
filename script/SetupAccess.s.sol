@@ -16,11 +16,7 @@ import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
-import { ROLE_ID_OPERATIONS, ROLE_ID_PUFFER_PROTOCOL } from "pufETHScript/Roles.sol";
-
-uint64 constant ROLE_ID_DAO = 77;
-uint64 constant ROLE_ID_GUARDIANS = 88;
-uint64 constant ROLE_ID_PAUSER = 999;
+import { ROLE_ID_OPERATIONS, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 
 contract SetupAccess is BaseScript {
     AccessManager internal accessManager;
@@ -39,30 +35,29 @@ contract SetupAccess is BaseScript {
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
 
-        bytes[] memory calldatas = new bytes[](18);
+        bytes[] memory calldatas = new bytes[](17);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
         calldatas[3] = rolesCalldatas[0];
         calldatas[4] = rolesCalldatas[1];
-        calldatas[5] = rolesCalldatas[2];
 
-        calldatas[6] = pufferProtocolRoles[0];
-        calldatas[7] = pufferProtocolRoles[1];
-        calldatas[8] = pufferProtocolRoles[2];
+        calldatas[5] = pufferProtocolRoles[0];
+        calldatas[6] = pufferProtocolRoles[1];
+        calldatas[7] = pufferProtocolRoles[2];
 
-        calldatas[9] = noRestakingModuleRoles[0];
-        calldatas[10] = noRestakingModuleRoles[1];
-        calldatas[11] = noRestakingModuleRoles[2];
+        calldatas[8] = noRestakingModuleRoles[0];
+        calldatas[9] = noRestakingModuleRoles[1];
+        calldatas[10] = noRestakingModuleRoles[2];
 
-        calldatas[12] = validatorTicketRoles[0];
-        calldatas[13] = validatorTicketRoles[1];
+        calldatas[11] = validatorTicketRoles[0];
+        calldatas[12] = validatorTicketRoles[1];
 
-        calldatas[14] = vaultMainnetAccess[0];
-        calldatas[15] = vaultMainnetAccess[1];
+        calldatas[13] = vaultMainnetAccess[0];
+        calldatas[14] = vaultMainnetAccess[1];
 
-        calldatas[16] = pufferOracleAccess[0];
-        calldatas[17] = pufferOracleAccess[1];
+        calldatas[15] = pufferOracleAccess[0];
+        calldatas[16] = pufferOracleAccess[1];
 
         accessManager.multicall(calldatas);
 
@@ -265,14 +260,12 @@ contract SetupAccess is BaseScript {
     }
 
     function _grantRoles(address DAO) internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](2);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, DAO, 0);
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, pufferDeployment.pufferProtocol, 0
         );
-        calldatas[2] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PAUSER, pufferDeployment.pauser, 0);
 
         return calldatas;
     }
