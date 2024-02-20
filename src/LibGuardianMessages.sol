@@ -3,6 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
+/* solhint-disable func-named-parameters */
+
 /**
  * @title LibGuardianMessages
  * @author Puffer Finance
@@ -30,9 +32,7 @@ library LibGuardianMessages {
     ) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(validatorIndex, vtBurnOffset, pubKey, withdrawalCredentials, signature, depositDataRoot)
-        )
-            //solhint-disable-next-line func-named-parameters
-            .toEthSignedMessageHash();
+        ).toEthSignedMessageHash();
     }
 
     /**
@@ -98,3 +98,4 @@ library LibGuardianMessages {
         return keccak256(abi.encode(root, blockNumber, modules, amounts)).toEthSignedMessageHash();
     }
 }
+/* solhint-disable func-named-parameters */
