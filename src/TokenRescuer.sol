@@ -16,6 +16,9 @@ import { IERC721 } from "openzeppelin/token/ERC721/ERC721.sol";
 abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
     using SafeTransferLib for address;
 
+    // slither-disable-next-line constable-states
+    address public to = address(12345); //@todo figure out where to rescue stuff
+
     /**
      * @notice Address of the Puffer Protocol
      */
@@ -29,27 +32,21 @@ abstract contract TokenRescuer is IERC721Receiver, IERC1155Receiver {
      * @notice Transfers ERC20 `token`'s balance to treasury
      */
     function recoverERC20(address token) external virtual {
-        token.safeTransferAll(PUFFER_PROTOCOL.TREASURY());
+        token.safeTransferAll(to);
     }
 
     /**
      * @notice Transfers ERC721 `token` with `tokenId` to treasury
      */
     function recoverERC721(address token, uint256 tokenId) external virtual {
-        IERC721(token).safeTransferFrom(address(this), PUFFER_PROTOCOL.TREASURY(), tokenId);
+        IERC721(token).safeTransferFrom(address(this), to, tokenId);
     }
 
     /**
      * @notice Transfers ERC1155 `token` with `tokenId` and `tokenAmount` to treasury
      */
     function recoverERC1155(address token, uint256 tokenId, uint256 tokenAmount) external virtual {
-        IERC1155(token).safeTransferFrom({
-            from: address(this),
-            to: PUFFER_PROTOCOL.TREASURY(),
-            id: tokenId,
-            value: tokenAmount,
-            data: ""
-        });
+        IERC1155(token).safeTransferFrom({ from: address(this), to: to, id: tokenId, value: tokenAmount, data: "" });
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external virtual returns (bytes4) {

@@ -98,6 +98,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
 
     function _getSignerSignatureForDelegation(uint256 stakerSK, uint256 expiry)
         internal
+        view
         returns (IDelegationManager.SignatureWithExpiry memory)
     {
         IDelegationManager.SignatureWithExpiry memory stakerSignatureAndExpiry;
@@ -126,7 +127,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         return stakerSignatureAndExpiry;
     }
 
-    function _getSignature(uint256 stakerSK, uint256 amount, uint256 expiry) internal returns (bytes memory) {
+    function _getSignature(uint256 stakerSK, uint256 amount, uint256 expiry) internal view returns (bytes memory) {
         // uint256 nonceBefore = 0;
         // uint256 nonceBefore = MissingInInterface(address(eigenStrategyManager)).nonces(vm.addr(stakerSK)); // how to get real nonce
         uint256 nonceBefore = 0;

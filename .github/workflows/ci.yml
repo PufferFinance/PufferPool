@@ -12,6 +12,10 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY_PUF }}
+
       - uses: actions/checkout@v4
 
       - name: Install Foundry
@@ -29,17 +33,19 @@ jobs:
   slither: 
     runs-on: ubuntu-latest
     steps:
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY_PUF }}
+          
       - uses: actions/checkout@v4
 
       - uses: crytic/slither-action@v0.3.0
-        with:
-          node-version: 16
 
   solhint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
       - name: Install solhint
         run: npm i -g solhint
       - name: Run solhint

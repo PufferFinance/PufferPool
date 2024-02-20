@@ -2,27 +2,18 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { DeployGuardians } from "script/DeployGuardians.s.sol";
-import { DeployPuffer } from "script/DeployPuffer.s.sol";
-import { PufferDeployment } from "script/DeploymentStructs.sol";
-import { GuardiansDeployment } from "script/DeploymentStructs.sol";
+import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferPool } from "puffer/PufferPool.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
-import { IWithdrawalPool } from "puffer/interface/IWithdrawalPool.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { PufferDeployment } from "script/DeploymentStructs.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
-    PufferPool public pool;
     PufferProtocol public pufferProtocol;
-    IWithdrawalPool public withdrawalPool;
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
 
@@ -51,16 +42,12 @@ contract IntegrationTestHelper is Test {
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
-        PufferDeployment memory pufferDeployment = new DeployEverything().run(guardians, threshold);
+        PufferProtocolDeployment memory pufferDeployment = new DeployEverything().run(guardians, threshold);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");
         accessManager = AccessManager(pufferDeployment.accessManager);
         vm.label(address(accessManager), "AccessManager");
-        pool = PufferPool(payable(pufferDeployment.pufferPool));
-        vm.label(address(pool), "PufferPool");
-        withdrawalPool = IWithdrawalPool(pufferDeployment.withdrawalPool);
-        vm.label(address(withdrawalPool), "WithdrawalPool");
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         vm.label(address(verifier), "EnclaveVerifier");
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));

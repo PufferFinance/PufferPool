@@ -155,20 +155,18 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProofOfReserve(
-        uint256 ethAmount,
         uint256 lockedETH,
-        uint256 pufETHTotalSupply,
         uint256 blockNumber,
-        uint256 numberOfActiveValidators,
+        uint256 numberOfActivePufferValidators,
+        uint256 totalNumberOfValidators,
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage({
-            ethAmount: ethAmount,
             lockedETH: lockedETH,
-            pufETHTotalSupply: pufETHTotalSupply,
             blockNumber: blockNumber,
-            numberOfActiveValidators: numberOfActiveValidators
+            totalNumberOfValidators: totalNumberOfValidators,
+            numberOfActivePufferValidators: numberOfActivePufferValidators
         });
 
         // Check the signatures
@@ -184,6 +182,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProvisionNode(
+        uint256 validatorIndex,
+        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -191,9 +191,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata guardianEnclaveSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pubKey, signature, withdrawalCredentials, depositDataRoot
-        );
+        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
+            validatorIndex: validatorIndex,
+            vtBurnOffset: vtBurnOffset,
+            pubKey: pubKey,
+            signature: signature,
+            withdrawalCredentials: withdrawalCredentials,
+            depositDataRoot: depositDataRoot
+        });
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
