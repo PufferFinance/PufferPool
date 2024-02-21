@@ -1,17 +1,18 @@
 # PK is for anvil #1 account and he is the deployer
-export PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-export DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-export RPC_URL=http://localhost:8545
+export PK="${PUFFER_SHARED_PK}"
+# export DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+export RPC_URL=https://holesky.gateway.tenderly.co/4N9eL8fFmTKyC1FxW7iwdL
 export DEV_WALLET=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
 # Tell the deployment scripts that it is not `forge test` environment
-export IS_LOCAL_ANVIL=true
+export IS_LOCAL_ANVIL=false
 
 #Change the MR_ENCLAVE and MR_SIGNER to the correct values
 export MR_ENCLAVE=38263e1523af61fecf337417fd00d688db04ed62644c2348a6e0e98fac490dec
 export MR_SIGNER=83d719e77deaca1470f6baf62a4d774303c899db69020f9c70ee1dfc08c7ce9e
 
 # 1024 ETHER, replace with whatever amount you want to deposit
-export ETH_AMOUNT=1024000000000000000000
+# export ETH_AMOUNT=1024000000000000000000
+export ETH_AMOUNT=1000000000000000000
 
 echo "DEPLOYING"
 forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
