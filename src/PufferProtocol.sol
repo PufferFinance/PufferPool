@@ -492,12 +492,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Read the index for that moduleName
             uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
 
-            // Check the next 15 spots for that queue and try to find a validator in a valid state for provisioning
-            for (uint256 idx = validatorIndex; idx < validatorIndex + 15; ++idx) {
-                // If we find it, return it
-                if ($.validators[moduleName][idx].status == Status.PENDING) {
-                    return (moduleName, idx);
-                }
+            // If we find it, return it
+            if ($.validators[moduleName][validatorIndex].status == Status.PENDING) {
+                return (moduleName, validatorIndex);
             }
             unchecked {
                 // If not, try the next module
