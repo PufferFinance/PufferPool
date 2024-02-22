@@ -50,6 +50,9 @@ contract PufferOracle is IPufferOracle, AccessManaged {
     }
 
     function _setMintPrice(uint56 newPrice) internal {
+        if (newPrice == 0 || newPrice > 0.1 ether) {
+            revert InvalidValidatorTicketPrice();
+        }
         emit ValidatorTicketMintPriceUpdated(_validatorTicketPrice, newPrice);
         _validatorTicketPrice = newPrice;
     }
