@@ -35,8 +35,10 @@ contract ValidatorTicketTest is TestHelper {
         uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
         vm.deal(address(this), amount);
 
+        address treasury = validatorTicket.TREASURY();
+
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
-        assertEq(address(validatorTicket).balance, 0, "treasury balance should start with 0");
+        assertEq(treasury.balance, 0, "treasury balance should start with 0");
         assertEq(address(guardianModule).balance, 0, "guardian balance should start with 0");
 
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
@@ -44,7 +46,7 @@ contract ValidatorTicketTest is TestHelper {
         // 0.5% from 20 ETH is 0.1 ETH
         assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
         // 5% from 20 ETH is 1 ETH
-        assertEq(address(validatorTicket).balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
+        assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
 
     function test_bad_amount_purchase() public {
@@ -70,7 +72,7 @@ contract ValidatorTicketTest is TestHelper {
         vm.deal(address(this), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.ETHDispersed(0, 0.1 ether, 19.9 ether);
+        emit IValidatorTicket.DispersedETH(0, 0.1 ether, 19.9 ether);
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH

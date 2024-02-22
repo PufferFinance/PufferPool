@@ -6,7 +6,7 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
@@ -81,14 +81,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferOracle public immutable override PUFFER_ORACLE;
+    IPufferOracleV2 public immutable override PUFFER_ORACLE;
 
     constructor(
         PufferVaultMainnet pufferVault,
         IGuardianModule guardianModule,
         address moduleFactory,
         ValidatorTicket validatorTicket,
-        IPufferOracle oracle
+        IPufferOracleV2 oracle
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultMainnet(payable(address(pufferVault)));

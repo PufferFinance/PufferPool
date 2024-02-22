@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferOracle } from "puffer/PufferOracle.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
@@ -79,7 +79,7 @@ contract TestHelper is Test, BaseScript {
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
     ValidatorTicket public validatorTicket;
-    PufferOracle public pufferOracle;
+    PufferOracleV2 public pufferOracle;
 
     GuardianModule public guardianModule;
 
@@ -158,7 +158,7 @@ contract TestHelper is Test, BaseScript {
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
-        pufferOracle = PufferOracle(pufferDeployment.pufferOracle);
+        pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
 
         // pufETH dependencies
         pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));

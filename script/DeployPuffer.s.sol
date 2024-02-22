@@ -20,7 +20,7 @@ import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 
 /**
  * @title DeployPuffer
@@ -49,6 +49,7 @@ contract DeployPuffer is BaseScript {
     address eigenPodManager;
     address delayedWithdrawalRouter;
     address delegationManager;
+    address treasury;
 
     function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth, address oracle)
         public
@@ -62,22 +63,28 @@ contract DeployPuffer is BaseScript {
             eigenPodManager = vm.envAddress("EIGENPOD_MANAGER");
             delayedWithdrawalRouter = vm.envAddress("DELAYED_WITHDRAWAL_ROUTER");
             delegationManager = vm.envAddress("DELEGATION_MANAGER");
+            treasury = vm.envAddress("TREASURY");
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
             delayedWithdrawalRouter = address(0);
             delegationManager = address(new DelegationManagerMock());
+            treasury = address(1);
         } else {
             // Testnets
             eigenPodManager = vm.envOr("EIGENPOD_MANAGER", address(new EigenPodManagerMock()));
             delayedWithdrawalRouter = vm.envOr("DELAYED_WITHDRAWAL_ROUTER", address(0));
             delegationManager = vm.envOr("DELEGATION_MANAGER", address(new DelegationManagerMock()));
+            treasury = vm.envOr("TREASURY", 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390); // Holesky Safe
         }
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket(
-            payable(guardiansDeployment.guardianModule), payable(pufferVault), IPufferOracle(oracle)
-        );
+        ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
+            guardianModule: payable(guardiansDeployment.guardianModule),
+            treasury: payable(treasury),
+            pufferVault: payable(pufferVault),
+            pufferOracle: IPufferOracleV2(oracle)
+        });
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
             address(validatorTicketImplementation),
@@ -112,7 +119,7 @@ contract DeployPuffer is BaseScript {
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleFactory: address(moduleFactory),
-                oracle: IPufferOracle(oracle)
+                oracle: IPufferOracleV2(oracle)
             });
         }
 

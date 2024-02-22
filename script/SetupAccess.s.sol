@@ -9,7 +9,7 @@ import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { PufferOracle } from "puffer/PufferOracle.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
@@ -74,7 +74,7 @@ contract SetupAccess is BaseScript {
 
         // Only for PufferProtocol
         bytes4[] memory protocolSelectors = new bytes4[](1);
-        protocolSelectors[0] = PufferOracle.provisionNode.selector;
+        protocolSelectors[0] = PufferOracleV2.provisionNode.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -85,7 +85,7 @@ contract SetupAccess is BaseScript {
 
         // DAO selectors
         bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferOracle.setMintPrice.selector;
+        daoSelectors[0] = PufferOracleV2.setMintPrice.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.pufferOracle, daoSelectors, ROLE_ID_DAO

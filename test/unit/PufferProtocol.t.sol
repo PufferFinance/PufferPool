@@ -11,7 +11,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
@@ -205,7 +205,7 @@ contract PufferProtocolTest is TestHelper {
         );
 
         // Second update should revert as it has not passed enough time between two updates
-        vm.expectRevert(IPufferOracle.OutsideUpdateWindow.selector);
+        vm.expectRevert(IPufferOracleV2.OutsideUpdateWindow.selector);
         pufferOracle.proofOfReserve({
             newLockedETH: 0,
             blockNumber: 50401,

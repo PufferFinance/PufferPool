@@ -6,7 +6,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
@@ -284,7 +284,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the Puffer Oracle
      */
-    function PUFFER_ORACLE() external view returns (IPufferOracle);
+    function PUFFER_ORACLE() external view returns (IPufferOracleV2);
 
     /**
      * @notice Returns the current module weights

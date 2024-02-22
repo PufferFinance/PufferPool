@@ -29,7 +29,7 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    IPufferOracle public immutable override PUFFER_ORACLE;
+    address payable public immutable override TREASURY;
 
     /**
      * @inheritdoc IValidatorTicket
@@ -41,10 +41,27 @@ contract ValidatorTicket is
      */
     address payable public immutable override PUFFER_VAULT;
 
-    constructor(address payable guardianModule, address payable pufferVault, IPufferOracle pufferOracle) {
+    /**
+     * @inheritdoc IValidatorTicket
+     */
+    IPufferOracle public immutable override PUFFER_ORACLE;
+
+    constructor(
+        address payable guardianModule,
+        address payable treasury,
+        address payable pufferVault,
+        IPufferOracle pufferOracle
+    ) {
+        if (
+            guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
+                || address(pufferOracle) == address(0)
+        ) {
+            revert InvalidData();
+        }
         PUFFER_ORACLE = pufferOracle;
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = pufferVault;
+        TREASURY = treasury;
         _disableInitializers();
     }
 
@@ -83,13 +100,13 @@ contract ValidatorTicket is
         }
 
         // Treasury amount is staying in this contract
-        uint256 treasuryAmount = msg.value * $.protocolFeeRate / _ONE_HUNDRED_WAD;
+        uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
         // Guardians get the cut right away
         uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
+        uint256 vaultAmount = msg.value - (treasuryAmount + guardiansAmount);
         // The remainder belongs to PufferVault
-        uint256 pufferVaultAmount = msg.value - (treasuryAmount + guardiansAmount);
-        PUFFER_VAULT.sendValue(pufferVaultAmount);
-        emit ETHDispersed({ treasury: treasuryAmount, guardians: guardiansAmount, vault: pufferVaultAmount });
+        PUFFER_VAULT.sendValue(vaultAmount);
+        emit DispersedETH({ treasury: treasuryAmount, guardians: guardiansAmount, vault: vaultAmount });
     }
 
     /**
