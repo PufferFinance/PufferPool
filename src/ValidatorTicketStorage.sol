@@ -7,30 +7,24 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 abstract contract ValidatorTicketStorage {
-    //@todo optimize struct
     struct ValidatorTicket {
         /**
          * @dev Protocol fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          * Because we are using uint64, that means that the max protocol fee rate is 18.44%
          * Slot 1
          */
-        uint64 protocolFeeRate;
+        uint128 protocolFeeRate;
         /**
          * @dev Guardians fee rate, can be updated by governance (1e20 = 100%, 1e18 = 1%)
          * Because we are using uint64, that means that the max protocol fee rate is 18.44%
          * Slot 1
          */
-        uint64 guardiansFeeRate;
-        /**
-         * @dev ETH amount owned to the Guardians
-         * Slot 1
-         */
-        uint72 guardiansBalance;
+        uint128 guardiansFeeRate;
     }
+
     /**
      * @dev Constant representing 100%
      */
-
     uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
 
     /**

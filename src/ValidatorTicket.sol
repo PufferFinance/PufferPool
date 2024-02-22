@@ -9,6 +9,7 @@ import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
 
 /**
  * @title ValidatorTicket
@@ -16,51 +17,29 @@ import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract ValidatorTicket is
+    IValidatorTicket,
     ValidatorTicketStorage,
     UUPSUpgradeable,
     AccessManagedUpgradeable,
     ERC20PermitUpgradeable
 {
     using SafeERC20 for address;
-    using Address for address;
     using Address for address payable;
 
-    error InvalidAmount();
+    /**
+     * @inheritdoc IValidatorTicket
+     */
+    IPufferOracle public immutable override PUFFER_ORACLE;
 
     /**
-     * @dev Puffer Finance treasury
+     * @inheritdoc IValidatorTicket
      */
-    address payable public immutable TREASURY;
+    address payable public immutable override GUARDIAN_MODULE;
 
     /**
-     * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
-     * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
+     * @inheritdoc IValidatorTicket
      */
-    event TransferredETH(address indexed to, uint256 amount);
-
-    /**
-     * @notice Emitted when the protocol fee rate is changed
-     * @dev Signature "0xb51bef650ff5ad43303dbe2e500a74d4fd1bdc9ae05f046bece330e82ae0ba87"
-     */
-    event ProtocolFeeChanged(uint256 oldTreasuryFee, uint256 newTreasuryFee);
-
-    /**
-     * @notice Emitted when the protocol fee rate is changed
-     * @dev Signature "0x0a3e0a163d4dfba5f018c5c1e2214007151b3abb0907e3ae402ae447c7e1bc47"
-     */
-    event GuardiansFeeChanged(uint256 oldGuardiansFee, uint256 newGuardiansFee);
-
-    /**
-     * @notice Thrown if the oracle tries to submit invalid data
-     * @dev Signature "0x5cb045db"
-     */
-    error InvalidData();
-
-    IPufferOracle public immutable PUFFER_ORACLE;
-
-    address payable public immutable GUARDIAN_MODULE;
-
-    address payable public immutable PUFFER_VAULT;
+    address payable public immutable override PUFFER_VAULT;
 
     constructor(address payable guardianModule, address payable pufferVault, IPufferOracle pufferOracle) {
         PUFFER_ORACLE = pufferOracle;
@@ -81,17 +60,14 @@ contract ValidatorTicket is
     }
 
     /**
-     * @notice Mints sender VT corresponding to sent ETH
-     * @param recipient The address to mint VT to
-     * @dev restricted modifier is also used as `whenNotPaused`
-     * @notice Sends PufferVault due share, holding back rest to later distribute between Treasury and Guardians
+     * @inheritdoc IValidatorTicket
      */
     function purchaseValidatorTicket(address recipient) external payable restricted {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
 
-        // We are only accepting deposits in multiples of mintPrice
+        // Only a whole VT can be purchased
         if (msg.value % mintPrice != 0) {
             revert InvalidAmount();
         }
@@ -113,10 +89,12 @@ contract ValidatorTicket is
         // The remainder belongs to PufferVault
         uint256 pufferVaultAmount = msg.value - (treasuryAmount + guardiansAmount);
         PUFFER_VAULT.sendValue(pufferVaultAmount);
+        emit ETHDispersed({ treasury: treasuryAmount, guardians: guardiansAmount, vault: pufferVaultAmount });
     }
 
     /**
      * @notice Burns `amount` from the transaction sender
+     * @dev Restricted to the PufferProtocol
      * @dev Signature "0x42966c68"
      */
     function burn(uint256 amount) external restricted {
@@ -125,7 +103,7 @@ contract ValidatorTicket is
 
     /**
      * @notice Updates the treasury fee
-     * @dev Restricted access
+     * @dev Restricted to the DAO
      * @param newProtocolFeeRate The new treasury fee rate
      */
     function setProtocolFeeRate(uint256 newProtocolFeeRate) external restricted {
@@ -134,7 +112,7 @@ contract ValidatorTicket is
 
     /**
      * @notice Updates the guardians fee rate
-     * @dev Restricted access
+     * @dev Restricted to the DAO
      * @param newGuardiansFeeRate The new guardians fee rate
      */
     function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external restricted {
@@ -142,8 +120,7 @@ contract ValidatorTicket is
     }
 
     /**
-     * @notice Retrieves the current protocol fee rate
-     * @return The current protocol fee rate
+     * @inheritdoc IValidatorTicket
      */
     function getProtocolFeeRate() external view returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
@@ -151,13 +128,21 @@ contract ValidatorTicket is
     }
 
     /**
-     * @dev _sendETH is sending ETH to trusted addresses (no reentrancy protection)
+     * @inheritdoc IValidatorTicket
+     */
+    function getGuardiansFeeRate() external view returns (uint256) {
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        return $.guardiansFeeRate;
+    }
+
+    /**
+     * @dev This is for sending ETH to trusted addresses (no reentrancy protection)
+     * PufferVault, Guardians, Treasury
      */
     function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
         toSend = amount * rate / _ONE_HUNDRED_WAD;
 
         if (toSend != 0) {
-            emit TransferredETH(to, toSend);
             payable(to).sendValue(toSend);
         }
     }
@@ -169,7 +154,7 @@ contract ValidatorTicket is
             revert InvalidData();
         }
         uint256 oldProtocolFeeRate = uint256($.protocolFeeRate);
-        $.protocolFeeRate = SafeCast.toUint64(newProtocolFeeRate);
+        $.protocolFeeRate = SafeCast.toUint128(newProtocolFeeRate);
         emit ProtocolFeeChanged(oldProtocolFeeRate, newProtocolFeeRate);
     }
 
@@ -180,7 +165,7 @@ contract ValidatorTicket is
             revert InvalidData();
         }
         uint256 oldGuardiansFeeRate = uint256($.guardiansFeeRate);
-        $.guardiansFeeRate = SafeCast.toUint64(newGuardiansFeeRate);
+        $.guardiansFeeRate = SafeCast.toUint128(newGuardiansFeeRate);
         emit GuardiansFeeChanged(oldGuardiansFeeRate, newGuardiansFeeRate);
     }
 

@@ -5,6 +5,7 @@ import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
 
 contract ValidatorTicketTest is TestHelper {
     using ECDSA for bytes32;
@@ -34,8 +35,6 @@ contract ValidatorTicketTest is TestHelper {
         uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
         vm.deal(address(this), amount);
 
-        address treasury = validatorTicket.TREASURY();
-
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
         assertEq(address(validatorTicket).balance, 0, "treasury balance should start with 0");
         assertEq(address(guardianModule).balance, 0, "guardian balance should start with 0");
@@ -48,10 +47,46 @@ contract ValidatorTicketTest is TestHelper {
         assertEq(address(validatorTicket).balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
 
+    function test_bad_amount_purchase() public {
+        uint256 amount = 5.123 ether;
+        vm.deal(address(this), amount);
+        vm.expectRevert(IValidatorTicket.InvalidAmount.selector);
+        validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
+    }
+
+    function test_zero_protocol_fee_rate() public {
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.ProtocolFeeChanged(5 ether, 0);
+        validatorTicket.setProtocolFeeRate(0);
+        vm.stopPrank(); // because this test is reused in other test
+    }
+
+    function test_split_funds_no_protocol_fee_rate() public {
+        test_zero_protocol_fee_rate();
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
+        vm.deal(address(this), amount);
+
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.ETHDispersed(0, 0.1 ether, 19.9 ether);
+        validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
+
+        // 0.5% from 20 ETH is 0.1 ETH
+        assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
+        assertEq(address(validatorTicket).balance, 0, "treasury should get 0 ETH");
+    }
+
+    function test_zero_vt_purchase() public {
+        // No operation tx, nothing happens but doesn't revert
+        validatorTicket.purchaseValidatorTicket{ value: 0 }(address(this));
+    }
+
     function test_overflow_protocol_fee_rate() public {
         vm.startPrank(DAO);
         vm.expectRevert();
-        validatorTicket.setProtocolFeeRate(20 * 1 ether); // should revert because max fee is 18.44% (uint64)
+        validatorTicket.setProtocolFeeRate(type(uint128).max + 5);
     }
 
     function test_change_protocol_fee_rate() public {
@@ -60,7 +95,7 @@ contract ValidatorTicketTest is TestHelper {
         uint256 newFeeRate = 15 * 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorTicket.ProtocolFeeChanged(5 * 1 ether, newFeeRate);
+        emit IValidatorTicket.ProtocolFeeChanged(5 * 1 ether, newFeeRate);
         validatorTicket.setProtocolFeeRate(newFeeRate);
 
         assertEq(validatorTicket.getProtocolFeeRate(), newFeeRate, "updated");
