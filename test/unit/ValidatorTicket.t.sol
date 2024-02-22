@@ -6,6 +6,8 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
+import { PufferOracle } from "puffer/PufferOracle.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 
 contract ValidatorTicketTest is TestHelper {
     using ECDSA for bytes32;
@@ -17,6 +19,12 @@ contract ValidatorTicketTest is TestHelper {
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();
+
+        //@todo Important note:
+        // In this unit tests, we are using the simplified PufferOracle smart contract
+        // ValidatorTicket uses .getValidatorTicketPrice() to get the price of the VT from the oracle
+        // In the initial deployment, the PufferOracle will supply that information
+        pufferOracle = PufferOracleV2(address(new PufferOracle(address(accessManager))));
         _skipDefaultFuzzAddresses();
     }
 
