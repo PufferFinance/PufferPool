@@ -204,6 +204,7 @@ contract PufferModuleTest is TestHelper {
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
