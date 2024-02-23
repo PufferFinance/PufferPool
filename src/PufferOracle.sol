@@ -44,6 +44,7 @@ contract PufferOracle is IPufferOracle, AccessManaged {
      * @notice Updates the price to mint VT
      * @param newPrice The new price to set for minting VT
      * @dev Restricted to the DAO
+     * Reverts if `newPrice` is 0 or > 0.1 ETH
      */
     function setMintPrice(uint256 newPrice) external restricted {
         _setMintPrice(newPrice);

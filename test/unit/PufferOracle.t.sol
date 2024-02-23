@@ -9,6 +9,9 @@ import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IAccessManaged } from "openzeppelin/access/manager/IAccessManaged.sol";
 import { ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 
+/**
+ * @dev Test for the simple PufferOracle smart contract
+ */
 contract PufferOracleTest is TestHelper {
     using Address for address;
     using Address for address payable;

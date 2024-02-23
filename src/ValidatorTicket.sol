@@ -79,7 +79,7 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    function purchaseValidatorTicket(address recipient) external payable restricted {
+    function purchaseValidatorTicket(address recipient) external payable virtual restricted {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
@@ -95,13 +95,13 @@ contract ValidatorTicket is
         // If we are over the burst threshold, keep everything
         // That means that pufETH holders are not getting any new rewards until it goes under the threshold
         if (PUFFER_ORACLE.isOverBurstThreshold()) {
-            // The remainder belongs to PufferVault
+            // Everything goes to the treasury
+            TREASURY.sendValue(msg.value);
+            emit DispersedETH({ treasury: msg.value, guardians: 0, vault: 0 });
             return;
         }
 
-        // Treasury amount is staying in this contract
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
-        // Guardians get the cut right away
         uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
         uint256 vaultAmount = msg.value - (treasuryAmount + guardiansAmount);
         // The remainder belongs to PufferVault
@@ -114,32 +114,34 @@ contract ValidatorTicket is
      * @dev Restricted to the PufferProtocol
      * @dev Signature "0x42966c68"
      */
-    function burn(uint256 amount) external restricted {
+    function burn(uint256 amount) external virtual restricted {
         _burn(msg.sender, amount);
     }
 
     /**
      * @notice Updates the treasury fee
      * @dev Restricted to the DAO
+     * (1e20 = 100%, 1e18 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
      * @param newProtocolFeeRate The new treasury fee rate
      */
-    function setProtocolFeeRate(uint256 newProtocolFeeRate) external restricted {
+    function setProtocolFeeRate(uint256 newProtocolFeeRate) external virtual restricted {
         _setProtocolFeeRate(newProtocolFeeRate);
     }
 
     /**
      * @notice Updates the guardians fee rate
      * @dev Restricted to the DAO
+     * (1e20 = 100%, 1e18 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
      * @param newGuardiansFeeRate The new guardians fee rate
      */
-    function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external restricted {
+    function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external virtual restricted {
         _setGuardiansFeeRate(newGuardiansFeeRate);
     }
 
     /**
      * @inheritdoc IValidatorTicket
      */
-    function getProtocolFeeRate() external view returns (uint256) {
+    function getProtocolFeeRate() external view virtual returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         return $.protocolFeeRate;
     }
@@ -147,16 +149,19 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    function getGuardiansFeeRate() external view returns (uint256) {
+    function getGuardiansFeeRate() external view virtual returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         return $.guardiansFeeRate;
     }
 
     /**
-     * @dev This is for sending ETH to trusted addresses (no reentrancy protection)
+     * @param rate represents the percentage of the amount to send
+     * @dev Calculates the amount to send and sends it to the recipient
+     * (1e20 = 100%, 1e18 = 1%)
+     * This is for sending ETH to trusted addresses (no reentrancy protection)
      * PufferVault, Guardians, Treasury
      */
-    function _sendETH(address to, uint256 amount, uint256 rate) internal returns (uint256 toSend) {
+    function _sendETH(address to, uint256 amount, uint256 rate) internal virtual returns (uint256 toSend) {
         toSend = amount * rate / _ONE_HUNDRED_WAD;
 
         if (toSend != 0) {
@@ -164,26 +169,24 @@ contract ValidatorTicket is
         }
     }
 
-    function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal {
+    function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
         if ($.protocolFeeRate > (10 * 1 ether)) {
             revert InvalidData();
         }
-        uint256 oldProtocolFeeRate = uint256($.protocolFeeRate);
+        emit ProtocolFeeChanged($.protocolFeeRate, newProtocolFeeRate);
         $.protocolFeeRate = SafeCast.toUint128(newProtocolFeeRate);
-        emit ProtocolFeeChanged(oldProtocolFeeRate, newProtocolFeeRate);
     }
 
-    function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal {
+    function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
         if ($.protocolFeeRate > (10 * 1 ether)) {
             revert InvalidData();
         }
-        uint256 oldGuardiansFeeRate = uint256($.guardiansFeeRate);
+        emit GuardiansFeeChanged($.guardiansFeeRate, newGuardiansFeeRate);
         $.guardiansFeeRate = SafeCast.toUint128(newGuardiansFeeRate);
-        emit GuardiansFeeChanged(oldGuardiansFeeRate, newGuardiansFeeRate);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

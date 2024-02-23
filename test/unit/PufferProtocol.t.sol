@@ -235,12 +235,13 @@ contract PufferProtocolTest is TestHelper {
         });
 
         uint256 sc = pufferOracle.getValidatorTicketPrice() * 30;
+        address treasury = validatorTicket.TREASURY();
 
-        uint256 balanceBefore = address(validatorTicket).balance;
+        uint256 balanceBefore = address(treasury).balance;
 
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
-        uint256 balanceAfter = address(validatorTicket).balance;
+        uint256 balanceAfter = address(treasury).balance;
 
         assertEq(balanceAfter, balanceBefore + sc, "treasury gets everything");
     }

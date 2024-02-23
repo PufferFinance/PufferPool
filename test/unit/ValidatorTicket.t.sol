@@ -9,18 +9,19 @@ import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
 import { PufferOracle } from "puffer/PufferOracle.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 
+/**
+ * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
+ */
 contract ValidatorTicketTest is TestHelper {
     using ECDSA for bytes32;
     using Address for address;
     using Address for address payable;
 
-    address rewardsRecipient = makeAddr("rewardsRecipient");
-
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();
 
-        //@todo Important note:
+        //@todo Note:
         // In this unit tests, we are using the simplified PufferOracle smart contract
         // ValidatorTicket uses .getValidatorTicketPrice() to get the price of the VT from the oracle
         // In the initial deployment, the PufferOracle will supply that information
@@ -90,6 +91,8 @@ contract ValidatorTicketTest is TestHelper {
 
     function test_zero_vt_purchase() public {
         // No operation tx, nothing happens but doesn't revert
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.DispersedETH(0, 0, 0);
         validatorTicket.purchaseValidatorTicket{ value: 0 }(address(this));
     }
 
