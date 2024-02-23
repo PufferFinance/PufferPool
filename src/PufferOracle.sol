@@ -45,11 +45,11 @@ contract PufferOracle is IPufferOracle, AccessManaged {
      * @param newPrice The new price to set for minting VT
      * @dev Restricted to the DAO
      */
-    function setMintPrice(uint56 newPrice) external restricted {
+    function setMintPrice(uint256 newPrice) external restricted {
         _setMintPrice(newPrice);
     }
 
-    function _setMintPrice(uint56 newPrice) internal {
+    function _setMintPrice(uint256 newPrice) internal {
         if (newPrice == 0 || newPrice > 0.1 ether) {
             revert InvalidValidatorTicketPrice();
         }
