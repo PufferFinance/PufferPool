@@ -6,8 +6,8 @@ import { DeployGuardians } from "script/DeployGuardians.s.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { DeployPuffETH, PufferDeployment } from "pufETHScript/DeployPuffETH.s.sol";
-import { UpgradePuffETH } from "pufETHScript/UpgradePuffETH.s.sol";
+import { DeployPufETH, PufferDeployment } from "pufETHScript/DeployPufETH.s.sol";
+import { UpgradePufETH } from "pufETHScript/UpgradePufETH.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 
@@ -27,7 +27,7 @@ contract DeployEverything is BaseScript {
         // 1. Deploy pufETH
         // @todo In test environment, we need to deploy pufETH first, in prod, we just do the upgrade
         // AccessManager is part of the pufETH deployment
-        PufferDeployment memory puffETHDeployment = new DeployPuffETH().run();
+        PufferDeployment memory puffETHDeployment = new DeployPufETH().run();
 
         deployment.pufferVault = puffETHDeployment.pufferVault;
         deployment.pufferDepositor = puffETHDeployment.pufferDepositor;
@@ -42,7 +42,7 @@ contract DeployEverything is BaseScript {
             new DeployPufferOracle().run(puffETHDeployment.accessManager, guardiansDeployment.guardianModule);
 
         // 2. Upgrade the vault
-        new UpgradePuffETH().run(puffETHDeployment, pufferOracle);
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle);
 
         PufferProtocolDeployment memory pufferDeployment = new DeployPuffer().run(
             guardiansDeployment, puffETHDeployment.pufferVault, puffETHDeployment.weth, pufferOracle

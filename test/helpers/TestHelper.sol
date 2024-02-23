@@ -90,7 +90,7 @@ contract TestHelper is Test, BaseScript {
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
 
-    // We use the same values in DeployPuffETH.s.sol
+    // We use the same values in DeployPufETH.s.sol
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
     address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
 
