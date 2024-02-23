@@ -13,7 +13,7 @@ import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
-import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import { ROLE_ID_OPERATIONS, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
@@ -98,7 +98,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](3);
 
         bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferVaultMainnet.burn.selector;
+        publicSelectors[0] = PufferVaultV2.burn.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -108,7 +108,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferVaultMainnet.setDailyWithdrawalLimit.selector;
+        daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -118,7 +118,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory protocolSelectors = new bytes4[](1);
-        protocolSelectors[0] = PufferVaultMainnet.transferETH.selector;
+        protocolSelectors[0] = PufferVaultV2.transferETH.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

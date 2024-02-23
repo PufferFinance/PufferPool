@@ -18,7 +18,7 @@ import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
-import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
@@ -71,7 +71,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    PufferVaultMainnet public immutable override PUFFER_VAULT;
+    PufferVaultV2 public immutable override PUFFER_VAULT;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -84,14 +84,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     IPufferOracleV2 public immutable override PUFFER_ORACLE;
 
     constructor(
-        PufferVaultMainnet pufferVault,
+        PufferVaultV2 pufferVault,
         IGuardianModule guardianModule,
         address moduleFactory,
         ValidatorTicket validatorTicket,
         IPufferOracleV2 oracle
     ) {
         GUARDIAN_MODULE = guardianModule;
-        PUFFER_VAULT = PufferVaultMainnet(payable(address(pufferVault)));
+        PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
         PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;

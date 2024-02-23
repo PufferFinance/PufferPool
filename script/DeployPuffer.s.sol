@@ -16,7 +16,7 @@ import { BeaconMock } from "../test/mocks/BeaconMock.sol";
 import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
@@ -115,7 +115,7 @@ contract DeployPuffer is BaseScript {
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
-                pufferVault: PufferVaultMainnet(payable(pufferVault)),
+                pufferVault: PufferVaultV2(payable(pufferVault)),
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleFactory: address(moduleFactory),
