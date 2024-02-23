@@ -6,17 +6,26 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
+import { PufferOracle } from "puffer/PufferOracle.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 
+/**
+ * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
+ */
 contract ValidatorTicketTest is TestHelper {
     using ECDSA for bytes32;
     using Address for address;
     using Address for address payable;
 
-    address rewardsRecipient = makeAddr("rewardsRecipient");
-
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();
+
+        //@todo Note:
+        // In this unit tests, we are using the simplified PufferOracle smart contract
+        // ValidatorTicket uses .getValidatorTicketPrice() to get the price of the VT from the oracle
+        // In the initial deployment, the PufferOracle will supply that information
+        pufferOracle = PufferOracleV2(address(new PufferOracle(address(accessManager))));
         _skipDefaultFuzzAddresses();
     }
 
@@ -35,8 +44,10 @@ contract ValidatorTicketTest is TestHelper {
         uint256 amount = vtPrice * 2000; // 20000 VTs is 20 ETH
         vm.deal(address(this), amount);
 
+        address treasury = validatorTicket.TREASURY();
+
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
-        assertEq(address(validatorTicket).balance, 0, "treasury balance should start with 0");
+        assertEq(treasury.balance, 0, "treasury balance should start with 0");
         assertEq(address(guardianModule).balance, 0, "guardian balance should start with 0");
 
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
@@ -44,7 +55,7 @@ contract ValidatorTicketTest is TestHelper {
         // 0.5% from 20 ETH is 0.1 ETH
         assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
         // 5% from 20 ETH is 1 ETH
-        assertEq(address(validatorTicket).balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
+        assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
 
     function test_bad_amount_purchase() public {
@@ -70,7 +81,7 @@ contract ValidatorTicketTest is TestHelper {
         vm.deal(address(this), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.ETHDispersed(0, 0.1 ether, 19.9 ether);
+        emit IValidatorTicket.DispersedETH(0, 0.1 ether, 19.9 ether);
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
@@ -80,6 +91,8 @@ contract ValidatorTicketTest is TestHelper {
 
     function test_zero_vt_purchase() public {
         // No operation tx, nothing happens but doesn't revert
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.DispersedETH(0, 0, 0);
         validatorTicket.purchaseValidatorTicket{ value: 0 }(address(this));
     }
 

@@ -28,9 +28,9 @@ interface IValidatorTicket {
 
     /**
      * @notice Emitted when the ETH is split between treasury, guardians and vault
-     * @dev Signature "0x4a9f525eebbeabf0193aaf59242e4c344382ebbcf217d5ff3d589f653dfd0be4"
+     * @dev Signature "0x8476c087a9e2adf34e598e2ef90747a2824cf1bd88e16bdb0ef56d5d6bddff27"
      */
-    event ETHDispersed(uint256 treasury, uint256 guardians, uint256 vault);
+    event DispersedETH(uint256 treasury, uint256 guardians, uint256 vault);
 
     /**
      * @notice Emitted when the protocol fee rate is changed
@@ -61,6 +61,11 @@ interface IValidatorTicket {
      * @notice Returns the Puffer Vault (pufETH)
      */
     function PUFFER_VAULT() external view returns (address payable);
+
+    /**
+     * @notice Returns the Treasury
+     */
+    function TREASURY() external view returns (address payable);
 
     /**
      * @notice Returns the GuardianModule

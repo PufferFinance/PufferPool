@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Test.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferOracle } from "puffer/PufferOracle.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
@@ -18,7 +18,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferVault } from "pufETH/PufferVault.sol";
-import { PufferVaultMainnet } from "pufETH/PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
@@ -71,7 +71,7 @@ contract TestHelper is Test, BaseScript {
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
 
     PufferDepositor public pufferDepositor;
-    PufferVaultMainnet public pufferVault;
+    PufferVaultV2 public pufferVault;
     stETHMock public stETH;
     IWETH public weth;
 
@@ -79,7 +79,7 @@ contract TestHelper is Test, BaseScript {
     UpgradeableBeacon public beacon;
     PufferModuleFactory public moduleFactory;
     ValidatorTicket public validatorTicket;
-    PufferOracle public pufferOracle;
+    PufferOracleV2 public pufferOracle;
 
     GuardianModule public guardianModule;
 
@@ -90,7 +90,7 @@ contract TestHelper is Test, BaseScript {
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
 
-    // We use the same values in DeployPuffETH.s.sol
+    // We use the same values in DeployPufETH.s.sol
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
     address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
 
@@ -158,10 +158,10 @@ contract TestHelper is Test, BaseScript {
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
-        pufferOracle = PufferOracle(pufferDeployment.pufferOracle);
+        pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
 
         // pufETH dependencies
-        pufferVault = PufferVaultMainnet(payable(pufferDeployment.pufferVault));
+        pufferVault = PufferVaultV2(payable(pufferDeployment.pufferVault));
         pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));
         stETH = stETHMock(payable(pufferDeployment.stETH));
         weth = IWETH(payable(pufferDeployment.weth));
@@ -263,7 +263,7 @@ contract TestHelper is Test, BaseScript {
         accessManager.grantRole(protocolRoleId, address(pufferProtocol), 0);
 
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferVaultMainnet.transferETH.selector;
+        selectors[0] = PufferVaultV2.transferETH.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
         vm.stopPrank();
 
