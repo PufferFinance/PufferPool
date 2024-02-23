@@ -35,7 +35,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
 
-        bytes[] memory calldatas = new bytes[](17);
+        bytes[] memory calldatas = new bytes[](18);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -55,9 +55,10 @@ contract SetupAccess is BaseScript {
 
         calldatas[13] = vaultMainnetAccess[0];
         calldatas[14] = vaultMainnetAccess[1];
+        calldatas[15] = vaultMainnetAccess[2];
 
-        calldatas[15] = pufferOracleAccess[0];
-        calldatas[16] = pufferOracleAccess[1];
+        calldatas[16] = pufferOracleAccess[0];
+        calldatas[17] = pufferOracleAccess[1];
 
         accessManager.multicall(calldatas);
 
