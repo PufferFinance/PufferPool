@@ -30,7 +30,7 @@ mkdir -p holesky-ABIs
 cp output/puffer.json holesky-ABIs/addresses.json
 forge inspect PufferProtocol abi > holesky-ABIs/PufferProtocol.json
 forge inspect GuardianModule abi > holesky-ABIs/GuardianModule.json
-forge inspect PufferVaultMainnet abi > holesky-ABIs/PufferVault.json
+forge inspect PufferVaultV2 abi > holesky-ABIs/PufferVaultV2.json
 forge inspect ValidatorTicket abi > holesky-ABIs/ValidatorTicket.json
 forge inspect PufferOracle abi > holesky-ABIs/PufferOracle.json
 forge inspect NoRestakingModule abi > holesky-ABIs/NoRestakingModule.json

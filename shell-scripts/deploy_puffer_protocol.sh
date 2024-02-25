@@ -32,7 +32,7 @@ mkdir -p anvil-ABIs
 cp output/puffer.json anvil-ABIs/addresses.json
 forge inspect PufferProtocol abi > anvil-ABIs/PufferProtocol.json
 forge inspect GuardianModule abi > anvil-ABIs/GuardianModule.json
-forge inspect PufferVaultMainnet abi > anvil-ABIs/PufferVault.json
+forge inspect PufferVaultV2 abi > anvil-ABIs/PufferVault.json
 forge inspect ValidatorTicket abi > anvil-ABIs/ValidatorTicket.json
 forge inspect PufferOracle abi > anvil-ABIs/PufferOracle.json
 forge inspect NoRestakingModule abi > anvil-ABIs/NoRestakingModule.json
