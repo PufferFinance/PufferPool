@@ -548,7 +548,9 @@ contract PufferProtocolTest is TestHelper {
 
         // PufferProtocol should hold pufETH (bond for 3 validators)
         assertGt(
-            (pufferVault.maxWithdraw(address(pufferProtocol))), 3 ether, "> 3 worth of ETH in pufETH in the protocol"
+            (pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol)))),
+            3 ether,
+            "> 3 worth of ETH in pufETH in the protocol"
         );
 
         // Provision validators
@@ -596,7 +598,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Alice receives the bond + the reward
         assertGt(
-            pufferVault.maxWithdraw(alice),
+            pufferVault.convertToAssets((pufferVault.balanceOf(alice))),
             1 ether,
             "alice received back the bond in pufETH which is worth more than she deposited"
         );
@@ -793,7 +795,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
         // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.previewRedeem(pufferVault.balanceOf(alice)), 1 ether, 1, "1 pufETH before for alice"
+            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, 1, "1 pufETH before for alice"
         );
         assertEq(validatorTicket.balanceOf(alice), _upscaleTo18Decimals(numberOfDays), "VT before for alice");
 
@@ -818,7 +820,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
         // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.previewRedeem(pufferVault.balanceOf(address(pufferProtocol))), bond, 1, "1 pufETH after"
+            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))), bond, 1, "1 pufETH after"
         );
     }
 
@@ -928,15 +930,11 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
-        // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.previewRedeem(pufferVault.balanceOf(address(pufferProtocol))),
+            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
             1 ether,
             1,
             "~1 pufETH in protocol"
-        );
-        assertApproxEqAbs(
-            pufferVault.maxWithdraw(address(pufferProtocol)), 1 ether, 1, "~1 pufETH in protocol maxRedeem"
         );
 
         Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
@@ -974,9 +972,9 @@ contract PufferProtocolTest is TestHelper {
 
         // Alice got the pufETH
         assertGt(pufferVault.balanceOf(alice), 0.9 ether, "alice got the pufETH");
-        assertApproxEqAbs(pufferVault.maxWithdraw(alice), 1 ether, 1, "max redeem for alice");
+        // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.previewRedeem(pufferVault.balanceOf(address(alice))), 1 ether, 1, "alice got back ~1 eth"
+            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, 1, "assets owned by alice"
         );
 
         bytes32[] memory proof2 = fullWithdrawalsMerkleProof.getProof(fullWithdrawalMerkleProofData, 1);

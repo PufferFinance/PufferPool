@@ -63,9 +63,7 @@ contract SetupAccess is BaseScript {
         accessManager.multicall(calldatas);
 
         // This will be executed by the operations multisig on mainnet
-        bytes memory cd = new GenerateAccessManagerCallData().run(
-            deployment.pufferVault, deployment.pufferDepositor, deployment.pufferProtocol
-        );
+        bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
