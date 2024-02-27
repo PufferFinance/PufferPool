@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
-import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 
 /**

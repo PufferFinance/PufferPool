@@ -1520,9 +1520,30 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(bytes32("alice")), 0), _validatorSignature(), 0);
+        uint256 startTimestamp = 1707411226;
+        vm.warp(startTimestamp);
+        pufferProtocol.provisionNode(
+            _getGuardianSignatures(_getPubKey(bytes32("alice")), 1 ether), _validatorSignature(), 1 ether
+        );
+        // 1 day offset + 5 days of validating
+        vm.warp(startTimestamp + 6 days);
+
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 25 ether, pointZeroZeroOne, "alice should have ~25 VTS"
+        );
+
+        // + 30 VT
+        _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
+
+        // 1 day offset + 10 days validating
+        vm.warp(startTimestamp + 11 days);
 
         pufferProtocol.skipProvisioning(NO_RESTAKING, _getGuardianSignaturesForSkipping());
+
+        // 2x 30VT for registering - 10 days of validating - 10 days penalty
+        assertApproxEqRel(
+            pufferProtocol.getValidatorTicketsBalance(alice), 40 ether, pointZeroZeroOne, "alice should have ~40 VTS"
+        );
     }
 
     function test_new_vtPenalty_works() public {
