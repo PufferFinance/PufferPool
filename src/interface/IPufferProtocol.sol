@@ -111,6 +111,12 @@ interface IPufferProtocol {
     event MinimumVTAmountChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
 
     /**
+     * @notice Emitted when the VT Penalty amount is changed from `oldPenalty` to `newPenalty`
+     * @dev Signature "0xfceca97b5d1d1164f9a15e42f38eaf4a6e760d8505f06161a258d4bf21cc4ee7"
+     */
+    event VTPenaltyChanged(uint256 oldPenalty, uint256 newPenalty);
+
+    /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
      * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
      */
@@ -204,6 +210,13 @@ interface IPufferProtocol {
     function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
 
     /**
+     * @notice Returns Penalty for submitting a bad validator registration
+     * @dev If the guardians skip a validator, the node operator will be penalized
+     * /// todo write any possible reasons for skipping a validator, here and in skipValidator method
+     */
+    function getVTPenalty() external view returns (uint256);
+
+    /**
      * @notice Returns the node operator information
      * @param node is the node operator address
      * @return NodeInfo struct
@@ -248,6 +261,12 @@ interface IPufferProtocol {
      * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
+
+    /**
+     * @notice Sets the Validator Ticket penalty amount to `newPenaltyAmount`
+     * @dev Restricted to the DAO
+     */
+    function setVTPenalty(uint256 newPenaltyAmount) external;
 
     /**
      * @notice Changes the `moduleName` with `newModule`
@@ -326,7 +345,7 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns the array of Puffer validators
-     * @dev OFF-CHAIN function
+     * @dev This is meant for OFF-CHAIN use, as it can be very expensive to call
      */
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory);
 

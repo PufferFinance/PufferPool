@@ -105,7 +105,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         weights[0] = _NO_RESTAKING;
         _setModuleWeights(weights);
         _changeModule(_NO_RESTAKING, IPufferModule(noRestakingModule));
-        _changeMinimumVTAmount(28 ether); // 28 days
+        _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
+        _setVTPenalty(10 ether); // 10 Validator Tickets
     }
 
     /**
@@ -384,6 +385,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
+        // Prevent double posting of the same root
+        if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
+            revert InvalidData();
+        }
+
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validatePostFullWithdrawalsRoot({
             root: root,
@@ -422,6 +428,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Initially it is restricted to the DAO
      */
     function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
         external
@@ -433,6 +440,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external restricted {
         _setModuleWeights(newModuleWeights);
@@ -440,9 +448,26 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
         _setValidatorLimitPerModule(moduleName, limit);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to the DAO
+     */
+    function setVTPenalty(uint256 newPenaltyAmount) external restricted {
+        _setVTPenalty(newPenaltyAmount);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getVTPenalty() external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.vtPenalty;
     }
 
     /**
@@ -458,6 +483,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev This is meant for OFF-CHAIN use, as it can be very expensive to call
      */
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -652,6 +678,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
 
+    function _setVTPenalty(uint256 newPenaltyAmount) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        emit VTPenaltyChanged($.vtPenalty, newPenaltyAmount);
+        $.vtPenalty = newPenaltyAmount;
+    }
+
     function _setModuleWeights(bytes32[] memory newModuleWeights) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         emit ModuleWeightsChanged($.moduleWeights, newModuleWeights);
@@ -754,15 +786,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
-    function _penalizeNodeOperator(address node) internal {
-        // Burn 10 days of VT's from the node
-        VALIDATOR_TICKET.burn(10 ether);
-
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.nodeOperatorInfo[node].vtBalance -= 10 ether;
-        --$.nodeOperatorInfo[node].pendingValidatorCount;
-    }
-
     /**
      * @dev When the node operator registers a new validator, the VT balance is updated
      * Because the entry queue varies, the guardians will credit node operator with the virtual VT's.
@@ -860,6 +883,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.nodeOperatorInfo[node].virtualVTBalance = 0;
         VALIDATOR_TICKET.burn(toBurn);
         return toBurn;
+    }
+
+    function _penalizeNodeOperator(address node) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        VALIDATOR_TICKET.burn($.vtPenalty);
+
+        $.nodeOperatorInfo[node].vtBalance -= SafeCast.toUint96($.vtPenalty);
+        --$.nodeOperatorInfo[node].pendingValidatorCount;
+
+        _updateVTBalance($, node, 0);
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {

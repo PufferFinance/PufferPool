@@ -71,6 +71,12 @@ struct ProtocolStorage {
      * Slot 10
      */
     uint256 minimumVtAmount;
+    /**
+     * @dev Amount of VT tokens to burn for a validator penalty
+     * 1 VT = 1e18
+     * Slot 10
+     */
+    uint256 vtPenalty;
 }
 
 struct ModuleLimit {
