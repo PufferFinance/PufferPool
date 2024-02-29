@@ -104,13 +104,13 @@ contract GuardianModuleTest is TestHelper {
     }
 
     // Invalid signature reverts with unauthorized
-    function testPostWithdrawalsRootReverts(address[] calldata modules, uint256[] calldata amounts) public {
+    function testPostWithdrawalsRootReverts() public {
         (, uint256 bobSK) = makeAddrAndKey("bob");
         bytes[] memory guardianSignatures = new bytes[](3);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
         guardianSignatures[0] = abi.encodePacked(r, s, v);
         vm.expectRevert(Unauthorized.selector);
-        guardianModule.validatePostFullWithdrawalsRoot(bytes32("root"), 100, modules, amounts, guardianSignatures);
+        guardianModule.validatePostFullWithdrawalsRoot(bytes32("root"), 100, guardianSignatures);
     }
 
     function testSplitFundsRounding() external {
