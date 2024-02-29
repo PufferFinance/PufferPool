@@ -5,3 +5,6 @@ simulation/
 .env
 .vscode
 .DS_Store
+kurtosis-ABIs/
+anvil-ABIs/
+
