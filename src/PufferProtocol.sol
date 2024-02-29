@@ -379,6 +379,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidData();
         }
 
+        // Prevent double posting of the same root
+        if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
+            revert InvalidData();
+        }
+
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validatePostFullWithdrawalsRoot({
             root: root,
