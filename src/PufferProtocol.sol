@@ -286,6 +286,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                                 validatorInfo.moduleName,
                                 validatorInfo.validatorIndex,
                                 validatorInfo.withdrawalAmount,
+                                validatorInfo.validatorStopTimestamp,
                                 validatorInfo.wasSlashed
                             )
                         )

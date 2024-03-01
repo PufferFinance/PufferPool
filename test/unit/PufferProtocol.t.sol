@@ -512,7 +512,7 @@ contract PufferProtocolTest is TestHelper {
 
     function test_claim_bond() public {
         // In our test case, we are posting roots and simulating a full withdrawal before the validator registration
-        _setupMerkleRoot();
+        _setupMerkleRoot(1);
 
         // For us to test the withdrawal from the node operator, we must register and provision that validator
         // In our case we have 2 validators NO_RESTAKING and EIGEN_DA
@@ -560,7 +560,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 150,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
@@ -574,7 +574,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         // Valid proof
@@ -602,7 +602,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31 ether,
             wasSlashed: true,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: bobProof });
@@ -618,7 +618,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31.6 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: charlieProof });
@@ -911,7 +911,9 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_claim_bond_for_single_withdrawal() external {
-        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether);
+        uint256 startTimestamp = 1707411226;
+
+        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether, (startTimestamp + 16 days));
 
         vm.deal(alice, 2 ether);
 
@@ -928,8 +930,6 @@ contract PufferProtocolTest is TestHelper {
         Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
         assertEq(validator.bond, pufferVault.balanceOf(address(pufferProtocol)), "alice bond is in the protocol");
-
-        uint256 startTimestamp = 1707411226;
 
         vm.warp(startTimestamp);
 
@@ -1297,7 +1297,8 @@ contract PufferProtocolTest is TestHelper {
 
     // Alice has two validators, stops one, registers and provisions another one, and after some time claims the bond for the stopped
     function test_stop_validator_provision_another_claim_bond_for_the_first() public {
-        _setupMerkleRoot();
+        uint256 startFirstValidatorTimestamp = 1707411226;
+        _setupMerkleRoot(startFirstValidatorTimestamp + 6 days);
 
         vm.deal(alice, 10 ether);
 
@@ -1306,8 +1307,6 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-
-        uint256 startFirstValidatorTimestamp = 1707411226;
 
         vm.warp(startFirstValidatorTimestamp);
 
@@ -1588,7 +1587,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_double_flushing() public {
-        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether);
+        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether, 1);
 
         address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
 
@@ -1607,9 +1606,21 @@ contract PufferProtocolTest is TestHelper {
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](2);
         // Generate a normal proof
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: 1
+        });
         // Generate a zero proof for the same validator index
-        validatorExits[1] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: 1
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         bytes[] memory signatures =
@@ -1727,7 +1738,11 @@ contract PufferProtocolTest is TestHelper {
         return bytes.concat(abi.encodePacked(pubKeyPart), bytes16(""));
     }
 
-    function _singleWithdrawalMerkleRoot(uint256 startingPoolBalance, uint256 expectedEndPoolBalance) public {
+    function _singleWithdrawalMerkleRoot(
+        uint256 startingPoolBalance,
+        uint256 expectedEndPoolBalance,
+        uint256 validatorStopTimestamp
+    ) public {
         address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
 
         // We are simulating 1 full withdrawals
@@ -1745,9 +1760,21 @@ contract PufferProtocolTest is TestHelper {
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](2);
         // Generate a normal proof
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         // Generate a zero proof for the same validator index
-        validatorExits[1] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools
@@ -1779,7 +1806,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     // Sets the merkle root and makes sure that the funds get returned to the pool ASAP
-    function _setupMerkleRoot() public {
+    function _setupMerkleRoot(uint256 validatorStopTimestamp) public {
         // Create EIGEN_DA module
         pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
         pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
@@ -1823,9 +1850,27 @@ contract PufferProtocolTest is TestHelper {
         amounts[1] = 31 ether; // got slashed
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](3);
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
-        validatorExits[1] = MerkleProofData({ moduleName: EIGEN_DA, index: 0, amount: 31 ether, wasSlashed: 1 });
-        validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: 31.6 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
+        validatorExits[1] = MerkleProofData({
+            moduleName: EIGEN_DA,
+            index: 0,
+            amount: 31 ether,
+            wasSlashed: 1,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
+        validatorExits[2] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 1,
+            amount: 31.6 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         Reserves memory reserves = Reserves({
@@ -1880,6 +1925,7 @@ contract PufferProtocolTest is TestHelper {
                             validatorData.moduleName,
                             validatorData.index,
                             validatorData.amount,
+                            validatorData.validatorStopTimestamp,
                             validatorData.wasSlashed
                         )
                     )
@@ -1921,5 +1967,6 @@ struct MerkleProofData {
     bytes32 moduleName;
     uint256 index;
     uint256 amount;
+    uint256 validatorStopTimestamp;
     uint8 wasSlashed;
 }
