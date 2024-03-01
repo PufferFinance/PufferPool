@@ -12,12 +12,13 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
-import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
+import { ROLE_ID_PUFFER_ORACLE, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
+import { Reserves } from "puffer/struct/Reserves.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -180,58 +181,45 @@ contract PufferProtocolTest is TestHelper {
     function test_proof_of_reserve() external {
         vm.roll(50401);
 
-        pufferOracle.proofOfReserve({
+        Reserves memory reserves = Reserves({
             newLockedETH: 32 ether,
             blockNumber: 50401,
             numberOfActivePufferValidators: 10,
-            totalNumberOfValidators: 1000,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages._getProofOfReserveMessage({
-                    lockedETH: 32 ether,
-                    blockNumber: 50401,
-                    numberOfActivePufferValidators: 10,
-                    totalNumberOfValidators: 1000
-                })
-                )
+            totalNumberOfValidators: 1000
         });
 
-        bytes[] memory signatures2 = _getGuardianEOASignatures(
-            LibGuardianMessages._getProofOfReserveMessage({
-                lockedETH: 0,
-                blockNumber: 50401,
-                numberOfActivePufferValidators: 10,
-                totalNumberOfValidators: 1000
-            })
-        );
-
-        // Second update should revert as it has not passed enough time between two updates
-        vm.expectRevert(IPufferOracleV2.OutsideUpdateWindow.selector);
         pufferOracle.proofOfReserve({
-            newLockedETH: 0,
-            blockNumber: 50401,
-            numberOfActivePufferValidators: 10,
-            totalNumberOfValidators: 1000,
-            guardianSignatures: signatures2
+            reserves: reserves,
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages._getProofOfReserveMessage(reserves, new address[](0), new uint256[](0))
+                ),
+            modules: new address[](0),
+            amounts: new uint256[](0)
         });
     }
 
     function test_burst_threshold() external {
         vm.roll(50401);
 
-        // Update the reserves and make it so that the next validator is over threshold
-        pufferOracle.proofOfReserve({
+        Reserves memory reserves = Reserves({
             newLockedETH: 32 ether,
             blockNumber: 50401,
             numberOfActivePufferValidators: 10,
-            totalNumberOfValidators: 10,
+            totalNumberOfValidators: 10
+        });
+
+        // Update the reserves and make it so that the next validator is over threshold
+        pufferOracle.proofOfReserve({
+            reserves: reserves,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages._getProofOfReserveMessage({
-                    lockedETH: 32 ether,
-                    blockNumber: 50401,
-                    numberOfActivePufferValidators: 10,
-                    totalNumberOfValidators: 10
+                    reserves: reserves,
+                    modules: new address[](0),
+                    amounts: new uint256[](0)
                 })
-                )
+                ),
+            modules: new address[](0),
+            amounts: new uint256[](0)
         });
 
         uint256 sc = pufferOracle.getValidatorTicketPrice() * 30;
@@ -524,7 +512,7 @@ contract PufferProtocolTest is TestHelper {
 
     function test_claim_bond() public {
         // In our test case, we are posting roots and simulating a full withdrawal before the validator registration
-        _setupMerkleRoot();
+        _setupMerkleRoot(1);
 
         // For us to test the withdrawal from the node operator, we must register and provision that validator
         // In our case we have 2 validators NO_RESTAKING and EIGEN_DA
@@ -565,7 +553,6 @@ contract PufferProtocolTest is TestHelper {
         // Now the node operators submit proofs to get back their bond
         vm.startPrank(alice);
         // Invalid block number = invalid proof
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
 
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
@@ -573,9 +560,10 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 150,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
+        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidMerkleProof.selector));
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: aliceProof });
 
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
@@ -586,7 +574,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 32 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         // Valid proof
@@ -614,7 +602,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31 ether,
             wasSlashed: true,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: bobProof });
@@ -630,7 +618,7 @@ contract PufferProtocolTest is TestHelper {
             blockNumber: 100,
             withdrawalAmount: 31.6 ether,
             wasSlashed: false,
-            validatorStopTimestamp: block.timestamp
+            validatorStopTimestamp: 1
         });
 
         pufferProtocol.retrieveBond({ validatorInfo: validatorInfo, merkleProof: charlieProof });
@@ -923,7 +911,9 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_claim_bond_for_single_withdrawal() external {
-        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether);
+        uint256 startTimestamp = 1707411226;
+
+        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether, (startTimestamp + 16 days));
 
         vm.deal(alice, 2 ether);
 
@@ -940,8 +930,6 @@ contract PufferProtocolTest is TestHelper {
         Validator memory validator = pufferProtocol.getValidatorInfo(NO_RESTAKING, 0);
 
         assertEq(validator.bond, pufferVault.balanceOf(address(pufferProtocol)), "alice bond is in the protocol");
-
-        uint256 startTimestamp = 1707411226;
 
         vm.warp(startTimestamp);
 
@@ -1309,7 +1297,8 @@ contract PufferProtocolTest is TestHelper {
 
     // Alice has two validators, stops one, registers and provisions another one, and after some time claims the bond for the stopped
     function test_stop_validator_provision_another_claim_bond_for_the_first() public {
-        _setupMerkleRoot();
+        uint256 startFirstValidatorTimestamp = 1707411226;
+        _setupMerkleRoot(startFirstValidatorTimestamp + 6 days);
 
         vm.deal(alice, 10 ether);
 
@@ -1318,8 +1307,6 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
-
-        uint256 startFirstValidatorTimestamp = 1707411226;
 
         vm.warp(startFirstValidatorTimestamp);
 
@@ -1600,7 +1587,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_double_flushing() public {
-        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether);
+        _singleWithdrawalMerkleRoot(1000 ether, 1032 ether, 1);
 
         address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
 
@@ -1619,23 +1606,28 @@ contract PufferProtocolTest is TestHelper {
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](2);
         // Generate a normal proof
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: 1
+        });
         // Generate a zero proof for the same validator index
-        validatorExits[1] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: 1
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
-        bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 200, modules, amounts)
-        );
+        bytes[] memory signatures =
+            _getGuardianEOASignatures(LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 200));
 
         vm.expectRevert(IPufferProtocol.InvalidData.selector);
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: 200,
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: signatures
-        });
+        pufferProtocol.postFullWithdrawalsRoot({ root: merkleRoot, blockNumber: 200, guardianSignatures: signatures });
     }
 
     function _getGuardianSignatures(bytes memory pubKey, uint256 vtBurnOffset) internal view returns (bytes[] memory) {
@@ -1746,7 +1738,11 @@ contract PufferProtocolTest is TestHelper {
         return bytes.concat(abi.encodePacked(pubKeyPart), bytes16(""));
     }
 
-    function _singleWithdrawalMerkleRoot(uint256 startingPoolBalance, uint256 expectedEndPoolBalance) public {
+    function _singleWithdrawalMerkleRoot(
+        uint256 startingPoolBalance,
+        uint256 expectedEndPoolBalance,
+        uint256 validatorStopTimestamp
+    ) public {
         address NoRestakingModule = pufferProtocol.getModuleAddress(NO_RESTAKING);
 
         // We are simulating 1 full withdrawals
@@ -1764,32 +1760,53 @@ contract PufferProtocolTest is TestHelper {
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](2);
         // Generate a normal proof
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         // Generate a zero proof for the same validator index
-        validatorExits[1] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
+        validatorExits[1] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
         // Assert starting state of the pools
         assertEq(address(pufferVault).balance, startingPoolBalance, "starting pool balance");
 
-        bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 200, modules, amounts)
-        );
+        bytes[] memory signatures =
+            _getGuardianEOASignatures(LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 200));
 
-        // Submit a valid proof
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: 200,
+        Reserves memory reserves = Reserves({
+            newLockedETH: 0,
+            blockNumber: 50401,
+            numberOfActivePufferValidators: 10,
+            totalNumberOfValidators: 1000
+        });
+
+        pufferOracle.proofOfReserve({
+            reserves: reserves,
             modules: modules,
             amounts: amounts,
-            guardianSignatures: signatures
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts)
+                )
         });
+
+        // Submit a valid proof
+        pufferProtocol.postFullWithdrawalsRoot({ root: merkleRoot, blockNumber: 200, guardianSignatures: signatures });
 
         assertEq(address(pufferVault).balance, expectedEndPoolBalance, "pool balance");
     }
 
     // Sets the merkle root and makes sure that the funds get returned to the pool ASAP
-    function _setupMerkleRoot() public {
+    function _setupMerkleRoot(uint256 validatorStopTimestamp) public {
         // Create EIGEN_DA module
         pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
         pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
@@ -1810,8 +1827,8 @@ contract PufferProtocolTest is TestHelper {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = IPufferModule.call.selector;
         vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(NoRestakingModule, selectors, ROLE_ID_PUFFER_PROTOCOL);
-        accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_PROTOCOL);
+        accessManager.setTargetFunctionRole(NoRestakingModule, selectors, ROLE_ID_PUFFER_ORACLE);
+        accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_ORACLE);
         vm.stopPrank();
 
         // We are simulating 3 full withdrawals
@@ -1833,33 +1850,62 @@ contract PufferProtocolTest is TestHelper {
         amounts[1] = 31 ether; // got slashed
 
         MerkleProofData[] memory validatorExits = new MerkleProofData[](3);
-        validatorExits[0] = MerkleProofData({ moduleName: NO_RESTAKING, index: 0, amount: 32 ether, wasSlashed: 0 });
-        validatorExits[1] = MerkleProofData({ moduleName: EIGEN_DA, index: 0, amount: 31 ether, wasSlashed: 1 });
-        validatorExits[2] = MerkleProofData({ moduleName: NO_RESTAKING, index: 1, amount: 31.6 ether, wasSlashed: 0 });
+        validatorExits[0] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 0,
+            amount: 32 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
+        validatorExits[1] = MerkleProofData({
+            moduleName: EIGEN_DA,
+            index: 0,
+            amount: 31 ether,
+            wasSlashed: 1,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
+        validatorExits[2] = MerkleProofData({
+            moduleName: NO_RESTAKING,
+            index: 1,
+            amount: 31.6 ether,
+            wasSlashed: 0,
+            validatorStopTimestamp: validatorStopTimestamp
+        });
         bytes32 merkleRoot = _buildMerkleProof(validatorExits);
 
-        bytes[] memory signatures = _getGuardianEOASignatures(
-            LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 100, modules, amounts)
-        );
+        Reserves memory reserves = Reserves({
+            newLockedETH: 32 ether,
+            blockNumber: 50401,
+            numberOfActivePufferValidators: 10,
+            totalNumberOfValidators: 1000
+        });
 
         // modules.length and amounts.length don't match
-        vm.expectRevert(IPufferProtocol.InvalidData.selector);
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: 100,
-            modules: new address[](5), // lengths don't match
-            amounts: amounts,
-            guardianSignatures: signatures
+        vm.expectRevert(IPufferOracleV2.InvalidOracleUpdate.selector);
+        pufferOracle.proofOfReserve({
+            reserves: reserves,
+            modules: modules,
+            amounts: new uint256[](3),
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages._getProofOfReserveMessage(reserves, modules, new uint256[](0))
+                )
         });
 
-        // Submit a valid proof
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: 100,
+        // Valid oracle update
+        pufferOracle.proofOfReserve({
+            reserves: reserves,
             modules: modules,
             amounts: amounts,
-            guardianSignatures: signatures
+            guardianSignatures: _getGuardianEOASignatures(
+                LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts)
+                )
         });
+
+        bytes[] memory signatures =
+            _getGuardianEOASignatures(LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, 100));
+
+        // Submit a valid proof
+        pufferProtocol.postFullWithdrawalsRoot({ root: merkleRoot, blockNumber: 100, guardianSignatures: signatures });
 
         // Total withdrawal eth is 32 + 31 + 31.6 = 94.6 and the vault has starting balance of 1000 ETH
         assertEq(address(pufferVault).balance, 1094.6 ether, "ending pool balance");
@@ -1879,6 +1925,7 @@ contract PufferProtocolTest is TestHelper {
                             validatorData.moduleName,
                             validatorData.index,
                             validatorData.amount,
+                            validatorData.validatorStopTimestamp,
                             validatorData.wasSlashed
                         )
                     )
@@ -1920,5 +1967,6 @@ struct MerkleProofData {
     bytes32 moduleName;
     uint256 index;
     uint256 amount;
+    uint256 validatorStopTimestamp;
     uint8 wasSlashed;
 }

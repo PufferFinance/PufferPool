@@ -131,13 +131,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _disableInitializers();
     }
 
-    modifier onlyPufferProtocol() {
-        if (msg.sender != address(PUFFER_PROTOCOL)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
     function initialize(
         bytes32 moduleName,
         address initialAuthority,
@@ -158,11 +151,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @inheritdoc IPufferModule
      */
-    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        external
-        payable
-        onlyPufferProtocol
-    {
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable {
+        if (msg.sender != address(PUFFER_PROTOCOL)) {
+            revert Unauthorized();
+        }
         // EigenPod is deployed in this call
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
@@ -197,11 +189,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         return address($.eigenPod);
     }
 
-    function call(address to, uint256 amount, bytes calldata data)
-        external
-        onlyPufferProtocol
-        returns (bool success, bytes memory)
-    {
+    function call(address to, uint256 amount, bytes calldata data) external returns (bool success, bytes memory) {
+        if (msg.sender != address(PUFFER_PROTOCOL.PUFFER_ORACLE())) {
+            revert Unauthorized();
+        }
         // slither-disable-next-line arbitrary-send-eth
         return to.call{ value: amount }(data);
     }

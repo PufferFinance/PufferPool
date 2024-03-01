@@ -38,8 +38,9 @@ contract DeployEverything is BaseScript {
         GuardiansDeployment memory guardiansDeployment =
             new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
 
-        address pufferOracle =
-            new DeployPufferOracle().run(puffETHDeployment.accessManager, guardiansDeployment.guardianModule);
+        address pufferOracle = new DeployPufferOracle().run(
+            puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
+        );
 
         // 2. Upgrade the vault
         new UpgradePufETH().run(puffETHDeployment, pufferOracle);

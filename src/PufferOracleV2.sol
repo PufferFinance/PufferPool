@@ -2,9 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
+import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title PufferOracle
@@ -28,6 +30,11 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @notice Guardian Module
      */
     IGuardianModule public immutable GUARDIAN_MODULE; //@todo ..?
+
+    /**
+     * @notice Puffer Vault
+     */
+    address payable public immutable PUFFER_VAULT;
 
     /**
      * @dev Locked ETH amount in Beacon Chain
@@ -59,49 +66,48 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     uint256 internal _validatorTicketPrice;
 
-    constructor(IGuardianModule guardianModule, address accessManager) AccessManaged(accessManager) {
+    constructor(IGuardianModule guardianModule, address payable vault, address accessManager)
+        AccessManaged(accessManager)
+    {
         GUARDIAN_MODULE = guardianModule;
+        PUFFER_VAULT = vault;
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _setMintPrice(uint56(0.01 ether));
     }
 
-    /**
-     * @notice Posts the proof of reserve to the Oracle
-     * @param newLockedETH The new locked ETH amount in Beacon chain
-     * @param blockNumber The block number of the update
-     * @param numberOfActivePufferValidators The number of active Puffer validators
-     * @param totalNumberOfValidators The total number of active validators
-     * @param guardianSignatures The signatures of the Guardians
-     */
     function proofOfReserve(
-        uint152 newLockedETH,
-        uint56 blockNumber,
-        uint24 numberOfActivePufferValidators,
-        uint24 totalNumberOfValidators,
+        Reserves calldata reserves,
+        address[] calldata modules,
+        uint256[] calldata amounts,
         bytes[] calldata guardianSignatures
     ) external {
+        if (modules.length != amounts.length) {
+            revert InvalidOracleUpdate();
+        }
+
         GUARDIAN_MODULE.validateProofOfReserve({
-            lockedETH: newLockedETH,
-            blockNumber: blockNumber,
-            numberOfActivePufferValidators: numberOfActivePufferValidators,
-            totalNumberOfValidators: totalNumberOfValidators,
+            reserves: reserves,
+            modules: modules,
+            amounts: amounts,
             guardianSignatures: guardianSignatures
         });
 
-        if ((block.number - _lastUpdate) < _UPDATE_INTERVAL) {
-            revert OutsideUpdateWindow();
+        _lockedETH = reserves.newLockedETH;
+        _lastUpdate = reserves.blockNumber;
+        _numberOfActivePufferValidators = reserves.numberOfActivePufferValidators;
+        _totalNumberOfValidators = reserves.totalNumberOfValidators;
+
+        // Move the withdrawn ETH back to the Vault
+        for (uint256 i = 0; i < modules.length; ++i) {
+            // slither-disable-next-line calls-loop
+            IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
         }
 
-        _lockedETH = newLockedETH;
-        _lastUpdate = blockNumber;
-        _numberOfActivePufferValidators = numberOfActivePufferValidators;
-        _totalNumberOfValidators = totalNumberOfValidators;
-
         emit ReservesUpdated({
-            blockNumber: blockNumber,
-            lockedETH: newLockedETH,
-            numberOfActivePufferValidators: numberOfActivePufferValidators,
-            totalNumberOfValidators: totalNumberOfValidators
+            blockNumber: reserves.blockNumber,
+            lockedETH: reserves.newLockedETH,
+            numberOfActivePufferValidators: reserves.numberOfActivePufferValidators,
+            totalNumberOfValidators: reserves.totalNumberOfValidators
         });
     }
 

@@ -11,13 +11,14 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
+import { Reserves } from "puffer/struct/Reserves.sol";
+
 /**
  * @title Guardian module
  * @author Puffer Finance
  * @dev This contract is responsible for storing enclave data and validation of guardian signatures
  * @custom:security-contact security@puffer.fi
  */
-
 contract GuardianModule is AccessManaged, IGuardianModule {
     using ECDSA for bytes32;
     using Address for address;
@@ -132,16 +133,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validatePostFullWithdrawalsRoot(
-        bytes32 root,
-        uint256 blockNumber,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view {
+    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
+        external
+        view
+    {
         // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber, modules, amounts);
+        bytes32 signedMessageHash = LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber);
 
         // Check the signatures
         bool validSignatures =
@@ -156,19 +153,13 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProofOfReserve(
-        uint256 lockedETH,
-        uint256 blockNumber,
-        uint256 numberOfActivePufferValidators,
-        uint256 totalNumberOfValidators,
+        Reserves calldata reserves,
+        address[] calldata modules,
+        uint256[] calldata amounts,
         bytes[] calldata guardianSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage({
-            lockedETH: lockedETH,
-            blockNumber: blockNumber,
-            totalNumberOfValidators: totalNumberOfValidators,
-            numberOfActivePufferValidators: numberOfActivePufferValidators
-        });
+        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts);
 
         // Check the signatures
         bool validSignatures =

@@ -274,6 +274,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorState(validator.status);
         }
 
+        /* solhint-disable func-named-parameters */
         if (
             // Leaf
             !MerkleProof.verifyCalldata(
@@ -286,6 +287,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                                 validatorInfo.moduleName,
                                 validatorInfo.validatorIndex,
                                 validatorInfo.withdrawalAmount,
+                                validatorInfo.validatorStopTimestamp,
                                 validatorInfo.wasSlashed
                             )
                         )
@@ -293,6 +295,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 )
             )
         ) {
+        /* solhint-disable func-named-parameters */
             revert InvalidMerkleProof();
         }
         // Store what we need
@@ -370,20 +373,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Posts the full withdrawals root
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number of a withdrawal root
-     * @param modules is the array from which modules we are redistributing ETH
-     * @param amounts is the array of ETH amounts to pull from modules
      */
-    function postFullWithdrawalsRoot(
-        bytes32 root,
-        uint256 blockNumber,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external {
-        if (modules.length != amounts.length) {
+    function postFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures) external {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // Prevent double posting of the same root
+        if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
             revert InvalidData();
         }
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Prevent double posting of the same root
         if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
@@ -394,18 +391,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         GUARDIAN_MODULE.validatePostFullWithdrawalsRoot({
             root: root,
             blockNumber: blockNumber,
-            modules: modules,
-            amounts: amounts,
             guardianSignatures: guardianSignatures
         });
 
         $.fullWithdrawalsRoots[blockNumber] = root;
-
-        // Allocate ETH capital back to the Vault ASAP to fuel Vault growth
-        for (uint256 i = 0; i < modules.length; ++i) {
-            // slither-disable-next-line calls-loop
-            IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
-        }
 
         emit FullWithdrawalsRootPosted(blockNumber, root);
     }
