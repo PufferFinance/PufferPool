@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title IGuardianModule interface
@@ -119,17 +120,15 @@ interface IGuardianModule {
 
     /**
      * @notice Validates the proof of reserve
-     * @dev This function validates the proof of reserve by checking the signatures of the guardians
-     * @param lockedETH The locked ETH amount
-     * @param numberOfActivePufferValidators is the number of active Puffer Validators
-     * @param totalNumberOfValidators is the number of total Validators
+     * @param reserves is the Reserves struct
+     * @param modules The array of module addresses
+     * @param amounts The array of withdrawal amounts
      * @param guardianSignatures The guardian signatures
      */
     function validateProofOfReserve(
-        uint256 lockedETH,
-        uint256 blockNumber,
-        uint256 numberOfActivePufferValidators,
-        uint256 totalNumberOfValidators,
+        Reserves calldata reserves,
+        address[] calldata modules,
+        uint256[] calldata amounts,
         bytes[] calldata guardianSignatures
     ) external view;
 
@@ -138,17 +137,11 @@ interface IGuardianModule {
      * @dev This function validates the post full withdrawals root by checking the signatures of the guardians
      * @param root The post full withdrawals root
      * @param blockNumber The block number
-     * @param modules The array of module addresses
-     * @param amounts The array of withdrawal amounts
      * @param guardianSignatures The guardian signatures
      */
-    function validatePostFullWithdrawalsRoot(
-        bytes32 root,
-        uint256 blockNumber,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view;
+    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
+        external
+        view;
 
     /**
      * @notice Returns the threshold value for guardian signatures
