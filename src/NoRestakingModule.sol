@@ -91,6 +91,7 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
 
     /**
      * @inheritdoc IPufferModule
+     * @dev Restricted to PufferProtocol
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
@@ -111,6 +112,7 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     /**
      * @notice Submit a valid MerkleProof and all their validators' staking rewards will be sent to node operator
      * @dev Anybody can trigger a claim of the rewards for any node operator as long as the proofs submitted are valid
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      *
      * @param node is a node operator's wallet address
      * @param blockNumbers is the array of block numbers for which the sender is claiming the rewards
@@ -149,7 +151,6 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
 
     /**
      * @notice Posts the rewards root for this module
-     * @dev Restricted to Guardians
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
      */
@@ -175,11 +176,10 @@ contract NoRestakingModule is IPufferModule, AccessManaged, TokenRescuer {
     /**
      * @inheritdoc IPufferModule
      */
-    function call(address to, uint256 amount, bytes calldata data)
-        external
-        restricted
-        returns (bool success, bytes memory)
-    {
+    function call(address to, uint256 amount, bytes calldata data) external returns (bool success, bytes memory) {
+        if (msg.sender != address(PUFFER_PROTOCOL.PUFFER_ORACLE())) {
+            revert Unauthorized();
+        }
         // slither-disable-next-line arbitrary-send-eth
         return to.call{ value: amount }(data);
     }
