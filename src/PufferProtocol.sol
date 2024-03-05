@@ -274,6 +274,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorState(validator.status);
         }
 
+        /* solhint-disable func-named-parameters */
         if (
             // Leaf
             !MerkleProof.verifyCalldata(
@@ -286,6 +287,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                                 validatorInfo.moduleName,
                                 validatorInfo.validatorIndex,
                                 validatorInfo.withdrawalAmount,
+                                validatorInfo.validatorStopTimestamp,
                                 validatorInfo.wasSlashed
                             )
                         )
@@ -293,6 +295,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 )
             )
         ) {
+        /* solhint-disable func-named-parameters */
             revert InvalidMerkleProof();
         }
         // Store what we need
