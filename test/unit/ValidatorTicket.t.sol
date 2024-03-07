@@ -65,9 +65,10 @@ contract ValidatorTicketTest is TestHelper {
         uint256 expectedTotal = (amount * 1 ether / vtPrice) ;
 
         vm.deal(address(this), amount);
-        validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
+        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         assertEq(validatorTicket.balanceOf(address(this)), expectedTotal , "VT balance");
+        assertEq(mintedAmount, expectedTotal, "minted amount");
     }
 
     function test_zero_protocol_fee_rate() public {

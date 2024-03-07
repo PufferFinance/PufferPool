@@ -79,13 +79,14 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    function purchaseValidatorTicket(address recipient) external payable virtual restricted {
+    function purchaseValidatorTicket(address recipient) external payable virtual restricted returns (uint256 mintedAmount){
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        mintedAmount = (msg.value * 1 ether) / mintPrice;  // * 1 ether is to upscale amount to 18 decimals
 
         // slither-disable-next-line divide-before-multiply
-        _mint(recipient, (msg.value * 1 ether) / mintPrice ); // * 1 ether is to upscale amount to 18 decimals
+        _mint(recipient, mintedAmount);
 
         // If we are over the burst threshold, keep everything
         // That means that pufETH holders are not getting any new rewards until it goes under the threshold
@@ -93,7 +94,7 @@ contract ValidatorTicket is
             // Everything goes to the treasury
             TREASURY.sendValue(msg.value);
             emit DispersedETH({ treasury: msg.value, guardians: 0, vault: 0 });
-            return;
+            return mintedAmount;
         }
 
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
