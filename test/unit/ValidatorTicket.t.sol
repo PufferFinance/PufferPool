@@ -58,11 +58,17 @@ contract ValidatorTicketTest is TestHelper {
         assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
 
-    function test_bad_amount_purchase() public {
+    function test_non_whole_number_purchase() public {
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+
         uint256 amount = 5.123 ether;
+        uint256 expectedTotal = (amount * 1 ether / vtPrice) ;
+
         vm.deal(address(this), amount);
-        vm.expectRevert(IValidatorTicket.InvalidAmount.selector);
-        validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
+        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
+
+        assertEq(validatorTicket.balanceOf(address(this)), expectedTotal , "VT balance");
+        assertEq(mintedAmount, expectedTotal, "minted amount");
     }
 
     function test_zero_protocol_fee_rate() public {

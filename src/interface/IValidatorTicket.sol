@@ -49,7 +49,7 @@ interface IValidatorTicket {
      * @param recipient The address to mint VT to
      * @dev restricted modifier is also used as `whenNotPaused`
      */
-    function purchaseValidatorTicket(address recipient) external payable;
+    function purchaseValidatorTicket(address recipient) external payable returns (uint256);
 
     /**
      * @notice Retrieves the current guardians fee rate
