@@ -29,32 +29,20 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
     address payable public immutable PUFFER_VAULT;
 
     /**
-     * @dev Locked ETH amount in Beacon Chain
-     * Slot 0
-     */
-    uint152 internal _lockedETH;
-
-    /**
-     * @dev Block number for when the values were updated
-     * Slot 0
-     */
-    uint56 internal _lastUpdate;
-
-    /**
      * @dev Number of active Puffer validators
      * Slot 0
      */
-    uint24 internal _numberOfActivePufferValidators;
+    uint256 internal _numberOfActivePufferValidators;
 
     /**
      * @dev Total number of Validators
-     * Slot 0
+     * Slot 1
      */
-    uint24 internal _totalNumberOfValidators;
+    uint256 internal _totalNumberOfValidators;
 
     /**
      * @dev Price in ETH to mint one Validator Ticket
-     * Slot 1
+     * Slot 2
      */
     uint256 internal _validatorTicketPrice;
 
