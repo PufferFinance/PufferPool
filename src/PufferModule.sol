@@ -240,7 +240,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @notice Posts the rewards root for this module
-     * @dev Restricted to Guardians
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
      */

@@ -204,7 +204,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
             // slither-disable-next-line unchecked-transfer
-            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to upscale amount to 18 decimals
+            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to convert number of days to VT amount
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
@@ -295,7 +295,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 )
             )
         ) {
-        /* solhint-disable func-named-parameters */
+            /* solhint-disable func-named-parameters */
             revert InvalidMerkleProof();
         }
         // Store what we need
@@ -495,9 +495,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         uint256 moduleSelectionIndex = $.moduleSelectIndex;
-        // Do Weights number of rounds
-        uint256 moduleEndIndex = moduleSelectionIndex + $.moduleWeights.length;
         uint256 moduleWeightsLength = $.moduleWeights.length;
+        // Do Weights number of rounds
+        uint256 moduleEndIndex = moduleSelectionIndex + moduleWeightsLength;
 
         // Read from the storage
         bytes32 moduleName = $.moduleWeights[moduleSelectionIndex % moduleWeightsLength];
@@ -649,7 +649,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             node: msg.sender
         });
 
-        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(numberOfDays * 1 ether); // upscale to 18 decimals
+        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(numberOfDays * 1 ether); // convert numberOfDays to VT amount
 
         // Increment indices for this module and number of validators registered
         unchecked {
