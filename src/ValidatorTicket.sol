@@ -84,13 +84,8 @@ contract ValidatorTicket is
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
 
-        // Only a whole VT can be purchased
-        if (msg.value % mintPrice != 0) {
-            revert InvalidAmount();
-        }
-
         // slither-disable-next-line divide-before-multiply
-        _mint(recipient, (msg.value / mintPrice) * 1 ether); // * 1 ether is to upscale amount to 18 decimals
+        _mint(recipient, (msg.value * 1 ether) / mintPrice ); // * 1 ether is to upscale amount to 18 decimals
 
         // If we are over the burst threshold, keep everything
         // That means that pufETH holders are not getting any new rewards until it goes under the threshold
