@@ -11,7 +11,6 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title Guardian module
@@ -139,27 +138,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber);
-
-        // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function validateProofOfReserve(
-        Reserves calldata reserves,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view {
-        // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts);
 
         // Check the signatures
         bool validSignatures =

@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title IGuardianModule interface
@@ -117,20 +116,6 @@ interface IGuardianModule {
     function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
         external
         view;
-
-    /**
-     * @notice Validates the proof of reserve
-     * @param reserves is the Reserves struct
-     * @param modules The array of module addresses
-     * @param amounts The array of withdrawal amounts
-     * @param guardianSignatures The guardian signatures
-     */
-    function validateProofOfReserve(
-        Reserves calldata reserves,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view;
 
     /**
      * @notice Validates the post full withdrawals root

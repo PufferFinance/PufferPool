@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 
 /* solhint-disable func-named-parameters */
 
@@ -60,23 +59,6 @@ library LibGuardianMessages {
         returns (bytes32)
     {
         return keccak256(abi.encode(moduleName, root, blockNumber)).toEthSignedMessageHash();
-    }
-
-    /**
-     * @notice Returns the message to be signed for the proof of reserve
-     * @param reserves is the Reserves struct
-     * @param modules is an array of module addresses
-     * @param amounts is an array of module amounts
-     * @return the message to be signed
-     */
-    function _getProofOfReserveMessage(Reserves memory reserves, address[] memory modules, uint256[] memory amounts)
-        internal
-        pure
-        returns (bytes32)
-    {
-        // All guardians use the same nonce
-        //solhint-disable-next-line func-named-parameters
-        return keccak256(abi.encode(reserves, modules, amounts)).toEthSignedMessageHash();
     }
 
     /**

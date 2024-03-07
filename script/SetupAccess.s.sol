@@ -80,8 +80,9 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](2);
 
         // Only for PufferProtocol
-        bytes4[] memory protocolSelectors = new bytes4[](1);
+        bytes4[] memory protocolSelectors = new bytes4[](2);
         protocolSelectors[0] = PufferOracleV2.provisionNode.selector;
+        protocolSelectors[1] = PufferOracleV2.exitValidator.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

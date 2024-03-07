@@ -2,11 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title PufferOracle
@@ -15,21 +14,14 @@ import { Reserves } from "puffer/struct/Reserves.sol";
  */
 contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
     /**
-     * @dev Number of blocks
-     */
-    // @todo
-    // slither-disable-next-line unused-state
-    uint256 internal constant _UPDATE_INTERVAL = 1;
-
-    /**
      * @dev Burst threshold
      */
-    uint256 internal constant _BURST_THRESHOLD = 22;
+    uint256 internal constant _BURST_THRESHOLD = 22; //@todo figure out
 
     /**
      * @notice Guardian Module
      */
-    IGuardianModule public immutable GUARDIAN_MODULE; //@todo ..?
+    IGuardianModule public immutable GUARDIAN_MODULE; //@todo .. we don't need if we don't have burst threshold
 
     /**
      * @notice Puffer Vault
@@ -75,53 +67,26 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         _setMintPrice(uint56(0.01 ether));
     }
 
-    function proofOfReserve(
-        Reserves calldata reserves,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external {
-        if (modules.length != amounts.length) {
-            revert InvalidOracleUpdate();
-        }
-
-        GUARDIAN_MODULE.validateProofOfReserve({
-            reserves: reserves,
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: guardianSignatures
-        });
-
-        _lockedETH = reserves.newLockedETH;
-        _lastUpdate = reserves.blockNumber;
-        _numberOfActivePufferValidators = reserves.numberOfActivePufferValidators;
-        _totalNumberOfValidators = reserves.totalNumberOfValidators;
-
-        // Move the withdrawn ETH back to the Vault
-        for (uint256 i = 0; i < modules.length; ++i) {
-            // slither-disable-next-line calls-loop
-            IPufferModule(modules[i]).call(address(PUFFER_VAULT), amounts[i], "");
-        }
-
-        emit ReservesUpdated({
-            blockNumber: reserves.blockNumber,
-            lockedETH: reserves.newLockedETH,
-            numberOfActivePufferValidators: reserves.numberOfActivePufferValidators,
-            totalNumberOfValidators: reserves.totalNumberOfValidators
-        });
+    /**
+     * @notice Exits the validator from the Beacon chain
+     * @dev Restricted to PufferProtocol contract
+     */
+    function exitValidator() public restricted {
+        _numberOfActivePufferValidators -= 1;
+        emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }
 
     /**
-     * @notice Increases the `_lockedETH` amount on the Oracle by 32 ETH
+     * @notice Increases the locked eth amount amount on the Oracle by 32 ETH
      * It is called when the Beacon chain receives a new deposit from PufferProtocol
      * The PufferVault balance is decreased by the same amount
      * @dev Restricted to PufferProtocol contract
      */
     function provisionNode() external restricted {
-        _lockedETH += 32 ether;
         unchecked {
             ++_numberOfActivePufferValidators;
         }
+        emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }
 
     /**
@@ -137,7 +102,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @inheritdoc IPufferOracle
      */
     function getLockedEthAmount() external view returns (uint256) {
-        return _lockedETH;
+        return _numberOfActivePufferValidators * 32 ether;
     }
 
     /**
@@ -145,13 +110,6 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     function getTotalNumberOfValidators() external view returns (uint256) {
         return _totalNumberOfValidators;
-    }
-
-    /**
-     * @inheritdoc IPufferOracleV2
-     */
-    function getLastUpdate() external view returns (uint256) {
-        return _lastUpdate;
     }
 
     /**

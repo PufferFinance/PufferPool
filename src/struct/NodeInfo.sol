@@ -10,4 +10,5 @@ struct NodeInfo {
     uint48 lastUpdate;
     uint96 vtBalance;
     uint88 virtualVTBalance;
+    uint256 bond;
 }

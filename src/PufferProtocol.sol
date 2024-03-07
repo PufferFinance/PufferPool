@@ -298,8 +298,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             /* solhint-disable func-named-parameters */
             revert InvalidMerkleProof();
         }
+
         // Store what we need
-        uint256 returnAmount = validator.bond;
+        uint256 nodeOperatorBond = $.nodeOperatorInfo[validator.node].bond;
+        address module = validator.module;
+        uint256 validatorBondAmount = validator.bond;
         address node = validator.node;
         bytes memory pubKey = validator.pubKey;
 
@@ -309,7 +312,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             index: validatorInfo.validatorIndex,
             validatorStopTimestamp: validatorInfo.validatorStopTimestamp
         });
-        // Remove what we don't
+
+        // Remove what we don't need anymore
         delete validator.module;
         delete validator.node;
         delete validator.bond;
@@ -318,23 +322,73 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Decrease the validator number for that module
         $.moduleLimits[validatorInfo.moduleName].numberOfActiveValidators -= 1;
 
-        // Burn everything if the validator was slashed
-        if (validatorInfo.wasSlashed) {
-            PUFFER_VAULT.burn(returnAmount);
-        } else {
-            uint256 burnAmount = 0;
+        uint256 burnAmount = _burnPufETHBond(validatorInfo, node, validatorBondAmount, nodeOperatorBond);
 
-            if (validatorInfo.withdrawalAmount < 32 ether) {
-                //@todo rounding down, recheck
-                burnAmount = PUFFER_VAULT.previewDeposit(32 ether - validatorInfo.withdrawalAmount);
-                PUFFER_VAULT.burn(burnAmount);
-            }
+        PUFFER_ORACLE.exitValidator();
 
-            // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transfer(node, (returnAmount - burnAmount));
+        // If the withdrawal amount is bigger than 32 ETH, we cap it to 32 ETH
+        // The excess is the rewards amount for that Node Operator
+        uint256 transferAmount = validatorInfo.withdrawalAmount > 32 ether ? 32 ether : validatorInfo.withdrawalAmount;
+        IPufferModule(module).call(address(PUFFER_VAULT), transferAmount, "");
+
+        emit ValidatorExited(pubKey, validatorInfo.validatorIndex, validatorInfo.moduleName, burnAmount);
+    }
+
+    function _burnPufETHBond(
+        StoppedValidatorInfo calldata validatorInfo,
+        address node,
+        uint256 validatorBondAmount,
+        uint256 nodeOperatorBond
+    ) internal returns (uint256 burnAmount) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 pufETHBurnAmount = 0;
+
+        // If the withdrawal amount is less than 32 ETH, we burn something from the Node operator
+        if (validatorInfo.withdrawalAmount < 32 ether) {
+            pufETHBurnAmount = PUFFER_VAULT.convertToSharesUp(32 ether - validatorInfo.withdrawalAmount);
         }
 
-        emit ValidatorExited(pubKey, validatorInfo.validatorIndex, validatorInfo.moduleName);
+        // If the validator was slashed, we burn the whole bond for that Validator
+        if (validatorInfo.wasSlashed) {
+            if (pufETHBurnAmount > validatorBondAmount) {
+                // Case 1:
+                // Validator got slashed and the amount is > than sum of all bonds for that node operator
+                // Burn the bond owned by that Node operator and eject his all other validators to make up the protocol's loss
+                if (pufETHBurnAmount > nodeOperatorBond) {
+                    pufETHBurnAmount = nodeOperatorBond;
+                    $.nodeOperatorInfo[node].bond = 0;
+                    PUFFER_VAULT.burn(nodeOperatorBond);
+                    return nodeOperatorBond;
+                }
+
+                // Case 2:
+                // The node operator has enough bond to cover the loss, we burn from the other bonds & eject validators
+                $.nodeOperatorInfo[node].bond -= pufETHBurnAmount;
+                PUFFER_VAULT.burn(pufETHBurnAmount);
+                return pufETHBurnAmount;
+            }
+
+            // Case 3:
+            // Burn the whole bond for that one validator
+            pufETHBurnAmount = validatorBondAmount;
+            $.nodeOperatorInfo[node].bond -= validatorBondAmount;
+            PUFFER_VAULT.burn(pufETHBurnAmount);
+            return pufETHBurnAmount;
+        }
+
+        // Case 4:
+        // Validator was not slashed, we burn the portion of the bond to cover up the loss for inactivity, we return the rest to the Node Operator
+
+        // Case 5:
+        // Happy case, validator exited with > 32 ETH (pufETHBurnAmount is 0), we return the bond to the Node Operator
+        $.nodeOperatorInfo[node].bond -= validatorBondAmount;
+        if (pufETHBurnAmount != 0) {
+            PUFFER_VAULT.burn(pufETHBurnAmount);
+        }
+        // slither-disable-next-line unchecked-transfer
+        PUFFER_VAULT.transfer(node, (validatorBondAmount - pufETHBurnAmount));
+        return (validatorBondAmount - pufETHBurnAmount);
     }
 
     /**
@@ -376,11 +430,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function postFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures) external {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        // Prevent double posting of the same root
-        if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
-            revert InvalidData();
-        }
 
         // Prevent double posting of the same root
         if ($.fullWithdrawalsRoots[blockNumber] != bytes32(0)) {
@@ -650,6 +699,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         });
 
         $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(numberOfDays * 1 ether); // convert numberOfDays to VT amount
+        $.nodeOperatorInfo[msg.sender].bond += SafeCast.toUint64(pufETHAmount);
 
         // Increment indices for this module and number of validators registered
         unchecked {

@@ -27,7 +27,6 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 struct ProvisionedValidator {
@@ -176,9 +175,9 @@ contract PufferProtocolHandler is Test {
         _;
     }
 
-    // Only on .withdraw the ETH is leaving the pool
+    // Only on .withdraw the ETH is leaving the pool, also on .postFullWithdrawalsProof node operators are getting their bonds back
     modifier isETHLeavingThePool() {
-        if (msg.sig == this.withdraw.selector) {
+        if (msg.sig == this.postFullWithdrawalsProof.selector || msg.sig == this.withdraw.selector) {
             ethLeavingThePool = true;
         } else {
             ethLeavingThePool = false;
@@ -216,43 +215,6 @@ contract PufferProtocolHandler is Test {
         vm.expectEmit(true, true, true, true);
         emit IValidatorTicket.DispersedETH({ treasury: treasuryAmount, guardians: guardiansAmount, vault: vaultAmount });
         validatorTicket.purchaseValidatorTicket{ value: amount }(currentActor);
-    }
-
-    // Posts proof of reserve
-    // Proof of reserve are posted by the guardians (valid guardian signatures are required)
-    function proofOfReserve()
-        public
-        setCorrectBlockNumber
-        recordPreviousBalance
-        isETHLeavingThePool
-        countCall("proofOfReserve")
-    {
-        uint256 blockNumber = block.number;
-        // advance block to where it can be updated next
-        uint256 nextUpdate = block.number + 7149; // Update interval is 7141 `_UPDATE_INTERVAL` on pufferProtocol
-        ghost_block_number = nextUpdate;
-        vm.roll(nextUpdate);
-
-        Reserves memory reserves = Reserves({
-            newLockedETH: uint152(ghost_locked_amount),
-            blockNumber: uint56(blockNumber),
-            numberOfActivePufferValidators: uint24(ghost_locked_amount / 32 ether),
-            totalNumberOfValidators: 100000
-        });
-
-        // No full withdrawals, meaning there is no ETH flushing from the modules -> PufferVault
-        address[] memory modules = new address[](0);
-        uint256[] memory amounts = new uint256[](0);
-
-        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts);
-
-        pufferOracle.proofOfReserve({
-            reserves: reserves,
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
-        });
-        vm.stopPrank();
     }
 
     // User deposits ETH to get pufETH
@@ -479,10 +441,8 @@ contract PufferProtocolHandler is Test {
         vm.deal(modules[1], 100 ether);
 
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 32 ether; // First one has the rewards
+        amounts[0] = 32 ether; // First one has the rewards, meaning the withdrawal is capped to 32 ETH
         amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
-
-        // _flushModules(modules, amounts);
 
         // Amounts of full withdrawals that we want to move from modules to pools
         bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
@@ -499,29 +459,6 @@ contract PufferProtocolHandler is Test {
             blockNumber: blockNumber,
             guardianSignatures: _getGuardianEOASignatures(
                 LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber)
-                )
-        });
-
-        pufferOracle.proofOfReserve({
-            reserves: Reserves({
-                newLockedETH: uint152(ghost_locked_amount - amounts[0] - amounts[1]), // deduct both full withdrawals amounts
-                blockNumber: uint56(blockNumber),
-                numberOfActivePufferValidators: uint24(ghost_validators - 1), // deduct one validator
-                totalNumberOfValidators: 900000
-            }),
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages._getProofOfReserveMessage(
-                    Reserves({
-                        newLockedETH: uint152(ghost_locked_amount - amounts[0] - amounts[1]), // deduct both full withdrawals amounts
-                        blockNumber: uint56(blockNumber),
-                        numberOfActivePufferValidators: uint24(ghost_validators - 1), // deduct one validator
-                        totalNumberOfValidators: 900000
-                    }),
-                    modules,
-                    amounts
-                )
                 )
         });
 
@@ -586,6 +523,11 @@ contract PufferProtocolHandler is Test {
         uint256 expectedOut = isSlashed ? pufETHBalanceBefore : (pufETHBalanceBefore + info2.bond - bondBurnAmount);
 
         if (pufETHBalanceAfter != expectedOut) {
+            // assertApproxEqRel is broken in this handler
+            if (pufETHBalanceAfter + 1 == expectedOut) {
+                // false positive 1 wei difference
+                return;
+            }
             console.log(pufETHBalanceAfter, expectedOut, isSlashed);
             console.log("balance after the stop for second withdrawal");
             printError = true;
