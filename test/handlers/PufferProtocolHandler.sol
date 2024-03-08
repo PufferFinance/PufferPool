@@ -177,7 +177,7 @@ contract PufferProtocolHandler is Test {
 
     // Only on .withdraw the ETH is leaving the pool, also on .postFullWithdrawalsProof node operators are getting their bonds back
     modifier isETHLeavingThePool() {
-        if (msg.sig == this.postFullWithdrawalsProof.selector || msg.sig == this.withdraw.selector) {
+        if (msg.sig == this.withdraw.selector) {
             ethLeavingThePool = true;
         } else {
             ethLeavingThePool = false;
@@ -408,131 +408,129 @@ contract PufferProtocolHandler is Test {
 
     function _flushModules(address[] memory modules, uint256[] memory amounts) internal { }
 
-    function postFullWithdrawalsProof(uint256 firstWithdrawalSeed, uint256 secondWithdrawalSeed)
-        public
-        setCorrectBlockNumber
-        recordPreviousBalance
-        isETHLeavingThePool
-        countCall("postFullWithdrawalsProof")
-    {
-        console.log("ghost validators validating -->", ghost_validators_validating.length);
-        // return if there is less than 3 validators
-        if (ghost_validators_validating.length < 2) {
-            return;
-        }
+    // function postFullWithdrawalsProof(uint256 firstWithdrawalSeed, uint256 secondWithdrawalSeed)
+    //     public
+    //     setCorrectBlockNumber
+    //     recordPreviousBalance
+    //     isETHLeavingThePool
+    //     countCall("postFullWithdrawalsProof")
+    // {
+    //     console.log("ghost validators validating -->", ghost_validators_validating.length);
+    //     // return if there is less than 3 validators
+    //     if (ghost_validators_validating.length < 2) {
+    //         return;
+    //     }
 
-        _updateBlockNumber();
+    //     _updateBlockNumber();
 
-        // Take two active validators and create a withdrawal proof for them
-        ProvisionedValidator memory first = ghost_validators_validating[0];
-        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
-        ghost_validators_validating.pop();
+    //     // Take two active validators and create a withdrawal proof for them
+    //     ProvisionedValidator memory first = ghost_validators_validating[0];
+    //     ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
+    //     ghost_validators_validating.pop();
 
-        ProvisionedValidator memory second = ghost_validators_validating[0];
-        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
-        ghost_validators_validating.pop();
+    //     ProvisionedValidator memory second = ghost_validators_validating[0];
+    //     ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
+    //     ghost_validators_validating.pop();
 
-        address[] memory modules = new address[](2);
-        modules[0] = pufferProtocol.getModuleAddress(first.moduleName);
-        modules[1] = pufferProtocol.getModuleAddress(second.moduleName);
+    //     address[] memory modules = new address[](2);
+    //     modules[0] = pufferProtocol.getModuleAddress(first.moduleName);
+    //     modules[1] = pufferProtocol.getModuleAddress(second.moduleName);
 
-        // Give funds to modules
-        vm.deal(modules[0], 200 ether);
-        vm.deal(modules[1], 100 ether);
+    //     // Give funds to modules
+    //     vm.deal(modules[0], 200 ether);
+    //     vm.deal(modules[1], 100 ether);
 
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 32 ether; // First one has the rewards, meaning the withdrawal is capped to 32 ETH
-        amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
+    //     uint256[] memory amounts = new uint256[](2);
+    //     amounts[0] = 32 ether; // First one has the rewards, meaning the withdrawal is capped to 32 ETH
+    //     amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
 
-        // Amounts of full withdrawals that we want to move from modules to pools
-        bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
+    //     // Amounts of full withdrawals that we want to move from modules to pools
+    //     bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
 
-        // Build merkle root and get two proofs
+    //     // Build merkle root and get two proofs
 
-        (bytes32 merkleRoot, bytes32[] memory proof1, bytes32[] memory proof2) =
-            _buildMerkle(first, amounts[0], second, amounts[1], isSlashed);
+    //     (bytes32 merkleRoot, bytes32[] memory proof1, bytes32[] memory proof2) =
+    //         _buildMerkle(first, amounts[0], second, amounts[1], isSlashed);
 
-        uint256 blockNumber = block.number - 5;
+    //     uint256 blockNumber = block.number - 5;
 
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: blockNumber,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber)
-                )
-        });
+    //     pufferProtocol.postFullWithdrawalsRoot({
+    //         root: merkleRoot,
+    //         blockNumber: blockNumber,
+    //         guardianSignatures: _getGuardianEOASignatures(
+    //             LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber)
+    //             )
+    //     });
 
-        Validator memory info1 = pufferProtocol.getValidatorInfo(first.moduleName, first.idx);
+    //     Validator memory info1 = pufferProtocol.getValidatorInfo(first.moduleName, first.idx);
 
-        uint256 pufETHBalanceBefore = pufferVault.balanceOf(info1.node);
+    //     uint256 pufETHBalanceBefore = pufferVault.balanceOf(info1.node);
 
-        // Claim proof 1
-        pufferProtocol.retrieveBond({
-            validatorInfo: StoppedValidatorInfo({
-                moduleName: first.moduleName,
-                validatorIndex: first.idx,
-                blockNumber: blockNumber,
-                withdrawalAmount: amounts[0],
-                wasSlashed: false,
-                validatorStopTimestamp: block.timestamp
-            }),
-            merkleProof: proof1
-        });
+    //     // Claim proof 1
+    //     pufferProtocol.retrieveBond({
+    //         validatorInfo: StoppedValidatorInfo({
+    //             moduleName: first.moduleName,
+    //             validatorIndex: first.idx,
+    //             blockNumber: blockNumber,
+    //             withdrawalAmount: amounts[0],
+    //             wasSlashed: false
+    //         }),
+    //         merkleProof: proof1
+    //     });
 
-        // Update ghost locked amount
-        ghost_locked_amount -= amounts[0];
-        ghost_pufETH_bond_amount -= info1.bond;
-        ghost_validators -= 1;
+    //     // Update ghost locked amount
+    //     ghost_locked_amount -= amounts[0];
+    //     ghost_pufETH_bond_amount -= info1.bond;
+    //     ghost_validators -= 1;
 
-        uint256 pufETHBalanceAfter = pufferVault.balanceOf(info1.node);
+    //     uint256 pufETHBalanceAfter = pufferVault.balanceOf(info1.node);
 
-        if (pufETHBalanceAfter != pufETHBalanceBefore + info1.bond) {
-            console.log("balance after the stop for first withdrawal");
-            printError = true;
-        }
+    //     if (pufETHBalanceAfter != pufETHBalanceBefore + info1.bond) {
+    //         console.log("balance after the stop for first withdrawal");
+    //         printError = true;
+    //     }
 
-        Validator memory info2 = pufferProtocol.getValidatorInfo(second.moduleName, second.idx);
+    //     Validator memory info2 = pufferProtocol.getValidatorInfo(second.moduleName, second.idx);
 
-        pufETHBalanceBefore = pufferVault.balanceOf(info2.node);
+    //     pufETHBalanceBefore = pufferVault.balanceOf(info2.node);
 
-        // Calculate the expected bond burn amount
-        bondBurnAmount = pufferVault.convertToShares((32 ether - amounts[1]));
+    //     // Calculate the expected bond burn amount
+    //     bondBurnAmount = pufferVault.convertToShares((32 ether - amounts[1]));
 
-        // Claim proof 2
-        pufferProtocol.retrieveBond({
-            validatorInfo: StoppedValidatorInfo({
-                moduleName: second.moduleName,
-                validatorIndex: second.idx,
-                blockNumber: blockNumber,
-                withdrawalAmount: amounts[1],
-                wasSlashed: isSlashed,
-                validatorStopTimestamp: block.timestamp
-            }),
-            merkleProof: proof2
-        });
+    //     // Claim proof 2
+    //     pufferProtocol.retrieveBond({
+    //         validatorInfo: StoppedValidatorInfo({
+    //             moduleName: second.moduleName,
+    //             validatorIndex: second.idx,
+    //             blockNumber: blockNumber,
+    //             withdrawalAmount: amounts[1],
+    //             wasSlashed: isSlashed
+    //         }),
+    //         merkleProof: proof2
+    //     });
 
-        // Update ghost locked amount
-        ghost_locked_amount -= amounts[1];
-        ghost_pufETH_bond_amount -= info2.bond;
-        ghost_validators -= 1;
+    //     // Update ghost locked amount
+    //     ghost_locked_amount -= amounts[1];
+    //     ghost_pufETH_bond_amount -= info2.bond;
+    //     ghost_validators -= 1;
 
-        pufETHBalanceAfter = pufferVault.balanceOf(info2.node);
+    //     pufETHBalanceAfter = pufferVault.balanceOf(info2.node);
 
-        // Calculate the expected pufETH amount
-        // If the node operator is slashed, take the bond amount, otherwise burn the portion of the bond
-        uint256 expectedOut = isSlashed ? pufETHBalanceBefore : (pufETHBalanceBefore + info2.bond - bondBurnAmount);
+    //     // Calculate the expected pufETH amount
+    //     // If the node operator is slashed, take the bond amount, otherwise burn the portion of the bond
+    //     uint256 expectedOut = isSlashed ? pufETHBalanceBefore : (pufETHBalanceBefore + info2.bond - bondBurnAmount);
 
-        if (pufETHBalanceAfter != expectedOut) {
-            // assertApproxEqRel is broken in this handler
-            if (pufETHBalanceAfter + 1 == expectedOut) {
-                // false positive 1 wei difference
-                return;
-            }
-            console.log(pufETHBalanceAfter, expectedOut, isSlashed);
-            console.log("balance after the stop for second withdrawal");
-            printError = true;
-        }
-    }
+    //     if (pufETHBalanceAfter != expectedOut) {
+    //         // assertApproxEqRel is broken in this handler
+    //         if (pufETHBalanceAfter + 1 == expectedOut) {
+    //             // false positive 1 wei difference
+    //             return;
+    //         }
+    //         console.log(pufETHBalanceAfter, expectedOut, isSlashed);
+    //         console.log("balance after the stop for second withdrawal");
+    //         printError = true;
+    //     }
+    // }
 
     function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
         bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
@@ -628,11 +626,8 @@ contract PufferProtocolHandler is Test {
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
 
-            // random VT offset between 0 and 7 days
-            uint256 vtOffset = bound(block.timestamp, 0, 7 days);
-
-            bytes[] memory signatures = _getGuardianSignatures(sig, vtOffset);
-            pufferProtocol.provisionNode(signatures, mockValidatorSignature, uint88(vtOffset));
+            bytes[] memory signatures = _getGuardianSignatures(sig);
+            pufferProtocol.provisionNode(signatures, mockValidatorSignature);
 
             ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 
@@ -728,7 +723,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Copied from PufferProtocol.t.sol
-    function _getGuardianSignatures(bytes memory pubKey, uint256 vtBurnOffset) internal view returns (bytes[] memory) {
+    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
         // If there is no module return empty byte array
@@ -739,7 +734,6 @@ contract PufferProtocolHandler is Test {
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
             pendingIdx,
-            vtBurnOffset,
             pubKey,
             mockValidatorSignature,
             withdrawalCredentials,

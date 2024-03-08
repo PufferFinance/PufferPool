@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title IGuardianModule interface
@@ -90,7 +91,6 @@ interface IGuardianModule {
     /**
      * @notice Validates the node provisioning calldata
      * @param validatorIndex is the validator index in Puffer
-     * @param vtBurnOffset is an offset used such that VTs only burn after the validator is active
      * @param pubKey The public key
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
@@ -99,7 +99,6 @@ interface IGuardianModule {
      */
     function validateProvisionNode(
         uint256 validatorIndex,
-        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -118,13 +117,11 @@ interface IGuardianModule {
         view;
 
     /**
-     * @notice Validates the post full withdrawals root
-     * @dev This function validates the post full withdrawals root by checking the signatures of the guardians
-     * @param root The post full withdrawals root
-     * @param blockNumber The block number
-     * @param guardianSignatures The guardian signatures
+     * @notice Validates the full withdrawal of a validator
+     * @param validatorInfo The information of the stopped validator
+     * @param guardianEOASignatures The guardian EOA signatures
      */
-    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
+    function validateFullWithdrawal(StoppedValidatorInfo calldata validatorInfo, bytes[] calldata guardianEOASignatures)
         external
         view;
 
@@ -195,12 +192,12 @@ interface IGuardianModule {
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external;
 
     /**
-     * @notice Returns the guarardians enclave addresses
+     * @notice Returns the guardians enclave addresses
      */
     function getGuardiansEnclaveAddresses() external view returns (address[] memory);
 
     /**
-     * @notice Returns the guarardians enclave public keys
+     * @notice Returns the guardians enclave public keys
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
 

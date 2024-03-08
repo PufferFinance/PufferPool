@@ -103,16 +103,6 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.validateSkipProvisioning(NO_RESTAKING, 0, guardianSignatures);
     }
 
-    // Invalid signature reverts with unauthorized
-    function testPostWithdrawalsRootReverts() public {
-        (, uint256 bobSK) = makeAddrAndKey("bob");
-        bytes[] memory guardianSignatures = new bytes[](3);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
-        guardianSignatures[0] = abi.encodePacked(r, s, v);
-        vm.expectRevert(Unauthorized.selector);
-        guardianModule.validatePostFullWithdrawalsRoot(bytes32("root"), 100, guardianSignatures);
-    }
-
     function testSplitFundsRounding() external {
         vm.deal(address(guardianModule), 2); // 2 wei, but 3 guardians
         // shouldn't revert, but due to rounding down, they will not receive any eth

@@ -208,7 +208,7 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.NoRestakingModule,
             selectorsForGuardians,
-            ROLE_ID_GUARDIANS
+            ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
         );
 
         bytes4[] memory publicSelectors = new bytes4[](1);
@@ -262,22 +262,24 @@ contract SetupAccess is BaseScript {
             ROLE_ID_DAO
         );
 
-        bytes4[] memory guardianSelectors = new bytes4[](3);
+        bytes4[] memory guardianSelectors = new bytes4[](1);
         guardianSelectors[0] = PufferProtocol.skipProvisioning.selector;
-        guardianSelectors[1] = PufferProtocol.retrieveBond.selector;
-        guardianSelectors[2] = PufferProtocol.postFullWithdrawalsRoot.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             address(pufferDeployment.pufferProtocol),
             guardianSelectors,
-            ROLE_ID_GUARDIANS
+            ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](3);
+        bytes4[] memory publicSelectors = new bytes4[](7);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
+        publicSelectors[3] = PufferProtocol.provisionNode.selector;
+        publicSelectors[4] = PufferProtocol.batchHandleWithdrawal.selector;
+        publicSelectors[5] = PufferProtocol.handleFullWithdrawal.selector;
+        publicSelectors[6] = PufferProtocol.skipProvisioning.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

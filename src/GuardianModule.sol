@@ -11,6 +11,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title Guardian module
@@ -132,28 +133,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
-        external
-        view
-    {
-        // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber);
-
-        // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
     function validateProvisionNode(
         uint256 validatorIndex,
-        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -163,7 +144,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
             validatorIndex: validatorIndex,
-            vtBurnOffset: vtBurnOffset,
             pubKey: pubKey,
             signature: signature,
             withdrawalCredentials: withdrawalCredentials,
@@ -173,6 +153,27 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
             enclaveSignatures: guardianEnclaveSignatures,
+            signedMessageHash: signedMessageHash
+        });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateFullWithdrawal(StoppedValidatorInfo calldata validatorInfo, bytes[] calldata guardianEOASignatures)
+        external
+        view
+    {
+        // Recreate the message hash
+        bytes32 signedMessageHash = LibGuardianMessages._getHandleFullWithdrawalMessage(validatorInfo);
+
+        // Check the signatures
+        bool validSignatures = validateGuardiansEOASignatures({
+            eoaSignatures: guardianEOASignatures,
             signedMessageHash: signedMessageHash
         });
 
