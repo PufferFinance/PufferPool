@@ -48,8 +48,9 @@ interface IValidatorTicket {
      * @notice Mints VT to `recipient` corresponding to sent ETH and distributes funds between the Treasury, Guardians and PufferVault
      * @param recipient The address to mint VT to
      * @dev restricted modifier is also used as `whenNotPaused`
+     * @return Amount of VT minted
      */
-    function purchaseValidatorTicket(address recipient) external payable;
+    function purchaseValidatorTicket(address recipient) external payable returns (uint256);
 
     /**
      * @notice Retrieves the current guardians fee rate
