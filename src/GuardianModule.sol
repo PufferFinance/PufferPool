@@ -113,17 +113,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata eoaSignatures)
         external
         view
     {
         bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: guardianEOASignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -139,7 +137,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
+        bytes[] calldata enclaveSignatures
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
@@ -152,7 +150,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
-            enclaveSignatures: guardianEnclaveSignatures,
+            enclaveSignatures: enclaveSignatures,
             signedMessageHash: signedMessageHash
         });
 
@@ -164,17 +162,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateBatchWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
-    ) external view {
+    function validateBatchWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes[] calldata eoaSignatures)
+        external
+        view
+    {
         bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: guardianEOASignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -187,17 +183,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function validateTotalNumberOfValidators(
         uint256 newNumberOfValidators,
         uint256 epochNumber,
-        bytes[] calldata guardianEOASignatures
+        bytes[] calldata eoaSignatures
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash =
             LibGuardianMessages._getSetNumberOfValidatorsMessage(newNumberOfValidators, epochNumber);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: guardianEOASignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
