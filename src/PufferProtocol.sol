@@ -324,8 +324,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 vtBurnAmount: validatorInfos[i].vtBurnAmount
             });
 
-            // Decrease the number of active validators for that module //@todo numberOfActiveValidators missing event
+            // Decrease the number of active validators for that module
             $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators -= 1;
+            emit NumberOfActiveValidatorsChanged(
+                validatorInfos[i].moduleName, $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators
+            );
 
             // Storage VT and the active validator count update for the Node Operator
             $.nodeOperatorInfo[validator.node].vtBalance -= validatorInfos[i].vtBurnAmount;
@@ -638,7 +641,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
         }
-
+        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
         emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
     }
 

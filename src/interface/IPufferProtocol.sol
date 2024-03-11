@@ -74,6 +74,12 @@ interface IPufferProtocol {
     error InvalidVTAmount();
 
     /**
+     * @notice Emitted when the number of active validators changes
+     * @dev Signature "0x7721db60f08aead7d3732f48f6c3dbaac94316c83303002c42f979ae347c8872"
+     */
+    event NumberOfActiveValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfActiveValidators);
+
+    /**
      * @notice Emitted when the new Puffer module is created
      * @dev Signature "0xbcf2b217b3b225ead9f533ce60d3159db61694e818cd8978accb5133e37a50ee"
      */

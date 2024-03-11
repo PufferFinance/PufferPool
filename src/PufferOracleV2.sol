@@ -16,12 +16,12 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
     /**
      * @dev Burst threshold
      */
-    uint256 internal constant _BURST_THRESHOLD = 22; //@todo figure out
+    uint256 internal constant _BURST_THRESHOLD = 22;
 
     /**
      * @notice Guardian Module
      */
-    IGuardianModule public immutable GUARDIAN_MODULE; //@todo .. we don't need if we don't have burst threshold
+    IGuardianModule public immutable GUARDIAN_MODULE;
 
     /**
      * @notice Puffer Vault
