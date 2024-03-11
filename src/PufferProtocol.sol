@@ -295,6 +295,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // because it affects pufETH exchange rate
 
         // First, we do the calculations
+        // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
             Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].validatorIndex];
 
@@ -358,6 +359,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // slither-disable-next-line unchecked-transfer
             PUFFER_VAULT.transfer(bondWithdrawals[i].node, bondWithdrawals[i].pufETHAmount);
         }
+        // slither-disable-start calls-loop
     }
 
     /**

@@ -86,7 +86,7 @@ contract PufferProtocolTest is TestHelper {
         assertEq(PufferModule(payable(module)).NAME(), NO_RESTAKING, "bad name");
     }
 
-    // Reigster validator key
+    // Register validator key
     function test_register_validator_key() public {
         _registerValidatorKey(bytes32("alice"), NO_RESTAKING);
     }

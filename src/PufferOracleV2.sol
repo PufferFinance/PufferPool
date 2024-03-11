@@ -107,6 +107,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
         emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
         _totalNumberOfValidators = uint128(newTotalNumberOfValidators);
+        _epochNumber = uint128(epochNumber);
     }
 
     /**
