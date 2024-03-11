@@ -84,12 +84,35 @@ interface IGuardianModule {
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
     /**
+     * @notice Validates the update of the number of validators
+     */
+    function validateTotalNumberOfValidators(
+        uint256 newNumberOfValidators,
+        uint256 epochNumber,
+        bytes[] calldata guardianEOASignatures
+    ) external view;
+
+    /**
      * @notice Returns the enclave verifier
      */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
+     * @notice Validates the batch withdrawals calldata
+     * @dev The order of the signatures is important
+     * The order of the signatures MUST the same as the order of the validators in the validator module
+     * @param validatorInfos The information of the stopped validators
+     * @param guardianEOASignatures The guardian EOA signatures
+     */
+    function validateBatchWithdrawals(
+        StoppedValidatorInfo[] calldata validatorInfos,
+        bytes[] calldata guardianEOASignatures
+    ) external;
+
+    /**
      * @notice Validates the node provisioning calldata
+     * @dev The order of the signatures is important
+     * The order of the signatures MUST the same as the order of the guardians in the guardian module
      * @param validatorIndex is the validator index in Puffer
      * @param pubKey The public key
      * @param signature The signature
@@ -113,15 +136,6 @@ interface IGuardianModule {
      * @param guardianEOASignatures The guardian EOA signatures
      */
     function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
-        external
-        view;
-
-    /**
-     * @notice Validates the full withdrawal of a validator
-     * @param validatorInfo The information of the stopped validator
-     * @param guardianEOASignatures The guardian EOA signatures
-     */
-    function validateFullWithdrawal(StoppedValidatorInfo calldata validatorInfo, bytes[] calldata guardianEOASignatures)
         external
         view;
 

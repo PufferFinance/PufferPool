@@ -38,10 +38,15 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Total number of Validators
      * Slot 1
      */
-    uint256 internal _totalNumberOfValidators;
+    uint128 internal _totalNumberOfValidators;
+    /**
+     * @dev Epoch number of the update
+     * Slot 1
+     */
+    uint128 internal _epochNumber;
 
     /**
-     * @dev Price in ETH to mint one Validator Ticket
+     * @dev Price in wei to mint one Validator Ticket
      * Slot 2
      */
     uint256 internal _validatorTicketPrice;
@@ -52,6 +57,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = vault;
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
+        _epochNumber = 268828; // Oracle will be updated with the correct value
         _setMintPrice(uint56(0.01 ether));
     }
 
@@ -59,8 +65,8 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @notice Exits the validator from the Beacon chain
      * @dev Restricted to PufferProtocol contract
      */
-    function exitValidator() public restricted {
-        _numberOfActivePufferValidators -= 1;
+    function exitValidators(uint256 numberOfExits) public restricted {
+        _numberOfActivePufferValidators -= numberOfExits;
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }
 
@@ -84,6 +90,23 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     function setMintPrice(uint256 newPrice) external restricted {
         _setMintPrice(newPrice);
+    }
+
+    /**
+     * @notice Updates the total number of validators
+     * @param newTotalNumberOfValidators The new number of validators
+     */
+    function setTotalNumberOfValidators(
+        uint256 newTotalNumberOfValidators,
+        uint256 epochNumber,
+        bytes[] calldata guardianEOASignatures
+    ) external restricted {
+        if (epochNumber <= _epochNumber) {
+            revert InvalidUpdate();
+        }
+        GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
+        emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
+        _totalNumberOfValidators = uint128(newTotalNumberOfValidators);
     }
 
     /**

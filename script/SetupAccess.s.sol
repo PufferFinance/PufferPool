@@ -41,7 +41,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
 
-        bytes[] memory calldatas = new bytes[](20);
+        bytes[] memory calldatas = new bytes[](21);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -67,6 +67,7 @@ contract SetupAccess is BaseScript {
 
         calldatas[18] = pufferOracleAccess[0];
         calldatas[19] = pufferOracleAccess[1];
+        calldatas[20] = pufferOracleAccess[2];
 
         accessManager.multicall(calldatas);
 
@@ -77,12 +78,12 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferOracleAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
 
         // Only for PufferProtocol
         bytes4[] memory protocolSelectors = new bytes4[](2);
         protocolSelectors[0] = PufferOracleV2.provisionNode.selector;
-        protocolSelectors[1] = PufferOracleV2.exitValidator.selector;
+        protocolSelectors[1] = PufferOracleV2.exitValidators.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -97,6 +98,16 @@ contract SetupAccess is BaseScript {
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.pufferOracle, daoSelectors, ROLE_ID_DAO
+        );
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.pufferOracle,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
         );
 
         return calldatas;
@@ -246,14 +257,13 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = PufferProtocol.createPufferModule.selector;
         selectors[1] = PufferProtocol.setModuleWeights.selector;
-        selectors[2] = PufferProtocol.changeModule.selector;
-        selectors[3] = UUPSUpgradeable.upgradeToAndCall.selector;
-        selectors[4] = PufferProtocol.setValidatorLimitPerModule.selector;
-        selectors[5] = PufferProtocol.changeMinimumVTAmount.selector;
-        selectors[6] = PufferProtocol.setVTPenalty.selector;
+        selectors[2] = UUPSUpgradeable.upgradeToAndCall.selector;
+        selectors[3] = PufferProtocol.setValidatorLimitPerModule.selector;
+        selectors[4] = PufferProtocol.changeMinimumVTAmount.selector;
+        selectors[5] = PufferProtocol.setVTPenalty.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -272,14 +282,13 @@ contract SetupAccess is BaseScript {
             ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](7);
+        bytes4[] memory publicSelectors = new bytes4[](6);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
         publicSelectors[3] = PufferProtocol.provisionNode.selector;
-        publicSelectors[4] = PufferProtocol.batchHandleWithdrawal.selector;
-        publicSelectors[5] = PufferProtocol.handleFullWithdrawal.selector;
-        publicSelectors[6] = PufferProtocol.skipProvisioning.selector;
+        publicSelectors[4] = PufferProtocol.batchHandleWithdrawals.selector;
+        publicSelectors[5] = PufferProtocol.skipProvisioning.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

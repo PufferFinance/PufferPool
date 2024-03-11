@@ -41,40 +41,30 @@ struct ProtocolStorage {
      */
     mapping(bytes32 moduleName => mapping(uint256 index => Validator validator)) validators;
     /**
-     * @dev Mapping of a blockNumber and Merkle Root for full withdrawals
-     * Slot 5
-     */
-    mapping(uint256 blockNumber => bytes32 root) fullWithdrawalsRoots;
-    /**
      * @dev Mapping between module name and a module
-     * Slot 6
+     * Slot 5
      */
     mapping(bytes32 moduleName => IPufferModule moduleAddress) modules;
     /**
-     * @dev Array of smoothing commitments for a number of months and smoothing commitment amount (in wei)
-     * Slot 7
-     */
-    uint256[] smoothingCommitments;
-    /**
      * @dev Mapping of Module name => Module limit
-     * Slot 8
+     * Slot 6
      */
     mapping(bytes32 moduleName => ModuleLimit moduleLimit) moduleLimits;
     /**
      * @dev Mapping of Node operator address => Node operator information
-     * Slot 9
+     * Slot 7
      */
     mapping(address node => NodeInfo info) nodeOperatorInfo;
     /**
      * @dev Minimum number of VT tokens per validator
      * 1 DAY = 1e18
-     * Slot 10
+     * Slot 8
      */
     uint256 minimumVtAmount;
     /**
      * @dev Amount of VT tokens to burn for a validator penalty
      * 1 VT = 1e18
-     * Slot 10
+     * Slot 9
      */
     uint256 vtPenalty;
 }

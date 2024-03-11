@@ -25,7 +25,7 @@ contract IntegrationTestHelper is Test {
     function deployContracts() public virtual {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18_722_775);
 
-        address[] memory guardians = new address[](3);
+        address[] memory guardians = new address[](1);
         guardians[0] = address(this);
 
         _deployAndLabel(guardians, 1);

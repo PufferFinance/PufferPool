@@ -25,8 +25,28 @@ import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
  * @title PufferProtocol
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
+ * @dev Upgradeable smart contract for the Puffer Protocol
+ * Storage variables are located in PufferProtocolStorage.sol
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
+    /**
+     * @dev Helper struct for the full withdrawals accounting
+     * The amounts of VT and pufETH to burn at the end of the withdrawal
+     */
+    struct BurnAmounts {
+        uint256 vt;
+        uint256 pufETH;
+    }
+
+    /**
+     * @dev Helper struct for the full withdrawals accounting
+     * The amounts of pufETH to send to the node operator
+     */
+    struct Withdrawals {
+        uint256 pufETHAmount;
+        address node;
+    }
+
     /**
      * @dev BLS public keys are 48 bytes long
      */
@@ -169,7 +189,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Upscale number of days to 18 decimals
         if ((numberOfDays * 1 ether) < $.minimumVtAmount) {
-            revert InvalidData();
+            revert InvalidVTAmount();
         }
 
         // Revert if the permit amounts are non zero, but the msg.value is also non zero
@@ -260,65 +280,84 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function batchHandleWithdrawal(
+    function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[][] calldata guardianEOASignatures
+        bytes[] calldata guardianEOASignatures
     ) external restricted {
-        //@todo guardian signatures could be optimized for batch claims by using a single signature for all validators
-        for (uint256 i = 0; i < validatorInfos.length; ++i) {
-            handleFullWithdrawal(validatorInfos[i], guardianEOASignatures[i]);
-        }
-    }
+        GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures);
 
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function handleFullWithdrawal(StoppedValidatorInfo calldata validatorInfo, bytes[] calldata guardianEOASignatures)
-        public
-        restricted
-    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        Validator storage validator = $.validators[validatorInfo.moduleName][validatorInfo.validatorIndex];
 
-        if (validator.status != Status.ACTIVE) {
-            revert InvalidValidatorState(validator.status);
+        BurnAmounts memory burnAmounts;
+        Withdrawals[] memory bondWithdrawals = new Withdrawals[](validatorInfos.length);
+
+        // We MUST NOT do the burning/oracle update/transferring ETH from the PufferModule -> PufferVault
+        // because it affects pufETH exchange rate
+
+        // First, we do the calculations
+        for (uint256 i = 0; i < validatorInfos.length; ++i) {
+            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].validatorIndex];
+
+            if (validator.status != Status.ACTIVE) {
+                revert InvalidValidatorState(validator.status);
+            }
+
+            // Save the Node address for the bond transfer
+            bondWithdrawals[i].node = validator.node;
+
+            // Get the burnAmount for the withdrawal at the current exchange rate
+            uint256 burnAmount =
+                _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
+            // Update the burnAmounts
+            burnAmounts.pufETH += burnAmount;
+            burnAmounts.vt += validatorInfos[i].vtBurnAmount;
+
+            // Store the withdrawal amount for that node operator
+            bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
+
+            emit ValidatorExited({
+                pubKey: validator.pubKey,
+                validatorIndex: validatorInfos[i].validatorIndex,
+                moduleName: validatorInfos[i].moduleName,
+                pufETHBurnAmount: burnAmount,
+                vtBurnAmount: validatorInfos[i].vtBurnAmount
+            });
+
+            // Decrease the number of active validators for that module //@todo numberOfActiveValidators missing event
+            $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators -= 1;
+
+            // Storage VT and the active validator count update for the Node Operator
+            $.nodeOperatorInfo[validator.node].vtBalance -= validatorInfos[i].vtBurnAmount;
+            --$.nodeOperatorInfo[validator.node].activeValidatorCount;
+
+            delete validator.node;
+            delete validator.bond;
+            delete validator.module;
+            delete validator.status;
+            delete validator.pubKey;
         }
 
-        GUARDIAN_MODULE.validateFullWithdrawal(validatorInfo, guardianEOASignatures);
+        VALIDATOR_TICKET.burn(burnAmounts.vt);
+        // Because we've calculated everything in the previous loop, we can do the burning
+        PUFFER_VAULT.burn(burnAmounts.pufETH);
+        // Deduct 32 ETH from the `lockedETHAmount` on the PufferOracle
+        PUFFER_ORACLE.exitValidators(validatorInfos.length);
 
-        // Store what we need
-        address module = validator.module;
-        uint256 validatorBondAmount = validator.bond;
-        address node = validator.node;
-        bytes memory pubKey = validator.pubKey;
+        // In this loop, we transfer back the bonds, and do the accounting that affects the exchange rate
+        for (uint256 i = 0; i < validatorInfos.length; ++i) {
+            // If the withdrawal amount is bigger than 32 ETH, we cap it to 32 ETH
+            // The excess is the rewards amount for that Node Operator
+            uint256 transferAmount =
+                validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
+            IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
 
-        // Remove what we don't need anymore
-        delete validator.module;
-        delete validator.node;
-        delete validator.bond;
-        delete validator.pubKey;
-        delete validator.status;
-
-        // Decrease the validator number for that module
-        $.moduleLimits[validatorInfo.moduleName].numberOfActiveValidators -= 1;
-
-        $.nodeOperatorInfo[node].vtBalance -= validatorInfo.vtBurnAmount;
-        --$.nodeOperatorInfo[node].activeValidatorCount;
-
-        // Burn VT's
-        VALIDATOR_TICKET.burn(validatorInfo.vtBurnAmount);
-
-        uint256 burnAmount = _burnPufETHBond(validatorInfo, node, validatorBondAmount);
-
-        PUFFER_ORACLE.exitValidator();
-
-        // If the withdrawal amount is bigger than 32 ETH, we cap it to 32 ETH
-        // The excess is the rewards amount for that Node Operator
-        uint256 transferAmount = validatorInfo.withdrawalAmount > 32 ether ? 32 ether : validatorInfo.withdrawalAmount;
-        IPufferModule(module).call(address(PUFFER_VAULT), transferAmount, "");
-
-        emit ValidatorExited(pubKey, validatorInfo.validatorIndex, validatorInfo.moduleName, burnAmount);
+            // Skip the empty transfer (validator got slashed)
+            if (bondWithdrawals[i].pufETHAmount == 0) {
+                continue;
+            }
+            // slither-disable-next-line unchecked-transfer
+            PUFFER_VAULT.transfer(bondWithdrawals[i].node, bondWithdrawals[i].pufETHAmount);
+        }
     }
 
     /**
@@ -355,14 +394,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.nextToBeProvisioned[moduleName];
         }
         emit ValidatorSkipped($.validators[moduleName][skippedIndex].pubKey, skippedIndex, moduleName);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted to the DAO
-     */
-    function changeModule(bytes32 moduleName, IPufferModule newModule) external restricted {
-        _changeModule(moduleName, newModule);
     }
 
     /**
@@ -637,7 +668,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName, metadataURI, delegationApprover);
         $.modules[moduleName] = module;
-        emit NewPufferModuleCreated(address(module));
+        emit NewPufferModuleCreated(address(module), moduleName);
         _setValidatorLimitPerModule(moduleName, 1000);
         return address(module);
     }
@@ -668,12 +699,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _changeModule(bytes32 moduleName, IPufferModule newModule) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        IPufferModule oldModule = $.modules[moduleName];
-        if (address(oldModule) != address(0)) {
-            revert InvalidPufferModule();
-        }
         $.modules[moduleName] = newModule;
-        emit ModuleChanged(moduleName, address(oldModule), address(newModule));
     }
 
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
@@ -682,28 +708,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.minimumVtAmount = newMinimumVtAmount;
     }
 
-    function _burnPufETHBond(StoppedValidatorInfo calldata validatorInfo, address node, uint256 validatorBondAmount)
+    function _getBondBurnAmount(StoppedValidatorInfo calldata validatorInfo, uint256 validatorBondAmount)
         internal
-        returns (uint256 burnAmount)
+        view
+        returns (uint256 pufETHBurnAmount)
     {
         // Case 1:
         // The Validator was slashed, we burn the whole bond for that validator
         if (validatorInfo.wasSlashed) {
-            PUFFER_VAULT.burn(validatorBondAmount);
             return validatorBondAmount;
         }
-
-        uint256 pufETHBurnAmount = 0;
 
         // Case 2:
         // The withdrawal amount is less than 32 ETH, we burn the difference to cover up the loss for inactivity
         if (validatorInfo.withdrawalAmount < 32 ether) {
             pufETHBurnAmount = PUFFER_VAULT.convertToSharesUp(32 ether - validatorInfo.withdrawalAmount);
-            PUFFER_VAULT.burn(pufETHBurnAmount);
         }
-
-        // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(node, (validatorBondAmount - pufETHBurnAmount));
+        // Case 3:
+        // Withdrawal amount was >= 32 ether, we don't burn anything
         return pufETHBurnAmount;
     }
 

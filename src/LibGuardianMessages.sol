@@ -45,16 +45,30 @@ library LibGuardianMessages {
     }
 
     /**
-     * @notice Returns the message to be signed for handling the validator info
-     * @param validatorInfo is the validator information
+     * @notice Returns the message to be signed for handling the batch withdrawal
+     * @param validatorInfos is an array of validator information
      * @return the message to be signed
      */
-    function _getHandleFullWithdrawalMessage(StoppedValidatorInfo memory validatorInfo)
+    function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos)
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(validatorInfo)).toEthSignedMessageHash();
+        return keccak256(abi.encode(validatorInfos)).toEthSignedMessageHash();
+    }
+
+    /**
+     * @notice Returns the message to be signed updating the number of validators
+     * @param numberOfValidators is the new number of validators
+     * @param epochNumber is the epoch number
+     * @return the message to be signed
+     */
+    function _getSetNumberOfValidatorsMessage(uint256 numberOfValidators, uint256 epochNumber)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(numberOfValidators, epochNumber)).toEthSignedMessageHash();
     }
 
     /**
