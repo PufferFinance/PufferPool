@@ -15,17 +15,35 @@ contract GuardianModuleTest is TestHelper {
         _skipDefaultFuzzAddresses();
     }
 
-    function testRave() public {
+    function test_setup() public {
+        assertEq(guardianModule.getEjectionThreshold(), 31.75 ether, "initial value ejection threshold (31.75)");
+        assertEq(guardianModule.getThreshold(), 1, "initial value threshold (1)");
+    }
+
+    function test_rave() public {
         _deployContractAndSetupGuardians();
     }
 
-    function testRotateGuardianKeyFromNonGuardianReverts() public {
+    function test_set_threshold_to_0_reverts() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 0));
+        guardianModule.setThreshold(0);
+    }
+
+    function test_set_threshold_to_50_reverts() public {
+        // 50 is more than the number of guardians
+        vm.startPrank(DAO);
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 50));
+        guardianModule.setThreshold(50);
+    }
+
+    function test_rotateGuardianKey_from_non_guardian_reverts() public {
         RaveEvidence memory evidence;
         vm.expectRevert(Unauthorized.selector);
         guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
     }
 
-    function testRotateGuardianToInvalidPubKeyReverts() public {
+    function test_rotateGuardianKey_to_invalid_pubKey_everts() public {
         RaveEvidence memory evidence;
 
         vm.startPrank(guardian1);
@@ -34,7 +52,7 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
     }
 
-    function testAddGuardian(address guardian) public assumeEOA(guardian) {
+    function test_addGuardian(address guardian) public assumeEOA(guardian) {
         vm.startPrank(DAO);
 
         // Must not be a guardian already
@@ -45,15 +63,15 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.addGuardian(guardian);
     }
 
-    function testRemoveGuardian(address guardian) public {
-        testAddGuardian(guardian);
+    function test_removeGuardian(address guardian) public {
+        test_addGuardian(guardian);
 
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.GuardianRemoved(guardian);
         guardianModule.removeGuardian(guardian);
     }
 
-    function testSplitFunds() public {
+    function test_splitFunds() public {
         vm.deal(address(guardianModule), 1 ether);
 
         guardianModule.splitGuardianFunds();
@@ -62,23 +80,23 @@ contract GuardianModuleTest is TestHelper {
         assertEq(guardian1.balance, guardian3.balance, "guardian balances");
     }
 
-    function testChangeThreshold() public {
+    function test_set_threshold() public {
         vm.startPrank(DAO);
 
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.ThresholdChanged(1, 2);
-        guardianModule.changeThreshold(2);
+        guardianModule.setThreshold(2);
     }
 
-    function testChangeThresholdReverts() public {
+    function test_set_threshold_reverts() public {
         vm.startPrank(DAO);
 
         // We have 3 guardians, try setting threshold to 5
         vm.expectRevert();
-        guardianModule.changeThreshold(5);
+        guardianModule.setThreshold(5);
     }
 
-    function testRotateGuardianKeyWithInvalidRaveReverts() public {
+    function test_rotateGuardianKey_with_invalid_rave_reverts() public {
         Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
 
         vm.startPrank(guardian1);
@@ -94,7 +112,7 @@ contract GuardianModuleTest is TestHelper {
     }
 
     // Invalid signature reverts with unauthorized
-    function testValidateSkipProvisioningReverts() public {
+    function test_validateSkipProvisioning_reverts() public {
         (, uint256 bobSK) = makeAddrAndKey("bob");
         bytes[] memory guardianSignatures = new bytes[](3);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
@@ -103,7 +121,7 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.validateSkipProvisioning(NO_RESTAKING, 0, guardianSignatures);
     }
 
-    function testSplitFundsRounding() external {
+    function test_split_funds_rounding() external {
         vm.deal(address(guardianModule), 2); // 2 wei, but 3 guardians
         // shouldn't revert, but due to rounding down, they will not receive any eth
         guardianModule.splitGuardianFunds();

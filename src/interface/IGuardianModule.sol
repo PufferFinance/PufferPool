@@ -35,6 +35,13 @@ interface IGuardianModule {
     error InvalidThreshold(uint256 threshold);
 
     /**
+     * @notice Emitted when the ejection threshold is changed
+     * @param oldThreshold is the old threshold value
+     * @param newThreshold is the new threshold value
+     */
+    event EjectionThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
+
+    /**
      * @notice Emitted when the threshold value for guardian signatures is changed
      * @param oldThreshold is the old threshold value
      * @param newThreshold is the new threshold value
@@ -77,6 +84,15 @@ interface IGuardianModule {
      * @notice Returns the enclave address registered to `guardian`
      */
     function getGuardiansEnclaveAddress(address guardian) external view returns (address);
+
+    /**
+     * @notice Returns the ejection threshold ETH value
+     * @dev The ejection threshold is the minimum amount of ETH on the beacon chain required do the validation duties
+     * If it drops below this value, the validator will be ejected
+     * It is more likely that the validator will run out of Validator Tickets before its balance drops below this value
+     * @return The ejection threshold value
+     */
+    function getEjectionThreshold() external view returns (uint256);
 
     /**
      * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
@@ -155,24 +171,31 @@ interface IGuardianModule {
 
     /**
      * @notice Adds a new guardian to the module
-     * @dev Only accessible by a DAO
+     * @dev Restricted to the DAO
      * @param newGuardian The address of the new guardian to add
      */
     function addGuardian(address newGuardian) external;
 
     /**
      * @notice Removes a guardian from the module
-     * @dev Only accessible by a DAO
+     * @dev Restricted to the DAO
      * @param guardian The address of the guardian to remove
      */
     function removeGuardian(address guardian) external;
 
     /**
-     * @notice Changes the threshold value for guardian signatures
-     * @dev Only accessible by a DAO
+     * @notice Changes the threshold value for the guardian signatures
+     * @dev Restricted to the DAO
      * @param newThreshold The new threshold value
      */
-    function changeThreshold(uint256 newThreshold) external;
+    function setThreshold(uint256 newThreshold) external;
+
+    /**
+     * @notice Changes the ejection threshold value
+     * @dev Restricted to the DAO
+     * @param newThreshold The new threshold value
+     */
+    function setEjectionThreshold(uint256 newThreshold) external;
 
     /**
      * @dev Validates the signatures of the guardians' enclave signatures

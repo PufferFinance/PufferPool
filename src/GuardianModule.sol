@@ -16,7 +16,7 @@ import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 /**
  * @title Guardian module
  * @author Puffer Finance
- * @dev This contract is responsible for storing enclave data and validation of guardian signatures
+ * @dev This contract is responsible for storing enclave keys and validation of guardian's EOA/Enclave signatures
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -50,10 +50,16 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @dev MRSIGNER value for SGX
      */
     bytes32 internal _mrsigner;
+
     /**
      * @dev MRENCLAVE value for SGX
      */
     bytes32 internal _mrenclave;
+
+    /**
+     * @dev This variable is for the Guardian's to coordinate on when to eject Puffer validators
+     */
+    uint256 internal _ejectionThreshold;
 
     /**
      * @dev Enclave data
@@ -86,7 +92,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         for (uint256 i = 0; i < guardians.length; ++i) {
             _addGuardian(guardians[i]);
         }
-        _threshold = threshold;
+        _setEjectionThreshold(31.75 ether);
+        _setThreshold(threshold);
     }
 
     receive() external payable { }
@@ -222,18 +229,26 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
-        bytes32 previousMrEnclave = _mrenclave;
-        bytes32 previousMrsigner = _mrsigner;
-        _mrenclave = newMrenclave;
-        _mrsigner = newMrsigner;
-        emit MrEnclaveChanged(previousMrEnclave, newMrenclave);
-        emit MrSignerChanged(previousMrsigner, newMrsigner);
+    function setEjectionThreshold(uint256 newThreshold) external restricted {
+        _setEjectionThreshold(newThreshold);
     }
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
+     */
+    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
+        emit MrEnclaveChanged(_mrenclave, newMrenclave);
+        emit MrSignerChanged(_mrsigner, newMrsigner);
+        _mrenclave = newMrenclave;
+        _mrsigner = newMrsigner;
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
      */
     function addGuardian(address newGuardian) external restricted {
         splitGuardianFunds();
@@ -242,6 +257,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
      */
     function removeGuardian(address guardian) external restricted {
         splitGuardianFunds();
@@ -253,14 +269,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
      */
-    function changeThreshold(uint256 newThreshold) external restricted {
-        if (newThreshold > _guardians.length()) {
-            revert InvalidThreshold(newThreshold);
-        }
-        uint256 oldThreshold = _threshold;
-        _threshold = newThreshold;
-        emit ThresholdChanged(oldThreshold, newThreshold);
+    function setThreshold(uint256 newThreshold) external restricted {
+        _setThreshold(newThreshold);
     }
 
     /**
@@ -311,6 +323,13 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         _guardianEnclaves[guardian].enclavePubKey = pubKey;
 
         emit RotatedGuardianKey(guardian, computedAddress, pubKey);
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getEjectionThreshold() external view returns (uint256) {
+        return _ejectionThreshold;
     }
 
     /**
@@ -384,6 +403,26 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
 
         emit GuardianAdded(newGuardian);
+    }
+
+    function _setThreshold(uint256 newThreshold) internal {
+        if (newThreshold > _guardians.length()) {
+            revert InvalidThreshold(newThreshold);
+        }
+        if (newThreshold == 0) {
+            revert InvalidThreshold(newThreshold);
+        }
+        emit ThresholdChanged(_threshold, newThreshold);
+        _threshold = newThreshold;
+    }
+
+    function _setEjectionThreshold(uint256 newThreshold) internal {
+        if (newThreshold > 32 ether) {
+            revert InvalidThreshold(newThreshold);
+        }
+
+        emit EjectionThresholdChanged(_ejectionThreshold, newThreshold);
+        _ejectionThreshold = newThreshold;
     }
 
     /**
