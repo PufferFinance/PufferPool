@@ -39,14 +39,14 @@ contract ValidatorTicketTest is TestHelper {
     }
 
     function test_set_guardians_fee_rate() public {
-        assertEq(validatorTicket.getGuardiansFeeRate(), 0.5 ether, "initial guardians fee rate");
+        assertEq(validatorTicket.getGuardiansFeeRate(), 50, "initial guardians fee rate");
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.GuardiansFeeChanged(0.5 ether, 10 ether);
-        validatorTicket.setGuardiansFeeRate(10 ether); // 10%
+        emit IValidatorTicket.GuardiansFeeChanged(50, 1000);
+        validatorTicket.setGuardiansFeeRate(1000); // 10%
 
-        assertEq(validatorTicket.getGuardiansFeeRate(), 10 ether, "new guardians fee rate");
+        assertEq(validatorTicket.getGuardiansFeeRate(), 1000, "new guardians fee rate");
     }
 
     function test_funds_splitting() public {
