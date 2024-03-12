@@ -29,11 +29,6 @@ abstract contract ValidatorTicketStorage {
     }
 
     /**
-     * @dev Constant representing 100%
-     */
-    uint256 internal constant _ONE_HUNDRED_WAD = 100 * 1e18; // 1e18 = WAD
-
-    /**
      * @dev Storage slot location for ValidatorTicket
      * @custom:storage-location erc7201:ValidatorTicket.storage
      * keccak256(abi.encode(uint256(keccak256("ValidatorTicket.storage")) - 1)) & ~bytes32(uint256(0xff))

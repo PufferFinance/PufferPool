@@ -10,6 +10,7 @@ import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title ValidatorTicket
@@ -25,6 +26,7 @@ contract ValidatorTicket is
 {
     using SafeERC20 for address;
     using Address for address payable;
+    using Math for uint256;
 
     /**
      * @inheritdoc IValidatorTicket
@@ -45,6 +47,11 @@ contract ValidatorTicket is
      * @inheritdoc IValidatorTicket
      */
     IPufferOracle public immutable override PUFFER_ORACLE;
+
+    /**
+     * @dev Basis point scale
+     */
+    uint256 private constant _BASIS_POINT_SCALE = 1e4;
 
     constructor(
         address payable guardianModule,
@@ -159,12 +166,12 @@ contract ValidatorTicket is
     /**
      * @param rate represents the percentage of the amount to send
      * @dev Calculates the amount to send and sends it to the recipient
-     * (1e20 = 100%, 1e18 = 1%)
+     * rate is in basis points (100 = 1)
      * This is for sending ETH to trusted addresses (no reentrancy protection)
      * PufferVault, Guardians, Treasury
      */
     function _sendETH(address to, uint256 amount, uint256 rate) internal virtual returns (uint256 toSend) {
-        toSend = amount * rate / _ONE_HUNDRED_WAD;
+        toSend = amount.mulDiv(rate, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
 
         if (toSend != 0) {
             payable(to).sendValue(toSend);
@@ -174,7 +181,7 @@ contract ValidatorTicket is
     function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * 1 ether)) {
+        if ($.protocolFeeRate > (1000)) {
             revert InvalidData();
         }
         emit ProtocolFeeChanged($.protocolFeeRate, newProtocolFeeRate);
@@ -184,7 +191,7 @@ contract ValidatorTicket is
     function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (10 * 1 ether)) {
+        if ($.protocolFeeRate > (1000)) {
             revert InvalidData();
         }
         emit GuardiansFeeChanged($.guardiansFeeRate, newGuardiansFeeRate);
