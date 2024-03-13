@@ -181,16 +181,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfDays,
         Permit calldata pufETHPermit,
         Permit calldata vtPermit
     ) external payable restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        // Upscale number of days to 18 decimals
-        if ((numberOfDays * 1 ether) < $.minimumVtAmount) {
-            revert InvalidVTAmount();
-        }
 
         // Revert if the permit amounts are non zero, but the msg.value is also non zero
         if (vtPermit.amount != 0 && pufETHPermit.amount != 0 && msg.value > 0) {
@@ -198,45 +192,48 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
-
+        uint256 vtPrice = PUFFER_ORACLE.getValidatorTicketPrice();
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
-        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
 
-        // If the user overpaid
-        if (msg.value > (validatorBond + vtPayment)) {
-            revert InvalidETHAmount();
-        }
-
-        uint256 pufETHMinted;
-
-        // If the VT permit amount is zero, that means that the user is paying for VT with ETH
-        if (vtPermit.amount == 0) {
-            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
-        } else {
-            _callPermit(address(VALIDATOR_TICKET), vtPermit);
-            // slither-disable-next-line unchecked-transfer
-            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to convert number of days to VT amount
-        }
+        uint256 receivedVtAmount;
+        uint256 bondAmount;
+        uint256 vtPayment = msg.value;
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
-            pufETHMinted = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            // Mint pufETH and store the bond amount
+            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            vtPayment -= validatorBond;
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
+            // Store the bond amount
+            bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
+
             // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
+            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
         }
 
-        // Store the bond amount
-        uint256 bondAmount = pufETHMinted > 0 ? pufETHMinted : bondInPufETH;
+        // If the VT permit amount is zero, that means that the user is paying for VT with ETH
+        if (vtPermit.amount == 0) {
+            receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
+        } else {
+            _callPermit(address(VALIDATOR_TICKET), vtPermit);
+            receivedVtAmount = vtPermit.amount;
+            
+            // slither-disable-next-line unchecked-transfer
+            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), receivedVtAmount);
+        }
+        
+        if (receivedVtAmount % vtPrice != 0 || receivedVtAmount < $.minimumVtAmount) {
+            revert InvalidVTAmount(); 
+        }
 
         _storeValidatorInformation({
             $: $,
             data: data,
             pufETHAmount: bondAmount,
             moduleName: moduleName,
-            numberOfDays: numberOfDays
+            numberOfDays: receivedVtAmount / 1 ether
         });
     }
 
