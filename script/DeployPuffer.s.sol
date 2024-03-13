@@ -90,7 +90,7 @@ contract DeployPuffer is BaseScript {
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 5 * 1 ether, 5 * 1e17) //@todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 500, 50) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 

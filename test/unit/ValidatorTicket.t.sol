@@ -32,21 +32,21 @@ contract ValidatorTicketTest is TestHelper {
     function test_setup() public {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
-        assertEq(validatorTicket.getProtocolFeeRate(), 5 * 1e18, "protocol fee rate"); // 5%
+        assertEq(validatorTicket.getProtocolFeeRate(), 500, "protocol fee rate"); // 5%
         assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0), "oracle");
         assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0), "guardians");
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0), "vault");
     }
 
     function test_set_guardians_fee_rate() public {
-        assertEq(validatorTicket.getGuardiansFeeRate(), 0.5 ether, "initial guardians fee rate");
+        assertEq(validatorTicket.getGuardiansFeeRate(), 50, "initial guardians fee rate");
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.GuardiansFeeChanged(0.5 ether, 10 ether);
-        validatorTicket.setGuardiansFeeRate(10 ether); // 10%
+        emit IValidatorTicket.GuardiansFeeChanged(50, 1000);
+        validatorTicket.setGuardiansFeeRate(1000); // 10%
 
-        assertEq(validatorTicket.getGuardiansFeeRate(), 10 ether, "new guardians fee rate");
+        assertEq(validatorTicket.getGuardiansFeeRate(), 1000, "new guardians fee rate");
     }
 
     function test_funds_splitting() public {
@@ -85,7 +85,7 @@ contract ValidatorTicketTest is TestHelper {
     function test_zero_protocol_fee_rate() public {
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.ProtocolFeeChanged(5 ether, 0);
+        emit IValidatorTicket.ProtocolFeeChanged(500, 0); // 5% -> %0
         validatorTicket.setProtocolFeeRate(0);
         vm.stopPrank(); // because this test is reused in other test
     }
@@ -122,10 +122,10 @@ contract ValidatorTicketTest is TestHelper {
     function test_change_protocol_fee_rate() public {
         vm.startPrank(DAO);
 
-        uint256 newFeeRate = 15 * 1 ether;
+        uint256 newFeeRate = 15000; // 15%
 
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.ProtocolFeeChanged(5 * 1 ether, newFeeRate);
+        emit IValidatorTicket.ProtocolFeeChanged(500, newFeeRate);
         validatorTicket.setProtocolFeeRate(newFeeRate);
 
         assertEq(validatorTicket.getProtocolFeeRate(), newFeeRate, "updated");
