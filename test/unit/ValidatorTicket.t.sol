@@ -38,6 +38,17 @@ contract ValidatorTicketTest is TestHelper {
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0), "vault");
     }
 
+    function test_set_guardians_fee_rate() public {
+        assertEq(validatorTicket.getGuardiansFeeRate(), 0.5 ether, "initial guardians fee rate");
+
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.GuardiansFeeChanged(0.5 ether, 10 ether);
+        validatorTicket.setGuardiansFeeRate(10 ether); // 10%
+
+        assertEq(validatorTicket.getGuardiansFeeRate(), 10 ether, "new guardians fee rate");
+    }
+
     function test_funds_splitting() public {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
@@ -62,12 +73,12 @@ contract ValidatorTicketTest is TestHelper {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
         uint256 amount = 5.123 ether;
-        uint256 expectedTotal = (amount * 1 ether / vtPrice) ;
+        uint256 expectedTotal = (amount * 1 ether / vtPrice);
 
         vm.deal(address(this), amount);
         uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
-        assertEq(validatorTicket.balanceOf(address(this)), expectedTotal , "VT balance");
+        assertEq(validatorTicket.balanceOf(address(this)), expectedTotal, "VT balance");
         assertEq(mintedAmount, expectedTotal, "minted amount");
     }
 

@@ -27,7 +27,6 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { IValidatorTicket } from "puffer/interface/IValidatorTicket.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 struct ProvisionedValidator {
@@ -216,43 +215,6 @@ contract PufferProtocolHandler is Test {
         vm.expectEmit(true, true, true, true);
         emit IValidatorTicket.DispersedETH({ treasury: treasuryAmount, guardians: guardiansAmount, vault: vaultAmount });
         validatorTicket.purchaseValidatorTicket{ value: amount }(currentActor);
-    }
-
-    // Posts proof of reserve
-    // Proof of reserve are posted by the guardians (valid guardian signatures are required)
-    function proofOfReserve()
-        public
-        setCorrectBlockNumber
-        recordPreviousBalance
-        isETHLeavingThePool
-        countCall("proofOfReserve")
-    {
-        uint256 blockNumber = block.number;
-        // advance block to where it can be updated next
-        uint256 nextUpdate = block.number + 7149; // Update interval is 7141 `_UPDATE_INTERVAL` on pufferProtocol
-        ghost_block_number = nextUpdate;
-        vm.roll(nextUpdate);
-
-        Reserves memory reserves = Reserves({
-            newLockedETH: uint152(ghost_locked_amount),
-            blockNumber: uint56(blockNumber),
-            numberOfActivePufferValidators: uint24(ghost_locked_amount / 32 ether),
-            totalNumberOfValidators: 100000
-        });
-
-        // No full withdrawals, meaning there is no ETH flushing from the modules -> PufferVault
-        address[] memory modules = new address[](0);
-        uint256[] memory amounts = new uint256[](0);
-
-        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts);
-
-        pufferOracle.proofOfReserve({
-            reserves: reserves,
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: _getGuardianEOASignatures(signedMessageHash)
-        });
-        vm.stopPrank();
     }
 
     // User deposits ETH to get pufETH
@@ -444,154 +406,6 @@ contract PufferProtocolHandler is Test {
         vm.roll(nextUpdate);
     }
 
-    function _flushModules(address[] memory modules, uint256[] memory amounts) internal { }
-
-    function postFullWithdrawalsProof(uint256 firstWithdrawalSeed, uint256 secondWithdrawalSeed)
-        public
-        setCorrectBlockNumber
-        recordPreviousBalance
-        isETHLeavingThePool
-        countCall("postFullWithdrawalsProof")
-    {
-        console.log("ghost validators validating -->", ghost_validators_validating.length);
-        // return if there is less than 3 validators
-        if (ghost_validators_validating.length < 2) {
-            return;
-        }
-
-        _updateBlockNumber();
-
-        // Take two active validators and create a withdrawal proof for them
-        ProvisionedValidator memory first = ghost_validators_validating[0];
-        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
-        ghost_validators_validating.pop();
-
-        ProvisionedValidator memory second = ghost_validators_validating[0];
-        ghost_validators_validating[0] = ghost_validators_validating[ghost_validators_validating.length - 1];
-        ghost_validators_validating.pop();
-
-        address[] memory modules = new address[](2);
-        modules[0] = pufferProtocol.getModuleAddress(first.moduleName);
-        modules[1] = pufferProtocol.getModuleAddress(second.moduleName);
-
-        // Give funds to modules
-        vm.deal(modules[0], 200 ether);
-        vm.deal(modules[1], 100 ether);
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 32 ether; // First one has the rewards
-        amounts[1] = bound(secondWithdrawalSeed, 31 ether, 32 ether); // Second one doesn't..
-
-        // _flushModules(modules, amounts);
-
-        // Amounts of full withdrawals that we want to move from modules to pools
-        bool isSlashed = secondWithdrawalSeed % 2 == 0 ? true : false;
-
-        // Build merkle root and get two proofs
-
-        (bytes32 merkleRoot, bytes32[] memory proof1, bytes32[] memory proof2) =
-            _buildMerkle(first, amounts[0], second, amounts[1], isSlashed);
-
-        uint256 blockNumber = block.number - 5;
-
-        pufferProtocol.postFullWithdrawalsRoot({
-            root: merkleRoot,
-            blockNumber: blockNumber,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages._getPostFullWithdrawalsRootMessage(merkleRoot, blockNumber)
-                )
-        });
-
-        pufferOracle.proofOfReserve({
-            reserves: Reserves({
-                newLockedETH: uint152(ghost_locked_amount - amounts[0] - amounts[1]), // deduct both full withdrawals amounts
-                blockNumber: uint56(blockNumber),
-                numberOfActivePufferValidators: uint24(ghost_validators - 1), // deduct one validator
-                totalNumberOfValidators: 900000
-            }),
-            modules: modules,
-            amounts: amounts,
-            guardianSignatures: _getGuardianEOASignatures(
-                LibGuardianMessages._getProofOfReserveMessage(
-                    Reserves({
-                        newLockedETH: uint152(ghost_locked_amount - amounts[0] - amounts[1]), // deduct both full withdrawals amounts
-                        blockNumber: uint56(blockNumber),
-                        numberOfActivePufferValidators: uint24(ghost_validators - 1), // deduct one validator
-                        totalNumberOfValidators: 900000
-                    }),
-                    modules,
-                    amounts
-                )
-                )
-        });
-
-        Validator memory info1 = pufferProtocol.getValidatorInfo(first.moduleName, first.idx);
-
-        uint256 pufETHBalanceBefore = pufferVault.balanceOf(info1.node);
-
-        // Claim proof 1
-        pufferProtocol.retrieveBond({
-            validatorInfo: StoppedValidatorInfo({
-                moduleName: first.moduleName,
-                validatorIndex: first.idx,
-                blockNumber: blockNumber,
-                withdrawalAmount: amounts[0],
-                wasSlashed: false,
-                validatorStopTimestamp: block.timestamp
-            }),
-            merkleProof: proof1
-        });
-
-        // Update ghost locked amount
-        ghost_locked_amount -= amounts[0];
-        ghost_pufETH_bond_amount -= info1.bond;
-        ghost_validators -= 1;
-
-        uint256 pufETHBalanceAfter = pufferVault.balanceOf(info1.node);
-
-        if (pufETHBalanceAfter != pufETHBalanceBefore + info1.bond) {
-            console.log("balance after the stop for first withdrawal");
-            printError = true;
-        }
-
-        Validator memory info2 = pufferProtocol.getValidatorInfo(second.moduleName, second.idx);
-
-        pufETHBalanceBefore = pufferVault.balanceOf(info2.node);
-
-        // Calculate the expected bond burn amount
-        bondBurnAmount = pufferVault.convertToShares((32 ether - amounts[1]));
-
-        // Claim proof 2
-        pufferProtocol.retrieveBond({
-            validatorInfo: StoppedValidatorInfo({
-                moduleName: second.moduleName,
-                validatorIndex: second.idx,
-                blockNumber: blockNumber,
-                withdrawalAmount: amounts[1],
-                wasSlashed: isSlashed,
-                validatorStopTimestamp: block.timestamp
-            }),
-            merkleProof: proof2
-        });
-
-        // Update ghost locked amount
-        ghost_locked_amount -= amounts[1];
-        ghost_pufETH_bond_amount -= info2.bond;
-        ghost_validators -= 1;
-
-        pufETHBalanceAfter = pufferVault.balanceOf(info2.node);
-
-        // Calculate the expected pufETH amount
-        // If the node operator is slashed, take the bond amount, otherwise burn the portion of the bond
-        uint256 expectedOut = isSlashed ? pufETHBalanceBefore : (pufETHBalanceBefore + info2.bond - bondBurnAmount);
-
-        if (pufETHBalanceAfter != expectedOut) {
-            console.log(pufETHBalanceAfter, expectedOut, isSlashed);
-            console.log("balance after the stop for second withdrawal");
-            printError = true;
-        }
-    }
-
     function _registerValidatorKey(bytes32 pubKeyPart, uint256 moduleSelectorSeed) internal {
         bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
         uint256 moduleIndex = moduleSelectorSeed % moduleWeights.length;
@@ -686,11 +500,8 @@ contract PufferProtocolHandler is Test {
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
 
-            // random VT offset between 0 and 7 days
-            uint256 vtOffset = bound(block.timestamp, 0, 7 days);
-
-            bytes[] memory signatures = _getGuardianSignatures(sig, vtOffset);
-            pufferProtocol.provisionNode(signatures, mockValidatorSignature, uint88(vtOffset));
+            bytes[] memory signatures = _getGuardianSignatures(sig);
+            pufferProtocol.provisionNode(signatures, mockValidatorSignature);
 
             ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 
@@ -786,7 +597,7 @@ contract PufferProtocolHandler is Test {
     }
 
     // Copied from PufferProtocol.t.sol
-    function _getGuardianSignatures(bytes memory pubKey, uint256 vtBurnOffset) internal view returns (bytes[] memory) {
+    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
         // If there is no module return empty byte array
@@ -797,7 +608,6 @@ contract PufferProtocolHandler is Test {
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
             pendingIdx,
-            vtBurnOffset,
             pubKey,
             mockValidatorSignature,
             withdrawalCredentials,

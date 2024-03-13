@@ -190,7 +190,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     function call(address to, uint256 amount, bytes calldata data) external returns (bool success, bytes memory) {
-        if (msg.sender != address(PUFFER_PROTOCOL.PUFFER_ORACLE())) {
+        if (msg.sender != address(PUFFER_PROTOCOL)) {
             revert Unauthorized();
         }
         // slither-disable-next-line arbitrary-send-eth

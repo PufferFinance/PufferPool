@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title IGuardianModule interface
@@ -84,14 +84,36 @@ interface IGuardianModule {
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
     /**
+     * @notice Validates the update of the number of validators
+     */
+    function validateTotalNumberOfValidators(
+        uint256 newNumberOfValidators,
+        uint256 epochNumber,
+        bytes[] calldata guardianEOASignatures
+    ) external view;
+
+    /**
      * @notice Returns the enclave verifier
      */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
+     * @notice Validates the batch withdrawals calldata
+     * @dev The order of the signatures is important
+     * The order of the signatures MUST the same as the order of the validators in the validator module
+     * @param validatorInfos The information of the stopped validators
+     * @param guardianEOASignatures The guardian EOA signatures
+     */
+    function validateBatchWithdrawals(
+        StoppedValidatorInfo[] calldata validatorInfos,
+        bytes[] calldata guardianEOASignatures
+    ) external;
+
+    /**
      * @notice Validates the node provisioning calldata
+     * @dev The order of the signatures is important
+     * The order of the signatures MUST the same as the order of the guardians in the guardian module
      * @param validatorIndex is the validator index in Puffer
-     * @param vtBurnOffset is an offset used such that VTs only burn after the validator is active
      * @param pubKey The public key
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
@@ -100,7 +122,6 @@ interface IGuardianModule {
      */
     function validateProvisionNode(
         uint256 validatorIndex,
-        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -115,31 +136,6 @@ interface IGuardianModule {
      * @param guardianEOASignatures The guardian EOA signatures
      */
     function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
-        external
-        view;
-
-    /**
-     * @notice Validates the proof of reserve
-     * @param reserves is the Reserves struct
-     * @param modules The array of module addresses
-     * @param amounts The array of withdrawal amounts
-     * @param guardianSignatures The guardian signatures
-     */
-    function validateProofOfReserve(
-        Reserves calldata reserves,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view;
-
-    /**
-     * @notice Validates the post full withdrawals root
-     * @dev This function validates the post full withdrawals root by checking the signatures of the guardians
-     * @param root The post full withdrawals root
-     * @param blockNumber The block number
-     * @param guardianSignatures The guardian signatures
-     */
-    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
         external
         view;
 
@@ -210,12 +206,12 @@ interface IGuardianModule {
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external;
 
     /**
-     * @notice Returns the guarardians enclave addresses
+     * @notice Returns the guardians enclave addresses
      */
     function getGuardiansEnclaveAddresses() external view returns (address[] memory);
 
     /**
-     * @notice Returns the guarardians enclave public keys
+     * @notice Returns the guardians enclave public keys
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
 

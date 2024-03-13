@@ -7,7 +7,6 @@ import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
-import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
@@ -27,25 +26,19 @@ interface IPufferProtocol {
     error InvalidBLSPublicKeySet();
 
     /**
-     * @notice Thrown when the Merkle Proof for a full withdrawal is not valid
-     * @dev Signature "0xb05e92fa"
+     * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
+     * @dev Signature "0x22242546"
      */
-    error InvalidMerkleProof();
+    error ActiveOrPendingValidatorsExist();
 
     /**
-     * @notice Thrown when the module name already exists
+     * @notice Thrown on the module creation if the module already exists
      * @dev Signature "0x2157f2d7"
      */
     error ModuleAlreadyExists();
 
     /**
-     * @notice Thrown when the Node operator tries to withdraw amount bigger than the minimum amount
-     * @dev Signature "0x2bcee45d"
-     */
-    error InvalidValidatorTicketAmount(uint256 amount, uint256 minimumVTAmount);
-
-    /**
-     * @notice Thrown when the new validators tires to register to a module, but the limit for this module is already reached
+     * @notice Thrown when the new validators tires to register to a module, but the validator limit for that module is already reached
      * @dev Signature "0xb75c5781"
      */
     error ValidatorLimitForModuleReached();
@@ -63,7 +56,7 @@ interface IPufferProtocol {
     error InvalidBLSPubKey();
 
     /**
-     * @notice Thrown when validator is not in valid state
+     * @notice Thrown when validator is not in a valid state
      * @dev Signature "0x3001591c"
      */
     error InvalidValidatorState(Status status);
@@ -75,28 +68,22 @@ interface IPufferProtocol {
     error InvalidETHAmount();
 
     /**
-     * @notice Thrown if the oracle tries to submit invalid data
-     * @dev Signature "0x5cb045db"
+     * @notice Thrown if the sender tries to register validator with invalid VT amount
+     * @dev Signature "0x95c01f62"
      */
-    error InvalidData();
+    error InvalidVTAmount();
 
     /**
-     * @notice Thrown if the Node operator tries to register with invalid module
-     * @dev Signature "0xf2801d96"
+     * @notice Emitted when the number of active validators changes
+     * @dev Signature "0x7721db60f08aead7d3732f48f6c3dbaac94316c83303002c42f979ae347c8872"
      */
-    error InvalidPufferModule();
+    event NumberOfActiveValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfActiveValidators);
 
     /**
      * @notice Emitted when the new Puffer module is created
-     * @dev Signature "0xd95c47914545148df84d115c3a83350c2b0044a8efa7dbe2cff795a70fe129a1"
+     * @dev Signature "0xbcf2b217b3b225ead9f533ce60d3159db61694e818cd8978accb5133e37a50ee"
      */
-    event NewPufferModuleCreated(address module);
-
-    /**
-     * @notice Emitted when the new Puffer `moduleName` is changed to a new module
-     * @dev Signature "0x7917c855c3fa228f8999ca691902e81578515c4cce59cb85a993a9b2a26f1faa"
-     */
-    event ModuleChanged(bytes32 indexed moduleName, address oldModule, address newModule);
+    event NewPufferModuleCreated(address module, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
@@ -117,12 +104,6 @@ interface IPufferProtocol {
     event VTPenaltyChanged(uint256 oldPenalty, uint256 newPenalty);
 
     /**
-     * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
-     * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
-     */
-    event TransferredETH(address indexed to, uint256 amount);
-
-    /**
      * @notice Emitted when VT is deposited to the protocol
      * @dev Signature "0xd47eb90c0b945baf5f3ae3f1384a7a524a6f78f1461b354c4a09c4001a5cee9c"
      */
@@ -141,27 +122,10 @@ interface IPufferProtocol {
     event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
 
     /**
-     * @notice Emitted when the full withdrawals MerkleRoot `root` for a `blockNumber` is posted
-     */
-    event FullWithdrawalsRootPosted(uint256 indexed blockNumber, bytes32 root);
-
-    /**
      * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
      * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
      */
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
-
-    /**
-     * @notice Emitted whenever VT balance is updated (deposit, withdraw, node provision by the guardians, retrieve bond)
-     * @dev Signature "0xa2db5b08bfaa7d199c195f5ff7695be9809b4198a03eee3bbda42307ea893b70"
-     */
-    event VTBalanceChanged(
-        address indexed node,
-        uint256 oldVTBalance,
-        uint256 newVTBalance,
-        uint256 oldVirtualVTBalance,
-        uint256 newVirtualVTBalance
-    );
 
     /**
      * @notice Emitted when the Validator key is registered
@@ -180,9 +144,16 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @dev Signature "0xec0dc4352d02ab1358d681da59e62a34af18c126565f98d7c4c71da1315f81f5"
+     * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
+     * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
      */
-    event ValidatorExited(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
+    event ValidatorExited(
+        bytes indexed pubKey,
+        uint256 indexed validatorIndex,
+        bytes32 indexed moduleName,
+        uint256 pufETHBurnAmount,
+        uint256 vtBurnAmount
+    );
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -192,14 +163,6 @@ interface IPufferProtocol {
      * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
     event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
-
-    /**
-     * @notice Emitted when the validator is dequeued by the Node operator
-     * @param pubKey is the public key of the Validator
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @dev Signature "0x3805d456ec5395c4fa60d9ef7579bee46dad389285d99cfaa00fab5e92e64009"
-     */
-    event ValidatorDequeued(bytes indexed pubKey, uint256 validatorIndex);
 
     /**
      * @notice Returns validator information
@@ -231,18 +194,24 @@ interface IPufferProtocol {
     /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
-     * Can not withdraw virtual VTs
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
-     * @notice Submit a valid MerkleProof and get back the Bond deposited if the validator was not slashed
-     * @dev We will burn pufETH from node operator in case of slashing / receiving less than 32 ETH from a full withdrawal
-     * Anybody can trigger a validator exit as long as the proofs submitted are valid
-     * @param validatorInfo is the information about the stopped validator
-     * @param merkleProof is the Merkle Proof for a withdrawal
+     * @notice Batch settling of validator withdrawals
+     *
+     * @notice Settles a validator withdrawal
+     * @dev This is one of the most important methods in the protocol
+     * It has multiple tasks:
+     * 1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH)
+     * 2. Burn the Validator Tickets from the node operator
+     * 3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
+     * 4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
      */
-    function retrieveBond(StoppedValidatorInfo calldata validatorInfo, bytes32[] calldata merkleProof) external;
+    function batchHandleWithdrawals(
+        StoppedValidatorInfo[] calldata validatorInfos,
+        bytes[] calldata guardianEOASignatures
+    ) external;
 
     /**
      * @notice Skips the next validator for `moduleName`
@@ -267,12 +236,6 @@ interface IPufferProtocol {
      * @dev Restricted to the DAO
      */
     function setVTPenalty(uint256 newPenaltyAmount) external;
-
-    /**
-     * @notice Changes the `moduleName` with `newModule`
-     * @dev Restricted to the DAO
-     */
-    function changeModule(bytes32 moduleName, IPufferModule newModule) external;
 
     /**
      * @notice Changes the minimum number amount of VT that must be locked per validator
@@ -322,14 +285,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
-     * @param vtBurnOffset Is the amount in VT tokens that is credited to Node operator for the validating queue time
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes calldata validatorSignature,
-        uint88 vtBurnOffset
-    ) external;
+    function provisionNode(bytes[] calldata guardianEnclaveSignatures, bytes calldata validatorSignature) external;
 
     /**
      * @notice Returns the deposit_data_root
@@ -395,7 +353,9 @@ interface IPufferProtocol {
     function getNextValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256);
 
     /**
-     * @notice Returns the amount of Validator Tickets in the PufferProtocol for the `owner`
+     * @notice Returns the amount of Validator Tickets locked in the PufferProtocol for the `owner`
+     * The real VT balance may be different from the balance in the PufferProtocol
+     * When the Validator is exited, the VTs are burned and the balance is decreased
      */
     function getValidatorTicketsBalance(address owner) external returns (uint256);
 

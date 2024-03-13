@@ -11,7 +11,7 @@ import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessMana
  */
 contract PufferOracle is IPufferOracle, AccessManaged {
     /**
-     * @dev Price in ETH to mint one Validator Ticket
+     * @dev Price in wei to mint one Validator Ticket
      */
     uint256 internal _validatorTicketPrice;
 

@@ -79,11 +79,17 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    function purchaseValidatorTicket(address recipient) external payable virtual restricted returns (uint256 mintedAmount){
+    function purchaseValidatorTicket(address recipient)
+        external
+        payable
+        virtual
+        restricted
+        returns (uint256 mintedAmount)
+    {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-        mintedAmount = (msg.value * 1 ether) / mintPrice;  // * 1 ether is to upscale amount to 18 decimals
+        mintedAmount = (msg.value * 1 ether) / mintPrice; // * 1 ether is to upscale amount to 18 decimals
 
         // slither-disable-next-line divide-before-multiply
         _mint(recipient, mintedAmount);

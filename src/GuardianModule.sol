@@ -11,7 +11,7 @@ import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUti
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
+import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
  * @title Guardian module
@@ -84,7 +84,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         }
         ENCLAVE_VERIFIER = verifier;
         for (uint256 i = 0; i < guardians.length; ++i) {
-            _guardians.add(guardians[i]);
+            _addGuardian(guardians[i]);
         }
         _threshold = threshold;
     }
@@ -113,57 +113,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata eoaSignatures)
         external
         view
     {
         bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: guardianEOASignatures,
-            signedMessageHash: signedMessageHash
-        });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function validatePostFullWithdrawalsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
-        external
-        view
-    {
-        // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getPostFullWithdrawalsRootMessage(root, blockNumber);
-
-        // Check the signatures
         bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function validateProofOfReserve(
-        Reserves calldata reserves,
-        address[] calldata modules,
-        uint256[] calldata amounts,
-        bytes[] calldata guardianSignatures
-    ) external view {
-        // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getProofOfReserveMessage(reserves, modules, amounts);
-
-        // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: guardianSignatures, signedMessageHash: signedMessageHash });
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -175,17 +133,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function validateProvisionNode(
         uint256 validatorIndex,
-        uint256 vtBurnOffset,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
+        bytes[] calldata enclaveSignatures
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
             validatorIndex: validatorIndex,
-            vtBurnOffset: vtBurnOffset,
             pubKey: pubKey,
             signature: signature,
             withdrawalCredentials: withdrawalCredentials,
@@ -194,9 +150,48 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
-            enclaveSignatures: guardianEnclaveSignatures,
+            enclaveSignatures: enclaveSignatures,
             signedMessageHash: signedMessageHash
         });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateBatchWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes[] calldata eoaSignatures)
+        external
+        view
+    {
+        bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+
+        // Check the signatures
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateTotalNumberOfValidators(
+        uint256 newNumberOfValidators,
+        uint256 epochNumber,
+        bytes[] calldata eoaSignatures
+    ) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash =
+            LibGuardianMessages._getSetNumberOfValidatorsMessage(newNumberOfValidators, epochNumber);
+
+        // Check the signatures
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -242,10 +237,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function addGuardian(address newGuardian) external restricted {
         splitGuardianFunds();
-        (bool success) = _guardians.add(newGuardian);
-        if (success) {
-            emit GuardianAdded(newGuardian);
-        }
+        _addGuardian(newGuardian);
     }
 
     /**
@@ -336,7 +328,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         address[] memory enclaveAddresses = new address[](guardiansLength);
 
         for (uint256 i; i < guardiansLength; ++i) {
-            enclaveAddresses[i] = _guardianEnclaves[_guardians.at(i)].enclaveAddress;
+            // If the guardian doesn't have an enclave address, we use `0xdead` address
+            // The reason for this is that we use .tryRecover in signature verification, and a valid signature can be crafted to recover to address(0)
+            address enclaveAddress = _guardianEnclaves[_guardians.at(i)].enclaveAddress == address(0)
+                ? address(0x000000000000000000000000000000000000dEaD)
+                : _guardianEnclaves[_guardians.at(i)].enclaveAddress;
+            enclaveAddresses[i] = enclaveAddress;
         }
 
         return enclaveAddresses;
@@ -377,6 +374,18 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         return _guardians.contains(account);
     }
 
+    function _addGuardian(address newGuardian) internal {
+        if (newGuardian == address(0)) {
+            revert InvalidAddress();
+        }
+        bool success = _guardians.add(newGuardian);
+        if (!success) {
+            revert InvalidAddress();
+        }
+
+        emit GuardianAdded(newGuardian);
+    }
+
     /**
      * @dev Validates the signatures of the provided signers
      * @param signers The array of signers
@@ -391,11 +400,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     {
         uint256 validSignatures;
 
-        // Iterate through guardian enclave addresses and make sure that the signers match
+        // We only count signature as valid if it's from the correct signer
         for (uint256 i; i < signers.length; ++i) {
-            (address currentSigner,,) = ECDSA.tryRecover(signedMessageHash, signatures[i]);
-            if (currentSigner == signers[i]) {
-                ++validSignatures;
+            (address currentSigner, ECDSA.RecoverError recoverError,) =
+                ECDSA.tryRecover(signedMessageHash, signatures[i]);
+            if (recoverError == ECDSA.RecoverError.NoError) {
+                if (currentSigner == signers[i]) {
+                    ++validSignatures;
+                }
             }
         }
 
