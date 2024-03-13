@@ -795,7 +795,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
             moduleName: NO_RESTAKING,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(16 days, 100),
@@ -1082,7 +1082,7 @@ contract PufferProtocolTest is TestHelper {
             StoppedValidatorInfo({
                 module: NoRestakingModule,
                 moduleName: NO_RESTAKING,
-                validatorIndex: 0,
+                pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(10 days, 100),
@@ -1107,7 +1107,7 @@ contract PufferProtocolTest is TestHelper {
             StoppedValidatorInfo({
                 module: NoRestakingModule,
                 moduleName: NO_RESTAKING,
-                validatorIndex: 0,
+                pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(10 days, 100),
@@ -1156,7 +1156,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory aliceInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
             moduleName: NO_RESTAKING,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1166,7 +1166,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
             moduleName: NO_RESTAKING,
-            validatorIndex: 1,
+            pufferModuleIndex: 1,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1209,7 +1209,7 @@ contract PufferProtocolTest is TestHelper {
         stopInfos[0] = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(15 days, 100),
@@ -1218,7 +1218,7 @@ contract PufferProtocolTest is TestHelper {
         stopInfos[1] = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 1,
+            pufferModuleIndex: 1,
             withdrawalAmount: 31.9 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1227,7 +1227,7 @@ contract PufferProtocolTest is TestHelper {
         stopInfos[2] = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 2,
+            pufferModuleIndex: 2,
             withdrawalAmount: 31 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(4 days, 100),
@@ -1236,7 +1236,7 @@ contract PufferProtocolTest is TestHelper {
         stopInfos[3] = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 3,
+            pufferModuleIndex: 3,
             withdrawalAmount: 31.8 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(18 days, 100),
@@ -1245,7 +1245,7 @@ contract PufferProtocolTest is TestHelper {
         stopInfos[4] = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 4,
+            pufferModuleIndex: 4,
             withdrawalAmount: 31.5 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(2 days, 100),
@@ -1315,7 +1315,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory aliceInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1325,7 +1325,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 1,
+            pufferModuleIndex: 1,
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1409,7 +1409,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             withdrawalAmount: 29 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
@@ -1459,7 +1459,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
             withdrawalAmount: 30.5 ether,
@@ -1508,7 +1508,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
             withdrawalAmount: 31 ether,
@@ -1565,7 +1565,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             startEpoch: 100,
             endEpoch: _getEpochNumber(10 days, 100),
             withdrawalAmount: 31.9 ether,
@@ -1614,7 +1614,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             moduleName: NO_RESTAKING,
             module: NoRestakingModule,
-            validatorIndex: 0,
+            pufferModuleIndex: 0,
             startEpoch: 100,
             endEpoch: _getEpochNumber(15 days, 100),
             withdrawalAmount: 32.1 ether,

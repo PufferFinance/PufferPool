@@ -129,7 +129,7 @@ interface IGuardianModule {
      * @notice Validates the node provisioning calldata
      * @dev The order of the signatures is important
      * The order of the signatures MUST the same as the order of the guardians in the guardian module
-     * @param validatorIndex is the validator index in Puffer
+     * @param pufferModuleIndex is the validator index in Puffer
      * @param pubKey The public key
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
@@ -137,7 +137,7 @@ interface IGuardianModule {
      * @param guardianEnclaveSignatures The guardian enclave signatures
      */
     function validateProvisionNode(
-        uint256 validatorIndex,
+        uint256 pufferModuleIndex,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,

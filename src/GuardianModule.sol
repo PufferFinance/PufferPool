@@ -139,7 +139,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      */
     function validateProvisionNode(
-        uint256 validatorIndex,
+        uint256 pufferModuleIndex,
         bytes memory pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
@@ -148,7 +148,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
-            validatorIndex: validatorIndex,
+            pufferModuleIndex: pufferModuleIndex,
             pubKey: pubKey,
             signature: signature,
             withdrawalCredentials: withdrawalCredentials,

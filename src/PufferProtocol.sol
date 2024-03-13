@@ -297,7 +297,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // First, we do the calculations
         // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
-            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].validatorIndex];
+            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].pufferModuleIndex];
 
             if (validator.status != Status.ACTIVE) {
                 revert InvalidValidatorState(validator.status);
@@ -318,7 +318,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
             emit ValidatorExited({
                 pubKey: validator.pubKey,
-                validatorIndex: validatorInfos[i].validatorIndex,
+                pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
                 moduleName: validatorInfos[i].moduleName,
                 pufETHBurnAmount: burnAmount,
                 vtBurnAmount: _getVTBurnAmount(validatorInfos[i])
@@ -499,11 +499,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Iterate through all modules to see if there is a validator ready to be provisioned
         while (moduleSelectionIndex < moduleEndIndex) {
             // Read the index for that moduleName
-            uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
+            uint256 pufferModuleIndex = $.nextToBeProvisioned[moduleName];
 
             // If we find it, return it
-            if ($.validators[moduleName][validatorIndex].status == Status.PENDING) {
-                return (moduleName, validatorIndex);
+            if ($.validators[moduleName][pufferModuleIndex].status == Status.PENDING) {
+                return (moduleName, pufferModuleIndex);
             }
             unchecked {
                 // If not, try the next module
@@ -535,9 +535,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory) {
+    function getValidatorInfo(bytes32 moduleName, uint256 pufferModuleIndex) external view returns (Validator memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.validators[moduleName][validatorIndex];
+        return $.validators[moduleName][pufferModuleIndex];
     }
 
     /**
@@ -622,10 +622,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 numberOfDays
     ) internal {
-        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
+        uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
         // No need for SafeCast
-        $.validators[moduleName][validatorIndex] = Validator({
+        $.validators[moduleName][pufferModuleIndex] = Validator({
             pubKey: data.blsPubKey,
             status: Status.PENDING,
             module: address($.modules[moduleName]),
@@ -642,7 +642,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
         }
         emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
+        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
@@ -753,7 +753,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
-            validatorIndex: index,
+            pufferModuleIndex: index,
             pubKey: validatorPubKey,
             signature: validatorSignature,
             depositDataRoot: depositDataRoot,
