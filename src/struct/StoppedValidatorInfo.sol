@@ -7,8 +7,10 @@ pragma solidity >=0.8.0 <0.9.0;
 struct StoppedValidatorInfo {
     ///@dev Module address.
     address module;
-    ///@dev Validator Tickets burn amount.
-    uint88 vtBurnAmount;
+    ///@dev Validator start epoch.
+    uint256 startEpoch;
+    ///@dev Validator stop epoch.
+    uint256 endEpoch;
     /// @dev Indicates whether the validator was slashed before stopping.
     bool wasSlashed;
     /// @dev Name of the module where the validator was participating.

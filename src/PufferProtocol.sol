@@ -311,7 +311,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
-            burnAmounts.vt += validatorInfos[i].vtBurnAmount;
+            burnAmounts.vt += _getVTBurnAmount(validatorInfos[i]);
 
             // Store the withdrawal amount for that node operator
             bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
@@ -321,7 +321,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 validatorIndex: validatorInfos[i].validatorIndex,
                 moduleName: validatorInfos[i].moduleName,
                 pufETHBurnAmount: burnAmount,
-                vtBurnAmount: validatorInfos[i].vtBurnAmount
+                vtBurnAmount: _getVTBurnAmount(validatorInfos[i])
             });
 
             // Decrease the number of active validators for that module
@@ -331,7 +331,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             );
 
             // Storage VT and the active validator count update for the Node Operator
-            $.nodeOperatorInfo[validator.node].vtBalance -= validatorInfos[i].vtBurnAmount;
+            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(_getVTBurnAmount(validatorInfos[i]));
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
 
             delete validator.node;
@@ -772,6 +772,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         PUFFER_ORACLE.provisionNode();
 
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+    }
+
+    function _getVTBurnAmount(StoppedValidatorInfo calldata validatorInfo) internal returns (uint256) {
+        uint256 validatedEpochs = validatorInfo.endEpoch - validatorInfo.startEpoch;
+        // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
+        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
+        return validatedEpochs * 4444444444444445;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
