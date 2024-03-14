@@ -18,6 +18,6 @@ contract SetEnclaveMeasurements is BaseScript {
 
         address payable module = payable(stdJson.readAddress(guardiansDeployment, ".guardianModule"));
 
-        GuardianModule(module).setGuardianEnclaveMeasurements({ newMrenclave: mrenclave, newMrsigner: mrsigner });
+        GuardianModule(module).setGuardianEnclaveMeasurements({ newMrEnclave: mrenclave, newMrSigner: mrsigner });
     }
 }
