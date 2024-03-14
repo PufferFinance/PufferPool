@@ -192,27 +192,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
+
         uint256 vtPrice = PUFFER_ORACLE.getValidatorTicketPrice();
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
+        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBond : msg.value;
+        uint256 vtDust = vtPayment % vtPrice;
+        vtPayment -= vtDust;
 
-        uint256 receivedVtAmount;
-        uint256 bondAmount;
-        uint256 vtPayment = msg.value;
-
-        // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
-        if (pufETHPermit.amount == 0) {
-            // Mint pufETH and store the bond amount
-            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
-            vtPayment -= validatorBond;
-        } else {
-            _callPermit(address(PUFFER_VAULT), pufETHPermit);
-            // Store the bond amount
-            bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
-
-            // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
-        }
-
+         uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
         if (vtPermit.amount == 0) {
             receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
@@ -223,8 +211,24 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // slither-disable-next-line unchecked-transfer
             VALIDATOR_TICKET.transferFrom(msg.sender, address(this), receivedVtAmount);
         }
+
+        // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
+        if (pufETHPermit.amount == 0) {
+            // Mint pufETH and store the bond amount
+            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+        } else {
+            _callPermit(address(PUFFER_VAULT), pufETHPermit);
+            
+            // slither-disable-next-line unchecked-transfer
+            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
+        }
+
+        if (vtDust != 0) {
+            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtDust }(msg.sender);
+        }
+
         
-        if (receivedVtAmount % vtPrice != 0 || receivedVtAmount < $.minimumVtAmount) {
+        if (receivedVtAmount < $.minimumVtAmount) {
             revert InvalidVTAmount(); 
         }
 

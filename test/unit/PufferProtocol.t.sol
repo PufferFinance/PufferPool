@@ -16,6 +16,7 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
+import "forge-std/console.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
@@ -170,14 +171,18 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    // Try registering with invalid amount paid
-    function test_register_with_invalid_amount_paid() public {
+    // Mint dust vt after registeration
+    function test_register_with_dust_amount() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
-        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-        pufferProtocol.registerValidatorKey{ value: 5 ether }(
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 amount = 5.11 ether;
+
+        pufferProtocol.registerValidatorKey{ value: amount }(
             validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
         );
+
+        assertEq(validatorTicket.balanceOf(charlie), amount %  vtPrice, "VT after for charlie");
     }
 
     // If we are > burst threshold, treasury gets everything
@@ -526,6 +531,7 @@ contract PufferProtocolTest is TestHelper {
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         Permit memory permit;
         permit.amount = pufferVault.balanceOf(alice);
+        console.log("alice balance", permit.amount);
 
         // Get the smoothing commitment amount for 180 days
         uint256 sc = pufferOracle.getValidatorTicketPrice() * 180;
@@ -534,7 +540,7 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
         pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, permit, emptyPermit);
-
+         console.log("alice balance after ", pufferVault.balanceOf(alice));
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroZeroTwo, "~1 pufETH after");
     }
