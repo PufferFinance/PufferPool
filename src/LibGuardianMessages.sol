@@ -16,20 +16,20 @@ library LibGuardianMessages {
 
     /**
      * @notice Returns the message that the guardian's enclave needs to sign
-     * @param validatorIndex is the validator index in Puffer
+     * @param pufferModuleIndex is the validator index in Puffer
      * @param signature is the BLS signature of the deposit data
      * @param withdrawalCredentials are the withdrawal credentials for this validator
      * @param depositDataRoot is the hash of the deposit data
      * @return hash of the data
      */
     function _getBeaconDepositMessageToBeSigned(
-        uint256 validatorIndex,
+        uint256 pufferModuleIndex,
         bytes memory pubKey,
         bytes memory signature,
         bytes memory withdrawalCredentials,
         bytes32 depositDataRoot
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encode(validatorIndex, pubKey, withdrawalCredentials, signature, depositDataRoot))
+        return keccak256(abi.encode(pufferModuleIndex, pubKey, withdrawalCredentials, signature, depositDataRoot))
             .toEthSignedMessageHash();
     }
 

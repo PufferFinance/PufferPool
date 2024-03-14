@@ -119,7 +119,7 @@ interface IPufferProtocol {
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
      * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
      */
-    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
+    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
@@ -130,26 +130,26 @@ interface IPufferProtocol {
     /**
      * @notice Emitted when the Validator key is registered
      * @param pubKey is the validator public key
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param usingEnclave is indicating if the validator is using secure enclave
      * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
     event ValidatorKeyRegistered(
-        bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName, bool usingEnclave
+        bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
     );
 
     /**
      * @notice Emitted when the Validator exited and stopped validating
      * @param pubKey is the validator public key
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
      * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
      */
     event ValidatorExited(
         bytes indexed pubKey,
-        uint256 indexed validatorIndex,
+        uint256 indexed pufferModuleIndex,
         bytes32 indexed moduleName,
         uint256 pufETHBurnAmount,
         uint256 vtBurnAmount
@@ -158,19 +158,19 @@ interface IPufferProtocol {
     /**
      * @notice Emitted when the Validator is provisioned
      * @param pubKey is the validator public key
-     * @param validatorIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
-    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed validatorIndex, bytes32 indexed moduleName);
+    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Returns validator information
      * @param moduleName is the staking Module
-     * @param validatorIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
+     * @param pufferModuleIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
      * @return Validator info struct
      */
-    function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory);
+    function getValidatorInfo(bytes32 moduleName, uint256 pufferModuleIndex) external view returns (Validator memory);
 
     /**
      * @notice Returns Penalty for submitting a bad validator registration

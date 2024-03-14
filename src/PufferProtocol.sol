@@ -297,7 +297,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // First, we do the calculations
         // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
-            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].validatorIndex];
+            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].pufferModuleIndex];
 
             if (validator.status != Status.ACTIVE) {
                 revert InvalidValidatorState(validator.status);
@@ -311,17 +311,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
-            burnAmounts.vt += validatorInfos[i].vtBurnAmount;
+            burnAmounts.vt += _getVTBurnAmount(validatorInfos[i]);
 
             // Store the withdrawal amount for that node operator
             bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
 
             emit ValidatorExited({
                 pubKey: validator.pubKey,
-                validatorIndex: validatorInfos[i].validatorIndex,
+                pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
                 moduleName: validatorInfos[i].moduleName,
                 pufETHBurnAmount: burnAmount,
-                vtBurnAmount: validatorInfos[i].vtBurnAmount
+                vtBurnAmount: _getVTBurnAmount(validatorInfos[i])
             });
 
             // Decrease the number of active validators for that module
@@ -331,7 +331,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             );
 
             // Storage VT and the active validator count update for the Node Operator
-            $.nodeOperatorInfo[validator.node].vtBalance -= validatorInfos[i].vtBurnAmount;
+            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(_getVTBurnAmount(validatorInfos[i]));
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
 
             delete validator.node;
@@ -499,11 +499,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Iterate through all modules to see if there is a validator ready to be provisioned
         while (moduleSelectionIndex < moduleEndIndex) {
             // Read the index for that moduleName
-            uint256 validatorIndex = $.nextToBeProvisioned[moduleName];
+            uint256 pufferModuleIndex = $.nextToBeProvisioned[moduleName];
 
             // If we find it, return it
-            if ($.validators[moduleName][validatorIndex].status == Status.PENDING) {
-                return (moduleName, validatorIndex);
+            if ($.validators[moduleName][pufferModuleIndex].status == Status.PENDING) {
+                return (moduleName, pufferModuleIndex);
             }
             unchecked {
                 // If not, try the next module
@@ -535,9 +535,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    function getValidatorInfo(bytes32 moduleName, uint256 validatorIndex) external view returns (Validator memory) {
+    function getValidatorInfo(bytes32 moduleName, uint256 pufferModuleIndex) external view returns (Validator memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        return $.validators[moduleName][validatorIndex];
+        return $.validators[moduleName][pufferModuleIndex];
     }
 
     /**
@@ -622,10 +622,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 numberOfDays
     ) internal {
-        uint256 validatorIndex = $.pendingValidatorIndices[moduleName];
+        uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
         // No need for SafeCast
-        $.validators[moduleName][validatorIndex] = Validator({
+        $.validators[moduleName][pufferModuleIndex] = Validator({
             pubKey: data.blsPubKey,
             status: Status.PENDING,
             module: address($.modules[moduleName]),
@@ -642,7 +642,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleLimits[moduleName].numberOfActiveValidators;
         }
         emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, validatorIndex, moduleName, (data.raveEvidence.length > 0));
+        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
@@ -753,7 +753,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
-            validatorIndex: index,
+            pufferModuleIndex: index,
             pubKey: validatorPubKey,
             signature: validatorSignature,
             depositDataRoot: depositDataRoot,
@@ -772,6 +772,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         PUFFER_ORACLE.provisionNode();
 
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+    }
+
+    function _getVTBurnAmount(StoppedValidatorInfo calldata validatorInfo) internal returns (uint256) {
+        uint256 validatedEpochs = validatorInfo.endEpoch - validatorInfo.startEpoch;
+        // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
+        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
+        return validatedEpochs * 4444444444444445;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
