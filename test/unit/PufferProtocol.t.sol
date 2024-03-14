@@ -702,30 +702,24 @@ contract PufferProtocolTest is TestHelper {
     }
 
     // Node operator can deposit Bond in pufETH
-    // function test_register_validator_key_with_permit_reverts_invalid_vt_amount() external {
-    //     bytes memory pubKey = _getPubKey(bytes32("alice"));
-    //     vm.deal(alice, 100 ether);
+    function test_register_validator_key_with_permit_reverts_invalid_vt_amount() external {
+        bytes memory pubKey = _getPubKey(bytes32("alice"));
+        vm.deal(alice, 100 ether);
 
-    //     // Alice mints 2 ETH of pufETH
-    //     vm.startPrank(alice);
-    //     pufferVault.depositETH{ value: 2 ether }(alice);
+        // Alice mints 2 ETH of pufETH
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: 2 ether }(alice);
 
-    //     ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
-    //     // Generate Permit data for 10 pufETH to the protocol
-    //     Permit memory permit = _signPermit(
-    //         _testTemps("alice", address(pufferProtocol), 0.5 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
-    //     );
-    //     // TODO fix
-    //     // Underpay VT
-    //     vm.expectRevert();
-    //     pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, NO_RESTAKING, permit, emptyPermit);
+        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
+        // Generate Permit data for 10 pufETH to the protocol
+        Permit memory permit = _signPermit(
+            _testTemps("alice", address(pufferProtocol), 0.5 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
+        );
 
-    //     uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-
-    //     // Overpay VT
-    //     vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-    //     pufferProtocol.registerValidatorKey{ value: 5 ether }(data, NO_RESTAKING, permit, emptyPermit);
-    // }
+        // Underpay VT
+        vm.expectRevert();
+        pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, NO_RESTAKING, permit, emptyPermit);
+    }
 
     function test_validator_griefing_attack() external {
         vm.deal(address(pufferVault), 100 ether);
