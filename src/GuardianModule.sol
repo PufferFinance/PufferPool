@@ -32,6 +32,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal constant _ECDSA_KEY_LENGTH = 65;
 
     /**
+     * @dev Ejection threshold balance. If the balance of the Validator falls below this value, the Guardian will eject the Validator
+     */
+    uint256 internal constant _EJECTION_THRESHOLD_BALANCE = 31.75 ether;
+
+    /**
      * @notice Enclave Verifier smart contract
      */
     IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
@@ -92,7 +97,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         for (uint256 i = 0; i < guardians.length; ++i) {
             _addGuardian(guardians[i]);
         }
-        _setEjectionThreshold(31.75 ether);
+        _setEjectionThreshold(_EJECTION_THRESHOLD_BALANCE);
         _setThreshold(threshold);
     }
 
@@ -239,11 +244,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external restricted {
-        emit MrEnclaveChanged(_mrenclave, newMrenclave);
-        emit MrSignerChanged(_mrsigner, newMrsigner);
-        _mrenclave = newMrenclave;
-        _mrsigner = newMrsigner;
+    function setGuardianEnclaveMeasurements(bytes32 newMrEnclave, bytes32 newMrSigner) external restricted {
+        emit MrEnclaveChanged(_mrenclave, newMrEnclave);
+        emit MrSignerChanged(_mrsigner, newMrSigner);
+        _mrenclave = newMrEnclave;
+        _mrsigner = newMrSigner;
     }
 
     /**
