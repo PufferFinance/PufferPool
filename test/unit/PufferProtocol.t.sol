@@ -171,7 +171,7 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    // Mint dust vt after registeration
+    // Mint dust vt after registration
     function test_register_with_dust_amount() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
