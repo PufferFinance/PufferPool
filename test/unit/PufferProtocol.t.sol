@@ -171,8 +171,8 @@ contract PufferProtocolTest is TestHelper {
         );
     }
 
-    // Mint dust vt after registration
-    function test_register_with_dust_amount() public {
+    // Mint non whole vt after registration
+    function test_register_with_non_whole_amount() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
@@ -182,7 +182,7 @@ contract PufferProtocolTest is TestHelper {
             validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
         );
 
-        assertEq(validatorTicket.balanceOf(charlie), amount %  vtPrice, "VT after for charlie");
+        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), ((amount - 1 ether) * 1 ether) / vtPrice, "VT after for pufferProtocol");
     }
 
     // If we are > burst threshold, treasury gets everything
@@ -277,7 +277,7 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_get_payload() public {
-        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(NO_RESTAKING, false, 30);
+        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(NO_RESTAKING, false);
 
         assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
         assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
