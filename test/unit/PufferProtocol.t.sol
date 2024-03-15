@@ -16,7 +16,6 @@ import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
-import "forge-std/console.sol";
 
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
