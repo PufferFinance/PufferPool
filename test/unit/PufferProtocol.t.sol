@@ -530,7 +530,6 @@ contract PufferProtocolTest is TestHelper {
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         Permit memory permit;
         permit.amount = pufferVault.balanceOf(alice);
-        console.log("alice balance", permit.amount);
 
         // Get the smoothing commitment amount for 180 days
         uint256 sc = pufferOracle.getValidatorTicketPrice() * 180;
@@ -539,7 +538,6 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
         pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, permit, emptyPermit);
-         console.log("alice balance after ", pufferVault.balanceOf(alice));
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroZeroTwo, "~1 pufETH after");
     }
