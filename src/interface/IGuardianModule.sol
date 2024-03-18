@@ -23,12 +23,6 @@ interface IGuardianModule {
     error InvalidRAVE();
 
     /**
-     * @notice Thrown if the address supplied is not valid
-     * @dev Signature "0xe6c4247b"
-     */
-    error InvalidAddress();
-
-    /**
      * @notice Thrown if the threshold value is not valid
      * @dev Signature "0x651a749b"
      */

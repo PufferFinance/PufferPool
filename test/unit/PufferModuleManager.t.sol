@@ -18,7 +18,7 @@ contract PufferModuleUpgrade {
 /**
  * @dev A lot of the tests are copied and adapted from NoRestakingModule.t.sol
  */
-contract PufferModuleTest is TestHelper {
+contract PufferModuleManager is TestHelper {
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 
@@ -32,11 +32,11 @@ contract PufferModuleTest is TestHelper {
         _skipDefaultFuzzAddresses();
     }
 
-    function testBeaconUpgrade() public {
-        address moduleBeacon = moduleFactory.PUFFER_MODULE_BEACON();
+    function test_beaconUpgrade() public {
+        address moduleBeacon = pufferModuleManager.PUFFER_MODULE_BEACON();
 
         vm.startPrank(DAO);
-        pufferProtocol.createPufferModule(bytes32("DEGEN"), "", address(0));
+        pufferProtocol.createPufferModule(bytes32("DEGEN"));
         vm.stopPrank();
 
         // No restaking is a custom default module (non beacon upgradeable)
@@ -59,13 +59,13 @@ contract PufferModuleTest is TestHelper {
         assertEq(abi.decode(data, (uint256)), 1337, "got the number");
     }
 
-    function testCreatePufferModule(bytes32 moduleName) public {
+    function test_createPufferModule(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
     }
 
     // Reverts for everybody else
-    function testPostRewardsRootReverts(bytes32 moduleName, address sender, bytes32 merkleRoot, uint256 blockNumber)
+    function tes_postRewardsRootReverts(bytes32 moduleName, address sender, bytes32 merkleRoot, uint256 blockNumber)
         public
     {
         address module = _createPufferModule(moduleName);
@@ -76,13 +76,13 @@ contract PufferModuleTest is TestHelper {
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));
     }
 
-    function testDonation(bytes32 moduleName) public {
+    function test_donation(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         (bool s,) = address(module).call{ value: 5 ether }("");
         assertTrue(s);
     }
 
-    function testPostRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
+    function test_postRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
         address module = _createPufferModule(CRAZY_GAINS);
 
         vm.assume(PufferModule(payable(module)).getLastProofOfRewardsBlock() < blockNumber);
@@ -96,7 +96,7 @@ contract PufferModuleTest is TestHelper {
     }
 
     // Collecting non restaking rewards
-    function testCollectNoRestakingRewards(bytes32 moduleName) public {
+    function test_collectNoRestakingRewards(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         address module = _createPufferModule(moduleName);
 
@@ -208,7 +208,7 @@ contract PufferModuleTest is TestHelper {
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
-        module = pufferProtocol.createPufferModule(moduleName, "", address(0));
+        module = pufferProtocol.createPufferModule(moduleName);
         vm.stopPrank();
     }
 

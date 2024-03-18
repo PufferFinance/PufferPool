@@ -5,14 +5,13 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
-import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
+import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { NoRestakingModule } from "puffer/NoRestakingModule.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
@@ -36,12 +35,11 @@ contract SetupAccess is BaseScript {
         // We do one multicall to setup everything
         bytes[] memory rolesCalldatas = _grantRoles(DAO);
         bytes[] memory pufferProtocolRoles = _setupPufferProtocolRoles();
-        bytes[] memory noRestakingModuleRoles = _setupNoRestakingModuleRoles();
         bytes[] memory validatorTicketRoles = _setupValidatorTicketsAccess();
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
 
-        bytes[] memory calldatas = new bytes[](21);
+        bytes[] memory calldatas = new bytes[](17);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -53,21 +51,16 @@ contract SetupAccess is BaseScript {
         calldatas[7] = pufferProtocolRoles[1];
         calldatas[8] = pufferProtocolRoles[2];
 
-        calldatas[9] = noRestakingModuleRoles[0];
-        calldatas[10] = noRestakingModuleRoles[1];
-        calldatas[11] = noRestakingModuleRoles[2];
-        calldatas[12] = noRestakingModuleRoles[3];
+        calldatas[9] = validatorTicketRoles[0];
+        calldatas[10] = validatorTicketRoles[1];
 
-        calldatas[13] = validatorTicketRoles[0];
-        calldatas[14] = validatorTicketRoles[1];
+        calldatas[11] = vaultMainnetAccess[0];
+        calldatas[12] = vaultMainnetAccess[1];
+        calldatas[13] = vaultMainnetAccess[2];
 
-        calldatas[15] = vaultMainnetAccess[0];
-        calldatas[16] = vaultMainnetAccess[1];
-        calldatas[17] = vaultMainnetAccess[2];
-
-        calldatas[18] = pufferOracleAccess[0];
-        calldatas[19] = pufferOracleAccess[1];
-        calldatas[20] = pufferOracleAccess[2];
+        calldatas[14] = pufferOracleAccess[0];
+        calldatas[15] = pufferOracleAccess[1];
+        calldatas[16] = pufferOracleAccess[2];
 
         accessManager.multicall(calldatas);
 
@@ -194,56 +187,10 @@ contract SetupAccess is BaseScript {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            PufferModuleFactory(pufferDeployment.moduleFactory).PUFFER_MODULE_BEACON(),
+            PufferModuleManager(pufferDeployment.moduleManager).PUFFER_MODULE_BEACON(),
             selectors,
             ROLE_ID_DAO
         );
-    }
-
-    function _setupNoRestakingModuleRoles() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](4);
-
-        bytes4[] memory protocolSelectors = new bytes4[](1);
-        protocolSelectors[0] = IPufferModule.callStake.selector;
-
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.NoRestakingModule,
-            protocolSelectors,
-            ROLE_ID_PUFFER_PROTOCOL
-        );
-
-        bytes4[] memory selectorsForGuardians = new bytes4[](1);
-        selectorsForGuardians[0] = NoRestakingModule.postRewardsRoot.selector;
-
-        calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.NoRestakingModule,
-            selectorsForGuardians,
-            ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
-        );
-
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = NoRestakingModule.collectRewards.selector;
-
-        calldatas[2] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.NoRestakingModule,
-            publicSelectors,
-            accessManager.PUBLIC_ROLE()
-        );
-
-        bytes4[] memory oracleSelectors = new bytes4[](1);
-        oracleSelectors[0] = IPufferModule.call.selector;
-
-        calldatas[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.NoRestakingModule,
-            oracleSelectors,
-            ROLE_ID_PUFFER_ORACLE
-        );
-
-        return calldatas;
     }
 
     function _setupEnclaveVerifierRoles() internal view returns (bytes memory) {
