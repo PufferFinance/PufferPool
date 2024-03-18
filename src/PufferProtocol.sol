@@ -197,20 +197,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
         uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBond : msg.value;
 
-         uint256 receivedVtAmount;
+        uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
         if (vtPermit.amount == 0) {
             receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
             receivedVtAmount = vtPermit.amount;
-            
+
             // slither-disable-next-line unchecked-transfer
             VALIDATOR_TICKET.transferFrom(msg.sender, address(this), receivedVtAmount);
         }
 
         if (receivedVtAmount < $.minimumVtAmount) {
-            revert InvalidVTAmount(); 
+            revert InvalidVTAmount();
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
@@ -219,7 +219,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
-            
+
             // slither-disable-next-line unchecked-transfer
             PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
         }

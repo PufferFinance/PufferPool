@@ -38,8 +38,9 @@ contract SetupAccess is BaseScript {
         bytes[] memory validatorTicketRoles = _setupValidatorTicketsAccess();
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
+        bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
 
-        bytes[] memory calldatas = new bytes[](17);
+        bytes[] memory calldatas = new bytes[](18);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -62,12 +63,30 @@ contract SetupAccess is BaseScript {
         calldatas[15] = pufferOracleAccess[1];
         calldatas[16] = pufferOracleAccess[2];
 
+        calldatas[17] = moduleManagerAccess[0];
+
         accessManager.multicall(calldatas);
 
         // This will be executed by the operations multisig on mainnet
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
+    }
+
+    function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](1);
+
+        // Dao selectors
+        bytes4[] memory selectors = new bytes4[](3);
+        selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
+        selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
+        selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO
+        );
+
+        return calldatas;
     }
 
     function _setupPufferOracleAccess() internal view returns (bytes[] memory) {

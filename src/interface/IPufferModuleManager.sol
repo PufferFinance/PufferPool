@@ -12,6 +12,13 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
  */
 interface IPufferModuleManager {
     /**
+     * @notice Emitted when a Restaking operator opts into a slasher
+     * @param restakingOperator is the address of the restaking operator
+     * @param slasher is the address of the slasher contract
+     */
+    event RestakingOperatorOptedInSlasher(address restakingOperator, address slasher);
+
+    /**
      * @notice Create a new Restaking Operator
      * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
      *

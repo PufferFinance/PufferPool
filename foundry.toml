@@ -7,15 +7,13 @@ runs = 7_000
 # don't forget to turn on the optimizer :)
 fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports=[
-    "PufferPool",
-    "WithdrawalPool",
     "PufferProtocol",
     "GuardianModule",
+    "RestakingOperator",
     "EnclaveVerifier",
-    "NoRestakingModule",
-    "TokenRescuer",
-    "PufferModuleFactory",
+    "PufferModuleManager",
     "PufferModule",
+    "ValidatorTicket"
 ]
 auto_detect_solc = false
 cbor_metadata = false

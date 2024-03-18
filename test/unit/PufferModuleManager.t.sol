@@ -15,10 +15,7 @@ contract PufferModuleUpgrade {
     }
 }
 
-/**
- * @dev A lot of the tests are copied and adapted from NoRestakingModule.t.sol
- */
-contract PufferModuleManager is TestHelper {
+contract PufferModuleManagerTest is TestHelper {
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 

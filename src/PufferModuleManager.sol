@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
@@ -48,15 +49,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the PufferProtocol
+     * @param moduleName The name of the module
      */
     function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule) {
+        if (msg.sender != PUFFER_PROTOCOL) {
+            revert Unauthorized();
+        }
+
         return IPufferModule(
             Create2.deploy({
                 amount: 0,
                 salt: moduleName,
                 bytecode: abi.encodePacked(
                     type(BeaconProxy).creationCode,
-                    abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
+                    abi.encode(
+                        PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority(), this))
+                    )
                     )
             })
         );
@@ -64,13 +73,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
      */
     function createNewRestakingOperator(
         string calldata metadataURI,
         address delegationApprover,
         uint32 stakerOptOutWindowBlocks
     ) external restricted returns (IRestakingOperator) {
-        //@todo check if the earningsReceiver should be a restaking operator contract
         IDelegationManager.OperatorDetails memory operatorDetails = IDelegationManager.OperatorDetails({
             earningsReceiver: address(this),
             delegationApprover: delegationApprover,
@@ -111,6 +120,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external restricted {
         restakingOperator.optIntoSlashing(slasher);
+        emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
     function callDelegateToBySignature(IPufferModule module) external { }

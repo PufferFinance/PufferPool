@@ -7,6 +7,7 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Unauthorized } from "puffer/Errors.sol";
@@ -15,7 +16,6 @@ import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @dev Mainnet and latest `master` from EigenLayer are not the same
@@ -107,15 +107,19 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     struct PufferModuleStorage {
         /**
-         * @notice Module Name
+         * @dev Puffer module manager
+         */
+        IPufferModuleManager pufferModuleManager;
+        /**
+         * @dev Module Name
          */
         bytes32 moduleName;
         /**
-         * @notice Owned EigenPod
+         * @dev Owned EigenPod
          */
         IEigenPod eigenPod;
         /**
-         * @notice Timestamp of the last claim of no restaking rewards
+         * @dev Timestamp of the last claim of no restaking rewards
          */
         uint256 lastClaimTimestamp;
         /**
@@ -123,11 +127,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
          */
         uint256 lastProofOfRewardsBlockNumber;
         /**
-         * @notice Mapping of a blockNumber and the MerkleRoot for that rewards period
+         * @dev Mapping of a blockNumber and the MerkleRoot for that rewards period
          */
         mapping(uint256 blockNumber => bytes32 root) rewardsRoots;
         /**
-         * @notice Mapping that stores which validators have claimed the rewards for a certain blockNumber
+         * @dev Mapping that stores which validators have claimed the rewards for a certain blockNumber
          */
         mapping(uint256 blockNumber => mapping(address node => bool claimed)) claimedRewards;
     }
@@ -145,10 +149,14 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _disableInitializers();
     }
 
-    function initialize(bytes32 moduleName, address initialAuthority) external initializer {
+    function initialize(bytes32 moduleName, address initialAuthority, IPufferModuleManager moduleManager)
+        external
+        initializer
+    {
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;
+        $.pufferModuleManager = moduleManager;
         // Set the EigenPod to that will be the EigenPod for this module
         // Eigen pod is created deterministically in the `callStake` function, but in order to call the `callStake` successfully, we need to have the address of the EigenPod
         // Our `getWithdrawalCredentials` is using eigenPod to get the withdrawal credentials
