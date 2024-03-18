@@ -590,7 +590,7 @@ contract PufferProtocolHandler is Test {
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
-            validatorKeyData, moduleName, numberOfDays, emptyPermit, emptyPermit
+            validatorKeyData, moduleName, emptyPermit, emptyPermit
         );
 
         return (smoothingCommitment + bond);

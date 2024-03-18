@@ -147,7 +147,7 @@ contract PufferProtocolTest is TestHelper {
         data.blsPubKeySet = new bytes(22); // Invalid length
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPublicKeySet.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING, 30, emptyPermit, emptyPermit);
+        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING, emptyPermit, emptyPermit);
     }
 
     // Invalid private key shares length
@@ -156,7 +156,7 @@ contract PufferProtocolTest is TestHelper {
         data.blsEncryptedPrivKeyShares = new bytes[](2); // we have 3 guardians, and we try to give 2 priv key shares
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPrivateKeyShares.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING, 30, emptyPermit, emptyPermit);
+        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, NO_RESTAKING, emptyPermit, emptyPermit);
     }
 
     // Try registering with invalid module
@@ -166,18 +166,22 @@ contract PufferProtocolTest is TestHelper {
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
-            validatorKeyData, bytes32("imaginary module"), 30, emptyPermit, emptyPermit
+            validatorKeyData, bytes32("imaginary module"), emptyPermit, emptyPermit
         );
     }
 
-    // Try registering with invalid amount paid
-    function test_register_with_invalid_amount_paid() public {
+    // Mint non whole vt after registration
+    function test_register_with_non_whole_amount() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
-        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-        pufferProtocol.registerValidatorKey{ value: 5 ether }(
-            validatorKeyData, NO_RESTAKING, 30, emptyPermit, emptyPermit
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 amount = 5.11 ether;
+
+        pufferProtocol.registerValidatorKey{ value: amount }(
+            validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
         );
+
+        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), ((amount - 1 ether) * 1 ether) / vtPrice, "VT after for pufferProtocol");
     }
 
     // If we are > burst threshold, treasury gets everything
@@ -241,7 +245,7 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, false);
         pufferProtocol.registerValidatorKey{ value: vtPrice + 2 ether }(
-            validatorData, NO_RESTAKING, 30, emptyPermit, emptyPermit
+            validatorData, NO_RESTAKING, emptyPermit, emptyPermit
         );
     }
 
@@ -267,12 +271,12 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
-            validatorData, NO_RESTAKING, 30, emptyPermit, emptyPermit
+            validatorData, NO_RESTAKING, emptyPermit, emptyPermit
         );
     }
 
     function test_get_payload() public {
-        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(NO_RESTAKING, false, 30);
+        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(NO_RESTAKING, false);
 
         assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
         assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
@@ -497,8 +501,8 @@ contract PufferProtocolTest is TestHelper {
         uint256 bond = 2 ether;
 
         vm.expectRevert();
-        pufferProtocol.registerValidatorKey{ value: bond }(
-            validatorKeyData, NO_RESTAKING, type(uint256).max, emptyPermit, emptyPermit
+        pufferProtocol.registerValidatorKey{ value: type(uint256).max }(
+            validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
         );
     }
 
@@ -533,8 +537,7 @@ contract PufferProtocolTest is TestHelper {
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, 180, permit, emptyPermit);
-
+        pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, permit, emptyPermit);
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroZeroTwo, "~1 pufETH after");
     }
@@ -564,7 +567,7 @@ contract PufferProtocolTest is TestHelper {
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, numberOfDays, permit, emptyPermit);
+        pufferProtocol.registerValidatorKey{ value: sc }(data, NO_RESTAKING, permit, emptyPermit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, "1 pufETH after");
@@ -600,13 +603,13 @@ contract PufferProtocolTest is TestHelper {
             _testTemps("alice", address(pufferProtocol), bond, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
         );
         Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(amount), block.timestamp),
+            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
             validatorTicket.DOMAIN_SEPARATOR()
         );
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, numberOfDays, pufETHPermit, vtPermit);
+        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, pufETHPermit, vtPermit);
 
         assertEq(pufferVault.balanceOf(alice), leftOverPufETH, "alice should have some leftover pufETH");
         assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
@@ -643,14 +646,14 @@ contract PufferProtocolTest is TestHelper {
         validatorTicket.approve(address(pufferProtocol), type(uint256).max);
 
         Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = _upscaleTo18Decimals(amount); // upscale to 18 decimals
+        vtPermit.amount = _upscaleTo18Decimals(numberOfDays); // upscale to 18 decimals
 
         Permit memory pufETHPermit = emptyPermit;
         pufETHPermit.amount = pufferVault.convertToShares(bond);
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, numberOfDays, pufETHPermit, vtPermit);
+        pufferProtocol.registerValidatorKey(data, NO_RESTAKING, pufETHPermit, vtPermit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
@@ -680,7 +683,7 @@ contract PufferProtocolTest is TestHelper {
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, NO_RESTAKING);
         // Generate Permit data for 2 pufETH to the protocol
         Permit memory permit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(amount), block.timestamp),
+            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
             validatorTicket.DOMAIN_SEPARATOR()
         );
 
@@ -689,7 +692,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, NO_RESTAKING, true);
-        pufferProtocol.registerValidatorKey{ value: bond }(data, NO_RESTAKING, numberOfDays, emptyPermit, permit);
+        pufferProtocol.registerValidatorKey{ value: bond }(data, NO_RESTAKING, emptyPermit, permit);
 
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
         assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroFive, "~1 pufETH after");
@@ -712,13 +715,7 @@ contract PufferProtocolTest is TestHelper {
 
         // Underpay VT
         vm.expectRevert();
-        pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, NO_RESTAKING, 60, permit, emptyPermit);
-
-        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-
-        // Overpay VT
-        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-        pufferProtocol.registerValidatorKey{ value: 5 ether }(data, NO_RESTAKING, 60, permit, emptyPermit);
+        pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, NO_RESTAKING, permit, emptyPermit);
     }
 
     function test_validator_griefing_attack() external {
@@ -754,7 +751,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
-            validatorKeyData, NO_RESTAKING, 30, emptyPermit, emptyPermit
+            validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
         );
     }
 
@@ -1810,7 +1807,7 @@ contract PufferProtocolTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, idx, moduleName, true);
         pufferProtocol.registerValidatorKey{ value: (vtPrice + bond) }(
-            validatorKeyData, moduleName, 30, emptyPermit, emptyPermit
+            validatorKeyData, moduleName, emptyPermit, emptyPermit
         );
     }
 

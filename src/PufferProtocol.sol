@@ -181,16 +181,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfDays,
         Permit calldata pufETHPermit,
         Permit calldata vtPermit
     ) external payable restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        // Upscale number of days to 18 decimals
-        if ((numberOfDays * 1 ether) < $.minimumVtAmount) {
-            revert InvalidVTAmount();
-        }
 
         // Revert if the permit amounts are non zero, but the msg.value is also non zero
         if (vtPermit.amount != 0 && pufETHPermit.amount != 0 && msg.value > 0) {
@@ -200,43 +194,42 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
         uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 bondInPufETH = PUFFER_VAULT.convertToShares(validatorBond);
-        uint256 vtPayment = PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
+        uint256 bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
+        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBond : msg.value;
 
-        // If the user overpaid
-        if (msg.value > (validatorBond + vtPayment)) {
-            revert InvalidETHAmount();
-        }
-
-        uint256 pufETHMinted;
-
+         uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
         if (vtPermit.amount == 0) {
-            VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
+            receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
+            receivedVtAmount = vtPermit.amount;
+            
             // slither-disable-next-line unchecked-transfer
-            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), numberOfDays * 1 ether); // * 1 ether is to convert number of days to VT amount
+            VALIDATOR_TICKET.transferFrom(msg.sender, address(this), receivedVtAmount);
+        }
+
+        if (receivedVtAmount < $.minimumVtAmount) {
+            revert InvalidVTAmount(); 
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
-            pufETHMinted = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            // Mint pufETH and store the bond amount
+            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
+            
             // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondInPufETH);
+            PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
         }
-
-        // Store the bond amount
-        uint256 bondAmount = pufETHMinted > 0 ? pufETHMinted : bondInPufETH;
 
         _storeValidatorInformation({
             $: $,
             data: data,
             pufETHAmount: bondAmount,
             moduleName: moduleName,
-            numberOfDays: numberOfDays
+            vtAmount: receivedVtAmount
         });
     }
 
@@ -596,7 +589,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave, uint256 numberOfDays)
+    function getPayload(bytes32 moduleName, bool usingEnclave)
         external
         view
         returns (bytes[] memory, bytes memory, uint256, uint256)
@@ -607,7 +600,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + PUFFER_ORACLE.getValidatorTicketPrice() * numberOfDays;
+        uint256 ethAmount = validatorBond + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
@@ -617,7 +610,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ValidatorKeyData calldata data,
         uint256 pufETHAmount,
         bytes32 moduleName,
-        uint256 numberOfDays
+        uint256 vtAmount
     ) internal {
         uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
@@ -630,7 +623,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             node: msg.sender
         });
 
-        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(numberOfDays * 1 ether); // convert numberOfDays to VT amount
+        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(vtAmount);
 
         // Increment indices for this module and number of validators registered
         unchecked {

@@ -324,14 +324,12 @@ interface IPufferProtocol {
      *
      * @param data The validator key data
      * @param moduleName The name of the module
-     * @param numberOfDays The number of days for the registration
      * @param pufETHPermit The permit for the pufETH
      * @param vtPermit The permit for the ValidatorTicket
      */
     function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 numberOfDays,
         Permit calldata pufETHPermit,
         Permit calldata vtPermit
     ) external payable;
