@@ -33,7 +33,7 @@ contract PufferPoolIntegrationTest is IntegrationTestHelper {
         vm.label(eigenERC20Mock, "eigen20mocktoken");
         vm.label(eigenStrategy, "mock strategy");
         vm.label(address(eigenStrategyManager), "eigen strategy manager");
-        deployContractsGoerli();
+        deployContractsGoerli(9717928);
     }
 
     function testMulticallStrategyDepositOnGoerli() public {

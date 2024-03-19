@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 
 /**
  * @title IRestakingOperator
@@ -9,6 +10,16 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
  * @custom:security-contact security@puffer.fi
  */
 interface IRestakingOperator {
+    /**
+     * @notice Returns the EigenLayer's DelegationManager
+     */
+    function EIGEN_DELEGATION_MANAGER() external view returns (IDelegationManager);
+
+    /**
+     * @notice Returns the EigenLayer's Slasher
+     */
+    function EIGEN_SLASHER() external view returns (ISlasher);
+
     /**
      * @notice Modify the operator details
      * @param newOperatorDetails is the struct with new operator details

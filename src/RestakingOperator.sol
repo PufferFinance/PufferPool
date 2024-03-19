@@ -34,13 +34,23 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
+    IDelegationManager public immutable override EIGEN_DELEGATION_MANAGER;
 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    ISlasher public immutable EIGEN_SLASHER;
+    ISlasher public immutable override EIGEN_SLASHER;
 
+    modifier onlyPufferModuleManager() {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        if (msg.sender != $.pufferModuleManager) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    // We use constructor to set the immutable variables
     constructor(IDelegationManager delegationManager, ISlasher slasher) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
@@ -60,24 +70,15 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
     ) external initializer {
         __AccessManaged_init(initialAuthority);
         RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
-        $.pufferModuleManager = moduleManager; //@todo can it be constant/immutable?
+        $.pufferModuleManager = moduleManager;
         EIGEN_DELEGATION_MANAGER.registerAsOperator(operatorDetails, metadataURI);
-    }
-
-    modifier onlyPufferModuleManager() {
-        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
-
-        if (msg.sender != $.pufferModuleManager) {
-            revert Unauthorized();
-        }
-        _;
     }
 
     /**
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function optIntoSlashing(address slasher) external onlyPufferModuleManager {
+    function optIntoSlashing(address slasher) external virtual onlyPufferModuleManager {
         EIGEN_SLASHER.optIntoSlashing(slasher);
     }
 
@@ -87,6 +88,7 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
      */
     function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata newOperatorDetails)
         external
+        virtual
         onlyPufferModuleManager
     {
         EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(newOperatorDetails);

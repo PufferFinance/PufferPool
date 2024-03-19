@@ -76,6 +76,7 @@ contract DeployEverything is BaseScript {
         string memory obj = "";
 
         vm.serializeAddress(obj, "protocol", deployment.pufferProtocol);
+        vm.serializeAddress(obj, "dao", DAO);
         vm.serializeAddress(obj, "guardianModule", deployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
 

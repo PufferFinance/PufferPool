@@ -20,19 +20,26 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
  */
 contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, UUPSUpgradeable {
     /**
-     * @notice Address of the PufferModule proxy beacon
+     * @inheritdoc IPufferModuleManager
      */
-    address public immutable PUFFER_MODULE_BEACON;
+    address public immutable override PUFFER_MODULE_BEACON;
 
     /**
-     * @notice Address of the Restaking operator proxy beacon
+     * @inheritdoc IPufferModuleManager
      */
-    address public immutable RESTAKING_OPERATOR_BEACON;
+    address public immutable override RESTAKING_OPERATOR_BEACON;
 
     /**
-     * @notice Address of the Puffer Protocol
+     * @inheritdoc IPufferModuleManager
      */
-    address public immutable PUFFER_PROTOCOL;
+    address public immutable override PUFFER_PROTOCOL;
+
+    modifier onlyPufferProtocol() {
+        if (msg.sender != PUFFER_PROTOCOL) {
+            revert Unauthorized();
+        }
+        _;
+    }
 
     constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
@@ -52,11 +59,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the PufferProtocol
      * @param moduleName The name of the module
      */
-    function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule) {
-        if (msg.sender != PUFFER_PROTOCOL) {
-            revert Unauthorized();
-        }
-
+    function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
         return IPufferModule(
             Create2.deploy({
                 amount: 0,
@@ -79,28 +82,28 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         string calldata metadataURI,
         address delegationApprover,
         uint32 stakerOptOutWindowBlocks
-    ) external restricted returns (IRestakingOperator) {
+    ) external virtual restricted returns (IRestakingOperator) {
         IDelegationManager.OperatorDetails memory operatorDetails = IDelegationManager.OperatorDetails({
             earningsReceiver: address(this),
             delegationApprover: delegationApprover,
             stakerOptOutWindowBlocks: stakerOptOutWindowBlocks
         });
 
-        return IRestakingOperator(
-            Create2.deploy({
-                amount: 0,
-                salt: keccak256(abi.encode(metadataURI)),
-                bytecode: abi.encodePacked(
-                    type(BeaconProxy).creationCode,
-                    abi.encode(
-                        RESTAKING_OPERATOR_BEACON,
-                        abi.encodeCall(
-                            RestakingOperator.initialize, (authority(), address(this), operatorDetails, metadataURI)
-                        )
-                    )
-                    )
-            })
-        );
+        address restakingOperator = Create2.deploy({
+            amount: 0,
+            salt: keccak256(abi.encode(metadataURI)),
+            bytecode: abi.encodePacked(
+                type(BeaconProxy).creationCode,
+                abi.encode(
+                    RESTAKING_OPERATOR_BEACON,
+                    abi.encodeCall(RestakingOperator.initialize, (authority(), address(this), operatorDetails, metadataURI))
+                )
+                )
+        });
+
+        emit RestakingOperatorCreated(restakingOperator, operatorDetails);
+
+        return IRestakingOperator(restakingOperator);
     }
 
     /**
@@ -110,21 +113,22 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callModifyOperatorDetails(
         IRestakingOperator restakingOperator,
         IDelegationManager.OperatorDetails calldata newOperatorDetails
-    ) external restricted {
+    ) external virtual restricted {
         restakingOperator.modifyOperatorDetails(newOperatorDetails);
+        emit RestakingOperatorModified(address(restakingOperator), newOperatorDetails);
     }
 
     /**
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external restricted {
+    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
-    function callDelegateToBySignature(IPufferModule module) external { }
-    function callUndelegate(IPufferModule module) external { }
+    function callDelegateToBySignature(IPufferModule module) external virtual { }
+    function callUndelegate(IPufferModule module) external virtual { }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

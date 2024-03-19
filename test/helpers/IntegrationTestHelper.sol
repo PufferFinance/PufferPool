@@ -13,6 +13,7 @@ import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
+    address DAO = 0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1;
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public moduleManager;
@@ -31,8 +32,8 @@ contract IntegrationTestHelper is Test {
         _deployAndLabel(guardians, 1);
     }
 
-    function deployContractsGoerli() public virtual {
-        vm.createSelectFork(vm.rpcUrl("goerli"), 9717928);
+    function deployContractsGoerli(uint256 blockNumber) public virtual {
+        vm.createSelectFork(vm.rpcUrl("goerli"), blockNumber);
 
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);

@@ -12,11 +12,43 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
  */
 interface IPufferModuleManager {
     /**
-     * @notice Emitted when a Restaking operator opts into a slasher
+     * @notice Emitted when a Restaking Operator is opted into a slasher
      * @param restakingOperator is the address of the restaking operator
      * @param slasher is the address of the slasher contract
+     * @dev Signature "0xfaf85fa92e9a913f582def722d9da998852ef6cd2fc7715266e3c3b16495c7ac"
      */
     event RestakingOperatorOptedInSlasher(address restakingOperator, address slasher);
+
+    /**
+     * @notice Emitted when the Restaking Operator is created
+     * @param restakingOperator is the address of the restaking operator
+     * @param operatorDetails is the struct with new operator details
+     * @dev Signature "0xbb6c366230e589c402e164f680d07db88a6c1d4dda4dd2dcbab5528c09a6b046"
+     */
+    event RestakingOperatorCreated(address restakingOperator, IDelegationManager.OperatorDetails operatorDetails);
+
+    /**
+     * @notice Emitted when the Restaking Operator is modified
+     * @param restakingOperator is the address of the restaking operator
+     * @param newOperatorDetails is the struct with new operator details
+     * @dev Signature "0xee78237d6444cc6c9083c1ef31a82b0feac23fbdf0cf52d7b0ed66dfa5f7f9f2"
+     */
+    event RestakingOperatorModified(address restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails);
+
+    /**
+     * @notice Returns the Puffer Module beacon address
+     */
+    function PUFFER_MODULE_BEACON() external view returns (address);
+
+    /**
+     * @notice Returns the Restaking Operator beacon address
+     */
+    function RESTAKING_OPERATOR_BEACON() external view returns (address);
+
+    /**
+     * @notice Returns the Puffer Protocol address
+     */
+    function PUFFER_PROTOCOL() external view returns (address);
 
     /**
      * @notice Create a new Restaking Operator
