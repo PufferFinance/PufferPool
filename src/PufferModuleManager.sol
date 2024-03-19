@@ -66,9 +66,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                 salt: moduleName,
                 bytecode: abi.encodePacked(
                     type(BeaconProxy).creationCode,
-                    abi.encode(
-                        PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority(), this))
-                    )
+                    abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
                     )
             })
         );
@@ -96,7 +94,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                 type(BeaconProxy).creationCode,
                 abi.encode(
                     RESTAKING_OPERATOR_BEACON,
-                    abi.encodeCall(RestakingOperator.initialize, (authority(), address(this), operatorDetails, metadataURI))
+                    abi.encodeCall(RestakingOperator.initialize, (authority(), operatorDetails, metadataURI))
                 )
                 )
         });

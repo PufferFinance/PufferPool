@@ -105,16 +105,24 @@ contract DeployPuffer is BaseScript {
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
         {
-            PufferModule moduleImplementation = new PufferModule(
-                PufferProtocol(payable(proxy)),
-                eigenPodManager,
-                IDelayedWithdrawalRouter(delayedWithdrawalRouter),
-                IDelegationManager(delegationManager)
-            );
+            // Deploy empty proxy for PufferModuleManager
+            // We need it to have it as immutable in PufferModule
+            moduleManagerProxy = new ERC1967Proxy(address(new NoImplementation()), "");
+
+            PufferModule moduleImplementation = new PufferModule({
+                protocol: PufferProtocol(payable(proxy)),
+                eigenPodManager: eigenPodManager,
+                eigenWithdrawalRouter: IDelayedWithdrawalRouter(delayedWithdrawalRouter),
+                delegationManager: IDelegationManager(delegationManager),
+                moduleManager: PufferModuleManager(address(moduleManagerProxy))
+            });
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
-            RestakingOperator restakingOperatorImplementation =
-                new RestakingOperator(IDelegationManager(delegationManager), ISlasher(eigenSlasher));
+            RestakingOperator restakingOperatorImplementation = new RestakingOperator(
+                IDelegationManager(delegationManager),
+                ISlasher(eigenSlasher),
+                PufferModuleManager(address(moduleManagerProxy))
+            );
 
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             restakingOperatorBeacon =
@@ -126,11 +134,6 @@ contract DeployPuffer is BaseScript {
                 pufferProtocol: address(proxy)
             });
 
-            // Initialize PufferModuleManager
-            moduleManagerProxy = new ERC1967Proxy(
-                address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
-            );
-
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultV2(payable(pufferVault)),
@@ -140,6 +143,9 @@ contract DeployPuffer is BaseScript {
                 oracle: IPufferOracleV2(oracle)
             });
         }
+        NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
+            address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
+        );
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
 

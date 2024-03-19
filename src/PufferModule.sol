@@ -91,7 +91,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     IPufferProtocol public immutable PUFFER_PROTOCOL;
 
-    error TooSoon();
+    /**
+     * @dev Upgradeable Puffer Module Manager
+     */
+    IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
     // keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
@@ -106,10 +109,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      *      +-----------------------------------------------------------+
      */
     struct PufferModuleStorage {
-        /**
-         * @dev Puffer module manager
-         */
-        IPufferModuleManager pufferModuleManager;
         /**
          * @dev Module Name
          */
@@ -140,23 +139,21 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IPufferProtocol protocol,
         address eigenPodManager,
         IDelayedWithdrawalRouter eigenWithdrawalRouter,
-        IDelegationManager delegationManager
+        IDelegationManager delegationManager,
+        IPufferModuleManager moduleManager
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
+        PUFFER_MODULE_MANAGER = moduleManager;
         _disableInitializers();
     }
 
-    function initialize(bytes32 moduleName, address initialAuthority, IPufferModuleManager moduleManager)
-        external
-        initializer
-    {
+    function initialize(bytes32 moduleName, address initialAuthority) external initializer {
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;
-        $.pufferModuleManager = moduleManager;
         // Set the EigenPod to that will be the EigenPod for this module
         // Eigen pod is created deterministically in the `callStake` function, but in order to call the `callStake` successfully, we need to have the address of the EigenPod
         // Our `getWithdrawalCredentials` is using eigenPod to get the withdrawal credentials

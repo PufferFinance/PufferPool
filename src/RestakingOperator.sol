@@ -7,6 +7,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { Unauthorized, InvalidAddress } from "puffer/Errors.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 
 /**
  * @title RestakingOperator
@@ -27,9 +28,7 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
      *      |                                                           |
      *      +-----------------------------------------------------------+
      */
-    struct RestakingOperatorStorage {
-        address pufferModuleManager;
-    }
+    // struct RestakingOperatorStorage { }
 
     /**
      * @dev Upgradeable contract from EigenLayer
@@ -41,36 +40,40 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
      */
     ISlasher public immutable override EIGEN_SLASHER;
 
-    modifier onlyPufferModuleManager() {
-        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+    /**
+     * @dev Upgradeable Puffer Module Manager
+     */
+    IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
-        if (msg.sender != $.pufferModuleManager) {
+    modifier onlyPufferModuleManager() {
+        if (msg.sender != address(PUFFER_MODULE_MANAGER)) {
             revert Unauthorized();
         }
         _;
     }
 
     // We use constructor to set the immutable variables
-    constructor(IDelegationManager delegationManager, ISlasher slasher) {
+    constructor(IDelegationManager delegationManager, ISlasher slasher, IPufferModuleManager moduleManager) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
         }
         if (address(slasher) == address(0)) {
             revert InvalidAddress();
         }
+        if (address(moduleManager) == address(0)) {
+            revert InvalidAddress();
+        }
         EIGEN_DELEGATION_MANAGER = delegationManager;
         EIGEN_SLASHER = slasher;
+        PUFFER_MODULE_MANAGER = moduleManager;
     }
 
     function initialize(
         address initialAuthority,
-        address moduleManager,
         IDelegationManager.OperatorDetails calldata operatorDetails,
         string calldata metadataURI
     ) external initializer {
         __AccessManaged_init(initialAuthority);
-        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
-        $.pufferModuleManager = moduleManager;
         EIGEN_DELEGATION_MANAGER.registerAsOperator(operatorDetails, metadataURI);
     }
 
@@ -94,10 +97,10 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
         EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(newOperatorDetails);
     }
 
-    function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
-        // solhint-disable-next-line
-        assembly {
-            $.slot := _RESTAKING_OPERATOR_STORAGE
-        }
-    }
+    // function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
+    //     // solhint-disable-next-line
+    //     assembly {
+    //         $.slot := _RESTAKING_OPERATOR_STORAGE
+    //     }
+    // }
 }
