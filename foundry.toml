@@ -25,7 +25,7 @@ optimizer_runs = 200
 # seed = "0x1337" # uncomment / change when debugging fuzz tests
 # via_ir = true
 solc = "0.8.23"
-# evm_version = "shanghai"
+evm_version = "cancun"
 
 [fmt]
 line_length = 120

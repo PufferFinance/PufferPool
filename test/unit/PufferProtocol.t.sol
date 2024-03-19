@@ -177,11 +177,13 @@ contract PufferProtocolTest is TestHelper {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
         uint256 amount = 5.11 ether;
 
-        pufferProtocol.registerValidatorKey{ value: amount }(
-            validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
-        );
+        pufferProtocol.registerValidatorKey{ value: amount }(validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit);
 
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), ((amount - 1 ether) * 1 ether) / vtPrice, "VT after for pufferProtocol");
+        assertEq(
+            validatorTicket.balanceOf(address(pufferProtocol)),
+            ((amount - 1 ether) * 1 ether) / vtPrice,
+            "VT after for pufferProtocol"
+        );
     }
 
     // If we are > burst threshold, treasury gets everything
