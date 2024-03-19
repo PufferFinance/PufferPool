@@ -249,13 +249,14 @@ contract SetupAccess is BaseScript {
             ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](6);
+        bytes4[] memory publicSelectors = new bytes4[](7);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
         publicSelectors[3] = PufferProtocol.provisionNode.selector;
         publicSelectors[4] = PufferProtocol.batchHandleWithdrawals.selector;
         publicSelectors[5] = PufferProtocol.skipProvisioning.selector;
+        publicSelectors[6] = PufferProtocol.revertIfPaused.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

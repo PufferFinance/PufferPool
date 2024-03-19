@@ -605,6 +605,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
 
+    /**
+     * @notice Called by the PufferModules to check if the system is paused
+     * @dev `restricted` will revert if the system is paused
+     */
+    function revertIfPaused() external restricted { }
+
     function _storeValidatorInformation(
         ProtocolStorage storage $,
         ValidatorKeyData calldata data,

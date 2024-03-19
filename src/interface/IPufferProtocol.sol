@@ -367,4 +367,9 @@ interface IPufferProtocol {
      * @notice Returns the minimum amount of Validator Tokens to run a validator
      */
     function getMinimumVtAmount() external view returns (uint256);
+
+    /**
+     * @notice Reverts if the system is paused
+     */
+    function revertIfPaused() external;
 }
