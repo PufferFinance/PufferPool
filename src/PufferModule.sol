@@ -118,7 +118,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
          */
         IEigenPod eigenPod;
         /**
-         * @dev Timestamp of the last claim of no restaking rewards
+         * @dev Timestamp of the last claim of restaking rewards
          */
         uint256 lastClaimTimestamp;
         /**
