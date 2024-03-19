@@ -81,9 +81,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when the new Puffer module is created
-     * @dev Signature "0xbcf2b217b3b225ead9f533ce60d3159db61694e818cd8978accb5133e37a50ee"
+     * @dev Signature "0x8ad2a9260a8e9a01d1ccd66b3875bcbdf8c4d0c552bc51a7d2125d4146e1d2d6"
      */
-    event NewPufferModuleCreated(address module, bytes32 indexed moduleName);
+    event NewPufferModuleCreated(address module, bytes32 indexed moduleName, bytes32 withdrawalCredentials);
 
     /**
      * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
