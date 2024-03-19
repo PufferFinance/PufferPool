@@ -660,7 +660,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         IPufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
-        emit NewPufferModuleCreated(address(module), moduleName);
+        bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
+        emit NewPufferModuleCreated(address(module), moduleName, withdrawalCredentials);
         _setValidatorLimitPerModule(moduleName, 1000);
         return address(module);
     }
