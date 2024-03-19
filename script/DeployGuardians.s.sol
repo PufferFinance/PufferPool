@@ -16,7 +16,9 @@ contract DeployGuardians is BaseScript {
     {
         vm.label(address(accessManager), "AccessManager");
 
-        EnclaveVerifier verifier = new EnclaveVerifier(100, address(accessManager));
+        uint256 _freshnessBlocks = vm.envOr("ENCLAVE_VERIFIER_FRESHNESS_BLOCKS", uint256(100));
+
+        EnclaveVerifier verifier = new EnclaveVerifier(_freshnessBlocks, address(accessManager));
 
         GuardianModule module = new GuardianModule(verifier, guardians, threshold, address(accessManager));
 
