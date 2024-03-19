@@ -22,7 +22,7 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
  * To be compatible with `M1 mainnet deployment` we must use this interface and not the one from repository
  */
 interface IEigenPodManager {
-    function createPod() external;
+    function createPod() external returns (address);
     function ownerToPod(address) external returns (address);
     function getPod(address) external returns (address);
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
@@ -154,10 +154,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;
-        // Set the EigenPod to that will be the EigenPod for this module
-        // Eigen pod is created deterministically in the `callStake` function, but in order to call the `callStake` successfully, we need to have the address of the EigenPod
-        // Our `getWithdrawalCredentials` is using eigenPod to get the withdrawal credentials
-        $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.getPod(address(this))));
+        $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
     }
 
     /**

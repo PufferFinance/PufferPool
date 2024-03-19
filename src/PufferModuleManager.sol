@@ -60,6 +60,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @param moduleName The name of the module
      */
     function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
+        // This called from the PufferProtocol and the event is emitted there
         return IPufferModule(
             Create2.deploy({
                 amount: 0,
