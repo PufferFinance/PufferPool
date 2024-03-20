@@ -8,6 +8,13 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 interface IPufferModule {
     /**
+     * @notice Emits when rewards are claimed
+     * @param node is the node address
+     * @param amount is the amount claimed in wei
+     */
+    event RewardsClaimed(address indexed node, uint256 amount);
+
+    /**
      * @notice Returns the Withdrawal credentials for that module
      */
     function getWithdrawalCredentials() external view returns (bytes memory);
@@ -21,6 +28,16 @@ interface IPufferModule {
      * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /**
+     * @notice Queues the withdrawals for `shareAmount` for Beacon Chain Strategy
+     */
+    function queueWithdrawals(uint256 shareAmount) external;
+
+    /**
+     * @notice Returns the EigenPod address owned by the module
+     */
+    function getEigenPod() external view returns (address);
 
     /**
      * @notice Function callable only by PufferProtocol

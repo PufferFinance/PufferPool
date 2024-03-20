@@ -5,7 +5,7 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IEnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
-import { Unauthorized } from "puffer/Errors.sol";
+import { Unauthorized, InvalidAddress } from "puffer/Errors.sol";
 import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";

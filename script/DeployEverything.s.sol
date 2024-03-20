@@ -75,14 +75,14 @@ contract DeployEverything is BaseScript {
     function _writeJson(PufferProtocolDeployment memory deployment) internal {
         string memory obj = "";
 
-        vm.serializeAddress(obj, "noRestakingModule", deployment.NoRestakingModule);
         vm.serializeAddress(obj, "protocol", deployment.pufferProtocol);
+        vm.serializeAddress(obj, "dao", DAO);
         vm.serializeAddress(obj, "guardianModule", deployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
 
         vm.serializeAddress(obj, "enclaveVerifier", deployment.enclaveVerifier);
         vm.serializeAddress(obj, "moduleBeacon", deployment.beacon);
-        vm.serializeAddress(obj, "moduleFactory", deployment.moduleFactory);
+        vm.serializeAddress(obj, "moduleManager", deployment.moduleManager);
         vm.serializeAddress(obj, "validatorTicket", deployment.validatorTicket);
         vm.serializeAddress(obj, "oracle", deployment.pufferOracle);
         vm.serializeAddress(obj, "depositor", deployment.pufferDepositor);

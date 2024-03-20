@@ -6,7 +6,7 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
+import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -77,7 +77,7 @@ contract TestHelper is Test, BaseScript {
 
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
-    PufferModuleFactory public moduleFactory;
+    PufferModuleManager public pufferModuleManager;
     ValidatorTicket public validatorTicket;
     PufferOracleV2 public pufferOracle;
 
@@ -156,7 +156,7 @@ contract TestHelper is Test, BaseScript {
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
-        moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
+        pufferModuleManager = PufferModuleManager(pufferDeployment.moduleManager);
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
 

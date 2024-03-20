@@ -23,12 +23,6 @@ interface IGuardianModule {
     error InvalidRAVE();
 
     /**
-     * @notice Thrown if the address supplied is not valid
-     * @dev Signature "0xe6c4247b"
-     */
-    error InvalidAddress();
-
-    /**
      * @notice Thrown if the threshold value is not valid
      * @dev Signature "0x651a749b"
      */
@@ -38,6 +32,7 @@ interface IGuardianModule {
      * @notice Emitted when the ejection threshold is changed
      * @param oldThreshold is the old threshold value
      * @param newThreshold is the new threshold value
+     * @dev Signature "0x4ae5122a691bf14917d273c6a81956e1f521b3e39f2d0c6d963117bf9c820e83"
      */
     event EjectionThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
 
@@ -45,18 +40,21 @@ interface IGuardianModule {
      * @notice Emitted when the threshold value for guardian signatures is changed
      * @param oldThreshold is the old threshold value
      * @param newThreshold is the new threshold value
+     * @dev Signature "0x3164947cf0f49f08dd0cd80e671535b1e11590d347c55dcaa97ba3c24a96b33a"
      */
     event ThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
 
     /**
      * @notice Emitted when a guardian is added to the module
      * @param guardian The address of the guardian added
+     * @dev Signature "0x038596bb31e2e7d3d9f184d4c98b310103f6d7f5830e5eec32bffe6f1728f969"
      */
     event GuardianAdded(address guardian);
 
     /**
      * @notice Emitted when a guardian is removed from the module
      * @param guardian The address of the guardian removed
+     * @dev Signature "0xb8107d0c6b40be480ce3172ee66ba6d64b71f6b1685a851340036e6e2e3e3c52"
      */
     event GuardianRemoved(address guardian);
 
@@ -65,12 +63,13 @@ interface IGuardianModule {
      * @param guardian is the address outside of the enclave
      * @param guardianEnclave is the enclave address
      * @param pubKey is the public key
+     * @dev Signature "0x14720919b20fceff2a396c4973d37c6087e4619d40c8f4003d8e44ee127461a2"
      */
     event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
 
     /**
      * @notice Emitted when the mrenclave value is changed
-     * @dev SIgnature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
+     * @dev Signature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
      */
     event MrEnclaveChanged(bytes32 oldMrEnclave, bytes32 newMrEnclave);
 
