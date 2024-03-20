@@ -35,5 +35,4 @@ save_abis: check_env_file
 	@source $(ENV_FILE) && forge inspect PufferVaultV2 abi > $$ABI_DIR/PufferVaultV2.json
 	@source $(ENV_FILE) && forge inspect ValidatorTicket abi > $$ABI_DIR/ValidatorTicket.json
 	@source $(ENV_FILE) && forge inspect PufferOracle abi > $$ABI_DIR/PufferOracle.json
-	@source $(ENV_FILE) && forge inspect NoRestakingModule abi > $$ABI_DIR/NoRestakingModule.json
 	@source $(ENV_FILE) && cat $$ABI_DIR/addresses.json
