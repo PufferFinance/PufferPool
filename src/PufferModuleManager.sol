@@ -128,19 +128,22 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
-    function callDelegateTo(bytes32 moduleName, address operator,
+    function callDelegateTo(
+        bytes32 moduleName,
+        address operator,
         ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
-        bytes32 approverSalt) external  restricted {
-            address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        bytes32 approverSalt
+    ) external restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-            if (moduleAddress == address(0x0)) {
-                revert InvalidModuleName();
-            }
+        if (moduleAddress == address(0x0)) {
+            revert InvalidModuleName();
+        }
 
-            IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
-         }
+        IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+    }
 
-    function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot)  { 
+    function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot) {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         if (moduleAddress == address(0x0)) {

@@ -95,9 +95,12 @@ interface IPufferModuleManager {
      */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external;
 
-    function callDelegateTo(bytes32 moduleName, address operator,
+    function callDelegateTo(
+        bytes32 moduleName,
+        address operator,
         ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
-        bytes32 approverSalt) external;
+        bytes32 approverSalt
+    ) external;
 
     function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
 }
