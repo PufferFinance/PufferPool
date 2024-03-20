@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { Unauthorized, InvalidModuleName } from "puffer/Errors.sol";
+import { Unauthorized } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
@@ -135,16 +135,14 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callDelegateTo(
         bytes32 moduleName,
         address operator,
-        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        if (moduleAddress == address(0x0)) {
-            revert InvalidModuleName();
-        }
-
         IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+
+        emit PufferModuleDelegated(moduleName, operator);
     }
 
     /**
@@ -154,11 +152,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot) {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        if (moduleAddress == address(0x0)) {
-            revert InvalidModuleName();
-        }
+        withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
 
-        return IPufferModule(moduleAddress).callUndelegate();
+        emit PufferModuleUndelegated(moduleName);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

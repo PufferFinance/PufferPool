@@ -174,8 +174,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     modifier onlyPufferModuleManager() {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
-
         if (msg.sender != address(PUFFER_MODULE_MANAGER)) {
             revert Unauthorized();
         }
@@ -329,10 +327,12 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callDelegateTo(
         address operator,
-        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
+
+        emit PufferModuleDelegated(operator);
     }
 
     /**
@@ -341,6 +341,8 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
+
+        emit PufferModuleUndelegated();
     }
 
     /**

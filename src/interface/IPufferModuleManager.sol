@@ -37,6 +37,19 @@ interface IPufferModuleManager {
     event RestakingOperatorModified(address restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails);
 
     /**
+     * @notice Emitted when the Puffer Module is delegated
+     * @param moduleName the module name to be delegated
+     * @param operator the operator to delegate to
+     */
+    event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
+
+    /**
+     * @notice Emitted when the Puffer Module is undelegated
+     * @param moduleName the module name to be undelegated
+     */
+    event PufferModuleUndelegated(bytes32 indexed moduleName);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -106,7 +119,7 @@ interface IPufferModuleManager {
     function callDelegateTo(
         bytes32 moduleName,
         address operator,
-        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external;
 
