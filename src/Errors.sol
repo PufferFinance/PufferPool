@@ -12,3 +12,6 @@ error Unauthorized();
  * @dev Signature "0xe6c4247b"
  */
 error InvalidAddress();
+
+
+error InvalidModuleName();

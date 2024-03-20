@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 /**
  * @title IPufferModuleManager
@@ -93,4 +94,10 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external;
+
+    function callDelegateTo(bytes32 moduleName, address operator,
+        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        bytes32 approverSalt) external;
+
+    function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
 }

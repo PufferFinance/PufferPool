@@ -2,7 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { Unauthorized } from "puffer/Errors.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { Unauthorized, InvalidModuleName } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
@@ -12,6 +13,7 @@ import { Create2 } from "openzeppelin/utils/Create2.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 /**
  * @title PufferModuleManager
@@ -126,8 +128,27 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
-    function callDelegateToBySignature(IPufferModule module) external virtual { }
-    function callUndelegate(IPufferModule module) external virtual { }
+    function callDelegateTo(bytes32 moduleName, address operator,
+        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        bytes32 approverSalt) external  restricted {
+            address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+            if (moduleAddress == address(0x0)) {
+                revert InvalidModuleName();
+            }
+
+            IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+         }
+
+    function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot)  { 
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        if (moduleAddress == address(0x0)) {
+            revert InvalidModuleName();
+        }
+
+        return IPufferModule(moduleAddress).callUndelegate();
+    }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

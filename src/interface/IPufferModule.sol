@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+
 /**
  * @title IPufferModule
  * @author Puffer Finance
@@ -28,6 +30,14 @@ interface IPufferModule {
      * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    function callDelegateTo(
+        address operator,
+        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        bytes32 approverSalt
+    ) external;
+
+    function callUndelegate() external returns (bytes32[] memory withdrawalRoot);
 
     /**
      * @notice Queues the withdrawals for `shareAmount` for Beacon Chain Strategy
