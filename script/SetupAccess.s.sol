@@ -89,8 +89,9 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](1);
+        bytes4[] memory botSelectors = new bytes4[](2);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
+        botSelectors[1] = PufferModuleManager.callVerifyAndProcessWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

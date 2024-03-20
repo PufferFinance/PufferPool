@@ -6,6 +6,7 @@ import { PufferModule } from "puffer/PufferModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
@@ -213,6 +214,30 @@ contract PufferModuleManagerTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
+    }
+
+    function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        uint64 oracleTimestamp;
+        BeaconChainProofs.StateRootProof memory stateRootProof;
+        BeaconChainProofs.WithdrawalProof[] memory withdrawalProofs;
+        bytes[] memory validatorFieldsProofs;
+        bytes32[][] memory validatorFields;
+        bytes32[][] memory withdrawalFields;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+        pufferModuleManager.callVerifyAndProcessWithdrawals(
+            moduleName,
+            oracleTimestamp,
+            stateRootProof,
+            withdrawalProofs,
+            validatorFieldsProofs,
+            validatorFields,
+            withdrawalFields
+        );
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {

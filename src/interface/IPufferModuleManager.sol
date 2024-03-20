@@ -48,6 +48,17 @@ interface IPufferModuleManager {
     event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount);
 
     /**
+     * @notice Emitted when the verify and process withdrawals is called
+     * @param moduleName is the name of the module
+     * @param withdrawalFields are the fields of the withdrawals being proven
+     * @param validatorFields are the fields of the validators being proven
+     * @dev Signature "0xa7e893f6f90b9b7358daf55bc8763c4ecc0f54366c4cf7632e9ab41da718c222"
+     */
+    event VerifyAndProcessWithdrawals(
+        bytes32 indexed moduleName, bytes32[][] validatorFields, bytes32[][] withdrawalFields
+    );
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);

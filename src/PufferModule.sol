@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -230,6 +231,21 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
             middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: receiveAsTokens
         });
+    }
+
+    function verifyAndProcessWithdrawals(
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external virtual whenNotPaused {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+
+        $.eigenPod.verifyAndProcessWithdrawals(
+            oracleTimestamp, stateRootProof, withdrawalProofs, validatorFieldsProofs, validatorFields, withdrawalFields
+        );
     }
 
     /**

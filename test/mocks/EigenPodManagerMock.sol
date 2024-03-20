@@ -3,13 +3,14 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
 import "eigenlayer/interfaces/IEigenPodManager.sol";
+import "eigenlayer-test/mocks/EigenPodMock.sol";
 import { IBeacon } from "openzeppelin/proxy/beacon/IBeacon.sol";
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
     function slasher() external pure returns (ISlasher) { }
 
-    function createPod() external pure returns (address) {
-        return (address(123123123));
+    function createPod() external returns (address) {
+        return address(new EigenPodMock());
     }
 
     function addShares(address podOwner, uint256 shares) external returns (uint256) {

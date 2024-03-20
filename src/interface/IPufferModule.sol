@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+
 /**
  * @title IPufferModule
  * @author Puffer Finance
@@ -39,6 +41,15 @@ interface IPufferModule {
      * @dev Restricted to PufferModuleManager
      */
     function queueWithdrawals(uint256 shareAmount) external;
+
+    function verifyAndProcessWithdrawals(
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external;
 
     /**
      * @notice Function callable only by PufferProtocol

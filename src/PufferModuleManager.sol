@@ -13,6 +13,7 @@ import { Create2 } from "openzeppelin/utils/Create2.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 
 /**
  * @title PufferModuleManager
@@ -125,6 +126,28 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
+    }
+
+    function callVerifyAndProcessWithdrawals(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        IPufferModule(moduleAddress).verifyAndProcessWithdrawals({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            withdrawalProofs: withdrawalProofs,
+            validatorFieldsProofs: validatorFieldsProofs,
+            validatorFields: validatorFields,
+            withdrawalFields: withdrawalFields
+        });
+
+        emit VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
     }
 
     function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
