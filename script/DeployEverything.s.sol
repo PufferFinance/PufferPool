@@ -53,6 +53,7 @@ contract DeployEverything is BaseScript {
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
         pufferDeployment.stETH = puffETHDeployment.stETH;
         pufferDeployment.weth = puffETHDeployment.weth;
+        pufferDeployment.timelock = puffETHDeployment.timelock;
 
         // `anvil` in the terminal
         if (_localAnvil) {

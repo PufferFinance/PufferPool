@@ -30,14 +30,15 @@ interface IPufferModule {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Queues the withdrawals for `shareAmount` for Beacon Chain Strategy
-     */
-    function queueWithdrawals(uint256 shareAmount) external;
-
-    /**
      * @notice Returns the EigenPod address owned by the module
      */
     function getEigenPod() external view returns (address);
+
+    /**
+     * @notice Queues the withdrawal from EigenLayer for the Beacon Chain strategy
+     * @dev Restricted to PufferModuleManager
+     */
+    function queueWithdrawals(uint256 shareAmount) external;
 
     /**
      * @notice Function callable only by PufferProtocol

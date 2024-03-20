@@ -16,7 +16,8 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
-    ROLE_ID_OPERATIONS,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_OPERATIONS_BOT,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_GUARDIANS,
     ROLE_ID_DAO,
@@ -40,7 +41,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
 
-        bytes[] memory calldatas = new bytes[](18);
+        bytes[] memory calldatas = new bytes[](19);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -64,6 +65,7 @@ contract SetupAccess is BaseScript {
         calldatas[16] = pufferOracleAccess[2];
 
         calldatas[17] = moduleManagerAccess[0];
+        calldatas[18] = moduleManagerAccess[1];
 
         accessManager.multicall(calldatas);
 
@@ -74,7 +76,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](1);
+        bytes[] memory calldatas = new bytes[](2);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](3);
@@ -84,6 +86,17 @@ contract SetupAccess is BaseScript {
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO
+        );
+
+        // Bot selectors
+        bytes4[] memory botSelectors = new bytes4[](1);
+        botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
+
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            botSelectors,
+            ROLE_ID_OPERATIONS_BOT
         );
 
         return calldatas;
@@ -145,7 +158,7 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
             daoSelectors,
-            ROLE_ID_OPERATIONS //@todo?
+            ROLE_ID_OPERATIONS_MULTISIG //@todo?
         );
 
         bytes4[] memory protocolSelectors = new bytes4[](1);

@@ -4,10 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
+import { ROLE_ID_OPERATIONS_BOT } from "pufETHScript/Roles.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -25,6 +27,10 @@ contract PufferModuleManagerTest is TestHelper {
         super.setUp();
 
         vm.deal(address(this), 1000 ether);
+
+        vm.startPrank(timelock);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_BOT, address(this), 0);
+        vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
     }
@@ -92,8 +98,8 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, signatures);
     }
 
-    // Collecting non restaking rewards
-    function test_collectNoRestakingRewards(bytes32 moduleName) public {
+    // Collecting the rewards as a node operator
+    function test_collect_rewards(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         address module = _createPufferModule(moduleName);
 
@@ -198,6 +204,15 @@ contract PufferModuleManagerTest is TestHelper {
         });
 
         assertEq(bob.balance, 0.013 ether, "bob rewards");
+    }
+
+    function test_rewards_claiming_from_eigenlayer(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.expectEmit(true, true, true,true);
+        emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
+        pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {

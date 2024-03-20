@@ -188,10 +188,13 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @inheritdoc IPufferModule
-     * @dev We do Native restaking, meaning we only have one strategy and that is the Beacon Chain strategy
+     * @dev Restricted to PufferModuleManager
      */
-    function queueWithdrawals(uint256 shareAmount) external virtual whenNotPaused {
-        //@todo DOS if creating many withdrawals with small shares amount?
+    function queueWithdrawals(uint256 shareAmount) external virtual {
+        if (msg.sender != address(PUFFER_MODULE_MANAGER)) {
+            revert Unauthorized();
+        }
+
         IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
             new IDelegationManager.QueuedWithdrawalParams[](1);
 

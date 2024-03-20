@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
@@ -124,6 +125,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
+    }
+
+    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
+        emit WithdrawalsQueued(moduleName, sharesAmount);
     }
 
     function callDelegateToBySignature(IPufferModule module) external virtual { }

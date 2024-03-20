@@ -28,4 +28,5 @@ struct PufferProtocolDeployment {
     address pufferVault; // from pufETH repository (dependency)
     address stETH; // from pufETH repository (dependency)
     address weth; // from pufETH repository (dependency)
+    address timelock; // from pufETH repository (dependency)
 }

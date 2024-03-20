@@ -176,6 +176,7 @@ contract DeployPuffer is BaseScript {
             restakingOperatorBeacon: address(restakingOperatorBeacon),
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
+            timelock: address(0), // overwritten in DeployEverything
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything

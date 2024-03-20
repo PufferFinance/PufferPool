@@ -17,7 +17,7 @@ interface IPufferModuleManager {
      * @param slasher is the address of the slasher contract
      * @dev Signature "0xfaf85fa92e9a913f582def722d9da998852ef6cd2fc7715266e3c3b16495c7ac"
      */
-    event RestakingOperatorOptedInSlasher(address restakingOperator, address slasher);
+    event RestakingOperatorOptedInSlasher(address indexed restakingOperator, address indexed slasher);
 
     /**
      * @notice Emitted when the Restaking Operator is created
@@ -25,7 +25,9 @@ interface IPufferModuleManager {
      * @param operatorDetails is the struct with new operator details
      * @dev Signature "0xbb6c366230e589c402e164f680d07db88a6c1d4dda4dd2dcbab5528c09a6b046"
      */
-    event RestakingOperatorCreated(address restakingOperator, IDelegationManager.OperatorDetails operatorDetails);
+    event RestakingOperatorCreated(
+        address indexed restakingOperator, IDelegationManager.OperatorDetails operatorDetails
+    );
 
     /**
      * @notice Emitted when the Restaking Operator is modified
@@ -33,7 +35,17 @@ interface IPufferModuleManager {
      * @param newOperatorDetails is the struct with new operator details
      * @dev Signature "0xee78237d6444cc6c9083c1ef31a82b0feac23fbdf0cf52d7b0ed66dfa5f7f9f2"
      */
-    event RestakingOperatorModified(address restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails);
+    event RestakingOperatorModified(
+        address indexed restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails
+    );
+
+    /**
+     * @notice Emitted when the Withdrawals are queued
+     * @param moduleName is the name of the module
+     * @param shareAmount is the amount of shares
+     * @dev Signature "0x172c7d4f364f16dc6f7b2284cc3dc962c8f52734b13ad229c297369c05cea6bf"
+     */
+    event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount);
 
     /**
      * @notice Returns the Puffer Module beacon address
