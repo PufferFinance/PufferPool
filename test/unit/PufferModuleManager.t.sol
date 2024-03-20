@@ -210,7 +210,7 @@ contract PufferModuleManagerTest is TestHelper {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
 
-        vm.expectEmit(true, true, true,true);
+        vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
     }
