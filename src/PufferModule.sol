@@ -3,9 +3,11 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { Unauthorized } from "puffer/Errors.sol";
@@ -13,14 +15,16 @@ import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializabl
 import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 /**
  * @dev Mainnet and latest `master` from EigenLayer are not the same
  * To be compatible with `M1 mainnet deployment` we must use this interface and not the one from repository
  */
 interface IEigenPodManager {
-    function createPod() external;
+    function createPod() external returns (address);
     function ownerToPod(address) external returns (address);
+    function getPod(address) external returns (address);
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 }
 
@@ -33,6 +37,11 @@ interface IEigenPodManager {
 contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
     using Address for address;
     using Address for address payable;
+
+    /**
+     * @dev Represents the Beacon Chain strategy in EigenLayer
+     */
+    address internal constant _BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     /**
      * @notice Thrown if the rewards are already claimed for a `blockNumber`
@@ -58,6 +67,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     event RewardsRootPosted(uint256 indexed blockNumber, bytes32 root);
 
     /**
+     * @notice Emitted when the withdrawal is queued from EigenLayer
+     */
+    event WithdrawalQueued(bytes32 withdrawalRoot, IDelegationManager.QueuedWithdrawalParams withdrawalParams);
+
+    /**
      * @dev Upgradeable contract from EigenLayer
      */
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
@@ -77,7 +91,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     IPufferProtocol public immutable PUFFER_PROTOCOL;
 
-    error TooSoon();
+    /**
+     * @dev Upgradeable Puffer Module Manager
+     */
+    IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
     // keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
@@ -93,15 +110,15 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     struct PufferModuleStorage {
         /**
-         * @notice Module Name
+         * @dev Module Name
          */
         bytes32 moduleName;
         /**
-         * @notice Owned EigenPod
+         * @dev Owned EigenPod
          */
         IEigenPod eigenPod;
         /**
-         * @notice Timestamp of the last claim of no restaking rewards
+         * @dev Timestamp of the last claim of restaking rewards
          */
         uint256 lastClaimTimestamp;
         /**
@@ -109,11 +126,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
          */
         uint256 lastProofOfRewardsBlockNumber;
         /**
-         * @notice Mapping of a blockNumber and the MerkleRoot for that rewards period
+         * @dev Mapping of a blockNumber and the MerkleRoot for that rewards period
          */
         mapping(uint256 blockNumber => bytes32 root) rewardsRoots;
         /**
-         * @notice Mapping that stores which validators have claimed the rewards for a certain blockNumber
+         * @dev Mapping that stores which validators have claimed the rewards for a certain blockNumber
          */
         mapping(uint256 blockNumber => mapping(address node => bool claimed)) claimedRewards;
     }
@@ -122,28 +139,37 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IPufferProtocol protocol,
         address eigenPodManager,
         IDelayedWithdrawalRouter eigenWithdrawalRouter,
-        IDelegationManager delegationManager
+        IDelegationManager delegationManager,
+        IPufferModuleManager moduleManager
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
+        PUFFER_MODULE_MANAGER = moduleManager;
         _disableInitializers();
     }
 
-    function initialize(
-        bytes32 moduleName,
-        address initialAuthority,
-        string calldata metadataURI,
-        address delegationApprover
-    ) external initializer {
+    function initialize(bytes32 moduleName, address initialAuthority) external initializer {
         __AccessManaged_init(initialAuthority);
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         $.moduleName = moduleName;
-        IEigenPodManager(EIGEN_POD_MANAGER).createPod();
-        $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.ownerToPod(address(this))));
-        //@todo
-        // _registerAsOperator(metadataURI, delegationApprover);
+        $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
+    }
+
+    /**
+     * @dev Calls PufferProtocol to check if it is paused
+     */
+    modifier whenNotPaused() {
+        PUFFER_PROTOCOL.revertIfPaused();
+        _;
+    }
+
+    modifier onlyPufferProtocol() {
+        if (msg.sender != address(PUFFER_PROTOCOL)) {
+            revert Unauthorized();
+        }
+        _;
     }
 
     receive() external payable { }
@@ -151,48 +177,66 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @inheritdoc IPufferModule
      */
-    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        if (msg.sender != address(PUFFER_PROTOCOL)) {
-            revert Unauthorized();
-        }
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
+        external
+        payable
+        onlyPufferProtocol
+    {
         // EigenPod is deployed in this call
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
     /**
-     * @dev Claiming rewards from an EigenPod is a 2 step process.
-     * We queue it by calling this function and then after a delay we claim it with `claimNonRestakingRewards`
-     * Rewards get deposited to this PufferModule smart contract.
-     * The guardians then generate the Rewards MerkleTree and the node operators claim their Beacon Chain rewards by `collectRewards`
+     * @inheritdoc IPufferModule
+     * @dev We do Native restaking, meaning we only have one strategy and that is the Beacon Chain strategy
      */
-    function queueNonRestakingRewards() external {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
-        uint256 lastClaimTimestamp = $.lastClaimTimestamp;
-        // 864000 = 10 days in seconds
-        if (block.timestamp - lastClaimTimestamp < 864000) {
-            revert TooSoon();
+    function queueWithdrawals(uint256 shareAmount) external virtual whenNotPaused {
+        //@todo DOS if creating many withdrawals with small shares amount?
+        IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
+            new IDelegationManager.QueuedWithdrawalParams[](1);
+
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = shareAmount;
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_BEACON_CHAIN_STRATEGY);
+
+        withdrawals[0] = IDelegationManager.QueuedWithdrawalParams({
+            strategies: strategies,
+            shares: shares,
+            withdrawer: address(this)
+        });
+
+        bytes32[] memory withdrawalRoots = EIGEN_DELEGATION_MANAGER.queueWithdrawals(withdrawals);
+        emit WithdrawalQueued(withdrawalRoots[0], withdrawals[0]);
+    }
+
+    function completeQueuedWithdrawals(
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes
+    ) external virtual whenNotPaused {
+        bool[] memory receiveAsTokens = new bool[](withdrawals.length);
+        for (uint256 i = 0; i < withdrawals.length; i++) {
+            receiveAsTokens[i] = true;
         }
-        $.lastClaimTimestamp = block.timestamp;
-        $.eigenPod.withdrawBeforeRestaking();
+
+        EIGEN_DELEGATION_MANAGER.completeQueuedWithdrawals({
+            withdrawals: withdrawals,
+            tokens: tokens,
+            middlewareTimesIndexes: middlewareTimesIndexes,
+            receiveAsTokens: receiveAsTokens
+        });
     }
 
-    function claimNonRestakingRewards() external {
-        EIGEN_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(this), type(uint256).max);
-    }
-
-    function collectRestakingRewards() external {
-        //@todo
-    }
-
-    function getEigenPod() external view returns (address) {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
-        return address($.eigenPod);
-    }
-
-    function call(address to, uint256 amount, bytes calldata data) external returns (bool success, bytes memory) {
-        if (msg.sender != address(PUFFER_PROTOCOL)) {
-            revert Unauthorized();
-        }
+    /**
+     * @dev Restricted to PufferProtocol
+     */
+    function call(address to, uint256 amount, bytes calldata data)
+        external
+        onlyPufferProtocol
+        returns (bool success, bytes memory)
+    {
         // slither-disable-next-line arbitrary-send-eth
         return to.call{ value: amount }(data);
     }
@@ -211,7 +255,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external {
+    ) external virtual whenNotPaused {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
 
         // Anybody can submit a valid proof and the ETH will be sent to the node operator
@@ -236,6 +280,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         }
 
         payable(node).sendValue(ethToSend);
+        emit RewardsClaimed(node, ethToSend);
     }
 
     /**
@@ -243,7 +288,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @param root is the Merkle Root hash
      * @param blockNumber is the block number for when the Merkle Proof was generated
      */
-    function postRewardsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures) external {
+    function postRewardsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
+        external
+        virtual
+        whenNotPaused
+    {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
 
         if (blockNumber <= $.lastProofOfRewardsBlockNumber) {
@@ -284,37 +333,18 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @inheritdoc IPufferModule
      */
+    function getEigenPod() external view returns (address) {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        return address($.eigenPod);
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     */
     function NAME() external view returns (bytes32) {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
         return $.moduleName;
     }
-
-    // /**
-    //  * @notice Registers this module as the operator in EigenLayer
-    //  * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
-    //  * @param delegationApprover Address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
-    //  */
-    // function _registerAsOperator(string calldata metadataURI, address delegationApprover) internal {
-    //     EIGEN_DELEGATION_MANAGER.registerAsOperator(
-    //         IDelegationManager.OperatorDetails({
-    //             earningsReceiver: address(this), // All of the rewards go to this contract
-    //             delegationApprover: delegationApprover,
-    //             stakerOptOutWindowBlocks: 1000 // 1000 blocks
-    //          }),
-    //         metadataURI
-    //     );
-    // }
-
-    // //@todo unused at the moment
-    // function _modifyOperatorDetails(address delegationApprover, uint32 stakerOptOutWindowBlocks) internal {
-    //     EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(
-    //         IDelegationManager.OperatorDetails({
-    //             stakerOptOutWindowBlocks: stakerOptOutWindowBlocks,
-    //             delegationApprover: delegationApprover,
-    //             earningsReceiver: address(this)
-    //         })
-    //     );
-    // }
 
     function _getPufferProtocolStorage() internal pure returns (PufferModuleStorage storage $) {
         // solhint-disable-next-line

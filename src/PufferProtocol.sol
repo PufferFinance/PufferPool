@@ -5,7 +5,7 @@ import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
-import { IPufferModuleFactory } from "puffer/interface/IPufferModuleFactory.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
@@ -85,7 +85,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferModuleFactory public immutable override PUFFER_MODULE_FACTORY;
+    IPufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -95,13 +95,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     constructor(
         PufferVaultV2 pufferVault,
         IGuardianModule guardianModule,
-        address moduleFactory,
+        address moduleManager,
         ValidatorTicket validatorTicket,
         IPufferOracleV2 oracle
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
-        PUFFER_MODULE_FACTORY = IPufferModuleFactory(moduleFactory);
+        PUFFER_MODULE_MANAGER = IPufferModuleManager(moduleManager);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         _disableInitializers();
@@ -110,13 +110,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Initializes the contract
      */
-    function initialize(address accessManager, address noRestakingModule) external initializer {
+    function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+        _createPufferModule(_NO_RESTAKING);
         _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _NO_RESTAKING;
         _setModuleWeights(weights);
-        _changeModule(_NO_RESTAKING, IPufferModule(noRestakingModule));
         _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
         _setVTPenalty(10 ether); // 10 Validator Tickets
     }
@@ -197,20 +197,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
         uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBond : msg.value;
 
-         uint256 receivedVtAmount;
+        uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
         if (vtPermit.amount == 0) {
             receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: vtPayment }(address(this));
         } else {
             _callPermit(address(VALIDATOR_TICKET), vtPermit);
             receivedVtAmount = vtPermit.amount;
-            
+
             // slither-disable-next-line unchecked-transfer
             VALIDATOR_TICKET.transferFrom(msg.sender, address(this), receivedVtAmount);
         }
 
         if (receivedVtAmount < $.minimumVtAmount) {
-            revert InvalidVTAmount(); 
+            revert InvalidVTAmount();
         }
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
@@ -219,7 +219,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
         } else {
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
-            
+
             // slither-disable-next-line unchecked-transfer
             PUFFER_VAULT.transferFrom(msg.sender, address(this), bondAmount);
         }
@@ -290,7 +290,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // First, we do the calculations
         // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
-            Validator storage validator = $.validators[validatorInfos[i].moduleName][validatorInfos[i].pufferModuleIndex];
+            Validator storage validator =
+                $.validators[validatorInfos[i].moduleName][validatorInfos[i].pufferModuleIndex];
 
             if (validator.status != Status.ACTIVE) {
                 revert InvalidValidatorState(validator.status);
@@ -406,12 +407,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Initially it is restricted to the DAO
      */
-    function createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
-        external
-        restricted
-        returns (address)
-    {
-        return _createPufferModule(moduleName, metadataURI, delegationApprover);
+    function createPufferModule(bytes32 moduleName) external restricted returns (address) {
+        return _createPufferModule(moduleName);
     }
 
     /**
@@ -608,6 +605,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
 
+    /**
+     * @notice Called by the PufferModules to check if the system is paused
+     * @dev `restricted` will revert if the system is paused
+     */
+    function revertIfPaused() external restricted { }
+
     function _storeValidatorInformation(
         ProtocolStorage storage $,
         ValidatorKeyData calldata data,
@@ -656,15 +659,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.moduleWeights = newModuleWeights;
     }
 
-    function _createPufferModule(bytes32 moduleName, string calldata metadataURI, address delegationApprover)
-        internal
-        returns (address)
-    {
+    function _createPufferModule(bytes32 moduleName) internal returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_FACTORY.createNewPufferModule(moduleName, metadataURI, delegationApprover);
+        IPufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
         emit NewPufferModuleCreated(address(module), moduleName, withdrawalCredentials);
@@ -694,11 +694,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (data.blsPubKeySet.length != (GUARDIAN_MODULE.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
             revert InvalidBLSPublicKeySet();
         }
-    }
-
-    function _changeModule(bytes32 moduleName, IPufferModule newModule) internal {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.modules[moduleName] = newModule;
     }
 
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
@@ -768,7 +763,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
-    function _getVTBurnAmount(StoppedValidatorInfo calldata validatorInfo) internal returns (uint256) {
+    function _getVTBurnAmount(StoppedValidatorInfo calldata validatorInfo) internal pure returns (uint256) {
         uint256 validatedEpochs = validatorInfo.endEpoch - validatorInfo.startEpoch;
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up

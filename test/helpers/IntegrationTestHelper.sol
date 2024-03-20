@@ -6,16 +6,17 @@ import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
-import { PufferModuleFactory } from "puffer/PufferModuleFactory.sol";
+import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
+    address DAO = 0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1;
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
-    PufferModuleFactory public moduleFactory;
+    PufferModuleManager public moduleManager;
 
     GuardianModule public guardianModule;
 
@@ -31,8 +32,8 @@ contract IntegrationTestHelper is Test {
         _deployAndLabel(guardians, 1);
     }
 
-    function deployContractsGoerli() public virtual {
-        vm.createSelectFork(vm.rpcUrl("goerli"), 9717928);
+    function deployContractsGoerli(uint256 blockNumber) public virtual {
+        vm.createSelectFork(vm.rpcUrl("goerli"), blockNumber);
 
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);
@@ -54,7 +55,48 @@ contract IntegrationTestHelper is Test {
         vm.label(address(guardianModule), "GuardianModule");
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         vm.label(address(beacon), "PufferModuleBeacon");
-        moduleFactory = PufferModuleFactory(pufferDeployment.moduleFactory);
-        vm.label(address(moduleFactory), "PufferModuleFactory");
+        moduleManager = PufferModuleManager(pufferDeployment.moduleManager);
+        vm.label(address(moduleManager), "PufferModuleManager");
+    }
+
+    function getDepositData(bytes memory pubKey, bytes memory signature, bytes memory withdrawalCredentials)
+        internal
+        returns (bytes32)
+    {
+        return this.reconstructDepositData(pubKey, signature, withdrawalCredentials);
+    }
+
+    function reconstructDepositData(
+        bytes memory pubkey,
+        bytes calldata signature,
+        bytes calldata withdrawal_credentials
+    ) public pure returns (bytes32) {
+        bytes32 pubkey_root = sha256(abi.encodePacked(pubkey, bytes16(0)));
+        bytes32 signature_root = sha256(
+            abi.encodePacked(
+                sha256(abi.encodePacked(signature[:64])), sha256(abi.encodePacked(signature[64:], bytes32(0)))
+            )
+        );
+
+        return sha256(
+            abi.encodePacked(
+                sha256(abi.encodePacked(pubkey_root, withdrawal_credentials)),
+                sha256(abi.encodePacked(to_little_endian_64(uint64(32000000000)), bytes24(0), signature_root))
+            )
+        );
+    }
+
+    function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {
+        ret = new bytes(8);
+        bytes8 bytesValue = bytes8(value);
+        // Byteswapping during copying to bytes.
+        ret[0] = bytesValue[7];
+        ret[1] = bytesValue[6];
+        ret[2] = bytesValue[5];
+        ret[3] = bytesValue[4];
+        ret[4] = bytesValue[3];
+        ret[5] = bytesValue[2];
+        ret[6] = bytesValue[1];
+        ret[7] = bytesValue[0];
     }
 }

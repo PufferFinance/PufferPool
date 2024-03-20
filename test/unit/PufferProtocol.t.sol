@@ -138,7 +138,7 @@ contract PufferProtocolTest is TestHelper {
     function test_create_existing_module_fails() public {
         vm.startPrank(DAO);
         vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
-        pufferProtocol.createPufferModule(NO_RESTAKING, "", address(0));
+        pufferProtocol.createPufferModule(NO_RESTAKING);
     }
 
     // Invalid pub key shares length
@@ -177,11 +177,13 @@ contract PufferProtocolTest is TestHelper {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
         uint256 amount = 5.11 ether;
 
-        pufferProtocol.registerValidatorKey{ value: amount }(
-            validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit
-        );
+        pufferProtocol.registerValidatorKey{ value: amount }(validatorKeyData, NO_RESTAKING, emptyPermit, emptyPermit);
 
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), ((amount - 1 ether) * 1 ether) / vtPrice, "VT after for pufferProtocol");
+        assertEq(
+            validatorTicket.balanceOf(address(pufferProtocol)),
+            ((amount - 1 ether) * 1 ether) / vtPrice,
+            "VT after for pufferProtocol"
+        );
     }
 
     // If we are > burst threshold, treasury gets everything
@@ -369,8 +371,8 @@ contract PufferProtocolTest is TestHelper {
     }
 
     function test_provision_node() public {
-        pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
-        pufferProtocol.createPufferModule(CRAZY_GAINS, "", address(0));
+        pufferProtocol.createPufferModule(EIGEN_DA);
+        pufferProtocol.createPufferModule(CRAZY_GAINS);
 
         bytes32[] memory oldWeights = new bytes32[](1);
         oldWeights[0] = NO_RESTAKING;
@@ -473,7 +475,7 @@ contract PufferProtocolTest is TestHelper {
 
     function test_create_puffer_module() public {
         bytes32 name = bytes32("LEVERAGED_RESTAKING");
-        pufferProtocol.createPufferModule(name, "", address(0));
+        pufferProtocol.createPufferModule(name);
         IPufferModule module = IPufferModule(pufferProtocol.getModuleAddress(name));
         assertEq(module.NAME(), name, "name");
     }
@@ -1768,7 +1770,7 @@ contract PufferProtocolTest is TestHelper {
 
     function _createModules() internal {
         // Create EIGEN_DA module
-        pufferProtocol.createPufferModule(EIGEN_DA, "", address(0));
+        pufferProtocol.createPufferModule(EIGEN_DA);
         pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
 
         // Include the EIGEN_DA in module selection

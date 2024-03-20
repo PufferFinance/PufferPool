@@ -15,13 +15,13 @@ struct GuardiansDeployment {
  */
 struct PufferProtocolDeployment {
     address pufferProtocolImplementation;
-    address NoRestakingModule;
     address pufferProtocol;
     address guardianModule;
     address accessManager;
     address enclaveVerifier;
     address beacon; // Beacon for Puffer modules
-    address moduleFactory;
+    address restakingOperatorBeacon; // Beacon for Restaking Operator
+    address moduleManager;
     address validatorTicket;
     address pufferOracle;
     address pufferDepositor; // from pufETH repository (dependency)
