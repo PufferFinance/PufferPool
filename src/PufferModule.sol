@@ -323,6 +323,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         emit RewardsRootPosted(blockNumber, root);
     }
 
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
     function callDelegateTo(
         address operator,
         ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
@@ -331,6 +335,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
     function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }

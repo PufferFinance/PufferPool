@@ -8,6 +8,8 @@ import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { Unauthorized, InvalidModuleName } from "puffer/Errors.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -200,12 +202,46 @@ contract PufferModuleManagerTest is TestHelper {
         assertEq(bob.balance, 0.013 ether, "bob rewards");
     }
 
+    function test_callDelegateTo(
+        bytes32 moduleName,
+        address operator,
+        ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry,
+        bytes32 approverSalt
+    ) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+
+        address module = _createPufferModule(moduleName);
+        vm.startPrank(DAO);
+
+        vm.expectRevert(Unauthorized.selector);
+        PufferModule(payable(module)).callDelegateTo(operator, signatureWithExpiry, approverSalt);
+
+        pufferModuleManager.callDelegateTo(moduleName, operator, signatureWithExpiry, approverSalt);
+
+        vm.stopPrank();
+    }
+
+    function test_callUndelegate(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+
+        address module = _createPufferModule(moduleName);
+        vm.startPrank(DAO);
+
+        vm.expectRevert(Unauthorized.selector);
+        PufferModule(payable(module)).callUndelegate();
+
+        pufferModuleManager.callUndelegate(moduleName);
+
+        vm.stopPrank();
+    }
+
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
         module = pufferProtocol.createPufferModule(moduleName);
+
         vm.stopPrank();
     }
 

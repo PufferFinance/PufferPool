@@ -128,6 +128,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callDelegateTo(
         bytes32 moduleName,
         address operator,
@@ -143,6 +147,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot) {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 

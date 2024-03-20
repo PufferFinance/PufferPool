@@ -95,6 +95,14 @@ interface IPufferModuleManager {
      */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external;
 
+    /**
+     * @notice Calls the callDelegateTo function on the target module
+     * @param moduleName is the name of the module
+     * @param operator is the address of the restaking operator
+     * @param approverSignatureAndExpiry the signature of the delegation approver
+     * @param approverSalt salt for the signature
+     * @dev Restricted to the DAO
+     */
     function callDelegateTo(
         bytes32 moduleName,
         address operator,
@@ -102,5 +110,10 @@ interface IPufferModuleManager {
         bytes32 approverSalt
     ) external;
 
+    /**
+     * @notice Calls the callUndelegate function on the target module
+     * @param moduleName is the name of the module
+     * @dev Restricted to the DAO
+     */
     function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
 }
