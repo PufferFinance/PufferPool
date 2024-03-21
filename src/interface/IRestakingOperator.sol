@@ -33,4 +33,11 @@ interface IRestakingOperator {
      * @dev Restricted to the PufferModuleManager
      */
     function optIntoSlashing(address slasher) external;
+
+    /**
+     * @notice Updates the operator's metadata URI
+     * @param metadataURI is the URI of the operator's metadata
+     * @dev Restricted to the PufferModuleManager
+     */
+    function updateOperatorMetadataURI(string calldata metadataURI) external;
 }

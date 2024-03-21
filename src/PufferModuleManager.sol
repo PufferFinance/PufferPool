@@ -121,6 +121,19 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
+    function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI)
+        external
+        virtual
+        restricted
+    {
+        restakingOperator.updateOperatorMetadataURI(metadataURI);
+        emit RestakingOperatorMetadataURIUpdated(address(restakingOperator), metadataURI);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
