@@ -81,6 +81,7 @@ contract SetupAccess is BaseScript {
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
+        selectors[3] = PufferModuleManager.callUpdateMetadataURI.selector;
         selectors[3] = PufferModuleManager.callDelegateTo.selector;
         selectors[4] = PufferModuleManager.callUndelegate.selector;
 

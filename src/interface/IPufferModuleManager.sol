@@ -37,6 +37,14 @@ interface IPufferModuleManager {
     event RestakingOperatorModified(address restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails);
 
     /**
+     * @notice Emitted when the Restaking Operator is updated with a new metadata URI
+     * @param restakingOperator is the address of the restaking operator
+     * @param metadataURI is the new URI of the operator's metadata
+     * @dev Signature "0x4cb1b839d29c7a6f051ae51c7b439f2f8f991de54a4b5906503a06a0892ba2c4"
+     */
+    event RestakingOperatorMetadataURIUpdated(address restakingOperator, string metadataURI);
+
+    /**
      * @notice Emitted when the Puffer Module is delegated
      * @param moduleName the module name to be delegated
      * @param operator the operator to delegate to
@@ -107,6 +115,14 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external;
+
+    /**
+     * @notice Calls the updateOperatorMetadataURI function on the restaking operator
+     * @param restakingOperator is the address of the restaking operator
+     * @param metadataURI is the URI of the operator's metadata
+     * @dev Restricted to the DAO
+     */
+    function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI) external;
 
     /**
      * @notice Calls the callDelegateTo function on the target module
