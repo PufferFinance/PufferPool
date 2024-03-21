@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
