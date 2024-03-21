@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 /**
  * @title IPufferModuleManager
@@ -42,6 +43,19 @@ interface IPufferModuleManager {
      * @dev Signature "0x4cb1b839d29c7a6f051ae51c7b439f2f8f991de54a4b5906503a06a0892ba2c4"
      */
     event RestakingOperatorMetadataURIUpdated(address restakingOperator, string metadataURI);
+
+    /**
+     * @notice Emitted when the Puffer Module is delegated
+     * @param moduleName the module name to be delegated
+     * @param operator the operator to delegate to
+     */
+    event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
+
+    /**
+     * @notice Emitted when the Puffer Module is undelegated
+     * @param moduleName the module name to be undelegated
+     */
+    event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
      * @notice Returns the Puffer Module beacon address
@@ -109,4 +123,26 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI) external;
+
+    /**
+     * @notice Calls the callDelegateTo function on the target module
+     * @param moduleName is the name of the module
+     * @param operator is the address of the restaking operator
+     * @param approverSignatureAndExpiry the signature of the delegation approver
+     * @param approverSalt salt for the signature
+     * @dev Restricted to the DAO
+     */
+    function callDelegateTo(
+        bytes32 moduleName,
+        address operator,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
+        bytes32 approverSalt
+    ) external;
+
+    /**
+     * @notice Calls the callUndelegate function on the target module
+     * @param moduleName is the name of the module
+     * @dev Restricted to the DAO
+     */
+    function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
 }

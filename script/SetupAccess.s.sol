@@ -16,7 +16,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
-    ROLE_ID_OPERATIONS,
+    ROLE_ID_OPERATIONS_MULTISIG,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_GUARDIANS,
     ROLE_ID_DAO,
@@ -77,11 +77,13 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](1);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](4);
+        bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
         selectors[3] = PufferModuleManager.callUpdateMetadataURI.selector;
+        selectors[3] = PufferModuleManager.callDelegateTo.selector;
+        selectors[4] = PufferModuleManager.callUndelegate.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO
@@ -146,7 +148,7 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
             daoSelectors,
-            ROLE_ID_OPERATIONS //@todo?
+            ROLE_ID_OPERATIONS_MULTISIG
         );
 
         bytes4[] memory protocolSelectors = new bytes4[](1);
