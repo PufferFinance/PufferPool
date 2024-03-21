@@ -58,6 +58,14 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when the restaking operator avs sginature proof is updated
+     * @param restakingOperator is the address of the restaking operator
+     * @param digestHash is the message hash
+     * @param signer is the address of the signature signer
+     */
+    event AVSRegisterationSignatureProofUpdated(address restakingOperator, bytes32 digestHash, address signer);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -145,4 +153,17 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
+
+    /**
+     * @notice update AVS registeration signature proof
+     * @param restakingOperator is the address of the restaking operator
+     * @param digestHash is the message hash
+     * @param signer is the address of the signature signer
+     * @dev Restricted to the DAO
+     */
+    function updateAVSRegisterationSignatureProof(
+        IRestakingOperator restakingOperator,
+        bytes32 digestHash,
+        address signer
+    ) external;
 }

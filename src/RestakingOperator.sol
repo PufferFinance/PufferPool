@@ -8,6 +8,8 @@ import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { Unauthorized, InvalidAddress } from "puffer/Errors.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @title RestakingOperator
@@ -15,11 +17,16 @@ import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol"
  * @notice PufferModule
  * @custom:security-contact security@puffer.fi
  */
-contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUpgradeable {
+contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, AccessManagedUpgradeable {
     // keccak256(abi.encode(uint256(keccak256("RestakingOperator.storage")) - 1)) & ~bytes32(uint256(0xff))
     // slither-disable-next-line unused-state
     bytes32 private constant _RESTAKING_OPERATOR_STORAGE =
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
+
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 internal constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+    // Invalid signature value (EIP-1271)
+    bytes4 internal constant EIP1271_INVALID_VALUE = 0xffffffff;
 
     /**
      * @custom:storage-location erc7201:RestakingOperator.storage
@@ -29,7 +36,9 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
      *      |                                                           |
      *      +-----------------------------------------------------------+
      */
-    // struct RestakingOperatorStorage { }
+    struct RestakingOperatorStorage {
+        mapping(bytes32 => address) hashSigners;
+    }
 
     /**
      * @dev Upgradeable contract from EigenLayer
@@ -106,10 +115,36 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
         EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(metadataURI);
     }
 
-    // function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
-    //     // solhint-disable-next-line
-    //     assembly {
-    //         $.slot := _RESTAKING_OPERATOR_STORAGE
-    //     }
-    // }
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyPufferModuleManager {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        $.hashSigners[digestHash] = signer;
+    }
+
+    /**
+     * @notice Verifies that the signer is the owner of the signing contract.
+     */
+    function isValidSignature(bytes32 digestHash, bytes calldata signature) external view override returns (bytes4) {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        address signer = $.hashSigners[digestHash];
+
+        // Validate signatures
+        if (signer != address(0) && ECDSA.recover(digestHash, signature) == signer) {
+            return EIP1271_MAGIC_VALUE;
+        } else {
+            return EIP1271_INVALID_VALUE;
+        }
+    }
+
+    function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
+        // solhint-disable-next-line
+        assembly {
+            $.slot := _RESTAKING_OPERATOR_STORAGE
+        }
+    }
 }
