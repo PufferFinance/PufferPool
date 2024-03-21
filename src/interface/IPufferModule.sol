@@ -17,17 +17,6 @@ interface IPufferModule {
     event RewardsClaimed(address indexed node, uint256 amount);
 
     /**
-     * @notice Emitted when the Puffer Module is delegated
-     * @param operator the operator to delegate to
-     */
-    event PufferModuleDelegated(address operator);
-
-    /**
-     * @notice Emitted when the Puffer Module is undelegated
-     */
-    event PufferModuleUndelegated();
-
-    /**
      * @notice Returns the Withdrawal credentials for that module
      */
     function getWithdrawalCredentials() external view returns (bytes memory);

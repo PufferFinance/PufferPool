@@ -331,8 +331,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes32 approverSalt
     ) external onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
-
-        emit PufferModuleDelegated(operator);
     }
 
     /**
@@ -341,8 +339,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
-
-        emit PufferModuleUndelegated();
     }
 
     /**

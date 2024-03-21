@@ -137,7 +137,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
-    ) external restricted {
+    ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
@@ -149,7 +149,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callUndelegate(bytes32 moduleName) external restricted returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
