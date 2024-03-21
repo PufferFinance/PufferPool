@@ -24,9 +24,9 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
 
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
-    bytes4 internal constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+    bytes4 internal constant _EIP1271_MAGIC_VALUE = 0x1626ba7e;
     // Invalid signature value (EIP-1271)
-    bytes4 internal constant EIP1271_INVALID_VALUE = 0xffffffff;
+    bytes4 internal constant _EIP1271_INVALID_VALUE = 0xffffffff;
 
     /**
      * @custom:storage-location erc7201:RestakingOperator.storage
@@ -135,9 +135,9 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
         // Validate signatures
         if (signer != address(0) && ECDSA.recover(digestHash, signature) == signer) {
-            return EIP1271_MAGIC_VALUE;
+            return _EIP1271_MAGIC_VALUE;
         } else {
-            return EIP1271_INVALID_VALUE;
+            return _EIP1271_INVALID_VALUE;
         }
     }
 
