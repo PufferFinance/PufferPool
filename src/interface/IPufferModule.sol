@@ -4,6 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 /**
  * @title IPufferModule
@@ -63,6 +65,9 @@ interface IPufferModule {
      */
     function queueWithdrawals(uint256 shareAmount) external;
 
+    /**
+     * @notice Verifies and processes the withdrawals
+     */
     function verifyAndProcessWithdrawals(
         uint64 oracleTimestamp,
         BeaconChainProofs.StateRootProof calldata stateRootProof,
@@ -71,6 +76,31 @@ interface IPufferModule {
         bytes32[][] calldata validatorFields,
         bytes32[][] calldata withdrawalFields
     ) external;
+
+    /**
+     * @notice Verifies the withdrawal credentials
+     */
+    function verifyWithdrawalCredentials(
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external;
+
+    /**
+     * @notice Completes the queued withdrawals
+     */
+    function completeQueuedWithdrawals(
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes
+    ) external;
+
+    /**
+     * @notice Withdraws the non beacon chain ETH balance
+     */
+    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external;
 
     /**
      * @notice Function callable only by PufferProtocol

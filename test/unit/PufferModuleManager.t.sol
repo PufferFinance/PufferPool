@@ -12,7 +12,9 @@ import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializabl
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { Unauthorized } from "puffer/Errors.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ROLE_ID_OPERATIONS_BOT } from "pufETHScript/Roles.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -128,6 +130,10 @@ contract PufferModuleManagerTest is TestHelper {
 
         // Post merkle proof with valid guardian signatures
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, 50, signatures);
+
+        // Try posting for block number lower than 50
+        vm.expectRevert(abi.encodeWithSelector(PufferModule.InvalidBlockNumber.selector, 49));
+        PufferModule(payable(module)).postRewardsRoot(merkleRoot, 49, signatures);
 
         // Claim the rewards
 
@@ -251,6 +257,13 @@ contract PufferModuleManagerTest is TestHelper {
         vm.stopPrank();
     }
 
+    function test_module_has_eigenPod(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        address module = _createPufferModule(moduleName);
+
+        assertTrue(PufferModule(payable(module)).getEigenPod() != address(0), "should have EigenPod");
+    }
+
     function test_rewards_claiming_from_eigenlayer(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
@@ -258,6 +271,43 @@ contract PufferModuleManagerTest is TestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
+    }
+
+    function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.NonBeaconChainETHBalanceWithdrawn(moduleName, 1 ether);
+        pufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei(moduleName, 1 ether);
+    }
+
+    function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        uint64 oracleTimestamp;
+        BeaconChainProofs.StateRootProof memory stateRootProof;
+        uint40[] memory validatorIndices;
+        bytes[] memory validatorFieldsProofs;
+        bytes32[][] memory validatorFields;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorCredentialsVerified(moduleName, validatorIndices);
+        pufferModuleManager.callVerifyWithdrawalCredentials(
+            moduleName, oracleTimestamp, stateRootProof, validatorIndices, validatorFieldsProofs, validatorFields
+        );
+    }
+
+    function test_completeQueuedWithdrawals(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        address module = _createPufferModule(moduleName);
+
+        IDelegationManager.Withdrawal[] memory withdrawals;
+        IERC20[][] memory tokens;
+        uint256[] memory middlewareTimesIndexes;
+
+        PufferModule(payable(module)).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
     }
 
     function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {

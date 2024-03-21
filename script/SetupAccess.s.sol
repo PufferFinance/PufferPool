@@ -41,7 +41,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
 
-        bytes[] memory calldatas = new bytes[](19);
+        bytes[] memory calldatas = new bytes[](20);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -66,6 +66,7 @@ contract SetupAccess is BaseScript {
 
         calldatas[17] = moduleManagerAccess[0];
         calldatas[18] = moduleManagerAccess[1];
+        calldatas[19] = moduleManagerAccess[2];
 
         accessManager.multicall(calldatas);
 
@@ -76,7 +77,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](5);
@@ -92,15 +93,28 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](2);
+        bytes4[] memory botSelectors = new bytes4[](3);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
         botSelectors[1] = PufferModuleManager.callVerifyAndProcessWithdrawals.selector;
+        botSelectors[2] = PufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.moduleManager,
             botSelectors,
             ROLE_ID_OPERATIONS_BOT
+        );
+
+        // Public selectors
+        bytes4[] memory publicSelectors = new bytes4[](2);
+        publicSelectors[0] = PufferModuleManager.callVerifyWithdrawalCredentials.selector;
+        publicSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
         );
 
         return calldatas;

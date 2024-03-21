@@ -5,6 +5,8 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 /**
  * @title IPufferModuleManager
@@ -81,6 +83,27 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when a Node Operator verifies withdrawal credentials
+     * @param moduleName is the name of the module
+     * @param validatorIndices is the indices of the validators
+     */
+    event ValidatorCredentialsVerified(bytes32 indexed moduleName, uint40[] validatorIndices);
+
+    /**
+     * @notice Emitted when ETH is withdrawn from EigenPod to a PufferModule
+     * @param moduleName is the name of the module
+     * @param amountToWithdraw is the amount of ETH to withdrawn
+     */
+    event NonBeaconChainETHBalanceWithdrawn(bytes32 indexed moduleName, uint256 amountToWithdraw);
+
+    /**
+     * @notice Emitted when the withdrawals are completed
+     * @param moduleName is the name of the module
+     * @param amountToWithdraw is the amount of ETH to withdrawn
+     */
+    event CompleteQueuedWithdrawals(bytes32 indexed moduleName, uint256 amountToWithdraw);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -100,6 +123,8 @@ interface IPufferModuleManager {
      * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
      *
      * @param delegationApprover Address to verify signatures when a staker wishes to delegate to the operator, as well as controlling "forced undelegations".
+     *
+     * @dev See IDelegationManager(EigenLayer) for more details about the other parameters
      * @dev Signature verification follows these rules:
      * 1) If this address is left as address(0), then any staker will be free to delegate to the operator, i.e. no signature verification will be performed.
      * 2) If this address is an EOA (i.e. it has no code), then we follow standard ECDSA signature verification for delegations to the operator.
@@ -123,13 +148,64 @@ interface IPufferModuleManager {
     /**
      * @notice Calls the modifyOperatorDetails function on the restaking operator
      * @param restakingOperator is the address of the restaking operator
-     * @param newOperatorDetails is the struct with new operator details
+     * @dev See IDelegationManager(EigenLayer) for more details about the other parameters
      * @dev Restricted to the DAO
      */
     function callModifyOperatorDetails(
         IRestakingOperator restakingOperator,
         IDelegationManager.OperatorDetails calldata newOperatorDetails
     ) external;
+
+    /**
+     * @notice Calls the verifyAndProcessWithdrawals function from the PufferModule `moduleName` with the given parameters
+     * @dev See IEigenPod(EigenLayer) for more details about the other parameters
+     */
+    function callVerifyAndProcessWithdrawals(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external;
+
+    /**
+     * @notice Calls `queueWithdrawals` from the PufferModule `moduleName`
+     * @param moduleName is the name of the module
+     * @param sharesAmount is the amount of shares to withdraw
+     */
+    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external;
+
+    /**
+     * @notice Calls `completeQueuedWithdrawals` from the PufferModule `moduleName`
+     * @dev See IDelegationManager(EigenLayer) for more details about the other parameters
+     */
+    function callCompleteQueuedWithdrawals(
+        bytes32 moduleName,
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes
+    ) external;
+
+    /**
+     * @notice Calls `verifyWithdrawalCredentials` from the PufferModule `moduleName` with the given parameters
+     * @dev See IEigenPod(EigenLayer) for more details about the other parameters
+     */
+    function callVerifyWithdrawalCredentials(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external;
+
+    /**
+     * @notice Withdraws ETH from EigenPod to `moduleName`
+     * @param amountToWithdraw is the amount of ETH to withdraw
+     */
+    function callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName, uint256 amountToWithdraw) external;
 
     /**
      * @notice Calls the optIntoSlashing function on the restaking operator

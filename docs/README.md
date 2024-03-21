@@ -43,27 +43,25 @@ All of our smart contract inherit from **AccessManaged | AccessManagedUpgradeabl
 | [`IEnclaveVerifier.sol`](../src/interface/IEnclaveVerifier.sol) | Singleton | / | YES |/ |
 | [`EnclaveVerifier.sol`](../src/EnclaveVerifier.sol) | Singleton | NO | YES | / |
 | [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
-| [`{Safe} Guardians`](https://safe.global/) | {Safe} multisig | YES | NO | / |
 
-### [Strategies](./Strategies.md)
+### [PufferModuleManager](./PufferModuleManager.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
-| [`IPufferStrategy.sol`](../src/interface/IPufferStrategy.sol) | Singleton | / | YES | / |
-| [`NoRestakingStrategy.sol`](../src/NoRestakingStrategy.sol) | Singleton | NO | NO | / |
-| [`PufferStrategy.sol`](../src/PufferStrategy.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+| [`PufferModuleManager.sol`](../src/PufferModuleManager.sol) | Singleton | UUPS Proxy | NO | / |
 
-### [PufferPool](./PufferPool.md)
 
-| File | Type | Upgradeable | Inherited | Deployed |
-| -------- | -------- | -------- | -------- |  -------- |
-| [`TokenRescuer.sol`](../src/TokenRescuer.sol) | Singleton | NO | Yes | / |
-| [`IPufferPool.sol`](../src/interface/IPufferPool.sol) | Singleton | NO | Yes | / |
-| [`PufferPool.sol`](../src/PufferPool.sol) | Singleton | NO | / | / |
-
-### [WithdrawalPool](./WithdrawalPool.md)
+### [PufferModules](./PufferModules.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
-| -------- | -------- | -------- | -------- |  -------- |
-| [`IWithdrawalPool.sol`](../src/interface/IWithdrawalPool.sol) | Singleton | NO | YES | / |
-| [`WithdrawalPool.sol`](../src/WithdrawalPool.sol) | Singleton | NO | / | / |
+| -------- | -------- | -------- | -------- | -------- |
+| [`IPufferModule.sol`](../src/interface/IRestakingOperator.sol) | Singleton | / | YES | / |
+| [`PufferModule.sol`](../src/PufferModule.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+
+### [RestakingOperators](./RestakingOperators.md)
+
+| File | Type | Upgradeable | Inherited | Deployed |
+| -------- | -------- | -------- | -------- | -------- |
+| [`IPufferModule.sol`](../src/interface/IPufferModule.sol) | Singleton | / | YES | / |
+| [`PufferModule.sol`](../src/RestakingOperator.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
+
