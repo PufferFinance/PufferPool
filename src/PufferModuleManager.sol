@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
@@ -13,6 +14,7 @@ import { Create2 } from "openzeppelin/utils/Create2.sol";
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 
 /**
@@ -123,6 +125,19 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
+    function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI)
+        external
+        virtual
+        restricted
+    {
+        restakingOperator.updateOperatorMetadataURI(metadataURI);
+        emit RestakingOperatorMetadataURIUpdated(address(restakingOperator), metadataURI);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
@@ -156,8 +171,34 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         emit WithdrawalsQueued(moduleName, sharesAmount);
     }
 
-    function callDelegateToBySignature(IPufferModule module) external virtual { }
-    function callUndelegate(IPufferModule module) external virtual { }
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callDelegateTo(
+        bytes32 moduleName,
+        address operator,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
+        bytes32 approverSalt
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+
+        emit PufferModuleDelegated(moduleName, operator);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
+
+        emit PufferModuleUndelegated(moduleName);
+    }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

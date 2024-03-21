@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
@@ -173,6 +174,13 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _;
     }
 
+    modifier onlyPufferModuleManager() {
+        if (msg.sender != address(PUFFER_MODULE_MANAGER)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     receive() external payable { }
 
     /**
@@ -330,6 +338,26 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         $.lastProofOfRewardsBlockNumber = blockNumber;
         $.rewardsRoots[blockNumber] = root;
         emit RewardsRootPosted(blockNumber, root);
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function callDelegateTo(
+        address operator,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
+        bytes32 approverSalt
+    ) external onlyPufferModuleManager {
+        EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
+        return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
     /**

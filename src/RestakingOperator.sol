@@ -98,6 +98,14 @@ contract RestakingOperator is IRestakingOperator, Initializable, AccessManagedUp
         EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(newOperatorDetails);
     }
 
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyPufferModuleManager {
+        EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(metadataURI);
+    }
+
     // function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
     //     // solhint-disable-next-line
     //     assembly {

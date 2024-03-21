@@ -5,6 +5,7 @@ import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
@@ -24,7 +25,11 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         vm.startPrank(DAO);
         IRestakingOperator operator = _createRestakingOperator();
 
-        moduleManager.callOptIntoSlashing(operator, address(1234));
+        address slasher = address(1235);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorOptedInSlasher(address(operator), slasher);
+        moduleManager.callOptIntoSlashing(operator, slasher);
     }
 
     function test_modify_operator() public {
@@ -37,6 +42,8 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             stakerOptOutWindowBlocks: 100
         });
 
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newOperatorDetails);
         moduleManager.callModifyOperatorDetails({ restakingOperator: operator, newOperatorDetails: newOperatorDetails });
 
         IDelegationManager.OperatorDetails memory details =
@@ -44,6 +51,17 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
 
         assertEq(details.earningsReceiver, address(this), "updated earnings");
+    }
+
+    function test_update_metadata_uri() public {
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+
+        string memory newUri = "https://puffer.fi/updated.json";
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newUri);
+        moduleManager.callUpdateMetadataURI(operator, newUri);
     }
 
     // Creates a new restaking operator and returns it

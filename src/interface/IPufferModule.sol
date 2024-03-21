@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 
 /**
@@ -30,6 +32,25 @@ interface IPufferModule {
      * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /**
+     * @notice Calls the delegateTo function on the EigenLayer delegation manager
+     * @param operator is the address of the restaking operator
+     * @param approverSignatureAndExpiry the signature of the delegation approver
+     * @param approverSalt salt for the signature
+     * @dev Restricted to the DAO
+     */
+    function callDelegateTo(
+        address operator,
+        ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
+        bytes32 approverSalt
+    ) external;
+
+    /**
+     * @notice Calls the undelegate function on the EigenLayer delegation manager
+     * @dev Restricted to the DAO
+     */
+    function callUndelegate() external returns (bytes32[] memory withdrawalRoot);
 
     /**
      * @notice Returns the EigenPod address owned by the module
