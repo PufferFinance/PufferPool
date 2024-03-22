@@ -37,7 +37,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      *      +-----------------------------------------------------------+
      */
     struct RestakingOperatorStorage {
-        mapping(bytes32 => address) hashSigners;
+        mapping(bytes32 digestHash  => address signer) hashSigners;
     }
 
     /**
