@@ -36,34 +36,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     address internal constant _BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     /**
-     * @notice Thrown if the rewards are already claimed for a `blockNumber`
-     * @dev Signature "0xa9214540"
-     */
-    error AlreadyClaimed(uint256 blockNumber, address node);
-
-    /**
-     * @notice Thrown if guardians try to post root for an invalid block number
-     * @dev Signature "0x9f4aafbe"
-     */
-    error InvalidBlockNumber(uint256 blockNumber);
-
-    /**
-     * @notice Thrown if the there is nothing to be claimed for the provided information
-     * @dev Signature "0x64ab3466"
-     */
-    error NothingToClaim(address node);
-
-    /**
-     * @notice Emitted when the rewards MerkleRoot `root` for a `blockNumber` is posted
-     */
-    event RewardsRootPosted(uint256 indexed blockNumber, bytes32 root);
-
-    /**
-     * @notice Emitted when the withdrawal is queued from EigenLayer
-     */
-    event WithdrawalQueued(bytes32 withdrawalRoot, IDelegationManager.QueuedWithdrawalParams withdrawalParams);
-
-    /**
      * @dev Upgradeable contract from EigenLayer
      */
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
@@ -189,7 +161,12 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function queueWithdrawals(uint256 shareAmount) external virtual onlyPufferModuleManager {
+    function queueWithdrawals(uint256 shareAmount)
+        external
+        virtual
+        onlyPufferModuleManager
+        returns (bytes32[] memory)
+    {
         IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
             new IDelegationManager.QueuedWithdrawalParams[](1);
 
@@ -205,8 +182,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
             withdrawer: address(this)
         });
 
-        bytes32[] memory withdrawalRoots = EIGEN_DELEGATION_MANAGER.queueWithdrawals(withdrawals);
-        emit WithdrawalQueued(withdrawalRoots[0], withdrawals[0]);
+        return EIGEN_DELEGATION_MANAGER.queueWithdrawals(withdrawals);
     }
 
     /**
@@ -216,7 +192,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
         uint256[] calldata middlewareTimesIndexes
-    ) external virtual whenNotPaused {
+    ) external virtual whenNotPaused onlyPufferModuleManager {
         bool[] memory receiveAsTokens = new bool[](withdrawals.length);
         for (uint256 i = 0; i < withdrawals.length; i++) {
             receiveAsTokens[i] = true;
@@ -241,7 +217,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields,
         bytes32[][] calldata withdrawalFields
-    ) external virtual whenNotPaused {
+    ) external virtual whenNotPaused onlyPufferModuleManager {
         PufferModuleStorage storage $ = _getPufferProtocolStorage();
 
         $.eigenPod.verifyAndProcessWithdrawals({

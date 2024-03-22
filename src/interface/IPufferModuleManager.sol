@@ -46,9 +46,9 @@ interface IPufferModuleManager {
      * @notice Emitted when the Withdrawals are queued
      * @param moduleName is the name of the module
      * @param shareAmount is the amount of shares
-     * @dev Signature "0x172c7d4f364f16dc6f7b2284cc3dc962c8f52734b13ad229c297369c05cea6bf"
+     * @dev Signature "0xfa1bd67700189b28b5a9085170838266813878ca3237b31a33358644a22a2f0e"
      */
-    event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount);
+    event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount, bytes32 withdrawalRoot);
 
     /**
      * @notice Emitted when the verify and process withdrawals is called
@@ -112,10 +112,10 @@ interface IPufferModuleManager {
     /**
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
-     * @param amountToWithdraw is the amount of ETH to withdrawn
-     * @dev Signature "0xd718bad6e1450f2ac6f733b8b09a81e6edb1154a92fcaa1dc59ad1d51a7eb536"
+     * @param sharesWithdrawn is the shares withdrawn
+     * @dev Signature "0xacdbe9634a8513b63b743a71d36ba44b448b5f6ad25541aeaffcaa3640b61e59"
      */
-    event CompleteQueuedWithdrawals(bytes32 indexed moduleName, uint256 amountToWithdraw);
+    event CompleteDQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
 
     /**
      * @notice Returns the Puffer Module beacon address

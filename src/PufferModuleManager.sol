@@ -98,8 +98,15 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         IPufferModule(moduleAddress).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
 
-        //@todo figure out the event
-        emit CompleteQueuedWithdrawals(moduleName, 0);
+        uint256 sharesWithdrawn;
+
+        for (uint256 i = 0; i < withdrawals.length; i++) {
+            for (uint256 j = 0; j < withdrawals[i].shares.length; j++) {
+                sharesWithdrawn += withdrawals[i].shares[i];
+            }
+        }
+
+        emit CompleteDQueuedWithdrawals(moduleName, sharesWithdrawn);
     }
 
     /**
@@ -119,6 +126,59 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                     )
             })
         );
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to Puffer Paymaster
+     */
+    function callVerifyAndProcessWithdrawals(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).verifyAndProcessWithdrawals({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            withdrawalProofs: withdrawalProofs,
+            validatorFieldsProofs: validatorFieldsProofs,
+            validatorFields: validatorFields,
+            withdrawalFields: withdrawalFields
+        });
+
+        emit VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to Puffer Paymaster
+     */
+    function callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName, uint256 amountToWithdraw)
+        external
+        virtual
+        restricted
+    {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).withdrawNonBeaconChainETHBalanceWei(amountToWithdraw);
+
+        emit NonBeaconChainETHBalanceWithdrawn(moduleName, amountToWithdraw);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to Puffer Paymaster
+     */
+    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        bytes32[] memory withdrawalRoots = IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
+        emit WithdrawalsQueued(moduleName, sharesAmount, withdrawalRoots[0]);
     }
 
     /**
@@ -185,58 +245,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted to PufferBot
-     */
-    function callVerifyAndProcessWithdrawals(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields,
-        bytes32[][] calldata withdrawalFields
-    ) external virtual restricted {
-        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-
-        IPufferModule(moduleAddress).verifyAndProcessWithdrawals({
-            oracleTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            withdrawalProofs: withdrawalProofs,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields,
-            withdrawalFields: withdrawalFields
-        });
-
-        emit VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted to PufferBot
-     */
-    function callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName, uint256 amountToWithdraw)
-        external
-        virtual
-        restricted
-    {
-        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-
-        IPufferModule(moduleAddress).withdrawNonBeaconChainETHBalanceWei(amountToWithdraw);
-
-        emit NonBeaconChainETHBalanceWithdrawn(moduleName, amountToWithdraw);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     */
-    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
-        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-        IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
-        emit WithdrawalsQueued(moduleName, sharesAmount);
     }
 
     /**

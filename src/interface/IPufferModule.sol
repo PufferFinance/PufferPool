@@ -13,6 +13,29 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
  */
 interface IPufferModule {
     /**
+     * @notice Thrown if the rewards are already claimed for a `blockNumber`
+     * @dev Signature "0xa9214540"
+     */
+    error AlreadyClaimed(uint256 blockNumber, address node);
+
+    /**
+     * @notice Thrown if guardians try to post root for an invalid block number
+     * @dev Signature "0x9f4aafbe"
+     */
+    error InvalidBlockNumber(uint256 blockNumber);
+
+    /**
+     * @notice Thrown if the there is nothing to be claimed for the provided information
+     * @dev Signature "0x64ab3466"
+     */
+    error NothingToClaim(address node);
+
+    /**
+     * @notice Emitted when the rewards MerkleRoot `root` for a `blockNumber` is posted
+     */
+    event RewardsRootPosted(uint256 indexed blockNumber, bytes32 root);
+
+    /**
      * @notice Emits when rewards are claimed
      * @param node is the node address
      * @param amount is the amount claimed in wei
@@ -62,7 +85,7 @@ interface IPufferModule {
      * @notice Queues the withdrawal from EigenLayer for the Beacon Chain strategy
      * @dev Restricted to PufferModuleManager
      */
-    function queueWithdrawals(uint256 shareAmount) external;
+    function queueWithdrawals(uint256 shareAmount) external returns (bytes32[] memory);
 
     /**
      * @notice Verifies and processes the withdrawals
