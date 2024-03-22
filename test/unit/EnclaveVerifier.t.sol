@@ -12,9 +12,6 @@ import {
 } from "../helpers/GuardiansRaveEvidence.sol";
 
 contract EnclaveVerifierTest is TestHelper {
-    event AddedPubKey(bytes32 pubKeyHash);
-    event RemovedPubKey(bytes32 pubKeyHash);
-
     // DER encoded bytes of the signed Intel Leaf Signing x509 Certificate (including the header and signature)
     // Copied from "lib/rave/test/X509Verifier.t.sol"
     bytes public validLeafX509Certificate =
@@ -34,7 +31,7 @@ contract EnclaveVerifierTest is TestHelper {
     // Test add leaf
     function testAddLeafX509() public {
         vm.expectEmit(true, true, true, true);
-        emit AddedPubKey(keccak256(validLeafX509Certificate));
+        emit IEnclaveVerifier.AddedPubKey(keccak256(validLeafX509Certificate));
         verifier.addLeafX509(validLeafX509Certificate);
     }
 
@@ -45,7 +42,7 @@ contract EnclaveVerifierTest is TestHelper {
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit RemovedPubKey(hashedCertificate);
+        emit IEnclaveVerifier.RemovedPubKey(hashedCertificate);
         EnclaveVerifier(address(verifier)).removeLeafX509(hashedCertificate);
     }
 
