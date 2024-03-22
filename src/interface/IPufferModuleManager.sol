@@ -63,7 +63,7 @@ interface IPufferModuleManager {
      * @param digestHash is the message hash
      * @param signer is the address of the signature signer
      */
-    event AVSRegisterationSignatureProofUpdated(address restakingOperator, bytes32 digestHash, address signer);
+    event AVSRegistrationSignatureProofUpdated(address restakingOperator, bytes32 digestHash, address signer);
 
     /**
      * @notice Returns the Puffer Module beacon address
@@ -155,13 +155,13 @@ interface IPufferModuleManager {
     function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
 
     /**
-     * @notice update AVS registeration signature proof
+     * @notice Updates AVS registration signature proof
      * @param restakingOperator is the address of the restaking operator
      * @param digestHash is the message hash
      * @param signer is the address of the signature signer
      * @dev Restricted to the DAO
      */
-    function updateAVSRegisterationSignatureProof(
+    function updateAVSRegistrationSignatureProof(
         IRestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer

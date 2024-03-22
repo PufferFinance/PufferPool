@@ -19,4 +19,6 @@ contract DelegationManagerMock {
         ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external { }
+
+    function operatorDetails(address operator) external view returns (IDelegationManager.OperatorDetails memory) { }
 }

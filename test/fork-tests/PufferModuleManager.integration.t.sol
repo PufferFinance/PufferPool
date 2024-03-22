@@ -64,6 +64,21 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         moduleManager.callUpdateMetadataURI(operator, newUri);
     }
 
+    // function test_updateAVSRegistrationSignatureProof() public {
+    //     vm.startPrank(DAO);
+    //     IRestakingOperator operator = _createRestakingOperator();
+
+    //     vm.expectRevert(Unauthorized.selector);
+
+    //     operator.updateSignatureProof()
+
+    //     string memory newUri = "https://puffer.fi/updated.json";
+
+    //     vm.expectEmit(true, true, true, true);
+    //     emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newUri);
+    //     moduleManager.callUpdateMetadataURI(operator, newUri);
+    // }
+
     // Creates a new restaking operator and returns it
     // metadataURI is used as seed for create2 in EL
     function _createRestakingOperator() internal returns (IRestakingOperator) {

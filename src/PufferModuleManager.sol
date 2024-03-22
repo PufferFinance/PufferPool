@@ -174,14 +174,14 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function updateAVSRegisterationSignatureProof(
+    function updateAVSRegistrationSignatureProof(
         IRestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer
     ) external virtual restricted {
         restakingOperator.updateSignatureProof(digestHash, signer);
 
-        emit AVSRegisterationSignatureProofUpdated(address(restakingOperator), digestHash, signer);
+        emit AVSRegistrationSignatureProofUpdated(address(restakingOperator), digestHash, signer);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
