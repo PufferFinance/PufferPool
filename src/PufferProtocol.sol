@@ -63,9 +63,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     uint256 internal constant _NO_ENCLAVE_VALIDATOR_BOND = 2 ether;
 
     /**
-     * @dev Default "NO_RESTAKING" module
+     * @dev Default "PUFFER_MODULE_0" module
      */
-    bytes32 internal constant _NO_RESTAKING = bytes32("NO_RESTAKING");
+    bytes32 internal constant _PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
 
     /**
      * @inheritdoc IPufferProtocol
@@ -112,10 +112,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _createPufferModule(_NO_RESTAKING);
-        _setValidatorLimitPerModule(_NO_RESTAKING, type(uint128).max);
+        _createPufferModule(_PUFFER_MODULE_0);
+        _setValidatorLimitPerModule(_PUFFER_MODULE_0, type(uint128).max);
         bytes32[] memory weights = new bytes32[](1);
-        weights[0] = _NO_RESTAKING;
+        weights[0] = _PUFFER_MODULE_0;
         _setModuleWeights(weights);
         _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
         _setVTPenalty(10 ether); // 10 Validator Tickets
@@ -666,6 +666,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         IPufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
+        $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
         emit NewPufferModuleCreated(address(module), moduleName, withdrawalCredentials);
         _setValidatorLimitPerModule(moduleName, 1000);

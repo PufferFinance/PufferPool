@@ -118,7 +118,7 @@ contract GuardianModuleTest is TestHelper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, bytes32("whatever"));
         guardianSignatures[0] = abi.encodePacked(r, s, v);
         vm.expectRevert(Unauthorized.selector);
-        guardianModule.validateSkipProvisioning(NO_RESTAKING, 0, guardianSignatures);
+        guardianModule.validateSkipProvisioning(PUFFER_MODULE_0, 0, guardianSignatures);
     }
 
     function test_split_funds_rounding() external {

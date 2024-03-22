@@ -145,7 +145,7 @@ contract PufferProtocolHandler is Test {
         guardiansEnclavePks.push(_guardiansEnclavePks[1]);
         guardiansEnclavePks.push(_guardiansEnclavePks[2]);
         _accessManagerAdmin = accessManagerAdmin;
-        _enableCall(pufferProtocol.getModuleAddress(bytes32("NO_RESTAKING")));
+        _enableCall(pufferProtocol.getModuleAddress(bytes32("PUFFER_MODULE_0")));
 
         // Give initial liquidity to the PufferVault
         vm.deal(address(this), 20000 ether);
