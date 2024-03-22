@@ -3,8 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
@@ -17,17 +19,6 @@ import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-
-/**
- * @dev Mainnet and latest `master` from EigenLayer are not the same
- * To be compatible with `M1 mainnet deployment` we must use this interface and not the one from repository
- */
-interface IEigenPodManager {
-    function createPod() external returns (address);
-    function ownerToPod(address) external returns (address);
-    function getPod(address) external returns (address);
-    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
-}
 
 /**
  * @title PufferModule
@@ -196,10 +187,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @inheritdoc IPufferModule
-     * @dev We do Native restaking, meaning we only have one strategy and that is the Beacon Chain strategy
+     * @dev Restricted to PufferModuleManager
      */
-    function queueWithdrawals(uint256 shareAmount) external virtual whenNotPaused {
-        //@todo DOS if creating many withdrawals with small shares amount?
+    function queueWithdrawals(uint256 shareAmount) external virtual onlyPufferModuleManager {
         IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
             new IDelegationManager.QueuedWithdrawalParams[](1);
 
@@ -219,6 +209,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         emit WithdrawalQueued(withdrawalRoots[0], withdrawals[0]);
     }
 
+    /**
+     * @inheritdoc IPufferModule
+     */
     function completeQueuedWithdrawals(
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
@@ -235,6 +228,62 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
             middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: receiveAsTokens
         });
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function verifyAndProcessWithdrawals(
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external virtual whenNotPaused {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+
+        $.eigenPod.verifyAndProcessWithdrawals({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            withdrawalProofs: withdrawalProofs,
+            validatorFieldsProofs: validatorFieldsProofs,
+            validatorFields: validatorFields,
+            withdrawalFields: withdrawalFields
+        });
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function verifyWithdrawalCredentials(
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external virtual onlyPufferModuleManager {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+
+        $.eigenPod.verifyWithdrawalCredentials({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            validatorIndices: validatorIndices,
+            withdrawalCredentialProofs: validatorFieldsProofs,
+            validatorFields: validatorFields
+        });
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager {
+        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+
+        $.eigenPod.withdrawNonBeaconChainETHBalanceWei(address(this), amountToWithdraw);
     }
 
     /**

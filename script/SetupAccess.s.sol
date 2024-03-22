@@ -17,6 +17,7 @@ import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgrad
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_GUARDIANS,
     ROLE_ID_DAO,
@@ -40,7 +41,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
 
-        bytes[] memory calldatas = new bytes[](18);
+        bytes[] memory calldatas = new bytes[](20);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = _setupUpgradeableBeacon();
@@ -64,6 +65,8 @@ contract SetupAccess is BaseScript {
         calldatas[16] = pufferOracleAccess[2];
 
         calldatas[17] = moduleManagerAccess[0];
+        calldatas[18] = moduleManagerAccess[1];
+        calldatas[19] = moduleManagerAccess[2];
 
         accessManager.multicall(calldatas);
 
@@ -74,19 +77,44 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](1);
+        bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
         selectors[3] = PufferModuleManager.callUpdateMetadataURI.selector;
-        selectors[3] = PufferModuleManager.callDelegateTo.selector;
         selectors[4] = PufferModuleManager.callUndelegate.selector;
+        selectors[5] = PufferModuleManager.callDelegateTo.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO
+        );
+
+        // Bot selectors
+        bytes4[] memory botSelectors = new bytes4[](3);
+        botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
+        botSelectors[1] = PufferModuleManager.callVerifyAndProcessWithdrawals.selector;
+        botSelectors[2] = PufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei.selector;
+
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            botSelectors,
+            ROLE_ID_OPERATIONS_PAYMASTER
+        );
+
+        // Public selectors
+        bytes4[] memory publicSelectors = new bytes4[](2);
+        publicSelectors[0] = PufferModuleManager.callVerifyWithdrawalCredentials.selector;
+        publicSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
         );
 
         return calldatas;

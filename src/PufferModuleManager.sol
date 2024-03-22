@@ -5,6 +5,7 @@ import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
+import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
@@ -14,6 +15,8 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 /**
  * @title PufferModuleManager
@@ -54,6 +57,49 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function callVerifyWithdrawalCredentials(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).verifyWithdrawalCredentials({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            validatorIndices: validatorIndices,
+            validatorFieldsProofs: validatorFieldsProofs,
+            validatorFields: validatorFields
+        });
+
+        emit ValidatorCredentialsVerified(moduleName, validatorIndices);
+    }
+
+    /**
+     * @notice Completes queued withdrawals
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function callCompleteQueuedWithdrawals(
+        bytes32 moduleName,
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
+
+        //@todo figure out the event
+        emit CompleteQueuedWithdrawals(moduleName, 0);
     }
 
     /**
@@ -139,6 +185,58 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to PufferBot
+     */
+    function callVerifyAndProcessWithdrawals(
+        bytes32 moduleName,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).verifyAndProcessWithdrawals({
+            oracleTimestamp: oracleTimestamp,
+            stateRootProof: stateRootProof,
+            withdrawalProofs: withdrawalProofs,
+            validatorFieldsProofs: validatorFieldsProofs,
+            validatorFields: validatorFields,
+            withdrawalFields: withdrawalFields
+        });
+
+        emit VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to PufferBot
+     */
+    function callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName, uint256 amountToWithdraw)
+        external
+        virtual
+        restricted
+    {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        IPufferModule(moduleAddress).withdrawNonBeaconChainETHBalanceWei(amountToWithdraw);
+
+        emit NonBeaconChainETHBalanceWithdrawn(moduleName, amountToWithdraw);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     */
+    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
+        emit WithdrawalsQueued(moduleName, sharesAmount);
     }
 
     /**

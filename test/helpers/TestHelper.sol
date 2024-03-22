@@ -87,6 +87,7 @@ contract TestHelper is Test, BaseScript {
     IEnclaveVerifier public verifier;
 
     address public DAO = makeAddr("DAO");
+    address public timelock;
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
 
@@ -153,6 +154,7 @@ contract TestHelper is Test, BaseScript {
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
+        timelock = pufferDeployment.timelock;
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);

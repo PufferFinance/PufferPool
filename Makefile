@@ -26,6 +26,10 @@ deposit_liquidity: check_env_file
 	@echo "Depositing initial liquidity for PufferVault"
 	@source $(ENV_FILE) && PK=$$PK forge script script/DepositETH.s.sol:DepositETH --rpc-url=$$RPC_URL --broadcast --sig "run(uint256)" $$DEV_WALLET_SEED_ETH_AMOUNT -vvvv --private-key $$PK
 
+deploy_new_module: check_env_file
+	@echo "Creating new module"
+	@source $(ENV_FILE) && PK=$$PK forge script script/DeployNewPufferModule.s.sol:DeployNewPufferModule --rpc-url=$$RPC_URL --broadcast --sig "run(string)" $$NEW_MODULE_NAME -vvvv --private-key $$PK
+
 save_abis: check_env_file
 	@echo "Saving ABIs"
 	@source $(ENV_FILE) && mkdir -p $$ABI_DIR
