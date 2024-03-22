@@ -13,7 +13,7 @@ import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ROLE_ID_OPERATIONS_BOT } from "pufETHScript/Roles.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 contract PufferModuleUpgrade {
@@ -37,7 +37,7 @@ contract PufferModuleManagerTest is TestHelper {
         vm.deal(address(this), 1000 ether);
 
         vm.startPrank(timelock);
-        accessManager.grantRole(ROLE_ID_OPERATIONS_BOT, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
         vm.stopPrank();
 
         _skipDefaultFuzzAddresses();

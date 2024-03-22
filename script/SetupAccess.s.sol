@@ -17,7 +17,7 @@ import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgrad
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
-    ROLE_ID_OPERATIONS_BOT,
+    ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_GUARDIANS,
     ROLE_ID_DAO,
@@ -102,7 +102,7 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.moduleManager,
             botSelectors,
-            ROLE_ID_OPERATIONS_BOT
+            ROLE_ID_OPERATIONS_PAYMASTER
         );
 
         // Public selectors
