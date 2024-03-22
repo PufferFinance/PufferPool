@@ -58,15 +58,6 @@ contract DelegationManagerMock {
 
     function decreaseDelegatedShares(address, /*staker*/ IStrategy, /*strategy*/ uint256 /*shares*/ ) external pure { }
 
-    function operatorDetails(address operator) external pure returns (IDelegationManager.OperatorDetails memory) {
-        IDelegationManager.OperatorDetails memory returnValue = IDelegationManager.OperatorDetails({
-            earningsReceiver: operator,
-            delegationApprover: operator,
-            stakerOptOutWindowBlocks: 0
-        });
-        return returnValue;
-    }
-
     function earningsReceiver(address operator) external pure returns (address) {
         return operator;
     }
@@ -229,4 +220,6 @@ contract DelegationManagerMock {
     ) external {
         strategyManager.withdrawSharesAsTokens(recipient, strategy, shares, token);
     }
+
+    function operatorDetails(address operator) external view returns (IDelegationManager.OperatorDetails memory) { }
 }

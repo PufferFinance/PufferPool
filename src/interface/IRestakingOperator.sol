@@ -40,4 +40,12 @@ interface IRestakingOperator {
      * @dev Restricted to the PufferModuleManager
      */
     function updateOperatorMetadataURI(string calldata metadataURI) external;
+
+    /**
+     * @notice Updates a signature proof by setting the signer address of the message hash
+     * @param digestHash is message hash
+     * @param signer is the signer address
+     * @dev Restricted to the PufferModuleManager
+     */
+    function updateSignatureProof(bytes32 digestHash, address signer) external;
 }

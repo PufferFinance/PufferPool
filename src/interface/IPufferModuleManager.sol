@@ -67,25 +67,37 @@ interface IPufferModuleManager {
      * @param metadataURI is the new URI of the operator's metadata
      * @dev Signature "0x4cb1b839d29c7a6f051ae51c7b439f2f8f991de54a4b5906503a06a0892ba2c4"
      */
-    event RestakingOperatorMetadataURIUpdated(address restakingOperator, string metadataURI);
+    event RestakingOperatorMetadataURIUpdated(address indexed restakingOperator, string metadataURI);
 
     /**
      * @notice Emitted when the Puffer Module is delegated
      * @param moduleName the module name to be delegated
      * @param operator the operator to delegate to
+     * @dev Signature "0xfa610363b3f4985bba03612919e946ac0bccf11c8e067255de41e530f8cc0997"
      */
     event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
 
     /**
      * @notice Emitted when the Puffer Module is undelegated
      * @param moduleName the module name to be undelegated
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
      */
     event PufferModuleUndelegated(bytes32 indexed moduleName);
+
+    /**
+     * @notice Emitted when the restaking operator avs signature proof is updated
+     * @param restakingOperator is the address of the restaking operator
+     * @param digestHash is the message hash
+     * @param signer is the address of the signature signer
+     * @dev Signature "0x3a6a179c72e503b78f992c3aa1a8d451c366c446c086cee5a811a3d03445a62f"
+     */
+    event AVSRegistrationSignatureProofUpdated(address indexed restakingOperator, bytes32 digestHash, address signer);
 
     /**
      * @notice Emitted when a Node Operator verifies withdrawal credentials
      * @param moduleName is the name of the module
      * @param validatorIndices is the indices of the validators
+     * @dev Signature "0x6722c9fd02a30e38d993af1ef931e54d0c24d0eae5eba68982773ce120b8ddee"
      */
     event ValidatorCredentialsVerified(bytes32 indexed moduleName, uint40[] validatorIndices);
 
@@ -93,6 +105,7 @@ interface IPufferModuleManager {
      * @notice Emitted when ETH is withdrawn from EigenPod to a PufferModule
      * @param moduleName is the name of the module
      * @param amountToWithdraw is the amount of ETH to withdrawn
+     * @dev Signature "0xcc72a3059fae624886e4da6e0b98e575d8cb4f7ea47e3986b5b60182621b7e22"
      */
     event NonBeaconChainETHBalanceWithdrawn(bytes32 indexed moduleName, uint256 amountToWithdraw);
 
@@ -100,6 +113,7 @@ interface IPufferModuleManager {
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
      * @param amountToWithdraw is the amount of ETH to withdrawn
+     * @dev Signature "0xd718bad6e1450f2ac6f733b8b09a81e6edb1154a92fcaa1dc59ad1d51a7eb536"
      */
     event CompleteQueuedWithdrawals(bytes32 indexed moduleName, uint256 amountToWithdraw);
 
@@ -244,4 +258,17 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callUndelegate(bytes32 moduleName) external returns (bytes32[] memory withdrawalRoot);
+
+    /**
+     * @notice Updates AVS registration signature proof
+     * @param restakingOperator is the address of the restaking operator
+     * @param digestHash is the message hash
+     * @param signer is the address of the signature signer
+     * @dev Restricted to the DAO
+     */
+    function updateAVSRegistrationSignatureProof(
+        IRestakingOperator restakingOperator,
+        bytes32 digestHash,
+        address signer
+    ) external;
 }

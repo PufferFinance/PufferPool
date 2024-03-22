@@ -12,9 +12,11 @@ import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializabl
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { Unauthorized } from "puffer/Errors.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
+import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -25,6 +27,7 @@ contract PufferModuleUpgrade {
 contract PufferModuleManagerTest is TestHelper {
     event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
     event PufferModuleUndelegated(bytes32 indexed moduleName);
+    event AVSRegistrationSignatureProofUpdated(address indexed restakingOperator, bytes32 digestHash, address signer);
 
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
@@ -334,6 +337,40 @@ contract PufferModuleManagerTest is TestHelper {
         );
     }
 
+    function test_updateAVSRegistrationSignatureProof() public {
+        (address signer, uint256 pk) = makeAddrAndKey("signer");
+
+        vm.startPrank(DAO);
+
+        IRestakingOperator operator = _createRestakingOperator();
+
+        bytes32 salt = 0xdebc2c61283b511dc62175c508bc9c6ad8ca754ba918164e6a9b19765c98006d;
+        bytes32 digestHash = keccak256(
+            abi.encode("OPERATOR_AVS_REGISTRATION_TYPEHASH", address(operator), address(1234), salt, block.timestamp)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digestHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(Unauthorized.selector);
+        operator.updateSignatureProof(digestHash, signer);
+
+        vm.expectEmit(true, true, true, true);
+        emit AVSRegistrationSignatureProofUpdated(address(operator), digestHash, signer);
+        pufferModuleManager.updateAVSRegistrationSignatureProof(operator, digestHash, signer);
+
+        assertTrue(
+            SignatureChecker.isValidERC1271SignatureNow(address(operator), digestHash, signature), "signer proof"
+        );
+
+        bytes32 fakeDigestHash = keccak256(abi.encode(digestHash));
+
+        assertFalse(
+            SignatureChecker.isValidERC1271SignatureNow(address(operator), fakeDigestHash, signature), "signer proof"
+        );
+
+        vm.stopPrank();
+    }
+
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         vm.startPrank(DAO);
@@ -356,6 +393,20 @@ contract PufferModuleManagerTest is TestHelper {
         }
 
         root = rewardsMerkleProof.getRoot(rewardsMerkleProofData);
+    }
+
+    function _createRestakingOperator() internal returns (IRestakingOperator) {
+        IRestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
+            metadataURI: "https://puffer.fi/metadata.json",
+            delegationApprover: address(0),
+            stakerOptOutWindowBlocks: 0
+        });
+
+        IDelegationManager.OperatorDetails memory details =
+            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
+        assertEq(details.delegationApprover, address(0), "delegation approver");
+        assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
+        return operator;
     }
 }
 
