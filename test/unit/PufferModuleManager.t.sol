@@ -4,12 +4,16 @@ pragma solidity >=0.8.0 <0.9.0;
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
+import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { Unauthorized } from "puffer/Errors.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -34,6 +38,10 @@ contract PufferModuleManagerTest is TestHelper {
         super.setUp();
 
         vm.deal(address(this), 1000 ether);
+
+        vm.startPrank(timelock);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
     }
@@ -101,8 +109,8 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, signatures);
     }
 
-    // Collecting non restaking rewards
-    function test_collectNoRestakingRewards(bytes32 moduleName) public {
+    // Collecting the rewards as a node operator
+    function test_collect_rewards(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         address module = _createPufferModule(moduleName);
 
@@ -125,6 +133,10 @@ contract PufferModuleManagerTest is TestHelper {
 
         // Post merkle proof with valid guardian signatures
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, 50, signatures);
+
+        // Try posting for block number lower than 50
+        vm.expectRevert(abi.encodeWithSelector(PufferModule.InvalidBlockNumber.selector, 49));
+        PufferModule(payable(module)).postRewardsRoot(merkleRoot, 49, signatures);
 
         // Claim the rewards
 
@@ -246,6 +258,83 @@ contract PufferModuleManagerTest is TestHelper {
         pufferModuleManager.callUndelegate(moduleName);
 
         vm.stopPrank();
+    }
+
+    function test_module_has_eigenPod(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        address module = _createPufferModule(moduleName);
+
+        assertTrue(PufferModule(payable(module)).getEigenPod() != address(0), "should have EigenPod");
+    }
+
+    function test_rewards_claiming_from_eigenlayer(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
+        pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
+    }
+
+    function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.NonBeaconChainETHBalanceWithdrawn(moduleName, 1 ether);
+        pufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei(moduleName, 1 ether);
+    }
+
+    function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        uint64 oracleTimestamp;
+        BeaconChainProofs.StateRootProof memory stateRootProof;
+        uint40[] memory validatorIndices;
+        bytes[] memory validatorFieldsProofs;
+        bytes32[][] memory validatorFields;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorCredentialsVerified(moduleName, validatorIndices);
+        pufferModuleManager.callVerifyWithdrawalCredentials(
+            moduleName, oracleTimestamp, stateRootProof, validatorIndices, validatorFieldsProofs, validatorFields
+        );
+    }
+
+    function test_completeQueuedWithdrawals(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        address module = _createPufferModule(moduleName);
+
+        IDelegationManager.Withdrawal[] memory withdrawals;
+        IERC20[][] memory tokens;
+        uint256[] memory middlewareTimesIndexes;
+
+        PufferModule(payable(module)).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
+    }
+
+    function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        uint64 oracleTimestamp;
+        BeaconChainProofs.StateRootProof memory stateRootProof;
+        BeaconChainProofs.WithdrawalProof[] memory withdrawalProofs;
+        bytes[] memory validatorFieldsProofs;
+        bytes32[][] memory validatorFields;
+        bytes32[][] memory withdrawalFields;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+        pufferModuleManager.callVerifyAndProcessWithdrawals(
+            moduleName,
+            oracleTimestamp,
+            stateRootProof,
+            withdrawalProofs,
+            validatorFieldsProofs,
+            validatorFields,
+            withdrawalFields
+        );
     }
 
     function test_updateAVSRegistrationSignatureProof() public {
