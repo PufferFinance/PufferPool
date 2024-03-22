@@ -27,7 +27,7 @@ contract PufferModuleUpgrade {
 contract PufferModuleManagerTest is TestHelper {
     event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
     event PufferModuleUndelegated(bytes32 indexed moduleName);
-    event AVSRegistrationSignatureProofUpdated(address restakingOperator, bytes32 digestHash, address signer);
+    event AVSRegistrationSignatureProofUpdated(address indexed restakingOperator, bytes32 digestHash, address signer);
 
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
