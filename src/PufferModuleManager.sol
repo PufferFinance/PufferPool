@@ -106,7 +106,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             }
         }
 
-        emit CompleteDQueuedWithdrawals(moduleName, sharesWithdrawn);
+        emit CompletedQueuedWithdrawals(moduleName, sharesWithdrawn);
     }
 
     /**
@@ -152,7 +152,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             withdrawalFields: withdrawalFields
         });
 
-        emit VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+        emit VerifiedAndProcessedWithdrawals(moduleName, validatorFields, withdrawalFields);
     }
 
     /**

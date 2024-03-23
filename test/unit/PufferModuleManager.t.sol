@@ -307,7 +307,7 @@ contract PufferModuleManagerTest is TestHelper {
         IERC20[][] memory tokens;
         uint256[] memory middlewareTimesIndexes;
 
-        emit IPufferModuleManager.CompleteDQueuedWithdrawals(moduleName, 0);
+        emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
         pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, middlewareTimesIndexes);
     }
 
@@ -323,7 +323,7 @@ contract PufferModuleManagerTest is TestHelper {
         bytes32[][] memory withdrawalFields;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+        emit IPufferModuleManager.VerifiedAndProcessedWithdrawals(moduleName, validatorFields, withdrawalFields);
         pufferModuleManager.callVerifyAndProcessWithdrawals(
             moduleName,
             oracleTimestamp,

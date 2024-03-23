@@ -55,9 +55,9 @@ interface IPufferModuleManager {
      * @param moduleName is the name of the module
      * @param withdrawalFields are the fields of the withdrawals being proven
      * @param validatorFields are the fields of the validators being proven
-     * @dev Signature "0xa7e893f6f90b9b7358daf55bc8763c4ecc0f54366c4cf7632e9ab41da718c222"
+     * @dev Signature "0x3f91dfbadd893521ffbbd43362750081af349f220002e6bfb4ffb3c00735f8ac"
      */
-    event VerifyAndProcessWithdrawals(
+    event VerifiedAndProcessedWithdrawals(
         bytes32 indexed moduleName, bytes32[][] validatorFields, bytes32[][] withdrawalFields
     );
 
@@ -113,9 +113,9 @@ interface IPufferModuleManager {
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
      * @param sharesWithdrawn is the shares withdrawn
-     * @dev Signature "0xacdbe9634a8513b63b743a71d36ba44b448b5f6ad25541aeaffcaa3640b61e59"
+     * @dev Signature "0x46ca5934f7ca805e7fbdc05e90e3ecbea495c41e35ba48e24f053c0c3d25af1e"
      */
-    event CompleteDQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
+    event CompletedQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
 
     /**
      * @notice Returns the Puffer Module beacon address

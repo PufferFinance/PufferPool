@@ -32,8 +32,8 @@ contract DeployValidatorTickets is Script {
     uint256 FRESHNESS_BLOCKS = 300;
     uint256 THRESHOLD = 1;
     address TREASURY = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
-    uint256 TREASURY_FEE_RATE = 500; // 5%
-    uint256 GUARDIANS_FEE_RATE = 50; // 0.5%
+    uint256 BPS_TREASURY_FEE_RATE = 500; // 5%
+    uint256 BPS_GUARDIANS_FEE_RATE = 50; // 0.5%
 
     function run() public {
         accessManager = AccessManager(ACCESS_MANAGER);
@@ -56,7 +56,9 @@ contract DeployValidatorTickets is Script {
 
         ERC1967Proxy validatorTicketProxy = new ERC1967Proxy(
             address(validatorTicketImplementation),
-            abi.encodeCall(ValidatorTicket.initialize, (address(accessManager), TREASURY_FEE_RATE, GUARDIANS_FEE_RATE))
+            abi.encodeCall(
+                ValidatorTicket.initialize, (address(accessManager), BPS_TREASURY_FEE_RATE, BPS_GUARDIANS_FEE_RATE)
+            )
         );
 
         _sanityCheck(ValidatorTicket(address(validatorTicketProxy)), address(oracle), address(module));
