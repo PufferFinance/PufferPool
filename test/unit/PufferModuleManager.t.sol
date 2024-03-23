@@ -25,10 +25,6 @@ contract PufferModuleUpgrade {
 }
 
 contract PufferModuleManagerTest is TestHelper {
-    event PufferModuleDelegated(bytes32 indexed moduleName, address operator);
-    event PufferModuleUndelegated(bytes32 indexed moduleName);
-    event AVSRegistrationSignatureProofUpdated(address indexed restakingOperator, bytes32 digestHash, address signer);
-
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 
@@ -236,7 +232,7 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).callDelegateTo(operator, signatureWithExpiry, approverSalt);
 
         vm.expectEmit(true, true, true, true);
-        emit PufferModuleDelegated(moduleName, operator);
+        emit IPufferModuleManager.PufferModuleDelegated(moduleName, operator);
 
         pufferModuleManager.callDelegateTo(moduleName, operator, signatureWithExpiry, approverSalt);
 
@@ -253,7 +249,7 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).callUndelegate();
 
         vm.expectEmit(true, true, true, true);
-        emit PufferModuleUndelegated(moduleName);
+        emit IPufferModuleManager.PufferModuleUndelegated(moduleName);
 
         pufferModuleManager.callUndelegate(moduleName);
 
@@ -355,7 +351,7 @@ contract PufferModuleManagerTest is TestHelper {
         operator.updateSignatureProof(digestHash, signer);
 
         vm.expectEmit(true, true, true, true);
-        emit AVSRegistrationSignatureProofUpdated(address(operator), digestHash, signer);
+        emit IPufferModuleManager.AVSRegistrationSignatureProofUpdated(address(operator), digestHash, signer);
         pufferModuleManager.updateAVSRegistrationSignatureProof(operator, digestHash, signer);
 
         assertTrue(

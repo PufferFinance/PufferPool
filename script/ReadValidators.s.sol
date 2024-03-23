@@ -13,15 +13,16 @@ import { console } from "forge-std/console.sol";
  */
 contract ReadValidators is BaseScript {
     function run(bytes32 strategyName) external broadcast {
-        // Validator[] memory validators = IPufferProtocol(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D).getValidators(bytes32("NO_RESTAKING"));
+        // Validator[] memory validators = IPufferProtocol(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D).getValidators(bytes32("PUFFER_MODULE_0"));
         // for (uint256 i = 0; i < validators.length; ++i) {
         //     console.log(validators[i].node);
         // }
 
         for (uint256 i = 0; i < 20; ++i) {
             console.log(i);
-            Validator memory validator =
-                IPufferProtocol(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D).getValidatorInfo(bytes32("NO_RESTAKING"), i);
+            Validator memory validator = IPufferProtocol(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D).getValidatorInfo(
+                bytes32("PUFFER_MODULE_0"), i
+            );
             console.log(validator.node);
             console.logBytes(validator.pubKey);
         }
