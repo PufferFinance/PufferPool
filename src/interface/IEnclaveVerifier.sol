@@ -6,6 +6,7 @@ import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 /**
  * @title IEnclaveVerifier interface
  * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
  */
 interface IEnclaveVerifier {
     struct RSAPubKey {
@@ -22,13 +23,15 @@ interface IEnclaveVerifier {
 
     /**
      * @notice Emitted when the `pubKeyHash` is added to valid pubKeys
+     * @dev Signature "0x13b85b042d2bb270091da7111e3b3cc407f6b86c85882cf48ae94123cae22b17"
      */
-    event AddedPubKey(bytes32 pubKeyHash);
+    event AddedPubKey(bytes32 indexed pubKeyHash);
 
     /**
      * @notice Emitted when the `pubKeyHash` is removed from valid pubKeys
+     * @dev Signature "0x0ebd07953ae533bded7d9b0715fa49e0a0ed0a6cef4638a685737ffef8b86254"
      */
-    event RemovedPubKey(bytes32 pubKeyHash);
+    event RemovedPubKey(bytes32 indexed pubKeyHash);
 
     /**
      * @notice Getter for intelRootCAPubKey
@@ -36,7 +39,7 @@ interface IEnclaveVerifier {
     function getIntelRootCAPubKey() external pure returns (RSAPubKey memory);
 
     /**
-     * @notice Adds a valid certificate if it is signed correctly
+     * @notice Adds a leaf x509 RSA public key if the x509 was signed by Intel's root CA
      * @param leafX509Cert certificate
      */
     function addLeafX509(bytes calldata leafX509Cert) external;
