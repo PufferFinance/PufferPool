@@ -19,14 +19,15 @@
 
 # Tests
 
+Please use `foundryup -v nightly-de33b6af53005037b463318d2628b5cfcaf39916` in the more recent versions the tests are broken because blockhash(0) changed.
+
 Installing dependencies and running tests can be executed running:
+
+`forge test`
+
+For unit tests:
 ```
 forge test -vvv --match-path './test/unit/*'
 ```
 
 # Deployments
-
-### [Holesky](./addresses/holesky.json) 
-
-- Initial deployment commit: f929764c3d7b60866c903e37f15b1d2cdf04c061
-- Upgraded PufferProtocol contract commit: c9b4aa6691c747e346eac6a8df467bca77a64eea

@@ -5,6 +5,7 @@ import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
+import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -131,7 +132,7 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, 50, signatures);
 
         // Try posting for block number lower than 50
-        vm.expectRevert(abi.encodeWithSelector(PufferModule.InvalidBlockNumber.selector, 49));
+        vm.expectRevert(abi.encodeWithSelector(IPufferModule.InvalidBlockNumber.selector, 49));
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, 49, signatures);
 
         // Claim the rewards
@@ -158,7 +159,7 @@ contract PufferModuleManagerTest is TestHelper {
         assertEq(alice.balance, 0.01308 ether, "alice should end with 0.01308 ether");
 
         // Double claim in different transactions should revert
-        vm.expectRevert(abi.encodeWithSelector(PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
+        vm.expectRevert(abi.encodeWithSelector(IPufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
         PufferModule(payable(module)).collectRewards({
             node: alice,
             blockNumbers: blockNumbers,
@@ -168,7 +169,7 @@ contract PufferModuleManagerTest is TestHelper {
 
         // Bob claiming with Alice's proof (alice already claimed)
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(PufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
+        vm.expectRevert(abi.encodeWithSelector(IPufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
         PufferModule(payable(module)).collectRewards({
             node: alice,
             blockNumbers: blockNumbers,
@@ -186,7 +187,7 @@ contract PufferModuleManagerTest is TestHelper {
 
         // Bob claiming with Charlie's prof (charlie did not claim yet)
         // It will revert with nothing to claim because the proof is not valid for bob
-        vm.expectRevert(abi.encodeWithSelector(PufferModule.NothingToClaim.selector, bob));
+        vm.expectRevert(abi.encodeWithSelector(IPufferModule.NothingToClaim.selector, bob));
         PufferModule(payable(module)).collectRewards({
             node: bob,
             blockNumbers: blockNumbers,
@@ -268,7 +269,7 @@ contract PufferModuleManagerTest is TestHelper {
         _createPufferModule(moduleName);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether);
+        emit IPufferModuleManager.WithdrawalsQueued(moduleName, 1 ether, bytes32("123"));
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
     }
 
@@ -306,7 +307,8 @@ contract PufferModuleManagerTest is TestHelper {
         IERC20[][] memory tokens;
         uint256[] memory middlewareTimesIndexes;
 
-        PufferModule(payable(module)).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
+        emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
+        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, middlewareTimesIndexes);
     }
 
     function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {
@@ -321,7 +323,7 @@ contract PufferModuleManagerTest is TestHelper {
         bytes32[][] memory withdrawalFields;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.VerifyAndProcessWithdrawals(moduleName, validatorFields, withdrawalFields);
+        emit IPufferModuleManager.VerifiedAndProcessedWithdrawals(moduleName, validatorFields, withdrawalFields);
         pufferModuleManager.callVerifyAndProcessWithdrawals(
             moduleName,
             oracleTimestamp,

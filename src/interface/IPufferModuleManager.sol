@@ -46,18 +46,18 @@ interface IPufferModuleManager {
      * @notice Emitted when the Withdrawals are queued
      * @param moduleName is the name of the module
      * @param shareAmount is the amount of shares
-     * @dev Signature "0x172c7d4f364f16dc6f7b2284cc3dc962c8f52734b13ad229c297369c05cea6bf"
+     * @dev Signature "0xfa1bd67700189b28b5a9085170838266813878ca3237b31a33358644a22a2f0e"
      */
-    event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount);
+    event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount, bytes32 withdrawalRoot);
 
     /**
      * @notice Emitted when the verify and process withdrawals is called
      * @param moduleName is the name of the module
      * @param withdrawalFields are the fields of the withdrawals being proven
      * @param validatorFields are the fields of the validators being proven
-     * @dev Signature "0xa7e893f6f90b9b7358daf55bc8763c4ecc0f54366c4cf7632e9ab41da718c222"
+     * @dev Signature "0x3f91dfbadd893521ffbbd43362750081af349f220002e6bfb4ffb3c00735f8ac"
      */
-    event VerifyAndProcessWithdrawals(
+    event VerifiedAndProcessedWithdrawals(
         bytes32 indexed moduleName, bytes32[][] validatorFields, bytes32[][] withdrawalFields
     );
 
@@ -112,10 +112,10 @@ interface IPufferModuleManager {
     /**
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
-     * @param amountToWithdraw is the amount of ETH to withdrawn
-     * @dev Signature "0xd718bad6e1450f2ac6f733b8b09a81e6edb1154a92fcaa1dc59ad1d51a7eb536"
+     * @param sharesWithdrawn is the shares withdrawn
+     * @dev Signature "0x46ca5934f7ca805e7fbdc05e90e3ecbea495c41e35ba48e24f053c0c3d25af1e"
      */
-    event CompleteQueuedWithdrawals(bytes32 indexed moduleName, uint256 amountToWithdraw);
+    event CompletedQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
 
     /**
      * @notice Returns the Puffer Module beacon address
