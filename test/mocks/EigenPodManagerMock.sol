@@ -12,7 +12,7 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
         return address(new EigenPodMock());
     }
 
-    function addShares(address podOwner, uint256 shares) external returns (uint256) {
+    function addShares(address, uint256) external pure returns (uint256) {
         return 55;
     }
 
@@ -26,7 +26,7 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
         return IETHPOSDeposit(address(99));
     }
 
-    function getBlockRootAtTimestamp(uint64 timestamp) external pure returns (bytes32) {
+    function getBlockRootAtTimestamp(uint64) external pure returns (bytes32) {
         return bytes32("asdf");
     }
 
@@ -38,7 +38,7 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
         return 10;
     }
 
-    function podOwnerShares(address podOwner) external pure returns (int256) {
+    function podOwnerShares(address) external pure returns (int256) {
         return 5;
     }
 

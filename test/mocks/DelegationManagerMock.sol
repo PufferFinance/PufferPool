@@ -173,6 +173,7 @@ contract DelegationManagerMock {
 
     function queueWithdrawals(IDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams)
         external
+        pure
         returns (bytes32[] memory)
     {
         bytes32[] memory roots = new bytes32[](queuedWithdrawalParams.length);

@@ -503,9 +503,6 @@ contract PufferProtocolTest is TestHelper {
 
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
-        // Bond is 2 ether for the mock data
-        uint256 bond = 2 ether;
-
         vm.expectRevert();
         pufferProtocol.registerValidatorKey{ value: type(uint256).max }(
             validatorKeyData, PUFFER_MODULE_0, emptyPermit, emptyPermit
@@ -1843,7 +1840,7 @@ contract PufferProtocolTest is TestHelper {
 
     function _getEpochNumber(uint256 validationTimeInSeconds, uint256 startEpoch)
         internal
-        view
+        pure
         returns (uint256 endEpoch)
     {
         uint256 secondsInEpoch = 32 * 12;
@@ -1851,7 +1848,7 @@ contract PufferProtocolTest is TestHelper {
         return startEpoch + numberOfEpochs;
     }
 
-    function _getVTBurnAmount(uint256 startEpoch, uint256 endEpoch) internal returns (uint256) {
+    function _getVTBurnAmount(uint256 startEpoch, uint256 endEpoch) internal pure returns (uint256) {
         uint256 validatedEpochs = endEpoch - startEpoch;
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up

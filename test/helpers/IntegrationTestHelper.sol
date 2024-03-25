@@ -69,6 +69,7 @@ contract IntegrationTestHelper is Test {
 
     function getDepositData(bytes memory pubKey, bytes memory signature, bytes memory withdrawalCredentials)
         internal
+        view
         returns (bytes32)
     {
         return this.reconstructDepositData(pubKey, signature, withdrawalCredentials);
