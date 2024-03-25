@@ -7,13 +7,12 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
-import { PufferModule } from "puffer/PufferModule.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 
 contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     function setUp() public {
-        deployContractsGoerli(10663816);
+        deployContractsHolesky();
     }
 
     function test_create_puffer_module() public {

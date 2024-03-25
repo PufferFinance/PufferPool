@@ -318,7 +318,7 @@ contract TestHelper is Test, BaseScript {
     }
 
     // Modified from https://github.com/Vectorized/solady/blob/2ced0d8382fd0289932010517d66efb28b07c3ce/test/ERC20.t.sol
-    function _signPermit(_TestTemps memory t, bytes32 domainSeparator) internal view returns (Permit memory p) {
+    function _signPermit(_TestTemps memory t, bytes32 domainSeparator) internal pure returns (Permit memory p) {
         bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);

@@ -55,7 +55,7 @@ contract DeployPuffer is BaseScript {
     address eigenSlasher;
     address treasury;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address weth, address oracle)
+    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
         public
         broadcast
         returns (PufferProtocolDeployment memory)

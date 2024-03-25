@@ -6,12 +6,7 @@ contract BeaconMock {
 
     error BadValue();
 
-    function deposit(
-        bytes calldata pubkey,
-        bytes calldata withdrawal_credentials,
-        bytes calldata signature,
-        bytes32 deposit_data_root
-    ) external payable {
+    function deposit(bytes calldata, bytes calldata, bytes calldata, bytes32) external payable {
         if (msg.value != 32 ether) {
             revert BadValue();
         }

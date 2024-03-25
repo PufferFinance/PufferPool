@@ -12,7 +12,7 @@ import { console } from "forge-std/console.sol";
  *      forge script script/ReadValidators.s.sol:ReadValidators --rpc-url=$HOLESKY_RPC_URL --broadcast --sig "run(bytes32)" -vvvv 0x4e4f5f52455354414b494e470000000000000000000000000000000000000000
  */
 contract ReadValidators is BaseScript {
-    function run(bytes32 strategyName) external broadcast {
+    function run() external broadcast {
         // Validator[] memory validators = IPufferProtocol(0x4982C744Ef2694Af2970D3eB8a58744ed3cB1b1D).getValidators(bytes32("PUFFER_MODULE_0"));
         // for (uint256 i = 0; i < validators.length; ++i) {
         //     console.log(validators[i].node);

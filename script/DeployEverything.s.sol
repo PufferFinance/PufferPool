@@ -45,9 +45,8 @@ contract DeployEverything is BaseScript {
         // 2. Upgrade the vault
         new UpgradePufETH().run(puffETHDeployment, pufferOracle);
 
-        PufferProtocolDeployment memory pufferDeployment = new DeployPuffer().run(
-            guardiansDeployment, puffETHDeployment.pufferVault, puffETHDeployment.weth, pufferOracle
-        );
+        PufferProtocolDeployment memory pufferDeployment =
+            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;

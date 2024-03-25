@@ -20,7 +20,7 @@ cbor_metadata = false
 bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
-# seed = "0x1337" # uncomment / change when debugging fuzz tests
+seed = "0x1337" # uncomment / change when debugging fuzz tests
 # via_ir = true
 solc = "0.8.24"
 evm_version = "cancun"
@@ -34,8 +34,8 @@ bracket_spacing = true
 
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
-# goerli="https://ethereum-goerli-archive.allthatnode.com"
 goerli="${GOERLI_RPC_URL}"
+holesky="${HOLESKY_RPC_URL}"
 
 [invariant]
 fail_on_revert=false
