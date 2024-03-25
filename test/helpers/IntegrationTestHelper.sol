@@ -24,6 +24,7 @@ contract IntegrationTestHelper is Test {
     IEnclaveVerifier public verifier;
 
     function deployContracts() public virtual {
+        // see foundry.toml for the rpc urls
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18_722_775);
 
         address[] memory guardians = new address[](1);
@@ -32,13 +33,20 @@ contract IntegrationTestHelper is Test {
         _deployAndLabel(guardians, 1);
     }
 
-    function deployContractsGoerli(uint256 blockNumber) public virtual {
-        vm.createSelectFork(vm.rpcUrl("goerli"), blockNumber);
+    // custom block number
+    function deployContractsHolesky(uint256 blockNumber) public virtual {
+        // see foundry.toml for the rpc urls
+        vm.createSelectFork(vm.rpcUrl("holesky"), blockNumber);
 
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);
 
         _deployAndLabel(guardians, 1);
+    }
+
+    // 'default' block number
+    function deployContractsHolesky() public virtual {
+        deployContractsHolesky(1_212_252);
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {

@@ -9,7 +9,7 @@ import { DeployEverything } from "script/DeployEverything.s.sol";
 
 contract PufferModuleRewardsIntegration is IntegrationTestHelper {
     function setUp() public {
-        deployContractsGoerli(10663816);
+        deployContractsHolesky();
     }
 
     function test_noRestakingRewardsClaiming() public {
