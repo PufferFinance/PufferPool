@@ -8,10 +8,10 @@ import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 /**
  * @title Delegates from the `--private-key` (msg.sender) to the specified Restaking Operator
  * @dev Example on how to run the script
- * 
+ *
  * The script assumes that the `restakingOperator` has no delegation approver.
- * 
- * 
+ *
+ *
  *      forge script script/DelegateTo.s.sol:DelegateTo --rpc-url=$RPC_URL --broadcast --sig "run(address)" $RESTAKING -vvvv --private-key $PK
  */
 contract DelegateTo is Script {
