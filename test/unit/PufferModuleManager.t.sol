@@ -301,7 +301,8 @@ contract PufferModuleManagerTest is TestHelper {
 
     function test_completeQueuedWithdrawals(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-
+        address module = _createPufferModule(moduleName);
+        
         IDelegationManager.Withdrawal[] memory withdrawals;
         IERC20[][] memory tokens;
         uint256[] memory middlewareTimesIndexes;
