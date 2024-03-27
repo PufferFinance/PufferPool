@@ -6,10 +6,40 @@ import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
+import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 
 contract PufferModuleRewardsIntegration is IntegrationTestHelper {
+    IDelayedWithdrawalRouter EIGEN_DELAYED_WITHDRAWAL_ROUTER =
+        IDelayedWithdrawalRouter(0x642c646053eaf2254f088e9019ACD73d9AE0FA32);
+
     function setUp() public {
         deployContractsHolesky();
+    }
+
+    // Fork test that withdraws the non restaking rewards from EigenPod -> PufferModule
+    function test_collect_non_beacon_chain_eth() public {
+        PufferModule module = PufferModule(payable(pufferProtocol.getModuleAddress(PUFFER_MODULE_0)));
+
+        // Transfer 1 ETH to EigenPod
+        vm.deal(address(this), 1 ether);
+        (bool success,) = module.getEigenPod().call{ value: 1 ether }("");
+        require(success, "failed to send eth");
+
+        vm.prank(DAO);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+
+        // Queue withdrawal of 1 ETH
+        moduleManager.callWithdrawNonBeaconChainETHBalanceWei(PUFFER_MODULE_0, 1 ether);
+
+        assertEq(address(module).balance, 0, "module balance before claiming");
+
+        vm.roll(block.number + 72000); // + 10 days in blocks
+
+        // Claim the withdrawal directly for the PufferModule
+        EIGEN_DELAYED_WITHDRAWAL_ROUTER.claimDelayedWithdrawals(address(module), 1);
+
+        assertEq(address(module).balance, 1 ether, "module balance after claiming");
     }
 
     function test_noRestakingRewardsClaiming() public {
