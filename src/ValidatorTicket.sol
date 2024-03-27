@@ -85,6 +85,7 @@ contract ValidatorTicket is
 
     /**
      * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function purchaseValidatorTicket(address recipient)
         external
@@ -121,7 +122,6 @@ contract ValidatorTicket is
     /**
      * @notice Burns `amount` from the transaction sender
      * @dev Restricted to the PufferProtocol
-     * @dev Signature "0x42966c68"
      */
     function burn(uint256 amount) external virtual restricted {
         _burn(msg.sender, amount);
