@@ -1,6 +1,6 @@
 # PufferProtocol
 
-The PufferProtocol is the contract that manges the validators and is safe keeping the validators' bond and Validator Tickets.
+The PufferProtocol is the contract that manages the validators and is safe keeping the validators' bond and Validator Tickets.
 
 ## Registering a new validator
 
