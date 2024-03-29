@@ -1,8 +1,9 @@
 # PufferModule
 
-PufferModule is the owner of an EigenPods and is responsible for managing and interacting with the EigenLayer.
+PufferModule is the owner of an *EigenPods* and is responsible for managing and interacting with the EigenLayer contracts.
 When the PufferModule is created, in the `initialize()` function, we create an EigenPod.
 Each PufferModule owns one EigenPod.
+
 PufferModules will delegate their stake to certain restaking operator, and that restaking operator will do the restaking duties. 
 The distribution of the restaking rewards is TBD.
 
