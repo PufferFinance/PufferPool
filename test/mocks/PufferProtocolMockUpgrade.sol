@@ -18,7 +18,8 @@ contract PufferProtocolMockUpgrade is PufferProtocol {
             GuardianModule(payable(address(0))),
             address(0),
             ValidatorTicket(address(0)),
-            IPufferOracleV2(address(0))
+            IPufferOracleV2(address(0)),
+            address(0)
         )
     { }
 }
