@@ -114,10 +114,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         uint256 amountPerGuardian = address(this).balance / numGuardians;
 
-        if (address(this).balance == 0) {
-            return;
-        }
-
         for (uint256 i = 0; i < numGuardians; ++i) {
             // slither-disable-start reentrancy-unlimited-gas
             // slither-disable-next-line calls-loop
