@@ -76,6 +76,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         EIGEN_DELEGATION_MANAGER = delegationManager;
         EIGEN_SLASHER = slasher;
         PUFFER_MODULE_MANAGER = moduleManager;
+        _disableInitializers();
     }
 
     function initialize(
