@@ -11,6 +11,7 @@ import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
+import { ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
@@ -306,6 +307,11 @@ interface IPufferProtocol {
      * @dev This is meant for OFF-CHAIN use, as it can be very expensive to call
      */
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory);
+
+    /**
+     * @notice Returns the number of active validators for `moduleName`
+     */
+    function getModuleLimitInformation(bytes32 moduleName) external view returns (ModuleLimit memory info);
 
     /**
      * @notice Creates a new Puffer module with `moduleName`

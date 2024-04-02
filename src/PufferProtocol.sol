@@ -13,7 +13,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
+import { ProtocolStorage, NodeInfo, ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
@@ -319,11 +319,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             });
 
             // Decrease the number of active validators for that module
-            $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators -= 1;
-            emit NumberOfActiveValidatorsChanged(
-                validatorInfos[i].moduleName, $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators
-            );
-
+            _decreaseNumberOfActiveValidators($, validatorInfos[i].moduleName);
             // Storage VT and the active validator count update for the Node Operator
             $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(_getVTBurnAmount(validatorInfos[i]));
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
@@ -389,6 +385,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // slither-disable-next-line unchecked-transfer
         PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
+        _decreaseNumberOfActiveValidators($, moduleName);
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
@@ -606,6 +603,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getModuleLimitInformation(bytes32 moduleName) external view returns (ModuleLimit memory info) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.moduleLimits[moduleName];
+    }
+
+    /**
      * @notice Called by the PufferModules to check if the system is paused
      * @dev `restricted` will revert if the system is paused
      */
@@ -781,6 +786,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             s: permitData.s,
             r: permitData.r
         }) { } catch { }
+    }
+
+    function _decreaseNumberOfActiveValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
+        $.moduleLimits[moduleName].numberOfActiveValidators -= 1;
+        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
