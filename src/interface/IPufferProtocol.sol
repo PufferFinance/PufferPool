@@ -74,6 +74,12 @@ interface IPufferProtocol {
     error InvalidVTAmount();
 
     /**
+     * @notice Thrown if the ETH transfer from the PufferModule to the PufferVault fails
+     * @dev Signature "0x625a40e6"
+     */
+    error Failed();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0x7721db60f08aead7d3732f48f6c3dbaac94316c83303002c42f979ae347c8872"
      */
