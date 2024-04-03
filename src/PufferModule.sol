@@ -116,7 +116,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     function initialize(bytes32 moduleName, address initialAuthority) external initializer {
         __AccessManaged_init(initialAuthority);
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
         $.moduleName = moduleName;
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
     }
@@ -218,7 +218,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes32[][] calldata validatorFields,
         bytes32[][] calldata withdrawalFields
     ) external virtual whenNotPaused onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyAndProcessWithdrawals({
             oracleTimestamp: oracleTimestamp,
@@ -241,7 +241,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields
     ) external virtual onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyWithdrawalCredentials({
             oracleTimestamp: oracleTimestamp,
@@ -257,7 +257,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Restricted to PufferModuleManager
      */
     function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.withdrawNonBeaconChainETHBalanceWei(address(this), amountToWithdraw);
     }
@@ -289,7 +289,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
     ) external virtual whenNotPaused {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
 
         // Anybody can submit a valid proof and the ETH will be sent to the node operator
         uint256 ethToSend = 0;
@@ -326,7 +326,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         virtual
         whenNotPaused
     {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
 
         if (blockNumber <= $.lastProofOfRewardsBlockNumber) {
             revert InvalidBlockNumber(blockNumber);
@@ -370,7 +370,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @notice Returns the block number of when the latest rewards proof was posted
      */
     function getLastProofOfRewardsBlock() external view returns (uint256) {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
         return $.lastProofOfRewardsBlockNumber;
     }
 
@@ -379,7 +379,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
         // Withdrawal credentials for EigenLayer modules are EigenPods
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
     }
 
@@ -387,7 +387,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      */
     function getEigenPod() external view returns (address) {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
         return address($.eigenPod);
     }
 
@@ -395,11 +395,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      */
     function NAME() external view returns (bytes32) {
-        PufferModuleStorage storage $ = _getPufferProtocolStorage();
+        PufferModuleStorage storage $ = _getPufferModuleStorage();
         return $.moduleName;
     }
 
-    function _getPufferProtocolStorage() internal pure returns (PufferModuleStorage storage $) {
+    function _getPufferModuleStorage() internal pure returns (PufferModuleStorage storage $) {
         // solhint-disable-next-line
         assembly {
             $.slot := _PUFFER_MODULE_BASE_STORAGE

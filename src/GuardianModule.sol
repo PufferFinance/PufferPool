@@ -87,9 +87,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         if (address(verifier) == address(0)) {
             revert InvalidAddress();
         }
-        if (address(verifier) == address(0)) {
-            revert InvalidAddress();
-        }
         if (address(pufferAuthority) == address(0)) {
             revert InvalidAddress();
         }

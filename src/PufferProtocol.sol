@@ -303,9 +303,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
+            uint256 vtBurnAmount = _getVTBurnAmount(validatorInfos[i]);
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
-            burnAmounts.vt += _getVTBurnAmount(validatorInfos[i]);
+            burnAmounts.vt += vtBurnAmount;
 
             // Store the withdrawal amount for that node operator
             bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
@@ -315,17 +316,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
                 moduleName: validatorInfos[i].moduleName,
                 pufETHBurnAmount: burnAmount,
-                vtBurnAmount: _getVTBurnAmount(validatorInfos[i])
+                vtBurnAmount: vtBurnAmount
             });
 
             // Decrease the number of active validators for that module
-            $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators -= 1;
+            $.moduleLimits[validatorInfos[i].moduleName].numberOfRegisteredValidators -= 1;
             emit NumberOfActiveValidatorsChanged(
-                validatorInfos[i].moduleName, $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators
+                validatorInfos[i].moduleName, $.moduleLimits[validatorInfos[i].moduleName].numberOfRegisteredValidators
             );
 
             // Storage VT and the active validator count update for the Node Operator
-            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(_getVTBurnAmount(validatorInfos[i]));
+            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
 
             delete validator.node;
@@ -635,14 +636,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         unchecked {
             ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
             ++$.pendingValidatorIndices[moduleName];
-            ++$.moduleLimits[moduleName].numberOfActiveValidators;
+            ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
-        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
+        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
         emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        if (limit < $.moduleLimits[moduleName].numberOfRegisteredValidators) {
+            revert ValidatorLimitForModuleReached();
+        }
         emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
@@ -680,7 +684,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) internal view {
         // This acts as a validation if the module is existent
         // +1 is to validate the current transaction registration
-        if (($.moduleLimits[moduleName].numberOfActiveValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
+        if (($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
             revert ValidatorLimitForModuleReached();
         }
 
