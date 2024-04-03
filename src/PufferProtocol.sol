@@ -348,7 +348,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // The excess is the rewards amount for that Node Operator
             uint256 transferAmount =
                 validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
-            IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            (bool success,) = IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            if (!success) {
+                revert Failed();
+            }
 
             // Skip the empty transfer (validator got slashed)
             if (bondWithdrawals[i].pufETHAmount == 0) {
