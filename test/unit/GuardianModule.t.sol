@@ -71,6 +71,19 @@ contract GuardianModuleTest is TestHelper {
         guardianModule.removeGuardian(guardian);
     }
 
+    function test_remove_guardian_bellow_threshold() public {
+        // Our test env has 3 guardians and threshold 1
+
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.ThresholdChanged(1, 3);
+        guardianModule.setThreshold(3);
+        assertEq(guardianModule.getThreshold(), 3, "guardians threshold");
+
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 3));
+        guardianModule.removeGuardian(guardian1);
+    }
+
     function test_splitFunds() public {
         vm.deal(address(guardianModule), 1 ether);
 

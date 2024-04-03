@@ -50,6 +50,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
+        _disableInitializers();
     }
 
     /**

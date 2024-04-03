@@ -122,7 +122,7 @@ contract ValidatorTicketTest is TestHelper {
     function test_change_protocol_fee_rate() public {
         vm.startPrank(DAO);
 
-        uint256 newFeeRate = 15000; // 15%
+        uint256 newFeeRate = 800; // 8%
 
         vm.expectEmit(true, true, true, true);
         emit IValidatorTicket.ProtocolFeeChanged(500, newFeeRate);

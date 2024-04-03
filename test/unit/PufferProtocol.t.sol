@@ -115,7 +115,7 @@ contract PufferProtocolTest is TestHelper {
 
         ModuleLimit memory moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
 
-        assertEq(moduleLimit.numberOfActiveValidators, 2, "2 active validators");
+        assertEq(moduleLimit.numberOfRegisteredValidators, 2, "2 active validators");
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
@@ -123,7 +123,7 @@ contract PufferProtocolTest is TestHelper {
 
         moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
 
-        assertEq(moduleLimit.numberOfActiveValidators, 1, "1 active validator");
+        assertEq(moduleLimit.numberOfRegisteredValidators, 1, "1 active validator");
 
         // This contract should receive pufETH because of the skipProvisioning
         assertTrue(pufferVault.balanceOf(address(this)) != 0, "non zero pufETH");
