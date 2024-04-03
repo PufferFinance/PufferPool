@@ -266,9 +266,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function removeGuardian(address guardian) external restricted {
         splitGuardianFunds();
+
         (bool success) = _guardians.remove(guardian);
         if (success) {
             emit GuardianRemoved(guardian);
+        }
+
+        if (_guardians.length() < _threshold) {
+            revert InvalidThreshold(_threshold);
         }
     }
 
