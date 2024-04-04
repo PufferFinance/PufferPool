@@ -1,6 +1,6 @@
 # PufferModuleManager
 
-The `PufferModuleManager` contract serves as a factory and manager contract to faciliate restaking.
+The `PufferModuleManager` contract serves as a factory and manager contract to facilitate restaking.
 
 ## Factory 
 `PufferModuleManager` is a factory contract for creating protocol-owned [`PufferModule`](./PufferModule.md) and [`RestakingOperator`](./RestakingOperator.md) contracts.
@@ -13,4 +13,4 @@ Both `PufferModule` and `RestakingOperator` contracts use a [beacon proxy](https
 
 ![PufferModuleManager Functions](./images/module-manager-permissions.png)
 
-Importantly, the `PufferModuleManager` is the only contract with access to call `RestakingOperator` functions and can soley call the EigenLayer-related functions on the `PufferModule` contracts. This restriction is in place to allow the DAO to control restaking operations to mitigate AVS and operator risk.
+Importantly, the `PufferModuleManager` is the only contract with access to call `RestakingOperator` functions and can solely call the EigenLayer-related functions on the `PufferModule` contracts. This restriction is in place to allow the DAO to control restaking operations to mitigate AVS and operator risk.
