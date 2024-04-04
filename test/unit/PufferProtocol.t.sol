@@ -15,6 +15,7 @@ import { ROLE_ID_PUFFER_ORACLE, ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER } from
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
+import { ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 contract PufferProtocolTest is TestHelper {
@@ -113,7 +114,17 @@ contract PufferProtocolTest is TestHelper {
 
         assertTrue(pufferVault.balanceOf(address(this)) == 0, "zero pufETH");
 
+        ModuleLimit memory moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
+
+        assertEq(moduleLimit.numberOfRegisteredValidators, 2, "2 active validators");
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+
+        moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
+
+        assertEq(moduleLimit.numberOfRegisteredValidators, 1, "1 active validator");
 
         // This contract should receive pufETH because of the skipProvisioning
         assertTrue(pufferVault.balanceOf(address(this)) != 0, "non zero pufETH");
@@ -1005,6 +1016,8 @@ contract PufferProtocolTest is TestHelper {
         );
 
         vm.stopPrank();
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.NumberOfActiveValidatorsChanged(PUFFER_MODULE_0, 0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
