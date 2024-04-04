@@ -1004,6 +1004,7 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
         );
 
+        vm.stopPrank();
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
@@ -1013,6 +1014,7 @@ contract PufferProtocolTest is TestHelper {
             "alice should have ~20 VTS -10 penalty"
         );
 
+        vm.startPrank(alice);
         pufferProtocol.withdrawValidatorTickets(uint96(20 ether), alice);
 
         assertEq(validatorTicket.balanceOf(alice), 20 ether, "alice got her VT");
@@ -1037,6 +1039,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        vm.stopPrank();
 
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
@@ -1049,7 +1052,9 @@ contract PufferProtocolTest is TestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 10 ether, pointZeroZeroOne, "alice should have ~20 VTS"
         );
 
+        vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        vm.stopPrank();
 
         // Alice is not provisioned
         assertApproxEqRel(
@@ -1064,6 +1069,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.startPrank(alice);
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        vm.stopPrank();
 
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice),
