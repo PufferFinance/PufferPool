@@ -18,3 +18,13 @@ To reduce gas-costs for node operators, each merkle proof will allow them to wit
 
 ## Restaking Rewards
 EigenLayer's AVS payment system is still in development, so the distribution of restaking rewards to Puffer validators will be added over time.
+
+## Important Functions
+### `callStake`
+Used to register a new validator to the `EigenPod` and beacon deposit contract. This is only callable by the [`PufferProtocol`](PufferProtocol.md) contract when a Guardian provisions a validator. 
+
+### `callDelegateTo`
+Used by the [`PufferModuleManager`](./PufferModuleManager.md) contract to delegate the `EigenPod's` restaked balance to an operator.
+
+### `callUndelegate`
+Used by the [`PufferModuleManager`](./PufferModuleManager.md) contract to undelegate the `EigenPod's` restaked balance from an operator.
