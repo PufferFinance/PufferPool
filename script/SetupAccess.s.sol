@@ -276,9 +276,10 @@ contract SetupAccess is BaseScript {
             ROLE_ID_DAO
         );
 
-        bytes4[] memory paymasterSelectors = new bytes4[](2);
+        bytes4[] memory paymasterSelectors = new bytes4[](3);
         paymasterSelectors[0] = PufferProtocol.provisionNode.selector;
         paymasterSelectors[1] = PufferProtocol.skipProvisioning.selector;
+        paymasterSelectors[2] = PufferProtocol.batchHandleWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -287,12 +288,11 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](5);
+        bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
-        publicSelectors[3] = PufferProtocol.batchHandleWithdrawals.selector;
-        publicSelectors[4] = PufferProtocol.revertIfPaused.selector;
+        publicSelectors[3] = PufferProtocol.revertIfPaused.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

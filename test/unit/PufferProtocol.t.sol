@@ -1414,6 +1414,7 @@ contract PufferProtocolTest is TestHelper {
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
         stopInfos[0] = validatorInfo;
 
+        vm.stopPrank(); // this contract has the PAYMASTER role, so we need to stop the prank
         pufferProtocol.batchHandleWithdrawals({
             validatorInfos: stopInfos,
             guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos)
