@@ -12,4 +12,8 @@ contract BeaconMock {
         }
         emit StartedStaking();
     }
+
+    function get_deposit_root() external pure returns (bytes32) {
+        return bytes32("depositRoot");
+    }
 }

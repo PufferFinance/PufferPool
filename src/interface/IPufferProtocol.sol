@@ -13,6 +13,7 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
 import { ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
+import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 
 /**
  * @title IPufferProtocol
@@ -20,6 +21,11 @@ import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
+    /**
+     * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
+     */
+    error InvalidDepositRootHash();
+
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x8cdea6a6"
@@ -276,6 +282,11 @@ interface IPufferProtocol {
     function PUFFER_ORACLE() external view returns (IPufferOracleV2);
 
     /**
+     * @notice Returns Beacon Deposit Contract
+     */
+    function BEACON_DEPOSIT_CONTRACT() external view returns (IBeaconDepositContract);
+
+    /**
      * @notice Returns the current module weights
      */
     function getModuleWeights() external view returns (bytes32[] memory);
@@ -294,7 +305,11 @@ interface IPufferProtocol {
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, bytes calldata validatorSignature) external;
+    function provisionNode(
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        bytes32 depositRootHash
+    ) external;
 
     /**
      * @notice Returns the deposit_data_root
