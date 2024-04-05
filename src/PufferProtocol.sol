@@ -286,7 +286,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
@@ -376,7 +376,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
