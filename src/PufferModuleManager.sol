@@ -103,7 +103,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         for (uint256 i = 0; i < withdrawals.length; i++) {
             for (uint256 j = 0; j < withdrawals[i].shares.length; j++) {
-                sharesWithdrawn += withdrawals[i].shares[i];
+                sharesWithdrawn += withdrawals[i].shares[j];
             }
         }
 
