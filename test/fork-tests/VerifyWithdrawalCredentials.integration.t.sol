@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { console } from "forge-std/console.sol";
 import { ProofParsing } from "../helpers/ProofParsing.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 
 interface IElOracle {
     function addTimestamp(uint256 timestamp) external;
@@ -14,6 +16,7 @@ interface IElOracle {
 
 contract PufferModuleManagerIntegrationTest is ProofParsing {
     IElOracle elOracle = IElOracle(0x4C116BB629bff7A8373c2378bBd919f8349B8f25);
+    address pufferModuleManager = 0xe4695ab93163F91665Ce5b96527408336f070a71;
 
     function setUp() public {
         // We create fork on 1269510 block, which has timestamp of 1712102016 (Tuesday, 2 April 2024 23:53:36)
@@ -50,14 +53,27 @@ contract PufferModuleManagerIntegrationTest is ProofParsing {
         bytes[] memory validatorFieldsProofs = new bytes[](1);
         validatorFieldsProofs[0] = abi.encodePacked(getWithdrawalCredentialProof());
 
-        // now as the pod owner we can call verifyWithdrawalCredentials
-        vm.startPrank(0x0B0456ec773B7D89C9deCc38b682F98556CF9862); // PufferModule
+        vm.startPrank(0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0); // DAO
+
+        bytes memory moduleManagerCallData = abi.encodeCall(
+            PufferModuleManager.callVerifyWithdrawalCredentials,
+            (
+                bytes32("PUFFER_MODULE_0"),
+                oracleTimestamp,
+                stateRootProofStruct,
+                validatorIndices,
+                validatorFieldsProofs,
+                validatorFields
+            )
+        );
+
+        console.log("Calling ModuleManager.verifyWithdrawalCredentials");
+        // console.logBytes(moduleManagerCallData);
 
         vm.expectEmit(true, true, true, true);
         emit IEigenPod.ValidatorRestaked(1662066);
-        IEigenPod(0x5eE9246F01e95C08eE767029C1d18765Bb1779D0).verifyWithdrawalCredentials(
-            oracleTimestamp, stateRootProofStruct, validatorIndices, validatorFieldsProofs, validatorFields
-        );
+        (bool s,) = address(pufferModuleManager).call(moduleManagerCallData);
+        assertEq(s, true, "ModuleManager.verifyWithdrawalCredentials");
     }
 
     // Helper Functions
