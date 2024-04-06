@@ -15,6 +15,11 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
  */
 interface IPufferModuleManager {
     /**
+     * @notice Thrown if the module name is not allowed
+     */
+    error ForbiddenModuleName();
+
+    /**
      * @notice Emitted when a Restaking Operator is opted into a slasher
      * @param restakingOperator is the address of the restaking operator
      * @param slasher is the address of the slasher contract

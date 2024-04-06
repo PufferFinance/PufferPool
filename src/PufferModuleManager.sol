@@ -116,6 +116,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @param moduleName The name of the module
      */
     function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
+        if (moduleName == bytes32("NO_VALIDATORS")) {
+            revert ForbiddenModuleName();
+        }
         // This called from the PufferProtocol and the event is emitted there
         return IPufferModule(
             Create2.deploy({

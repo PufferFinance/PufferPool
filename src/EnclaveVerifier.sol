@@ -6,6 +6,7 @@ import { X509Verifier } from "rave/X509Verifier.sol";
 import { IEnclaveVerifier } from "puffer/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
+import { InvalidAddress } from "puffer/Errors.sol";
 
 /**
  * @title EnclaveVerifier
@@ -32,6 +33,9 @@ contract EnclaveVerifier is IEnclaveVerifier, AccessManaged, RAVE {
     mapping(bytes32 leafHash => RSAPubKey pubKey) internal _validLeafX509s;
 
     constructor(uint256 freshnessBlocks, address accessManager) AccessManaged(accessManager) {
+        if (address(accessManager) == address(0)) {
+            revert InvalidAddress();
+        }
         FRESHNESS_BLOCKS = freshnessBlocks;
     }
 
