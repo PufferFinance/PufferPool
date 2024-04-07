@@ -117,9 +117,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
-     * @dev Signature "0x6a095c9795d04d9e8a30e23a2f65cb55baaea226bf4927a755762266125afd8c"
+     * @dev Signature "0x088dc5dc64f3e8df8da5140a284d3018a717d6b009e605513bb28a2b466d38ee"
      */
-    event ValidatorSkipped(bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+    event ValidatorSkipped(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
@@ -136,7 +136,7 @@ interface IPufferProtocol {
      * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
     event ValidatorKeyRegistered(
-        bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
     );
 
     /**
@@ -148,7 +148,7 @@ interface IPufferProtocol {
      * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
      */
     event ValidatorExited(
-        bytes indexed pubKey,
+        bytes pubKey,
         uint256 indexed pufferModuleIndex,
         bytes32 indexed moduleName,
         uint256 pufETHBurnAmount,
@@ -162,7 +162,7 @@ interface IPufferProtocol {
      * @param moduleName is the staking Module
      * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
-    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Returns validator information

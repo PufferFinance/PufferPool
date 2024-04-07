@@ -23,6 +23,8 @@ contract IntegrationTestHelper is Test {
     AccessManager public accessManager;
     IEnclaveVerifier public verifier;
 
+    bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
+
     function deployContracts() public virtual {
         // see foundry.toml for the rpc urls
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18_722_775);
