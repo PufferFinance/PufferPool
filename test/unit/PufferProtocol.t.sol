@@ -21,8 +21,8 @@ import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 contract PufferProtocolTest is TestHelper {
     using ECDSA for bytes32;
 
-    event ValidatorKeyRegistered(bytes indexed pubKey, uint256 indexed, bytes32 indexed, bool);
-    event SuccessfullyProvisioned(bytes indexed pubKey, uint256 indexed, bytes32 indexed);
+    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed, bool);
+    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed, bytes32 indexed);
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
 
     bytes zeroPubKey = new bytes(48);

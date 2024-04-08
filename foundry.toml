@@ -5,7 +5,7 @@ runs = 7_000
 # Skip gas tests on CI
 # Run them in development manually by commenting `no_match_path` line and running "forge test --mc ETHTransferTest -vvvv"
 # don't forget to turn on the optimizer :)
-fs_permissions = [{ access = "read-write", path = "./"}]
+fs_permissions = [{ access = "read-write", path = "./"}, { access = "read", path = "./test/data/"}]
 gas_reports=[
     "PufferProtocol",
     "GuardianModule",
@@ -34,7 +34,6 @@ bracket_spacing = true
 
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
-goerli="${GOERLI_RPC_URL}"
 holesky="${HOLESKY_RPC_URL}"
 
 [invariant]
