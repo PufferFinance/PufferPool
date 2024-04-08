@@ -27,7 +27,8 @@ contract DeployPufferProtocolImplementation is Script {
             validatorTicket: ValidatorTicket(address(0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b)),
             guardianModule: GuardianModule(payable(0xD349FdCD0e4451381bfE7cba3ac28773E176b326)),
             moduleManager: address(0xe4695ab93163F91665Ce5b96527408336f070a71),
-            oracle: IPufferOracleV2(0xEf93AA29F627465A7f58A1F25980c90116f27b74)
+            oracle: IPufferOracleV2(0xEf93AA29F627465A7f58A1F25980c90116f27b74),
+            beaconDepositContract: 0x00000000219ab540356cBB839Cbe05303d7705Fa
         });
     }
 }
