@@ -20,6 +20,7 @@ import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.s
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { InvalidAddress } from "puffer/Errors.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
@@ -119,6 +120,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Initializes the contract
      */
     function initialize(address accessManager) external initializer {
+        if (address(accessManager) == address(0)) {
+            revert InvalidAddress();
+        }
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
         _setValidatorLimitPerModule(_PUFFER_MODULE_0, type(uint128).max);
@@ -134,6 +138,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositValidatorTickets(Permit calldata permit, address node) external restricted {
+        if (node == address(0)) {
+            revert InvalidAddress();
+        }
         // owner: msg.sender is intentional
         // We only want the owner of the Permit signature to be able to deposit using the signature
         // For an invalid signature, the permit will revert, but it is wrapped in try/catch, meaning the transaction execution
@@ -334,8 +341,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 vtBurnAmount: vtBurnAmount
             });
 
-            // Decrease the number of active validators for that module
-            _decreaseNumberOfActiveValidators($, validatorInfos[i].moduleName);
+            // Decrease the number of registered validators for that module
+            _decreaseNumberOfRegisteredValidators($, validatorInfos[i].moduleName);
             // Storage VT and the active validator count update for the Node Operator
             $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
@@ -404,7 +411,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // slither-disable-next-line unchecked-transfer
         PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
-        _decreaseNumberOfActiveValidators($, moduleName);
+        _decreaseNumberOfRegisteredValidators($, moduleName);
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
@@ -807,7 +814,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }) { } catch { }
     }
 
-    function _decreaseNumberOfActiveValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
+    function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         $.moduleLimits[moduleName].numberOfRegisteredValidators -= 1;
         emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
     }
