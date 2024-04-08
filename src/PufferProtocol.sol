@@ -668,7 +668,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
-        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
         emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
@@ -816,7 +816,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         $.moduleLimits[moduleName].numberOfRegisteredValidators -= 1;
-        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

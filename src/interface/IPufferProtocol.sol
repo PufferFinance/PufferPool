@@ -88,9 +88,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when the number of active validators changes
-     * @dev Signature "0x7721db60f08aead7d3732f48f6c3dbaac94316c83303002c42f979ae347c8872"
+     * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
-    event NumberOfActiveValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfActiveValidators);
+    event NumberOfRegisteredValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfRegisteredValidators);
 
     /**
      * @notice Emitted when the new Puffer module is created

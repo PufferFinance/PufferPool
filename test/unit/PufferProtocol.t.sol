@@ -1017,7 +1017,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.stopPrank();
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.NumberOfActiveValidatorsChanged(PUFFER_MODULE_0, 0);
+        emit IPufferProtocol.NumberOfRegisteredValidatorsChanged(PUFFER_MODULE_0, 0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
