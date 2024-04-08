@@ -16,7 +16,7 @@ contract PufferOracle is IPufferOracle, AccessManaged {
     uint256 internal _validatorTicketPrice;
 
     constructor(address accessManager) AccessManaged(accessManager) {
-        _setMintPrice(uint56(0.01 ether));
+        _setMintPrice(0.01 ether);
     }
 
     /**

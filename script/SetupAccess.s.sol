@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "script/BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
@@ -68,11 +69,15 @@ contract SetupAccess is BaseScript {
         calldatas[18] = moduleManagerAccess[1];
         calldatas[19] = moduleManagerAccess[2];
 
-        accessManager.multicall(calldatas);
+        // accessManager.multicall(calldatas);
+
+        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+        (bool s,) = address(accessManager).call(multicallData);
+        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
-        (bool s,) = address(accessManager).call(cd);
+        (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
@@ -144,14 +149,14 @@ contract SetupAccess is BaseScript {
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.pufferOracle, daoSelectors, ROLE_ID_DAO
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
+        bytes4[] memory paymasterSelectors = new bytes4[](1);
+        paymasterSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferOracle,
-            publicSelectors,
-            accessManager.PUBLIC_ROLE()
+            paymasterSelectors,
+            ROLE_ID_OPERATIONS_PAYMASTER
         );
 
         return calldatas;
@@ -271,24 +276,23 @@ contract SetupAccess is BaseScript {
             ROLE_ID_DAO
         );
 
-        bytes4[] memory guardianSelectors = new bytes4[](1);
-        guardianSelectors[0] = PufferProtocol.skipProvisioning.selector;
+        bytes4[] memory paymasterSelectors = new bytes4[](3);
+        paymasterSelectors[0] = PufferProtocol.provisionNode.selector;
+        paymasterSelectors[1] = PufferProtocol.skipProvisioning.selector;
+        paymasterSelectors[2] = PufferProtocol.batchHandleWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             address(pufferDeployment.pufferProtocol),
-            guardianSelectors,
-            ROLE_ID_GUARDIANS //@todo guardians use signatures, remove
+            paymasterSelectors,
+            ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](7);
+        bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
-        publicSelectors[3] = PufferProtocol.provisionNode.selector;
-        publicSelectors[4] = PufferProtocol.batchHandleWithdrawals.selector;
-        publicSelectors[5] = PufferProtocol.skipProvisioning.selector;
-        publicSelectors[6] = PufferProtocol.revertIfPaused.selector;
+        publicSelectors[3] = PufferProtocol.revertIfPaused.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

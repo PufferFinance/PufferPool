@@ -8,17 +8,19 @@ import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
+import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { Status } from "puffer/struct/Status.sol";
-import { ProtocolStorage, NodeInfo } from "puffer/struct/ProtocolStorage.sol";
+import { ProtocolStorage, NodeInfo, ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "puffer/LibBeaconchainContract.sol";
 import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { InvalidAddress } from "puffer/Errors.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
 
 /**
@@ -92,18 +94,25 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     IPufferOracleV2 public immutable override PUFFER_ORACLE;
 
+    /**
+     * @inheritdoc IPufferProtocol
+     */
+    IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
+
     constructor(
         PufferVaultV2 pufferVault,
         IGuardianModule guardianModule,
         address moduleManager,
         ValidatorTicket validatorTicket,
-        IPufferOracleV2 oracle
+        IPufferOracleV2 oracle,
+        address beaconDepositContract
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
         PUFFER_MODULE_MANAGER = IPufferModuleManager(moduleManager);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
+        BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
         _disableInitializers();
     }
 
@@ -111,6 +120,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Initializes the contract
      */
     function initialize(address accessManager) external initializer {
+        if (address(accessManager) == address(0)) {
+            revert InvalidAddress();
+        }
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
         _setValidatorLimitPerModule(_PUFFER_MODULE_0, type(uint128).max);
@@ -126,6 +138,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositValidatorTickets(Permit calldata permit, address node) external restricted {
+        if (node == address(0)) {
+            revert InvalidAddress();
+        }
         // owner: msg.sender is intentional
         // We only want the owner of the Permit signature to be able to deposit using the signature
         // For an invalid signature, the permit will revert, but it is wrapped in try/catch, meaning the transaction execution
@@ -235,12 +250,19 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, bytes calldata validatorSignature)
-        external
-        restricted
-    {
+    function provisionNode(
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        bytes32 depositRootHash
+    ) external restricted {
+        // We only use depositRootHash in the no enclave case.
+        // For enclave case, we don't need to check the depositRootHash
+        if (depositRootHash != bytes32(0) && depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+            revert InvalidDepositRootHash();
+        }
+
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
@@ -271,7 +293,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
@@ -303,9 +325,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
+            uint256 vtBurnAmount = _getVTBurnAmount(validatorInfos[i]);
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
-            burnAmounts.vt += _getVTBurnAmount(validatorInfos[i]);
+            burnAmounts.vt += vtBurnAmount;
 
             // Store the withdrawal amount for that node operator
             bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
@@ -315,17 +338,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
                 pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
                 moduleName: validatorInfos[i].moduleName,
                 pufETHBurnAmount: burnAmount,
-                vtBurnAmount: _getVTBurnAmount(validatorInfos[i])
+                vtBurnAmount: vtBurnAmount
             });
 
-            // Decrease the number of active validators for that module
-            $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators -= 1;
-            emit NumberOfActiveValidatorsChanged(
-                validatorInfos[i].moduleName, $.moduleLimits[validatorInfos[i].moduleName].numberOfActiveValidators
-            );
-
+            // Decrease the number of registered validators for that module
+            _decreaseNumberOfRegisteredValidators($, validatorInfos[i].moduleName);
             // Storage VT and the active validator count update for the Node Operator
-            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(_getVTBurnAmount(validatorInfos[i]));
+            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
 
             delete validator.node;
@@ -347,7 +366,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // The excess is the rewards amount for that Node Operator
             uint256 transferAmount =
                 validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
-            IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            (bool success,) = IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            if (!success) {
+                revert Failed();
+            }
 
             // Skip the empty transfer (validator got slashed)
             if (bondWithdrawals[i].pufETHAmount == 0) {
@@ -361,7 +383,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -389,6 +411,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // slither-disable-next-line unchecked-transfer
         PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
+        _decreaseNumberOfRegisteredValidators($, moduleName);
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
@@ -606,6 +629,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @inheritdoc IPufferProtocol
+     */
+    function getModuleLimitInformation(bytes32 moduleName) external view returns (ModuleLimit memory info) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.moduleLimits[moduleName];
+    }
+
+    /**
      * @notice Called by the PufferModules to check if the system is paused
      * @dev `restricted` will revert if the system is paused
      */
@@ -635,14 +666,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         unchecked {
             ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
             ++$.pendingValidatorIndices[moduleName];
-            ++$.moduleLimits[moduleName].numberOfActiveValidators;
+            ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
-        emit NumberOfActiveValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfActiveValidators);
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
         emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        if (limit < $.moduleLimits[moduleName].numberOfRegisteredValidators) {
+            revert ValidatorLimitForModuleReached();
+        }
         emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
@@ -680,7 +714,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) internal view {
         // This acts as a validation if the module is existent
         // +1 is to validate the current transaction registration
-        if (($.moduleLimits[moduleName].numberOfActiveValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
+        if (($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
             revert ValidatorLimitForModuleReached();
         }
 
@@ -735,11 +769,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 
-        bytes32 depositDataRoot = this.getDepositDataRoot({
-            pubKey: validatorPubKey,
-            signature: validatorSignature,
-            withdrawalCredentials: withdrawalCredentials
-        });
+        bytes32 depositDataRoot =
+            LibBeaconchainContract.getDepositDataRoot(validatorPubKey, validatorSignature, withdrawalCredentials);
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateProvisionNode({
@@ -781,6 +812,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             s: permitData.s,
             r: permitData.r
         }) { } catch { }
+    }
+
+    function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
+        $.moduleLimits[moduleName].numberOfRegisteredValidators -= 1;
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

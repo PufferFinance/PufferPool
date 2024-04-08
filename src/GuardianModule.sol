@@ -87,9 +87,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         if (address(verifier) == address(0)) {
             revert InvalidAddress();
         }
-        if (address(verifier) == address(0)) {
-            revert InvalidAddress();
-        }
         if (address(pufferAuthority) == address(0)) {
             revert InvalidAddress();
         }
@@ -266,9 +263,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function removeGuardian(address guardian) external restricted {
         splitGuardianFunds();
+
         (bool success) = _guardians.remove(guardian);
         if (success) {
             emit GuardianRemoved(guardian);
+        }
+
+        if (_guardians.length() < _threshold) {
+            revert InvalidThreshold(_threshold);
         }
     }
 

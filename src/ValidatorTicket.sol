@@ -130,7 +130,7 @@ contract ValidatorTicket is
     /**
      * @notice Updates the treasury fee
      * @dev Restricted to the DAO
-     * (1e20 = 100%, 1e18 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
+     * (10,000 = 100%, 100 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
      * @param newProtocolFeeRate The new treasury fee rate
      */
     function setProtocolFeeRate(uint256 newProtocolFeeRate) external virtual restricted {
@@ -140,7 +140,7 @@ contract ValidatorTicket is
     /**
      * @notice Updates the guardians fee rate
      * @dev Restricted to the DAO
-     * (1e20 = 100%, 1e18 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
+     * (10,000 = 100%, 100 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
      * @param newGuardiansFeeRate The new guardians fee rate
      */
     function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external virtual restricted {
@@ -181,7 +181,7 @@ contract ValidatorTicket is
     function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (1000)) {
+        if (newProtocolFeeRate > (1000)) {
             revert InvalidData();
         }
         emit ProtocolFeeChanged($.protocolFeeRate, newProtocolFeeRate);
@@ -191,7 +191,7 @@ contract ValidatorTicket is
     function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if ($.protocolFeeRate > (1000)) {
+        if (newGuardiansFeeRate > (1000)) {
             revert InvalidData();
         }
         emit GuardiansFeeChanged($.guardiansFeeRate, newGuardiansFeeRate);

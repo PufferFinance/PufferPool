@@ -11,7 +11,9 @@ import { Status } from "puffer/struct/Status.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { NodeInfo } from "puffer/struct/NodeInfo.sol";
+import { ModuleLimit } from "puffer/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
+import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 
 /**
  * @title IPufferProtocol
@@ -19,6 +21,11 @@ import { StoppedValidatorInfo } from "puffer/struct/StoppedValidatorInfo.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
+    /**
+     * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
+     */
+    error InvalidDepositRootHash();
+
     /**
      * @notice Thrown when the number of BLS public key shares doesn't match guardians number
      * @dev Signature "0x8cdea6a6"
@@ -74,10 +81,16 @@ interface IPufferProtocol {
     error InvalidVTAmount();
 
     /**
-     * @notice Emitted when the number of active validators changes
-     * @dev Signature "0x7721db60f08aead7d3732f48f6c3dbaac94316c83303002c42f979ae347c8872"
+     * @notice Thrown if the ETH transfer from the PufferModule to the PufferVault fails
+     * @dev Signature "0x625a40e6"
      */
-    event NumberOfActiveValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfActiveValidators);
+    error Failed();
+
+    /**
+     * @notice Emitted when the number of active validators changes
+     * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
+     */
+    event NumberOfRegisteredValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfRegisteredValidators);
 
     /**
      * @notice Emitted when the new Puffer module is created
@@ -269,6 +282,11 @@ interface IPufferProtocol {
     function PUFFER_ORACLE() external view returns (IPufferOracleV2);
 
     /**
+     * @notice Returns Beacon Deposit Contract
+     */
+    function BEACON_DEPOSIT_CONTRACT() external view returns (IBeaconDepositContract);
+
+    /**
      * @notice Returns the current module weights
      */
     function getModuleWeights() external view returns (bytes32[] memory);
@@ -287,7 +305,11 @@ interface IPufferProtocol {
      * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(bytes[] calldata guardianEnclaveSignatures, bytes calldata validatorSignature) external;
+    function provisionNode(
+        bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        bytes32 depositRootHash
+    ) external;
 
     /**
      * @notice Returns the deposit_data_root
@@ -306,6 +328,11 @@ interface IPufferProtocol {
      * @dev This is meant for OFF-CHAIN use, as it can be very expensive to call
      */
     function getValidators(bytes32 moduleName) external view returns (Validator[] memory);
+
+    /**
+     * @notice Returns the number of active validators for `moduleName`
+     */
+    function getModuleLimitInformation(bytes32 moduleName) external view returns (ModuleLimit memory info);
 
     /**
      * @notice Creates a new Puffer module with `moduleName`

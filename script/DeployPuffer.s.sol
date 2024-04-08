@@ -139,7 +139,8 @@ contract DeployPuffer is BaseScript {
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
-                oracle: IPufferOracleV2(oracle)
+                oracle: IPufferOracleV2(oracle),
+                beaconDepositContract: getStakingContract()
             });
         }
         NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(

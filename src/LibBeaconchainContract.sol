@@ -16,7 +16,7 @@ library LibBeaconchainContract {
      * @param withdrawalCredentials is the withdrawal credentials
      * @return the deposit data root
      */
-    function getDepositDataRoot(bytes calldata pubKey, bytes calldata signature, bytes calldata withdrawalCredentials)
+    function getDepositDataRoot(bytes memory pubKey, bytes calldata signature, bytes memory withdrawalCredentials)
         external
         pure
         returns (bytes32)

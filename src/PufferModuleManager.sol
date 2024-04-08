@@ -50,6 +50,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
+        _disableInitializers();
     }
 
     /**
@@ -102,7 +103,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         for (uint256 i = 0; i < withdrawals.length; i++) {
             for (uint256 j = 0; j < withdrawals[i].shares.length; j++) {
-                sharesWithdrawn += withdrawals[i].shares[i];
+                sharesWithdrawn += withdrawals[i].shares[j];
             }
         }
 
@@ -115,6 +116,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @param moduleName The name of the module
      */
     function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
+        if (moduleName == bytes32("NO_VALIDATORS")) {
+            revert ForbiddenModuleName();
+        }
         // This called from the PufferProtocol and the event is emitted there
         return IPufferModule(
             Create2.deploy({
