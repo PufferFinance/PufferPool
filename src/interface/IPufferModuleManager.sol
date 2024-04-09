@@ -124,6 +124,58 @@ interface IPufferModuleManager {
     event CompletedQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
 
     /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorRegisteredToAVS(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers, string socket
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
+     * operator registers for quorums
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorRegisteredToAVSWithChurn(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes quorumNumbers,
+        string socket,
+        IRegistryCoordinator.OperatorKickParam[] operatorKickParams
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is deregistered from an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorDeregisteredFromAVS(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator AVS Socket is updated
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param socket is the new socket of the operator
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorAVSSocketUpdated(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, string socket
+    );
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -304,6 +356,7 @@ interface IPufferModuleManager {
      * @param restakingOperator is the address of the restaking operator
      * @param avsRegistryCoordinator the avs registry coordinator address
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
      * @param params contains the G1 & G2 public keys of the operator, and a signature proving their ownership
      * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
      * operator registers for quorums

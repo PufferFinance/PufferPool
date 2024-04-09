@@ -296,6 +296,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         restakingOperator.registerOperatorToAVS(
             avsRegistryCoordinator, quorumNumbers, socket, params, operatorSignature
         );
+
+        emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers, socket);
     }
 
     /**
@@ -321,6 +323,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             churnApproverSignature,
             operatorSignature
         );
+
+        emit RestakingOperatorRegisteredToAVSWithChurn(
+            restakingOperator, avsRegistryCoordinator, quorumNumbers, socket, operatorKickParams
+        );
     }
 
     /**
@@ -333,6 +339,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         bytes calldata quorumNumbers
     ) external virtual restricted {
         restakingOperator.deregisterOperatorFromAVS(avsRegistryCoordinator, quorumNumbers);
+
+        emit RestakingOperatorDeregisteredFromAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers);
     }
 
     /**
@@ -345,6 +353,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         string memory socket
     ) external virtual restricted {
         restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
+        emit RestakingOperatorAVSSocketUpdated(restakingOperator, avsRegistryCoordinator, socket);
     }
 
     /**
