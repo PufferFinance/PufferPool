@@ -19,3 +19,6 @@
 [submodule "lib/pufETH"]
 	path = lib/pufETH
 	url = https://github.com/PufferFinance/pufETH
+[submodule "lib/eigenlayer-middleware"]
+	path = lib/eigenlayer-middleware
+	url = git@github.com:Layr-Labs/eigenlayer-middleware.git
