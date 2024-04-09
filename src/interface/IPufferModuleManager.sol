@@ -289,7 +289,7 @@ interface IPufferModuleManager {
      * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
      * @dev Restricted to the DAO
      */
-    function registerOperatorToAVS(
+    function callRegisterOperatorToAVS(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers,
@@ -311,7 +311,7 @@ interface IPufferModuleManager {
      * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
      * @dev Restricted to the DAO
      */
-    function registerOperatorToAVSWithChurn(
+    function callRegisterOperatorToAVSWithChurn(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers,
@@ -329,7 +329,7 @@ interface IPufferModuleManager {
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
      * @dev Restricted to the DAO
      */
-    function deregisterOperator(
+    function callDeregisterOperatorFromAVS(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers
@@ -342,6 +342,9 @@ interface IPufferModuleManager {
      * @param socket is the new socket of the operator
      * @dev Restricted to the DAO
      */
-    function updateSocket(IRestakingOperator restakingOperator, address avsRegistryCoordinator, string memory socket)
-        external;
+    function callUpdateOperatorAVSSocket(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        string memory socket
+    ) external;
 }

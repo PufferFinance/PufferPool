@@ -98,12 +98,12 @@ interface IRestakingOperator {
      * @param avsRegistryCoordinator the avs registry coordinator address
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
      */
-    function deregisterOperator(address avsRegistryCoordinator, bytes calldata quorumNumbers) external;
+    function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers) external;
 
     /**
      * @notice Updates the socket of the msg.sender given they are a registered operator
      * @param avsRegistryCoordinator the avs registry coordinator address
      * @param socket is the new socket of the operator
      */
-    function updateSocket(address avsRegistryCoordinator, string memory socket) external;
+    function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket) external;
 }

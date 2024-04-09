@@ -167,7 +167,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function deregisterOperator(address avsRegistryCoordinator, bytes calldata quorumNumbers)
+    function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
         external
         virtual
         onlyPufferModuleManager
@@ -179,7 +179,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function updateSocket(address avsRegistryCoordinator, string memory socket)
+    function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket)
         external
         virtual
         onlyPufferModuleManager

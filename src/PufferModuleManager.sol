@@ -285,7 +285,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function registerOperatorToAVS(
+    function callRegisterOperatorToAVS(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers,
@@ -302,7 +302,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function registerOperatorToAVSWithChurn(
+    function callRegisterOperatorToAVSWithChurn(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers,
@@ -327,24 +327,24 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function deregisterOperator(
+    function callDeregisterOperatorFromAVS(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers
     ) external virtual restricted {
-        restakingOperator.deregisterOperator(avsRegistryCoordinator, quorumNumbers);
+        restakingOperator.deregisterOperatorFromAVS(avsRegistryCoordinator, quorumNumbers);
     }
 
     /**
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function updateSocket(IRestakingOperator restakingOperator, address avsRegistryCoordinator, string memory socket)
-        external
-        virtual
-        restricted
-    {
-        restakingOperator.updateSocket(avsRegistryCoordinator, socket);
+    function callUpdateOperatorAVSSocket(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        string memory socket
+    ) external virtual restricted {
+        restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
     }
 
     /**
