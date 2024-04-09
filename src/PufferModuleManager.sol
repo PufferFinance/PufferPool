@@ -353,6 +353,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         string memory socket
     ) external virtual restricted {
         restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
+
         emit RestakingOperatorAVSSocketUpdated(restakingOperator, avsRegistryCoordinator, socket);
     }
 
