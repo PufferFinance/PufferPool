@@ -17,6 +17,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 
 /**
  * @title PufferModuleManager
@@ -278,6 +279,82 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
 
         emit PufferModuleUndelegated(moduleName);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callRegisterOperatorToAVS(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    ) external virtual restricted {
+        restakingOperator.registerOperatorToAVS(
+            avsRegistryCoordinator, quorumNumbers, socket, params, operatorSignature
+        );
+
+        emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers, socket);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callRegisterOperatorToAVSWithChurn(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    ) external virtual restricted {
+        restakingOperator.registerOperatorToAVSWithChurn(
+            avsRegistryCoordinator,
+            quorumNumbers,
+            socket,
+            params,
+            operatorKickParams,
+            churnApproverSignature,
+            operatorSignature
+        );
+
+        emit RestakingOperatorRegisteredToAVSWithChurn(
+            restakingOperator, avsRegistryCoordinator, quorumNumbers, socket, operatorKickParams
+        );
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callDeregisterOperatorFromAVS(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers
+    ) external virtual restricted {
+        restakingOperator.deregisterOperatorFromAVS(avsRegistryCoordinator, quorumNumbers);
+
+        emit RestakingOperatorDeregisteredFromAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function callUpdateOperatorAVSSocket(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        string memory socket
+    ) external virtual restricted {
+        restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
+
+        emit RestakingOperatorAVSSocketUpdated(restakingOperator, avsRegistryCoordinator, socket);
     }
 
     /**

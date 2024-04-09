@@ -7,6 +7,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 
 /**
  * @title IPufferModuleManager
@@ -121,6 +122,58 @@ interface IPufferModuleManager {
      * @dev Signature "0x46ca5934f7ca805e7fbdc05e90e3ecbea495c41e35ba48e24f053c0c3d25af1e"
      */
     event CompletedQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
+
+    /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorRegisteredToAVS(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers, string socket
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
+     * operator registers for quorums
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorRegisteredToAVSWithChurn(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes quorumNumbers,
+        string socket,
+        IRegistryCoordinator.OperatorKickParam[] operatorKickParams
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is deregistered from an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorDeregisteredFromAVS(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator AVS Socket is updated
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param socket is the new socket of the operator
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorAVSSocketUpdated(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, string socket
+    );
 
     /**
      * @notice Returns the Puffer Module beacon address
@@ -275,5 +328,76 @@ interface IPufferModuleManager {
         IRestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer
+    ) external;
+
+    /**
+     * @notice Registers msg.sender as an operator for one or more quorums. If any quorum exceeds its maximum
+     * operator capacity after the operator is registered, this method will fail.
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @param params contains the G1 & G2 public keys of the operator, and a signature proving their ownership
+     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
+     * @dev Restricted to the DAO
+     */
+    function callRegisterOperatorToAVS(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    ) external;
+
+    /**
+     * @notice Registers msg.sender as an operator for one or more quorums. If any quorum reaches its maximum operator
+     * capacity, `operatorKickParams` is used to replace an old operator with the new one.
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
+     * @param socket is the socket of the operator (typically an IP address)
+     * @param params contains the G1 & G2 public keys of the operator, and a signature proving their ownership
+     * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
+     * operator registers for quorums
+     * @param churnApproverSignature is the signature of the churnApprover over the `operatorKickParams`
+     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
+     * @dev Restricted to the DAO
+     */
+    function callRegisterOperatorToAVSWithChurn(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    ) external;
+
+    /**
+     * @notice Deregisters the caller from one or more quorums
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
+     * @dev Restricted to the DAO
+     */
+    function callDeregisterOperatorFromAVS(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers
+    ) external;
+
+    /**
+     * @notice Updates the socket of the msg.sender given they are a registered operator
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param socket is the new socket of the operator
+     * @dev Restricted to the DAO
+     */
+    function callUpdateOperatorAVSSocket(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        string memory socket
     ) external;
 }

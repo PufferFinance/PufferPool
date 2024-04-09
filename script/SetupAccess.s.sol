@@ -85,7 +85,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](11);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
@@ -93,6 +93,10 @@ contract SetupAccess is BaseScript {
         selectors[4] = PufferModuleManager.callUndelegate.selector;
         selectors[5] = PufferModuleManager.callDelegateTo.selector;
         selectors[6] = PufferModuleManager.updateAVSRegistrationSignatureProof.selector;
+        selectors[7] = PufferModuleManager.callRegisterOperatorToAVS.selector;
+        selectors[8] = PufferModuleManager.callRegisterOperatorToAVSWithChurn.selector;
+        selectors[9] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
+        selectors[10] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO

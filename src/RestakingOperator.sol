@@ -10,6 +10,9 @@ import { Unauthorized, InvalidAddress } from "puffer/Errors.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
+import { IRegistryCoordinatorExtended } from "puffer/interface/IRegistryCoordinatorExtended.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 /**
  * @title RestakingOperator
@@ -124,6 +127,64 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
 
         $.hashSigners[digestHash] = signer;
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function registerOperatorToAVS(
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external virtual onlyPufferModuleManager {
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator(
+            quorumNumbers, socket, params, operatorSignature
+        );
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function registerOperatorToAVSWithChurn(
+        address avsRegistryCoordinator,
+        bytes calldata quorumNumbers,
+        string calldata socket,
+        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
+        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory churnApproverSignature,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external virtual onlyPufferModuleManager {
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn(
+            quorumNumbers, socket, params, operatorKickParams, churnApproverSignature, operatorSignature
+        );
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
+        external
+        virtual
+        onlyPufferModuleManager
+    {
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).deregisterOperator(quorumNumbers);
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
+    function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket)
+        external
+        virtual
+        onlyPufferModuleManager
+    {
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).updateSocket(socket);
     }
 
     /**
