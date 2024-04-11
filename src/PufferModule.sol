@@ -324,23 +324,25 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
+    // slither-disable-start
     function callDelegateTo(
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external onlyPufferModuleManager {
-        // slither-disable-next-line external-call
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
+    // slither-disable-end
 
     /**
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
+    // slither-disable-start
     function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
-        // slither-disable-next-line external-call
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
+    // slither-disable-end
 
     /**
      * @notice Returns the block number of when the latest rewards proof was posted
