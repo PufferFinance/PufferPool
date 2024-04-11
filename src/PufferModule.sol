@@ -329,6 +329,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external onlyPufferModuleManager {
+        // slither-disable-next-line external-call
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
@@ -337,6 +338,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Restricted to PufferModuleManager
      */
     function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
+        // slither-disable-next-line external-call
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
