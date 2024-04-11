@@ -328,7 +328,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
-    ) external onlyPufferModuleManager {
+    ) external virtual onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
@@ -336,7 +336,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
