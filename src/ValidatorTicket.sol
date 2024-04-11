@@ -53,6 +53,11 @@ contract ValidatorTicket is
      */
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
 
+    /**
+     * @dev Threshold for acceptable fee rate percentage
+     */
+    uint256 private constant _FEE_RATE_THRESHOLD_BPS = 1000;
+
     constructor(
         address payable guardianModule,
         address payable treasury,
@@ -181,7 +186,7 @@ contract ValidatorTicket is
     function _setProtocolFeeRate(uint256 newProtocolFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if (newProtocolFeeRate > (1000)) {
+        if (newProtocolFeeRate > (_FEE_RATE_THRESHOLD_BPS)) {
             revert InvalidData();
         }
         emit ProtocolFeeChanged($.protocolFeeRate, newProtocolFeeRate);
@@ -191,7 +196,7 @@ contract ValidatorTicket is
     function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if (newGuardiansFeeRate > (1000)) {
+        if (newGuardiansFeeRate > (_FEE_RATE_THRESHOLD_BPS)) {
             revert InvalidData();
         }
         emit GuardiansFeeChanged($.guardiansFeeRate, newGuardiansFeeRate);

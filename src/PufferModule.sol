@@ -19,6 +19,7 @@ import { MerkleProof } from "openzeppelin/utils/cryptography/MerkleProof.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { ModuleStorage } from "puffer/struct/ModuleStorage.sol";
 
 /**
  * @title PufferModule
@@ -64,41 +65,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
 
-    /**
-     * @custom:storage-location erc7201:PufferModuleStorage.storage
-     * @dev +-----------------------------------------------------------+
-     *      |                                                           |
-     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
-     *      |                                                           |
-     *      +-----------------------------------------------------------+
-     */
-    struct PufferModuleStorage {
-        /**
-         * @dev Module Name
-         */
-        bytes32 moduleName;
-        /**
-         * @dev Owned EigenPod
-         */
-        IEigenPod eigenPod;
-        /**
-         * @dev Timestamp of the last claim of restaking rewards
-         */
-        uint256 lastClaimTimestamp;
-        /**
-         * @dev The last block number for when the rewards root was posted
-         */
-        uint256 lastProofOfRewardsBlockNumber;
-        /**
-         * @dev Mapping of a blockNumber and the MerkleRoot for that rewards period
-         */
-        mapping(uint256 blockNumber => bytes32 root) rewardsRoots;
-        /**
-         * @dev Mapping that stores which validators have claimed the rewards for a certain blockNumber
-         */
-        mapping(uint256 blockNumber => mapping(address node => bool claimed)) claimedRewards;
-    }
-
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
@@ -116,7 +82,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     function initialize(bytes32 moduleName, address initialAuthority) external initializer {
         __AccessManaged_init(initialAuthority);
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
         $.moduleName = moduleName;
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
     }
@@ -218,7 +184,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes32[][] calldata validatorFields,
         bytes32[][] calldata withdrawalFields
     ) external virtual whenNotPaused onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyAndProcessWithdrawals({
             oracleTimestamp: oracleTimestamp,
@@ -241,7 +207,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields
     ) external virtual onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyWithdrawalCredentials({
             oracleTimestamp: oracleTimestamp,
@@ -257,7 +223,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Restricted to PufferModuleManager
      */
     function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.withdrawNonBeaconChainETHBalanceWei(address(this), amountToWithdraw);
     }
@@ -289,7 +255,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
     ) external virtual whenNotPaused {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
 
         // Anybody can submit a valid proof and the ETH will be sent to the node operator
         uint256 ethToSend = 0;
@@ -326,7 +292,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         virtual
         whenNotPaused
     {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
 
         if (blockNumber <= $.lastProofOfRewardsBlockNumber) {
             revert InvalidBlockNumber(blockNumber);
@@ -354,7 +320,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
-    ) external onlyPufferModuleManager {
+    ) external virtual onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
@@ -362,7 +328,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function callUndelegate() external onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
@@ -370,7 +336,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @notice Returns the block number of when the latest rewards proof was posted
      */
     function getLastProofOfRewardsBlock() external view returns (uint256) {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
         return $.lastProofOfRewardsBlockNumber;
     }
 
@@ -379,7 +345,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
         // Withdrawal credentials for EigenLayer modules are EigenPods
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
     }
 
@@ -387,7 +353,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      */
     function getEigenPod() external view returns (address) {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
         return address($.eigenPod);
     }
 
@@ -395,11 +361,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      */
     function NAME() external view returns (bytes32) {
-        PufferModuleStorage storage $ = _getPufferModuleStorage();
+        ModuleStorage storage $ = _getPufferModuleStorage();
         return $.moduleName;
     }
 
-    function _getPufferModuleStorage() internal pure returns (PufferModuleStorage storage $) {
+    function _getPufferModuleStorage() internal pure returns (ModuleStorage storage $) {
         // solhint-disable-next-line
         assembly {
             $.slot := _PUFFER_MODULE_BASE_STORAGE
