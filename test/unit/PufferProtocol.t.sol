@@ -11,7 +11,7 @@ import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { ROLE_ID_PUFFER_ORACLE, ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
+import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
@@ -1837,14 +1837,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setModuleWeights(newWeights);
 
         eigenDaModule = pufferProtocol.getModuleAddress(EIGEN_DA);
-
-        // Enable PufferProtocol to call `call` function on module
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = IPufferModule.call.selector;
-        vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(NoRestakingModule, selectors, ROLE_ID_PUFFER_ORACLE);
-        accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_ORACLE);
-        vm.stopPrank();
     }
 
     /**

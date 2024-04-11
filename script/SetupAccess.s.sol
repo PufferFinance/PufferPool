@@ -7,22 +7,18 @@ import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
-import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { EnclaveVerifier } from "puffer/EnclaveVerifier.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
-import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
     ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_GUARDIANS,
-    ROLE_ID_DAO,
-    ROLE_ID_PUFFER_ORACLE
+    ROLE_ID_DAO
 } from "pufETHScript/Roles.sol";
 
 contract SetupAccess is BaseScript {
@@ -42,32 +38,30 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
 
-        bytes[] memory calldatas = new bytes[](20);
+        bytes[] memory calldatas = new bytes[](18);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
-        calldatas[2] = _setupUpgradeableBeacon();
-        calldatas[3] = rolesCalldatas[0];
-        calldatas[4] = rolesCalldatas[1];
-        calldatas[5] = rolesCalldatas[2];
+        calldatas[2] = rolesCalldatas[0];
+        calldatas[3] = rolesCalldatas[1];
 
-        calldatas[6] = pufferProtocolRoles[0];
-        calldatas[7] = pufferProtocolRoles[1];
-        calldatas[8] = pufferProtocolRoles[2];
+        calldatas[4] = pufferProtocolRoles[0];
+        calldatas[5] = pufferProtocolRoles[1];
+        calldatas[6] = pufferProtocolRoles[2];
 
-        calldatas[9] = validatorTicketRoles[0];
-        calldatas[10] = validatorTicketRoles[1];
+        calldatas[7] = validatorTicketRoles[0];
+        calldatas[8] = validatorTicketRoles[1];
 
-        calldatas[11] = vaultMainnetAccess[0];
-        calldatas[12] = vaultMainnetAccess[1];
-        calldatas[13] = vaultMainnetAccess[2];
+        calldatas[9] = vaultMainnetAccess[0];
+        calldatas[10] = vaultMainnetAccess[1];
+        calldatas[11] = vaultMainnetAccess[2];
 
-        calldatas[14] = pufferOracleAccess[0];
-        calldatas[15] = pufferOracleAccess[1];
-        calldatas[16] = pufferOracleAccess[2];
+        calldatas[12] = pufferOracleAccess[0];
+        calldatas[13] = pufferOracleAccess[1];
+        calldatas[14] = pufferOracleAccess[2];
 
-        calldatas[17] = moduleManagerAccess[0];
-        calldatas[18] = moduleManagerAccess[1];
-        calldatas[19] = moduleManagerAccess[2];
+        calldatas[15] = moduleManagerAccess[0];
+        calldatas[16] = moduleManagerAccess[1];
+        calldatas[17] = moduleManagerAccess[2];
 
         // accessManager.multicall(calldatas);
 
@@ -179,13 +173,13 @@ contract SetupAccess is BaseScript {
             accessManager.PUBLIC_ROLE()
         );
 
-        bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
+        bytes4[] memory operationsSelectors = new bytes4[](1);
+        operationsSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
-            daoSelectors,
+            operationsSelectors,
             ROLE_ID_OPERATIONS_MULTISIG
         );
 
@@ -205,10 +199,9 @@ contract SetupAccess is BaseScript {
     function _setupValidatorTicketsAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory selectors = new bytes4[](3);
+        bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = ValidatorTicket.setProtocolFeeRate.selector;
-        selectors[1] = UUPSUpgradeable.upgradeToAndCall.selector;
-        selectors[2] = ValidatorTicket.setGuardiansFeeRate.selector;
+        selectors[1] = ValidatorTicket.setGuardiansFeeRate.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO
@@ -241,18 +234,6 @@ contract SetupAccess is BaseScript {
         );
     }
 
-    function _setupUpgradeableBeacon() internal view returns (bytes memory) {
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = UpgradeableBeacon.upgradeTo.selector;
-
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            PufferModuleManager(pufferDeployment.moduleManager).PUFFER_MODULE_BEACON(),
-            selectors,
-            ROLE_ID_DAO
-        );
-    }
-
     function _setupEnclaveVerifierRoles() internal view returns (bytes memory) {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = EnclaveVerifier.removeLeafX509.selector;
@@ -268,10 +249,9 @@ contract SetupAccess is BaseScript {
         bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = PufferProtocol.createPufferModule.selector;
         selectors[1] = PufferProtocol.setModuleWeights.selector;
-        selectors[2] = UUPSUpgradeable.upgradeToAndCall.selector;
-        selectors[3] = PufferProtocol.setValidatorLimitPerModule.selector;
-        selectors[4] = PufferProtocol.changeMinimumVTAmount.selector;
-        selectors[5] = PufferProtocol.setVTPenalty.selector;
+        selectors[2] = PufferProtocol.setValidatorLimitPerModule.selector;
+        selectors[3] = PufferProtocol.changeMinimumVTAmount.selector;
+        selectors[4] = PufferProtocol.setVTPenalty.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -309,14 +289,11 @@ contract SetupAccess is BaseScript {
     }
 
     function _grantRoles(address DAO) internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](2);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, DAO, 0);
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, pufferDeployment.pufferProtocol, 0
-        );
-        calldatas[2] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_PUFFER_ORACLE, pufferDeployment.pufferOracle, 0
         );
 
         return calldatas;
