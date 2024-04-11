@@ -65,14 +65,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
 
-    /**
-     * @custom:storage-location erc7201:PufferModule.storage
-     * @dev +-----------------------------------------------------------+
-     *      |                                                           |
-     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
-     *      |                                                           |
-     *      +-----------------------------------------------------------+
-     */
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,

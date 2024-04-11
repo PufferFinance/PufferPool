@@ -3,6 +3,14 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 
+/**
+ * @custom:storage-location erc7201:PufferModule.storage
+ * @dev +-----------------------------------------------------------+
+ *      |                                                           |
+ *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+ *      |                                                           |
+ *      +-----------------------------------------------------------+
+ */
 struct ModuleStorage {
     /**
      * @dev Module Name
