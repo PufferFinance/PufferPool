@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 import { IPufferOracle } from "pufETH/interface/IPufferOracle.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
@@ -32,22 +32,22 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Number of active Puffer validators
      * Slot 0
      */
-    uint256 internal _numberOfActivePufferValidators;
+    uint64 internal _numberOfActivePufferValidators;
 
     /**
      * @dev Total number of Validators
-     * Slot 1
+     * Slot 0
      */
-    uint128 internal _totalNumberOfValidators;
+    uint64 internal _totalNumberOfValidators;
     /**
      * @dev Epoch number of the update
-     * Slot 1
+     * Slot 0
      */
-    uint128 internal _epochNumber;
+    uint64 internal _epochNumber;
 
     /**
      * @dev Price in wei to mint one Validator Ticket
-     * Slot 2
+     * Slot 1
      */
     uint256 internal _validatorTicketPrice;
 
@@ -66,7 +66,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Restricted to PufferProtocol contract
      */
     function exitValidators(uint256 numberOfExits) public restricted {
-        _numberOfActivePufferValidators -= numberOfExits;
+        _numberOfActivePufferValidators -= uint64(numberOfExits);
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }
 
@@ -106,8 +106,8 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         }
         GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
         emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
-        _totalNumberOfValidators = uint128(newTotalNumberOfValidators);
-        _epochNumber = uint128(epochNumber);
+        _totalNumberOfValidators = uint64(newTotalNumberOfValidators);
+        _epochNumber = uint64(epochNumber);
     }
 
     /**

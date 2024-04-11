@@ -146,15 +146,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // For an invalid signature, the permit will revert, but it is wrapped in try/catch, meaning the transaction execution
         // will continue. If the `msg.sender` did a `VALIDATOR_TICKET.approve(spender, amount)` before calling this
         // And the spender is `msg.sender` the Permit call will revert, but the overall transaction will succeed
-        try IERC20Permit(address(VALIDATOR_TICKET)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permit.amount,
-            deadline: permit.deadline,
-            v: permit.v,
-            s: permit.s,
-            r: permit.r
-        }) { } catch { }
+        _callPermit(address(VALIDATOR_TICKET), permit);
 
         // slither-disable-next-line unchecked-transfer
         VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
@@ -322,16 +314,18 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Save the Node address for the bond transfer
             bondWithdrawals[i].node = validator.node;
 
+            uint96 bondAmount = validator.bond;
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
-                _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: validator.bond });
+                _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
             uint256 vtBurnAmount = _getVTBurnAmount(validatorInfos[i]);
+
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
             burnAmounts.vt += vtBurnAmount;
 
             // Store the withdrawal amount for that node operator
-            bondWithdrawals[i].pufETHAmount = (validator.bond - burnAmount);
+            bondWithdrawals[i].pufETHAmount = (bondAmount - burnAmount);
 
             emit ValidatorExited({
                 pubKey: validator.pubKey,
@@ -399,9 +393,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             guardianEOASignatures: guardianEOASignatures
         });
 
+        uint256 vtPenalty = $.vtPenalty;
         // Burn VT penalty amount from the Node Operator
-        VALIDATOR_TICKET.burn($.vtPenalty);
-        $.nodeOperatorInfo[node].vtBalance -= SafeCast.toUint96($.vtPenalty);
+        VALIDATOR_TICKET.burn(vtPenalty);
+        $.nodeOperatorInfo[node].vtBalance -= SafeCast.toUint96(vtPenalty);
         --$.nodeOperatorInfo[node].pendingValidatorCount;
 
         // Change the status of that validator
@@ -656,7 +651,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             pubKey: data.blsPubKey,
             status: Status.PENDING,
             module: address($.modules[moduleName]),
-            bond: uint64(pufETHAmount),
+            bond: uint96(pufETHAmount),
             node: msg.sender
         });
 
