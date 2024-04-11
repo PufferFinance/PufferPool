@@ -6,7 +6,7 @@ import { AccessManagedUpgradeable } from "openzeppelin-upgradeable/access/manage
 import { UUPSUpgradeable } from "openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "puffer/PufferProtocolStorage.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "puffer/interface/IBeaconDepositContract.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";

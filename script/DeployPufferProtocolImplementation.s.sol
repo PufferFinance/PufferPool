@@ -11,7 +11,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 
 /**
