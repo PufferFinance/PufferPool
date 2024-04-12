@@ -41,7 +41,7 @@ contract SetupAccess is Script {
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
         bytes[] memory roleLabels = _labelRoles();
 
-        bytes[] memory calldatas = new bytes[](22);
+        bytes[] memory calldatas = new bytes[](21);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -56,21 +56,19 @@ contract SetupAccess is Script {
 
         calldatas[9] = vaultMainnetAccess[0];
         calldatas[10] = vaultMainnetAccess[1];
-        calldatas[11] = vaultMainnetAccess[2];
 
-        calldatas[12] = pufferOracleAccess[0];
-        calldatas[13] = pufferOracleAccess[1];
+        calldatas[11] = pufferOracleAccess[0];
+        calldatas[12] = pufferOracleAccess[1];
 
-        calldatas[14] = moduleManagerAccess[0];
-        calldatas[15] = moduleManagerAccess[1];
-        calldatas[16] = moduleManagerAccess[2];
+        calldatas[13] = moduleManagerAccess[0];
+        calldatas[14] = moduleManagerAccess[1];
+        calldatas[15] = moduleManagerAccess[2];
 
-        calldatas[17] = roleLabels[0];
-        calldatas[18] = roleLabels[1];
-        calldatas[19] = roleLabels[2];
-        calldatas[20] = roleLabels[3];
-        calldatas[21] = roleLabels[4];
-
+        calldatas[16] = roleLabels[0];
+        calldatas[17] = roleLabels[1];
+        calldatas[18] = roleLabels[2];
+        calldatas[19] = roleLabels[3];
+        calldatas[20] = roleLabels[4];
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
         console.logBytes(multicallData);
@@ -176,29 +174,19 @@ contract SetupAccess is Script {
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferOracle,
             paymasterSelectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            ROLE_ID_OPERATIONS_MULTISIG
         );
 
         return calldatas;
     }
 
     function _setupPufferVaultMainnetAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
-
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferVaultV2.burn.selector;
-
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.pufferVault,
-            publicSelectors,
-            accessManager.PUBLIC_ROLE()
-        );
+        bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory operationsSelectors = new bytes4[](1);
         operationsSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
-        calldatas[1] = abi.encodeWithSelector(
+        calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
             operationsSelectors,
@@ -208,7 +196,7 @@ contract SetupAccess is Script {
         bytes4[] memory protocolSelectors = new bytes4[](1);
         protocolSelectors[0] = PufferVaultV2.transferETH.selector;
 
-        calldatas[2] = abi.encodeWithSelector(
+        calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
             protocolSelectors,
