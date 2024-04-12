@@ -37,8 +37,9 @@ contract SetupAccess is BaseScript {
         bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
         bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
         bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
+        bytes[] memory roleLabels = _labelRoles();
 
-        bytes[] memory calldatas = new bytes[](18);
+        bytes[] memory calldatas = new bytes[](22);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -57,11 +58,16 @@ contract SetupAccess is BaseScript {
 
         calldatas[12] = pufferOracleAccess[0];
         calldatas[13] = pufferOracleAccess[1];
-        calldatas[14] = pufferOracleAccess[2];
 
-        calldatas[15] = moduleManagerAccess[0];
-        calldatas[16] = moduleManagerAccess[1];
-        calldatas[17] = moduleManagerAccess[2];
+        calldatas[14] = moduleManagerAccess[0];
+        calldatas[15] = moduleManagerAccess[1];
+        calldatas[16] = moduleManagerAccess[2];
+
+        calldatas[17] = roleLabels[0];
+        calldatas[18] = roleLabels[1];
+        calldatas[19] = roleLabels[2];
+        calldatas[20] = roleLabels[3];
+        calldatas[21] = roleLabels[4];
 
         // accessManager.multicall(calldatas);
 
@@ -73,6 +79,26 @@ contract SetupAccess is BaseScript {
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
+    }
+
+    function _labelRoles() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](5);
+
+        calldatas[0] = abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_DAO, "Puffer DAO");
+
+        calldatas[1] =
+            abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_PUFFER_PROTOCOL, "Puffer Protocol");
+
+        calldatas[2] = abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_GUARDIANS, "Guardians");
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.labelRole.selector, ROLE_ID_OPERATIONS_PAYMASTER, "Operations Paymaster"
+        );
+
+        calldatas[4] =
+            abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_OPERATIONS_MULTISIG, "Operations Multisig");
+
+        return calldatas;
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
@@ -125,7 +151,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferOracleAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](2);
 
         // Only for PufferProtocol
         bytes4[] memory protocolSelectors = new bytes4[](2);
@@ -139,18 +165,11 @@ contract SetupAccess is BaseScript {
             ROLE_ID_PUFFER_PROTOCOL
         );
 
-        // DAO selectors
-        bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferOracleV2.setMintPrice.selector;
+        bytes4[] memory paymasterSelectors = new bytes4[](2);
+        paymasterSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
+        paymasterSelectors[1] = PufferOracleV2.setMintPrice.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferDeployment.pufferOracle, daoSelectors, ROLE_ID_DAO
-        );
-
-        bytes4[] memory paymasterSelectors = new bytes4[](1);
-        paymasterSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
-
-        calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferOracle,
             paymasterSelectors,
