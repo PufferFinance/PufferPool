@@ -125,7 +125,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
-        _setValidatorLimitPerModule(_PUFFER_MODULE_0, type(uint128).max);
         bytes32[] memory weights = new bytes32[](1);
         weights[0] = _PUFFER_MODULE_0;
         _setModuleWeights(weights);
@@ -698,7 +697,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
         emit NewPufferModuleCreated(address(module), moduleName, withdrawalCredentials);
-        _setValidatorLimitPerModule(moduleName, 1000);
+        _setValidatorLimitPerModule(moduleName, 500);
         return address(module);
     }
 

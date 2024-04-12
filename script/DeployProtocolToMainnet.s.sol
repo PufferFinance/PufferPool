@@ -87,22 +87,14 @@ contract DeployProtocolToMainnet is Script {
     uint256 BPS_GUARDIANS_FEE_RATE = 50; // 0.5%
 
     uint256 THRESHOLD = 1;
-    address GUARDIAN_1 = address(10);
-    address GUARDIAN_2 = address(11);
-    address GUARDIAN_3 = address(12);
-    address GUARDIAN_4 = address(13);
-    address GUARDIAN_5 = address(14);
+    address GUARDIAN_1 = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
 
     function run() public {
         accessManager = AccessManager(ACCESS_MANAGER);
 
         // =================================== DOUBLE CHECK GUARDIANS ===================================
-        address[] memory guardians = new address[](5);
+        address[] memory guardians = new address[](1);
         guardians[0] = GUARDIAN_1;
-        guardians[1] = GUARDIAN_2;
-        guardians[2] = GUARDIAN_3;
-        guardians[3] = GUARDIAN_4;
-        guardians[4] = GUARDIAN_5;
 
         vm.startBroadcast();
 
