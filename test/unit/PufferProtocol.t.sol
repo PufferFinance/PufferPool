@@ -770,7 +770,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorLimitPerModuleChanged(type(uint128).max, 1);
+        emit IPufferProtocol.ValidatorLimitPerModuleChanged(500, 1);
         pufferProtocol.setValidatorLimitPerModule(PUFFER_MODULE_0, 1);
 
         // Revert if the registration will be over the limit

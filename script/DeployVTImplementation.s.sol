@@ -26,10 +26,9 @@ contract DeployVTImplementation is Script {
 
     address PUFFER_VAULT = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address TREASURY = 0x946Ae7b21de3B0793Bb469e263517481B74A6950;
-    
+
     address GUARDIAN_MODULE = 0xa95aa41bBa980Eb7a80e7bfF4F6218244C723f57;
     address ORACLE = 0x785a54316Af8Cb61b16a82a3f60c08A18425fA86;
-
 
     function run() public {
         vm.startBroadcast();
