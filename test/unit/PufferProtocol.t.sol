@@ -1046,6 +1046,18 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pufferProtocol.getVTPenalty(), 20 ether, "value after change");
     }
 
+    function test_setVTPenalty_bigger_than_minimum_VT_amount() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        pufferProtocol.setVTPenalty(50 ether);
+    }
+
+    function test_changeMinimumVTAmount_lower_than_penalty() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        pufferProtocol.changeMinimumVTAmount(9 ether);
+    }
+
     function test_new_vtPenalty_works() public {
         // sets VT penalty to 20
         test_setVTPenalty();
