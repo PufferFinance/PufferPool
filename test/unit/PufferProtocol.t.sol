@@ -10,6 +10,7 @@ import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
@@ -68,6 +69,7 @@ contract PufferProtocolTest is TestHelper {
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         vm.stopPrank();
 
         // Set daily withdrawals limit
