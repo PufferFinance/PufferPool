@@ -1,7 +1,7 @@
 # Puffer Protocol
 
 ## System Overview
-![System overview](image.png)
+<!-- ![System overview](image.png) -->
 
 
 ## User flows
@@ -14,7 +14,10 @@ Before registration, the Node operator needs to make a few desecions:
 3. The Validator setup. If the Node operatod decides to use SGX, the bond that he needs to deposit is 1 ETH, for NO-SGX it is 2 ETH.
 
 
-![Validator Registration](image-3.png)
+![Validator Pre-Registration](./images/node-operator-pre-register.png)
+
+
+![Restake Validator Flow](./images/docs/restaked-validator-flow.png)
 
 ### Consensus rewards claiming for the Node Operators
 

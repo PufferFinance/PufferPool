@@ -56,4 +56,8 @@ ValidatorTicket: 0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b
 PufferProtocol: 0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14
 ```
 
-## Visit [./docs/Readme](./docs/Readme.md) for more documentation
+
+# Audits
+- Nethermind: [Audit Report](./docs/audits/Nethermind_PufferProtocol_NM0202_April2024.pdf)
+
+# See [/docs/README.md](./docs/README.md) for more documentation
