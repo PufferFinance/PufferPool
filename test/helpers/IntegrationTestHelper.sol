@@ -38,7 +38,8 @@ contract IntegrationTestHelper is Test {
     // custom block number
     function deployContractsHolesky(uint256 blockNumber) public virtual {
         // see foundry.toml for the rpc urls
-        vm.createSelectFork(vm.rpcUrl("holesky"), blockNumber);
+        // vm.createSelectFork(vm.rpcUrl("holesky"), blockNumber);
+        vm.createSelectFork(vm.rpcUrl("holesky"));
 
         address[] memory guardians = new address[](1);
         guardians[0] = address(this);

@@ -78,11 +78,11 @@ contract DeployProtocolToMainnet is Script {
     address PUFFER_VAULT = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address PUFFER_DEPOSITOR = 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF;
     address TIMELOCK = 0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA;
-    address DAO_MULTISIG = address(10);
+    address DAO_MULTISIG = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d; // Operations Multisig until the DAO is deployed
 
     // deployment parameters
     uint256 FRESHNESS_BLOCKS = 100; // This translates to 20 minutes
-    address TREASURY = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+    address TREASURY = 0x946Ae7b21de3B0793Bb469e263517481B74A6950; // Safe multisig
     uint256 BPS_TREASURY_FEE_RATE = 200; // 2%
     uint256 BPS_GUARDIANS_FEE_RATE = 50; // 0.5%
 
