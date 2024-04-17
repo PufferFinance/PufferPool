@@ -5,7 +5,7 @@ import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
     function returnSomething() external pure returns (uint256) {

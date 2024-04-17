@@ -10,8 +10,9 @@ import { Status } from "puffer/struct/Status.sol";
 import { Validator } from "puffer/struct/Validator.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
+import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
-import { ROLE_ID_PUFFER_ORACLE, ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER } from "pufETHScript/Roles.sol";
+import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "pufETHScript/Roles.sol";
 import { Unauthorized } from "puffer/Errors.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
@@ -67,6 +68,7 @@ contract PufferProtocolTest is TestHelper {
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         vm.stopPrank();
 
         // Set daily withdrawals limit
@@ -769,7 +771,7 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorLimitPerModuleChanged(type(uint128).max, 1);
+        emit IPufferProtocol.ValidatorLimitPerModuleChanged(500, 1);
         pufferProtocol.setValidatorLimitPerModule(PUFFER_MODULE_0, 1);
 
         // Revert if the registration will be over the limit
@@ -1837,14 +1839,6 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.setModuleWeights(newWeights);
 
         eigenDaModule = pufferProtocol.getModuleAddress(EIGEN_DA);
-
-        // Enable PufferProtocol to call `call` function on module
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = IPufferModule.call.selector;
-        vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(NoRestakingModule, selectors, ROLE_ID_PUFFER_ORACLE);
-        accessManager.setTargetFunctionRole(eigenDaModule, selectors, ROLE_ID_PUFFER_ORACLE);
-        vm.stopPrank();
     }
 
     /**

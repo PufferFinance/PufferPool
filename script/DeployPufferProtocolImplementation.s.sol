@@ -11,7 +11,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 import { GuardianModule } from "puffer/GuardianModule.sol";
 
 /**
@@ -28,7 +28,7 @@ contract DeployPufferProtocolImplementation is Script {
             guardianModule: GuardianModule(payable(0xD349FdCD0e4451381bfE7cba3ac28773E176b326)),
             moduleManager: address(0xe4695ab93163F91665Ce5b96527408336f070a71),
             oracle: IPufferOracleV2(0xEf93AA29F627465A7f58A1F25980c90116f27b74),
-            beaconDepositContract: 0x00000000219ab540356cBB839Cbe05303d7705Fa
+            beaconDepositContract: 0x4242424242424242424242424242424242424242
         });
     }
 }

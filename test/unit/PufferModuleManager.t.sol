@@ -59,7 +59,7 @@ contract PufferModuleManagerTest is TestHelper {
 
         PufferModuleUpgrade upgrade = new PufferModuleUpgrade();
 
-        vm.startPrank(DAO);
+        vm.startPrank(timelock);
         accessManager.execute(moduleBeacon, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade)));
         vm.stopPrank();
 

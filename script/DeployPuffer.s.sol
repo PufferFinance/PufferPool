@@ -21,7 +21,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { IPufferOracleV2 } from "pufETH/interface/IPufferOracleV2.sol";
+import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 
 /**
  * @title DeployPuffer
