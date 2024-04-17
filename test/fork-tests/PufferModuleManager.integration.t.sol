@@ -167,7 +167,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
         console.log("Calldata to register operator to AVS, submit to PufferModuleManager:");
         console.logBytes(calldataToRegister);
-    
+
         // Finish the registration
         (bool success,) = address(pufferModuleManager).call(calldataToRegister);
         assertEq(success, true, "register operator to avs");
