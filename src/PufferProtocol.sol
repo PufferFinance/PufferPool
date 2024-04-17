@@ -317,7 +317,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
-            uint256 vtBurnAmount = _getVTBurnAmount(validatorInfos[i]);
+            uint256 vtBurnAmount = _getVTBurnAmount($, bondWithdrawals[i].node, validatorInfos[i]);
 
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
@@ -789,11 +789,32 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
-    function _getVTBurnAmount(StoppedValidatorInfo calldata validatorInfo) internal pure returns (uint256) {
+    function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 validatedEpochs = validatorInfo.endEpoch - validatorInfo.startEpoch;
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
-        return validatedEpochs * 4444444444444445;
+        uint256 vtBurnAmount = validatedEpochs * 4444444444444445;
+
+        uint256 minimumVTAmount = $.minimumVtAmount;
+        uint256 nodeVTBalance = $.nodeOperatorInfo[node].vtBalance;
+
+        // If the VT burn amount is less than the minimum VT amount that means that the node operator exited early
+        // If we don't penalize it, the node operator can exit early and re-register with the same VTs.
+        // By doing that, they can lower the APY for the pufETH holders
+        if (minimumVTAmount > vtBurnAmount) {
+            // Case when the node operator registered the validator but afterwards the DAO increases the minimum VT amount
+            if (nodeVTBalance < minimumVTAmount) {
+                return nodeVTBalance;
+            }
+
+            return minimumVTAmount;
+        }
+
+        return vtBurnAmount;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
