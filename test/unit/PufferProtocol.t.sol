@@ -1693,6 +1693,26 @@ contract PufferProtocolTest is TestHelper {
         assertGt(pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, ">1 ETH worth of pufETH alice");
     }
 
+    // Alice deposits VT to Bob and Bob has no validators in Puffer
+    function test_deposit_vt_to_bob() public {
+        vm.deal(alice, 10 ether);
+        vm.startPrank(alice);
+        validatorTicket.purchaseValidatorTicket{ value: 10 ether }(alice);
+
+        Permit memory vtPermit = _signPermit(
+            _testTemps("alice", address(pufferProtocol), 50 ether, block.timestamp), validatorTicket.DOMAIN_SEPARATOR()
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 50 ether);
+        pufferProtocol.depositValidatorTickets(vtPermit, bob);
+
+        vm.startPrank(bob);
+        pufferProtocol.withdrawValidatorTickets(50 ether, bob);
+
+        assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
+    }
+
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
