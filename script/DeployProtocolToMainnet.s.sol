@@ -27,6 +27,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
+import { VTPriceValidator } from "puffer/VTPriceValidator.sol";
 
 /**
  * // Check that the simulation
@@ -50,6 +51,7 @@ contract DeployProtocolToMainnet is Script {
     PufferModule moduleImplementation;
     RestakingOperator restakingOperatorImplementation;
     PufferOracleV2 oracle;
+    VTPriceValidator VTpriceValidator;
     PufferProtocol pufferProtocol;
 
     PufferVaultV2 pufferVaultV2Implementation;
@@ -106,6 +108,8 @@ contract DeployProtocolToMainnet is Script {
 
         // PufferOracle
         oracle = new PufferOracleV2(module, payable(PUFFER_VAULT), address(accessManager));
+
+        VTpriceValidator = new VTPriceValidator(PufferOracleV2(oracle), address(accessManager));
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -187,6 +191,7 @@ contract DeployProtocolToMainnet is Script {
             enclaveVerifier: address(verifier),
             validatorTicket: address(validatorTicketProxy),
             pufferOracle: address(oracle),
+            VTpriceValidator: address(VTpriceValidator),
             pufferDepositor: PUFFER_DEPOSITOR,
             pufferVault: PUFFER_VAULT,
             stETH: ST_ETH,
