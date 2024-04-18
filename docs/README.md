@@ -1,7 +1,7 @@
 # Puffer Protocol
 
 ## System Overview
-![System overview](image.png)
+![System overview](images/overview.png)
 
 
 ## User flows
@@ -13,14 +13,9 @@ Before registration, the Node operator needs to make a few desecions:
 2. The PufferModule in which he will participate. PufferModules will participate in various Restaking services and may earn different rewards. The user can't change PufferModule at a later point in time. In order to do that, he would need to exit the Validator completely and then go through the registration flow to another PufferModule.
 3. The Validator setup. If the Node operatod decides to use SGX, the bond that he needs to deposit is 1 ETH, for NO-SGX it is 2 ETH.
 
-
-![Validator Registration](image-3.png)
-
 ### Consensus rewards claiming for the Node Operators
 
 All Validators registered to a PufferModule will have their rewards sent to PufferModule's EigenPod. The Guardians will transfer ETH from the EigenPod to the PufferModule and publish the rewards Merkle roots. In order to claim the rewards, the Node Operators need to submit a valid merkle proof to the PufferModule contract.
-
-![Rewards Claiming](image-2.png)
 
 ### Exiting the validator
 
