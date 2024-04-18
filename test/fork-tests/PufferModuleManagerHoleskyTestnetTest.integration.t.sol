@@ -119,7 +119,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
         bool[] memory receiveAsTokens = new bool[](1); // false
 
-        // At the moment the caller is the admin role, but this wil be restricted to the PufferPaymaster
+        // At the moment the caller is the admin role, but this will be restricted to the PufferPaymaster
         pufferModuleManager.callCompleteQueuedWithdrawals({
             moduleName: bytes32("PUFFER_MODULE_0"),
             withdrawals: withdrawals,
