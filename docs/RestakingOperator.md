@@ -20,3 +20,6 @@ Sets a digest for EIP-1271 signature
 
 ### `isValidSignature`
 Called by the `AVSDirectory` to verify an EIP-1271 signature
+
+## AVS Registrations
+![ReOp Registration Flow](./images/ReOp-Registrations.png)
