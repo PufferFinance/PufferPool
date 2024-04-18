@@ -1054,6 +1054,18 @@ contract PufferProtocolTest is TestHelper {
         assertEq(pufferProtocol.getVTPenalty(), 20 ether, "value after change");
     }
 
+    function test_setVTPenalty_bigger_than_minimum_VT_amount() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        pufferProtocol.setVTPenalty(50 ether);
+    }
+
+    function test_changeMinimumVTAmount_lower_than_penalty() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        pufferProtocol.changeMinimumVTAmount(9 ether);
+    }
+
     function test_new_vtPenalty_works() public {
         // sets VT penalty to 20
         test_setVTPenalty();
@@ -1752,6 +1764,26 @@ contract PufferProtocolTest is TestHelper {
         // User pays for the bond in pufETH, but decides to send more than the bond 1.1 eth
         vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
         pufferProtocol.registerValidatorKey{ value: 1.1 ether }(data, PUFFER_MODULE_0, emptyPermit, vtPermit);
+    }
+
+    // Alice deposits VT to Bob and Bob has no validators in Puffer
+    function test_deposit_vt_to_bob() public {
+        vm.deal(alice, 10 ether);
+        vm.startPrank(alice);
+        validatorTicket.purchaseValidatorTicket{ value: 10 ether }(alice);
+
+        Permit memory vtPermit = _signPermit(
+            _testTemps("alice", address(pufferProtocol), 50 ether, block.timestamp), validatorTicket.DOMAIN_SEPARATOR()
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 50 ether);
+        pufferProtocol.depositValidatorTickets(vtPermit, bob);
+
+        vm.startPrank(bob);
+        pufferProtocol.withdrawValidatorTickets(50 ether, bob);
+
+        assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {

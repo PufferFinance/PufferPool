@@ -686,6 +686,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _setVTPenalty(uint256 newPenaltyAmount) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        if (newPenaltyAmount > $.minimumVtAmount) {
+            revert InvalidVTAmount();
+        }
         emit VTPenaltyChanged($.vtPenalty, newPenaltyAmount);
         $.vtPenalty = newPenaltyAmount;
     }
@@ -736,6 +739,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        if (newMinimumVtAmount < $.vtPenalty) {
+            revert InvalidVTAmount();
+        }
         emit MinimumVTAmountChanged($.minimumVtAmount, newMinimumVtAmount);
         $.minimumVtAmount = newMinimumVtAmount;
     }
