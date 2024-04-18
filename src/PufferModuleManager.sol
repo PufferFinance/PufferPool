@@ -88,17 +88,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @notice Completes queued withdrawals
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function callCompleteQueuedWithdrawals(
         bytes32 moduleName,
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        IPufferModule(moduleAddress).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
+        IPufferModule(moduleAddress).completeQueuedWithdrawals({
+            withdrawals: withdrawals,
+            tokens: tokens,
+            middlewareTimesIndexes: middlewareTimesIndexes,
+            receiveAsTokens: receiveAsTokens
+        });
 
         uint256 sharesWithdrawn;
 
