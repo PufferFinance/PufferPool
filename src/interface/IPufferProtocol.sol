@@ -27,7 +27,7 @@ interface IPufferProtocol {
     error InvalidDepositRootHash();
 
     /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians number
+     * @notice Thrown when the number of BLS public key shares doesn't match guardians threshold number
      * @dev Signature "0x8cdea6a6"
      */
     error InvalidBLSPublicKeySet();
