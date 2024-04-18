@@ -71,7 +71,7 @@ contract SetupAccess is BaseScript {
         calldatas[20] = roleLabels[4];
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-        console.logBytes(multicallData);
+        // console.logBytes(multicallData);
         (bool s,) = address(accessManager).call(multicallData);
         require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
