@@ -67,6 +67,7 @@ contract PufferProtocolTest is TestHelper {
         vm.startPrank(_broadcaster);
         accessManager.setTargetFunctionRole(address(pufferProtocol), selectors, ROLE_ID_DAO);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         vm.stopPrank();
