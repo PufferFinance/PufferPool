@@ -199,9 +199,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        uint256 validatorBond = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 bondAmount = PUFFER_VAULT.convertToShares(validatorBond);
-        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBond : msg.value;
+        uint256 validatorBondInETH = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+
+        // If the node operator is paying for the bond in ETH and wants to transfer VT from their wallet, the ETH amount they send must be equal the bond amount
+        if (vtPermit.amount != 0 && pufETHPermit.amount == 0 && msg.value != validatorBondInETH) {
+            revert InvalidETHAmount();
+        }
+
+        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBondInETH : msg.value;
 
         uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
@@ -219,11 +224,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidVTAmount();
         }
 
+        uint256 bondAmount;
+
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
-            // Mint pufETH and store the bond amount
-            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBond }(address(this));
+            // Mint pufETH by depositing ETH and store the bond amount
+            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBondInETH }(address(this));
         } else {
+            // Calculate the pufETH amount that we need to transfer from the user
+            bondAmount = PUFFER_VAULT.convertToShares(validatorBondInETH);
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
 
             // slither-disable-next-line unchecked-transfer
