@@ -68,7 +68,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory roleLabels,
         bytes[] memory coordinatorAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](21);
+        calldatas = new bytes[](23);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];

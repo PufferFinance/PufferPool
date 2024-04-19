@@ -20,6 +20,13 @@ contract ExecutionCoordinator is AccessManaged {
      */
     error InvalidPriceChangeToleranceBPS();
 
+    /**
+     * @dev Emitted when the price change tolerance is updated
+     * @param oldValue the old tolerance value
+     * @param newValue the new tolerance value
+     */
+    event PriceChangeToleranceBPSUpdated(uint256 oldValue, uint256 newValue);
+
     uint256 internal constant _BPS_DECIMALS = 1e4; // 100%
 
     PufferOracleV2 internal immutable _ORACLE;
@@ -41,6 +48,8 @@ contract ExecutionCoordinator is AccessManaged {
         if (newValue > _BPS_DECIMALS) {
             revert InvalidPriceChangeToleranceBPS();
         }
+
+        emit PriceChangeToleranceBPSUpdated(priceChangeToleranceBps, newValue);
 
         priceChangeToleranceBps = newValue;
     }
