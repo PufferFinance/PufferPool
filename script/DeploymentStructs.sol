@@ -24,7 +24,7 @@ struct PufferProtocolDeployment {
     address moduleManager;
     address validatorTicket;
     address pufferOracle;
-    address VTpriceValidator;
+    address vtPriceValidator;
     address pufferDepositor; // from pufETH repository (dependency)
     address pufferVault; // from pufETH repository (dependency)
     address stETH; // from pufETH repository (dependency)

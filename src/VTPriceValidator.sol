@@ -12,14 +12,37 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 contract VTPriceValidator is AccessManaged {
     /**
      * @notice Thrown if the new price is out of range
-     * @dev Signature "0x00bfc921"
      */
     error InvalidPrice();
 
+    /**
+     * @notice Thrown if the new price cahnge tolerance is out of range
+     */
+    error InvalidPriceChangeToleranceBPS();
+
+    uint256 constant _BPS_DECIMALS = 1e4; // 100%
+
     PufferOracleV2 internal immutable _ORACLE;
 
-    constructor(PufferOracleV2 oracle, address accessManager) AccessManaged(accessManager) {
+    uint256 public priceChangeToleranceBps; // 1% = 100
+
+    constructor(PufferOracleV2 oracle, address accessManager, uint256 _priceChangeToleranceBps)
+        AccessManaged(accessManager)
+    {
         _ORACLE = oracle;
+        priceChangeToleranceBps = _priceChangeToleranceBps;
+    }
+
+    /**
+     * @notice Updates the allowed price change tolerance percentage
+     * @dev Restricted to the Puffer DAO
+     */
+    function setPriceChangeToleranceBps(uint256 newValue) external restricted {
+        if (newValue > _BPS_DECIMALS) {
+            revert InvalidPriceChangeToleranceBPS();
+        }
+
+        priceChangeToleranceBps = newValue;
     }
 
     /**
@@ -31,7 +54,7 @@ contract VTPriceValidator is AccessManaged {
             revert InvalidPrice();
         }
 
-        if (!_isWithinOnePercent(newPrice)) {
+        if (!_isWithinRange(newPrice)) {
             revert InvalidPrice();
         }
 
@@ -39,16 +62,16 @@ contract VTPriceValidator is AccessManaged {
     }
 
     // Helper function to determine if the new price is within 1% of the current price
-    function _isWithinOnePercent(uint256 newPrice) private view returns (bool) {
+    function _isWithinRange(uint256 newPrice) private view returns (bool) {
         uint256 oldPrice = _ORACLE.getValidatorTicketPrice();
-        uint256 onePercent = oldPrice / 100;
+        uint256 allowedDifference = (oldPrice * priceChangeToleranceBps) / _BPS_DECIMALS;
 
         // Addition and subtraction have bigger precedence than comparison
         // https://docs.soliditylang.org/en/latest/cheatsheet.html
         if (newPrice > oldPrice) {
-            return newPrice <= oldPrice + onePercent;
+            return newPrice <= oldPrice + allowedDifference;
         }
 
-        return newPrice >= oldPrice - onePercent;
+        return newPrice >= oldPrice - allowedDifference;
     }
 }

@@ -51,7 +51,7 @@ contract DeployProtocolToMainnet is Script {
     PufferModule moduleImplementation;
     RestakingOperator restakingOperatorImplementation;
     PufferOracleV2 oracle;
-    VTPriceValidator VTpriceValidator;
+    VTPriceValidator vtPriceValidator;
     PufferProtocol pufferProtocol;
 
     PufferVaultV2 pufferVaultV2Implementation;
@@ -109,7 +109,7 @@ contract DeployProtocolToMainnet is Script {
         // PufferOracle
         oracle = new PufferOracleV2(module, payable(PUFFER_VAULT), address(accessManager));
 
-        VTpriceValidator = new VTPriceValidator(PufferOracleV2(oracle), address(accessManager));
+        vtPriceValidator = new VTPriceValidator(PufferOracleV2(oracle), address(accessManager), 100); // 100 BPS = 1%
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -191,7 +191,7 @@ contract DeployProtocolToMainnet is Script {
             enclaveVerifier: address(verifier),
             validatorTicket: address(validatorTicketProxy),
             pufferOracle: address(oracle),
-            VTpriceValidator: address(VTpriceValidator),
+            vtPriceValidator: address(vtPriceValidator),
             pufferDepositor: PUFFER_DEPOSITOR,
             pufferVault: PUFFER_VAULT,
             stETH: ST_ETH,

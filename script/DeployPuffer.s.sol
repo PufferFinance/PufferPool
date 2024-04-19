@@ -88,7 +88,7 @@ contract DeployPuffer is BaseScript {
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
         }
 
-        priceValidator = new VTPriceValidator(PufferOracleV2(oracle), address(accessManager));
+        priceValidator = new VTPriceValidator(PufferOracleV2(oracle), address(accessManager), 100); // 100 BPS = 1%
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
@@ -160,7 +160,7 @@ contract DeployPuffer is BaseScript {
         pufferProtocol.initialize({ accessManager: address(accessManager) });
 
         vm.label(address(accessManager), "AccessManager");
-        vm.label(address(priceValidator), "VTpriceValidator");
+        vm.label(address(priceValidator), "vtPriceValidator");
         vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");
         vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
@@ -182,7 +182,7 @@ contract DeployPuffer is BaseScript {
             restakingOperatorBeacon: address(restakingOperatorBeacon),
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
-            VTpriceValidator: address(priceValidator),
+            vtPriceValidator: address(priceValidator),
             timelock: address(0), // overwritten in DeployEverything
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
