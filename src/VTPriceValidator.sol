@@ -16,7 +16,7 @@ contract VTPriceValidator is AccessManaged {
     error InvalidPrice();
 
     /**
-     * @notice Thrown if the new price cahnge tolerance is out of range
+     * @notice Thrown if the new price change tolerance is out of range
      */
     error InvalidPriceChangeToleranceBPS();
 
