@@ -73,7 +73,7 @@ contract SetupAccess is BaseScript {
         calldatas[20] = roleLabels[4];
 
         calldatas[21] = coordinatorAccess[0];
-        calldatas[22] = coordinatorAccess[0];
+        calldatas[22] = coordinatorAccess[1];
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
         // console.logBytes(multicallData);

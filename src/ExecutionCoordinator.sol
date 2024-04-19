@@ -20,7 +20,7 @@ contract ExecutionCoordinator is AccessManaged {
      */
     error InvalidPriceChangeToleranceBPS();
 
-    uint256 constant _BPS_DECIMALS = 1e4; // 100%
+    uint256 internal constant _BPS_DECIMALS = 1e4; // 100%
 
     PufferOracleV2 internal immutable _ORACLE;
 
