@@ -14,6 +14,7 @@ import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
+import { ExecutionCoordinator } from "puffer/ExecutionCoordinator.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -34,16 +35,40 @@ contract SetupAccess is BaseScript {
         accessManager = AccessManager(payable(deployment.accessManager));
 
         // We do one multicall to setup everything
-        bytes[] memory rolesCalldatas = _grantRoles(DAO);
-        bytes[] memory pufferProtocolRoles = _setupPufferProtocolRoles();
-        bytes[] memory validatorTicketRoles = _setupValidatorTicketsAccess();
-        bytes[] memory vaultMainnetAccess = _setupPufferVaultMainnetAccess();
-        bytes[] memory pufferOracleAccess = _setupPufferOracleAccess();
-        bytes[] memory moduleManagerAccess = _setupPufferModuleManagerAccess();
-        bytes[] memory roleLabels = _labelRoles();
-        bytes[] memory coordinatorAccess = _setupCoordinatorAccess();
+        bytes[] memory calldatas = _generateAccessCalldata(
+            _grantRoles(DAO),
+            _setupPufferProtocolRoles(),
+            _setupValidatorTicketsAccess(),
+            _setupPufferVaultMainnetAccess(),
+            _setupPufferOracleAccess(),
+            _setupPufferModuleManagerAccess(),
+            _labelRoles(),
+            _setupCoordinatorAccess()
+        );
 
-        bytes[] memory calldatas = new bytes[](21);
+        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+        // console.logBytes(multicallData);
+        (bool s,) = address(accessManager).call(multicallData);
+        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
+
+        // This will be executed by the operations multisig on mainnet
+        bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
+        // console.logBytes(cd);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCallData");
+    }
+
+    function _generateAccessCalldata(
+        bytes[] memory rolesCalldatas,
+        bytes[] memory pufferProtocolRoles,
+        bytes[] memory validatorTicketRoles,
+        bytes[] memory vaultMainnetAccess,
+        bytes[] memory pufferOracleAccess,
+        bytes[] memory moduleManagerAccess,
+        bytes[] memory roleLabels,
+        bytes[] memory coordinatorAccess
+    ) internal view returns (bytes[] memory calldatas) {
+        calldatas = new bytes[](21);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -74,17 +99,6 @@ contract SetupAccess is BaseScript {
 
         calldatas[21] = coordinatorAccess[0];
         calldatas[22] = coordinatorAccess[1];
-
-        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-        // console.logBytes(multicallData);
-        (bool s,) = address(accessManager).call(multicallData);
-        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
-
-        // This will be executed by the operations multisig on mainnet
-        bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
-        // console.logBytes(cd);
-        (s,) = address(accessManager).call(cd);
-        require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
     function _labelRoles() internal view returns (bytes[] memory) {
