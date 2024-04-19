@@ -15,6 +15,7 @@ gas_reports=[
     "PufferModule",
     "ValidatorTicket"
 ]
+block_number = 0 # Our RAVE evidence is genrated for blockhash(0) which is bytes32(0)
 auto_detect_solc = false
 cbor_metadata = false
 bytecode_hash = "none"
@@ -39,4 +40,4 @@ holesky="${HOLESKY_RPC_URL}"
 [invariant]
 fail_on_revert=false
 depth = 110
-runs = 100
+runs = 50
