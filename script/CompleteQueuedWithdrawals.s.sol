@@ -30,7 +30,7 @@ contract CompleteQueuedWithdrawals is Script {
         IDelegationManager.Withdrawal[] memory withdrawals = new IDelegationManager.Withdrawal[](nonces.length);
 
         // Withdrawal data can be fetched from the transaction logs, for example:
-        // cast run 0x9ccbefc8d5606d8d74c4cde3503416107bcf36c4194fef5d2321ce48f316be1f --rpc-url=$HOLESKY_RPC_URL --verbose
+        // cast run 0x3fecf92f659089b796922a11271e713bc97040f1a21b2671274577d4b294c5b9 --rpc-url=$HOLESKY_RPC_URL --verbose
 
         // Get validator fields and proofs
         for (uint256 i = 0; i < nonces.length; ++i) {
