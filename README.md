@@ -19,8 +19,6 @@
 
 # Tests
 
-Please use `foundryup -v nightly-de33b6af53005037b463318d2628b5cfcaf39916` in the more recent versions the tests are broken because blockhash(0) changed.
-
 Installing dependencies and running tests can be executed running:
 
 `forge test`
