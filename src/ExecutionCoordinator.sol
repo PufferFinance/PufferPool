@@ -5,11 +5,11 @@ import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
 
 /**
- * @title VTPriceValidator
+ * @title ExecutionCoordinator
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract VTPriceValidator is AccessManaged {
+contract ExecutionCoordinator is AccessManaged {
     /**
      * @notice Thrown if the new price is out of range
      */
