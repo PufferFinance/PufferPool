@@ -134,4 +134,121 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
             bytes32("PUFFER_MODULE_0"), RESTAKING_OPERATOR_CONTRACT, signatureWithExpiry, bytes32(0)
         );
     }
+
+    // This test is for the Existing Holesky Testnet deployment
+    // In order for this test to work, it is necessary to have the following environment variables set: OPERATOR_BLS_SK, OPERATOR_ECDSA_SK
+    function test_register_operator_eigen_da_holesky() public {
+        vm.createSelectFork(vm.rpcUrl("holesky"), 1381847); // (Apr-20-2024 04:50:24 AM +UTC)
+
+        IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(vm.envUint("OPERATOR_BLS_SK"));
+
+        // He signs with his BLS private key his pubkey to prove the BLS key ownership
+        BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
+            .pubkeyRegistrationMessageHash(RESTAKING_OPERATOR_CONTRACT);
+
+        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, vm.envUint("OPERATOR_BLS_SK"));
+
+        // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
+        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        _getOperatorSignature(
+            vm.envUint("OPERATOR_ECDSA_SK"),
+            RESTAKING_OPERATOR_CONTRACT,
+            EIGEN_DA_SERVICE_MANAGER,
+            bytes32(hex"aaaabbcc"), // This random salt needs to be different for every new registration
+            type(uint256).max
+        );
+
+        address operatorAddress = vm.addr(vm.envUint("OPERATOR_ECDSA_SK"));
+
+        IPufferModuleManager pufferModuleManager = IPufferModuleManager(PUFFER_MODULE_MANAGER);
+
+        bytes memory hashCall = abi.encodeCall(
+            IPufferModuleManager.updateAVSRegistrationSignatureProof,
+            (IRestakingOperator(RESTAKING_OPERATOR_CONTRACT), digestHash, operatorAddress)
+        );
+
+        vm.startPrank(PUFFER_SHARED_DEV_WALLET); // 'DAO' role on the Holesky testnet
+        (bool success,) = address(pufferModuleManager).call(hashCall);
+        assertEq(success, true, "updateAVSRegistrationSignatureProof failed");
+
+        console.log("updateAVSRegistrationSignatureProof calldata:");
+        console.logBytes(hashCall);
+        // We first need to register that hash on our staking operator contract
+        // This can be done on chain by doing:
+        // cast send $PUFFER_MODULE_MANAGER hashCall --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
+
+        bytes memory calldataToRegister = abi.encodeCall(
+            IPufferModuleManager.callRegisterOperatorToAVS,
+            (
+                IRestakingOperator(RESTAKING_OPERATOR_CONTRACT),
+                EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
+                bytes(hex"01"),
+                "20.64.16.29:32005;32004", // Update to the correct value
+                params,
+                operatorSignature
+            )
+        );
+
+        console.log("callRegisterOperatorToAVS calldata:");
+        console.logBytes(calldataToRegister);
+        // // cast send $PUFFER_MODULE_MANAGER calldataToRegister --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
+
+        // Finish the registration
+        (success,) = address(pufferModuleManager).call(calldataToRegister);
+        assertEq(success, true, "register operator to avs");
+    }
+
+    // Generates bls pubkey params from a private key
+    function _generateBlsPubkeyParams(uint256 privKey)
+        internal
+        returns (IBLSApkRegistry.PubkeyRegistrationParams memory)
+    {
+        IBLSApkRegistry.PubkeyRegistrationParams memory pubkey;
+        pubkey.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
+        pubkey.pubkeyG2 = _mulGo(privKey);
+        return pubkey;
+    }
+
+    function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {
+        string[] memory inputs = new string[](3);
+        inputs[0] = "./test/helpers/go2mul"; // lib/eigenlayer-middleware/test/ffi/go/g2mul.go binary
+        inputs[1] = x.toString();
+
+        inputs[2] = "1";
+        bytes memory res = vm.ffi(inputs);
+        g2Point.X[1] = abi.decode(res, (uint256));
+
+        inputs[2] = "2";
+        res = vm.ffi(inputs);
+        g2Point.X[0] = abi.decode(res, (uint256));
+
+        inputs[2] = "3";
+        res = vm.ffi(inputs);
+        g2Point.Y[1] = abi.decode(res, (uint256));
+
+        inputs[2] = "4";
+        res = vm.ffi(inputs);
+        g2Point.Y[0] = abi.decode(res, (uint256));
+    }
+
+    /**
+     * @notice internal function for calculating a signature from the operator corresponding to `_operatorPrivateKey`, delegating them to
+     * the `operator`, and expiring at `expiry`.
+     */
+    function _getOperatorSignature(
+        uint256 _operatorPrivateKey,
+        address operator,
+        address avs,
+        bytes32 salt,
+        uint256 expiry
+    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
+        operatorSignature.expiry = expiry;
+        operatorSignature.salt = salt;
+        {
+            digestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(operator, avs, salt, expiry);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_operatorPrivateKey, digestHash);
+            operatorSignature.signature = abi.encodePacked(r, s, v);
+        }
+        return (digestHash, operatorSignature);
+    }
 }
