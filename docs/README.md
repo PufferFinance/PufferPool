@@ -1,7 +1,7 @@
 # Puffer Protocol
 
 ## System Overview
-<!-- ![System overview](image.png) -->
+![System overview](images/overview.png)
 
 
 ## User flows
@@ -22,8 +22,6 @@ Before registration, the Node operator needs to make a few decisions:
 ### Consensus rewards claiming for the Node Operators
 
 All Validators registered to a PufferModule will have their rewards sent to PufferModule's EigenPod. The Guardians will transfer ETH from the EigenPod to the PufferModule and publish the rewards Merkle roots. In order to claim the rewards, the Node Operators need to submit a valid Merkle proof to the PufferModule contract.
-
-<!-- ![Rewards Claiming](image-2.png) -->
 
 ### Exiting the validator
 
