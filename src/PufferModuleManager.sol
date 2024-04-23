@@ -299,9 +299,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual restricted {
-        restakingOperator.registerOperatorToAVS(
-            avsRegistryCoordinator, quorumNumbers, socket, params, operatorSignature
-        );
+        restakingOperator.registerOperatorToAVS({
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorSignature: operatorSignature
+        });
 
         emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers, socket);
     }
@@ -320,19 +324,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual restricted {
-        restakingOperator.registerOperatorToAVSWithChurn(
-            avsRegistryCoordinator,
-            quorumNumbers,
-            socket,
-            params,
-            operatorKickParams,
-            churnApproverSignature,
-            operatorSignature
-        );
+        restakingOperator.registerOperatorToAVSWithChurn({
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorKickParams: operatorKickParams,
+            churnApproverSignature: churnApproverSignature,
+            operatorSignature: operatorSignature
+        });
 
-        emit RestakingOperatorRegisteredToAVSWithChurn(
-            restakingOperator, avsRegistryCoordinator, quorumNumbers, socket, operatorKickParams
-        );
+        emit RestakingOperatorRegisteredToAVSWithChurn({
+            restakingOperator: restakingOperator,
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            operatorKickParams: operatorKickParams
+        });
     }
 
     /**
