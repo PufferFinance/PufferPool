@@ -107,7 +107,7 @@ Note: In all scenarios the `_numberOfActivePufferValidators` will be decremented
 
 32 ETH is transferred to the PufferVault and `withdrawalAmount - 32 ETH` remains in the `PufferModule` to be collected as rewards by the Node Operator. The Node Operator receives their full bond amount back.
 
-2. <span style="color:orange">32 ETH < withdrawalAmount</span>
+2. <span style="color:orange">withdrawalAmount < 32 ETH</span>
 
 `withdrawalAmount` ETH is transferred to the PufferVault and `32 ETH - withdrawalAmount` is burned from the Node Operator's bond. It is assumed that the Guardians will eject the validator far before inactivity penalties lead to `32 ETH - withdrawalAmount > bond`. The Node Operator receives part of their bond back.
 
