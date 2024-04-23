@@ -121,7 +121,7 @@ contract GuardianModuleTest is TestHelper {
         });
 
         vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
-        guardianModule.rotateGuardianKey(1, guardian3EnclavePubKey, rave);
+        guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, rave);
     }
 
     // Invalid signature reverts with unauthorized
