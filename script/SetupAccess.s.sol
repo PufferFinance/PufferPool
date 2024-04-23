@@ -185,9 +185,8 @@ contract SetupAccess is BaseScript {
             ROLE_ID_PUFFER_PROTOCOL
         );
 
-        bytes4[] memory operationsSelectors = new bytes4[](2);
+        bytes4[] memory operationsSelectors = new bytes4[](1);
         operationsSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
-        operationsSelectors[1] = PufferOracleV2.setMintPrice.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
