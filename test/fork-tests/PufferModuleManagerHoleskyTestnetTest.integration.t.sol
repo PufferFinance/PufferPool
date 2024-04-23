@@ -138,7 +138,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     // This test is for the Existing Holesky Testnet deployment
     // In order for this test to work, it is necessary to have the following environment variables set: OPERATOR_BLS_SK, OPERATOR_ECDSA_SK
     function test_register_operator_eigen_da_holesky() public {
-        vm.createSelectFork(vm.rpcUrl("holesky"), 1381847); // (Apr-20-2024 04:50:24 AM +UTC)
+        vm.createSelectFork(vm.rpcUrl("holesky"), 1401731); // (Apr-20-2024 04:50:24 AM +UTC)
 
         IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(vm.envUint("OPERATOR_BLS_SK"));
 
@@ -154,7 +154,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
             vm.envUint("OPERATOR_ECDSA_SK"),
             RESTAKING_OPERATOR_CONTRACT,
             EIGEN_DA_SERVICE_MANAGER,
-            bytes32(hex"aaaabbcc"), // This random salt needs to be different for every new registration
+            bytes32(hex"aaaabbccbbaa"), // This random salt needs to be different for every new registration
             type(uint256).max
         );
 
