@@ -124,10 +124,11 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](3);
+        bytes4[] memory botSelectors = new bytes4[](4);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
         botSelectors[1] = PufferModuleManager.callVerifyAndProcessWithdrawals.selector;
         botSelectors[2] = PufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei.selector;
+        botSelectors[3] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -137,9 +138,8 @@ contract SetupAccess is BaseScript {
         );
 
         // Public selectors
-        bytes4[] memory publicSelectors = new bytes4[](2);
+        bytes4[] memory publicSelectors = new bytes4[](1);
         publicSelectors[0] = PufferModuleManager.callVerifyWithdrawalCredentials.selector;
-        publicSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

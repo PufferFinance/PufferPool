@@ -88,17 +88,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @notice Completes queued withdrawals
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Puffer Paymaster
      */
     function callCompleteQueuedWithdrawals(
         bytes32 moduleName,
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        IPufferModule(moduleAddress).completeQueuedWithdrawals(withdrawals, tokens, middlewareTimesIndexes);
+        IPufferModule(moduleAddress).completeQueuedWithdrawals({
+            withdrawals: withdrawals,
+            tokens: tokens,
+            middlewareTimesIndexes: middlewareTimesIndexes,
+            receiveAsTokens: receiveAsTokens
+        });
 
         uint256 sharesWithdrawn;
 
@@ -293,9 +299,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual restricted {
-        restakingOperator.registerOperatorToAVS(
-            avsRegistryCoordinator, quorumNumbers, socket, params, operatorSignature
-        );
+        restakingOperator.registerOperatorToAVS({
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorSignature: operatorSignature
+        });
 
         emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers, socket);
     }
@@ -314,19 +324,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual restricted {
-        restakingOperator.registerOperatorToAVSWithChurn(
-            avsRegistryCoordinator,
-            quorumNumbers,
-            socket,
-            params,
-            operatorKickParams,
-            churnApproverSignature,
-            operatorSignature
-        );
+        restakingOperator.registerOperatorToAVSWithChurn({
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorKickParams: operatorKickParams,
+            churnApproverSignature: churnApproverSignature,
+            operatorSignature: operatorSignature
+        });
 
-        emit RestakingOperatorRegisteredToAVSWithChurn(
-            restakingOperator, avsRegistryCoordinator, quorumNumbers, socket, operatorKickParams
-        );
+        emit RestakingOperatorRegisteredToAVSWithChurn({
+            restakingOperator: restakingOperator,
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            operatorKickParams: operatorKickParams
+        });
     }
 
     /**

@@ -25,7 +25,8 @@ contract CompleteQueuedWithdrawals is Script {
         address[] calldata delegatedTo,
         uint256[] calldata nonces,
         uint32[] calldata startBlocks,
-        uint256[] calldata sharesToWithdraw
+        uint256[] calldata sharesToWithdraw,
+        bool[] calldata receiveAsTokens
     ) external {
         IDelegationManager.Withdrawal[] memory withdrawals = new IDelegationManager.Withdrawal[](nonces.length);
 
@@ -63,7 +64,8 @@ contract CompleteQueuedWithdrawals is Script {
             moduleName: moduleName,
             withdrawals: withdrawals,
             tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes
+            middlewareTimesIndexes: middlewareTimesIndexes,
+            receiveAsTokens: receiveAsTokens
         });
     }
 }

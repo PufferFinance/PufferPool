@@ -140,9 +140,12 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
     ) external virtual onlyPufferModuleManager {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator(
-            quorumNumbers, socket, params, operatorSignature
-        );
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator({
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorSignature: operatorSignature
+        });
     }
 
     /**
@@ -158,9 +161,14 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         ISignatureUtils.SignatureWithSaltAndExpiry memory churnApproverSignature,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
     ) external virtual onlyPufferModuleManager {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn(
-            quorumNumbers, socket, params, operatorKickParams, churnApproverSignature, operatorSignature
-        );
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn({
+            quorumNumbers: quorumNumbers,
+            socket: socket,
+            params: params,
+            operatorKickParams: operatorKickParams,
+            churnApproverSignature: churnApproverSignature,
+            operatorSignature: operatorSignature
+        });
     }
 
     /**

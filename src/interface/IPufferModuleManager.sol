@@ -257,7 +257,8 @@ interface IPufferModuleManager {
         bytes32 moduleName,
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
     ) external;
 
     /**
