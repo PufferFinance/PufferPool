@@ -68,4 +68,8 @@ forge test --no-match-path './test/unit/*'
 | PufferProtocol                | [0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14](https://holesky.etherscan.io/address/0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14) | [0xEFd2C463CD787e1e9119873dc0cbFd0AE28D8642](https://holesky.etherscan.io/address/0xEFd2C463CD787e1e9119873dc0cbFd0AE28D8642) |
 
 
-## Visit [./docs/Readme](./docs/Readme.md) for more documentation
+
+# Audits
+- Nethermind: [Audit Report](./docs/audits/Nethermind_PufferProtocol_NM0202_April2024.pdf)
+
+# See [/docs/README.md](./docs/README.md) for more documentation

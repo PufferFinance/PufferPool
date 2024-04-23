@@ -8,14 +8,20 @@
 
 ### Validator registration
 
-Before registration, the Node operator needs to make a few desecions:
+Before registration, the Node operator needs to make a few decisions:
 1. The amount of Validator Tickets that he wants to purchase / transfer from own wallet for the new validator. This amount must be bigger than the minimum VT amount required for validator registration.
 2. The PufferModule in which he will participate. PufferModules will participate in various Restaking services and may earn different rewards. The user can't change PufferModule at a later point in time. In order to do that, he would need to exit the Validator completely and then go through the registration flow to another PufferModule.
-3. The Validator setup. If the Node operatod decides to use SGX, the bond that he needs to deposit is 1 ETH, for NO-SGX it is 2 ETH.
+3. The Validator setup. If the Node operator decides to use SGX, the bond that he needs to deposit is 1 ETH, for NO-SGX it is 2 ETH.
+
+
+![Validator Pre-Registration](./images/node-operator-pre-register.png)
+
+
+![Restake Validator Flow](./images/restaked-validator-flow.png)
 
 ### Consensus rewards claiming for the Node Operators
 
-All Validators registered to a PufferModule will have their rewards sent to PufferModule's EigenPod. The Guardians will transfer ETH from the EigenPod to the PufferModule and publish the rewards Merkle roots. In order to claim the rewards, the Node Operators need to submit a valid merkle proof to the PufferModule contract.
+All Validators registered to a PufferModule will have their rewards sent to PufferModule's EigenPod. The Guardians will transfer ETH from the EigenPod to the PufferModule and publish the rewards Merkle roots. In order to claim the rewards, the Node Operators need to submit a valid Merkle proof to the PufferModule contract.
 
 ### Exiting the validator
 
