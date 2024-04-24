@@ -23,8 +23,8 @@ contract DeployRestakingOperator is Script {
 
         vm.startBroadcast();
         RestakingOperator impl = new RestakingOperator({
-            delegationManager: IDelegationManager(0x83f8F8f0BB125F7870F6bfCf76853f874C330D76),
-            slasher: ISlasher(0x99715D255E34a39bE9943b82F281CA734bcF345A),
+            delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
+            slasher: ISlasher(0xcAe751b75833ef09627549868A04E32679386e7C),
             moduleManager: IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71)
         });
 
