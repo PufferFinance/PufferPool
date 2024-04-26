@@ -88,7 +88,7 @@ contract DeployPuffer is BaseScript {
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
         }
 
-        priceValidator = new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), 100); // 100 BPS = 1%
+        priceValidator = new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({

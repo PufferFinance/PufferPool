@@ -90,6 +90,9 @@ contract DeployProtocolToMainnet is Script {
 
     uint256 THRESHOLD = 1;
     address GUARDIAN_1 = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
+    address PAYMASTER = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
+
+    uint256 BPS_VT_UPDATE_PRICE_TOLERANCE = 500; // 5%
 
     function run() public {
         accessManager = AccessManager(ACCESS_MANAGER);
@@ -109,7 +112,8 @@ contract DeployProtocolToMainnet is Script {
         // PufferOracle
         oracle = new PufferOracleV2(module, payable(PUFFER_VAULT), address(accessManager));
 
-        executionCoordinator = new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), 100); // 100 BPS = 1%
+        executionCoordinator =
+            new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), BPS_VT_UPDATE_PRICE_TOLERANCE);
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -199,7 +203,7 @@ contract DeployProtocolToMainnet is Script {
             timelock: TIMELOCK
         });
 
-        new SetupAccess().run(deployment, DAO_MULTISIG);
+        new SetupAccess().run(deployment, DAO_MULTISIG, PAYMASTER);
     }
 
     function _writeJSON() internal {

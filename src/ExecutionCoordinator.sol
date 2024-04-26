@@ -31,27 +31,27 @@ contract ExecutionCoordinator is AccessManaged {
 
     PufferOracleV2 internal immutable _ORACLE;
 
-    uint256 public priceChangeToleranceBps;
+    uint256 internal _priceChangeToleranceBps;
 
-    constructor(PufferOracleV2 oracle, address accessManager, uint256 _priceChangeToleranceBps)
+    constructor(PufferOracleV2 oracle, address accessManager, uint256 priceChangeToleranceBps)
         AccessManaged(accessManager)
     {
         _ORACLE = oracle;
-        priceChangeToleranceBps = _priceChangeToleranceBps;
+        _priceChangeToleranceBps = priceChangeToleranceBps;
     }
 
     /**
      * @notice Updates the allowed price change tolerance percentage
-     * @dev Restricted to the Puffer DAO
+     * @dev Restricted to the Operations Multisig
      */
     function setPriceChangeToleranceBps(uint256 newValue) external restricted {
         if (newValue > _BPS_DECIMALS) {
             revert InvalidPriceChangeToleranceBPS();
         }
 
-        emit PriceChangeToleranceBPSUpdated(priceChangeToleranceBps, newValue);
+        emit PriceChangeToleranceBPSUpdated(_priceChangeToleranceBps, newValue);
 
-        priceChangeToleranceBps = newValue;
+        _priceChangeToleranceBps = newValue;
     }
 
     /**
@@ -70,10 +70,14 @@ contract ExecutionCoordinator is AccessManaged {
         _ORACLE.setMintPrice(newPrice);
     }
 
+    function getPriceChangeToleranceBps() external view returns (uint256) {
+        return _priceChangeToleranceBps;
+    }
+
     // Helper function to determine if the new price is within 1% of the current price
     function isWithinRange(uint256 newPrice) private view returns (bool) {
         uint256 oldPrice = _ORACLE.getValidatorTicketPrice();
-        uint256 allowedDifference = (oldPrice * priceChangeToleranceBps) / _BPS_DECIMALS;
+        uint256 allowedDifference = (oldPrice * _priceChangeToleranceBps) / _BPS_DECIMALS;
 
         // Addition and subtraction have bigger precedence than comparison
         // https://docs.soliditylang.org/en/latest/cheatsheet.html
