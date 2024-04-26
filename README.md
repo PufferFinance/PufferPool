@@ -17,7 +17,11 @@
 
 ![PUFFERS](docs/images/home.png) 
 
-Puffer aims to provide robust and secure infrastructure for permissionless Ethereum validating, supercharged through EigenLayer restaking rewards. The PufferPool repo contains the smart contracts to handle all validator and restaking needs. 
+Puffer aims to provide robust and secure infrastructure for permissionless Ethereum validating, supercharged through EigenLayer restaking rewards.
+
+Puffer supports permissionless Ethereum validators by combining cryptoeconomic mechanisms (like bonded nodes and validator tickets) and technical safeguards (such as anti-slashers and Guardians). This framework ensures that validators operate securely and contributes to the network's decentralization.
+
+The PufferPool repo contains the smart contracts to handle all validator and restaking needs. 
 
 ### Documentation
 ---
