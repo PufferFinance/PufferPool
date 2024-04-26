@@ -27,7 +27,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
-import { ExecutionCoordinator } from "puffer/ExecutionCoordinator.sol";
+import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 
 /**
  * // Check that the simulation
@@ -51,7 +51,7 @@ contract DeployProtocolToMainnet is Script {
     PufferModule moduleImplementation;
     RestakingOperator restakingOperatorImplementation;
     PufferOracleV2 oracle;
-    ExecutionCoordinator executionCoordinator;
+    OperationsCoordinator operationsCoordinator;
     PufferProtocol pufferProtocol;
 
     PufferVaultV2 pufferVaultV2Implementation;
@@ -112,8 +112,8 @@ contract DeployProtocolToMainnet is Script {
         // PufferOracle
         oracle = new PufferOracleV2(module, payable(PUFFER_VAULT), address(accessManager));
 
-        executionCoordinator =
-            new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), BPS_VT_UPDATE_PRICE_TOLERANCE);
+        operationsCoordinator =
+            new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), BPS_VT_UPDATE_PRICE_TOLERANCE);
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -195,7 +195,7 @@ contract DeployProtocolToMainnet is Script {
             enclaveVerifier: address(verifier),
             validatorTicket: address(validatorTicketProxy),
             pufferOracle: address(oracle),
-            executionCoordinator: address(executionCoordinator),
+            operationsCoordinator: address(operationsCoordinator),
             pufferDepositor: PUFFER_DEPOSITOR,
             pufferVault: PUFFER_VAULT,
             stETH: ST_ETH,

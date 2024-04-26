@@ -14,7 +14,7 @@ import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
-import { ExecutionCoordinator } from "puffer/ExecutionCoordinator.sol";
+import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -330,21 +330,21 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory operationsSelectors = new bytes4[](1);
-        operationsSelectors[0] = ExecutionCoordinator.setPriceChangeToleranceBps.selector;
+        operationsSelectors[0] = OperationsCoordinator.setPriceChangeToleranceBps.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.executionCoordinator,
+            pufferDeployment.operationsCoordinator,
             operationsSelectors,
             ROLE_ID_OPERATIONS_MULTISIG
         );
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
-        paymasterSelectors[0] = ExecutionCoordinator.setValidatorTicketMintPrice.selector;
+        paymasterSelectors[0] = OperationsCoordinator.setValidatorTicketMintPrice.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.executionCoordinator,
+            pufferDeployment.operationsCoordinator,
             paymasterSelectors,
             ROLE_ID_OPERATIONS_PAYMASTER
         );
@@ -364,7 +364,7 @@ contract SetupAccess is BaseScript {
 
         calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, DAO, 0);
         calldatas[4] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, pufferDeployment.executionCoordinator, 0
+            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, pufferDeployment.operationsCoordinator, 0
         );
 
         return calldatas;

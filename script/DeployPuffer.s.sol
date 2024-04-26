@@ -21,7 +21,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { ExecutionCoordinator } from "puffer/ExecutionCoordinator.sol";
+import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
 
@@ -50,7 +50,7 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon pufferModuleBeacon;
     UpgradeableBeacon restakingOperatorBeacon;
     PufferModuleManager moduleManager;
-    ExecutionCoordinator priceValidator;
+    OperationsCoordinator operationsCoordinator;
 
     address eigenPodManager;
     address delayedWithdrawalRouter;
@@ -88,7 +88,7 @@ contract DeployPuffer is BaseScript {
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
         }
 
-        priceValidator = new ExecutionCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
+        operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
@@ -160,7 +160,7 @@ contract DeployPuffer is BaseScript {
         pufferProtocol.initialize({ accessManager: address(accessManager) });
 
         vm.label(address(accessManager), "AccessManager");
-        vm.label(address(priceValidator), "executionCoordinator");
+        vm.label(address(operationsCoordinator), "OperationsCoordinator");
         vm.label(address(validatorTicketProxy), "ValidatorTicketProxy");
         vm.label(address(validatorTicketImplementation), "ValidatorTicketImplementation");
         vm.label(address(proxy), "PufferProtocolProxy");
@@ -182,7 +182,7 @@ contract DeployPuffer is BaseScript {
             restakingOperatorBeacon: address(restakingOperatorBeacon),
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
-            executionCoordinator: address(priceValidator),
+            operationsCoordinator: address(operationsCoordinator),
             timelock: address(0), // overwritten in DeployEverything
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
