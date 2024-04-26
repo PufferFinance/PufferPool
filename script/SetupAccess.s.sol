@@ -23,12 +23,12 @@ import {
     ROLE_ID_DAO
 } from "pufETHScript/Roles.sol";
 
-contract SetupAccess is BaseScript {
+contract SetupAccess is Script {
     AccessManager internal accessManager;
 
     PufferProtocolDeployment internal pufferDeployment;
 
-    function run(PufferProtocolDeployment memory deployment, address DAO) external broadcast {
+    function run(PufferProtocolDeployment memory deployment, address DAO) external {
         pufferDeployment = deployment;
         accessManager = AccessManager(payable(deployment.accessManager));
 
@@ -71,15 +71,15 @@ contract SetupAccess is BaseScript {
         calldatas[20] = roleLabels[4];
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-        // console.logBytes(multicallData);
-        (bool s,) = address(accessManager).call(multicallData);
-        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
+        console.logBytes(multicallData);
+        // (bool s,) = address(accessManager).call(multicallData);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
-        // console.logBytes(cd);
-        (s,) = address(accessManager).call(cd);
-        require(s, "failed setupAccess GenerateAccessManagerCallData");
+        console.logBytes(cd);
+        // (s,) = address(accessManager).call(cd);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
     function _labelRoles() internal view returns (bytes[] memory) {
