@@ -71,5 +71,6 @@ forge test --no-match-path './test/unit/*'
 
 # Audits
 - Nethermind: [Audit Report](./docs/audits/Nethermind_PufferProtocol_NM0202_April2024.pdf)
+- Blocksec: [Audit Report](./docs/audits/Blocksec_audit_April2024.pdf)
 
 # See [/docs/README.md](./docs/README.md) for more documentation
