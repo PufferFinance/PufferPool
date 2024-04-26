@@ -257,9 +257,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external restricted {
-        // We only use depositRootHash in the no enclave case.
-        // For enclave case, we don't need to check the depositRootHash
-        if (depositRootHash != bytes32(0) && depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+        if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
             revert InvalidDepositRootHash();
         }
 
