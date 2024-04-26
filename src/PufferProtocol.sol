@@ -125,9 +125,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
-        bytes32[] memory weights = new bytes32[](1);
-        weights[0] = _PUFFER_MODULE_0;
-        _setModuleWeights(weights);
         _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
         _setVTPenalty(10 ether); // 10 Validator Tickets
     }
