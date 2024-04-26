@@ -38,10 +38,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
     function setUp() public {
-        // worked on 1317040
-        // deployContractsHolesky(1317159);
-        // deployContractsHolesky(1317161);
-        deployContractsHolesky(1331339);
+        deployContractsHolesky(0); // on latest block
     }
 
     function test_create_puffer_module() public {
@@ -92,6 +89,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         moduleManager.callUpdateMetadataURI(operator, newUri);
     }
 
+    // Don't remove this test, it is used as a reference for real registration
     function test_eigenda_avs() public {
         // This test is for the Existing Holesky Testnet deployment
 
@@ -167,7 +165,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
         console.log("Calldata to register operator to AVS, submit to PufferModuleManager:");
         console.logBytes(calldataToRegister);
-    
+
         // Finish the registration
         (bool success,) = address(pufferModuleManager).call(calldataToRegister);
         assertEq(success, true, "register operator to avs");
@@ -224,7 +222,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     function _depositToWETHEigenLayerStrategyAndDelegateTo(address restakingOperator) internal {
         // buy weth
-        vm.startPrank(0x4D68568B8D4E6244233c685B48fEa619621B78D2);
+        vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad);
         Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).deposit{ value: 500 ether }();
         Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).approve(
             0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6, type(uint256).max

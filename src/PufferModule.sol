@@ -157,13 +157,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     function completeQueuedWithdrawals(
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
     ) external virtual whenNotPaused onlyPufferModuleManager {
-        bool[] memory receiveAsTokens = new bool[](withdrawals.length);
-        for (uint256 i = 0; i < withdrawals.length; i++) {
-            receiveAsTokens[i] = true;
-        }
-
         EIGEN_DELEGATION_MANAGER.completeQueuedWithdrawals({
             withdrawals: withdrawals,
             tokens: tokens,

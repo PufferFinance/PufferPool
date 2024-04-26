@@ -424,7 +424,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     }
 
     function _setEjectionThreshold(uint256 newThreshold) internal {
-        if (newThreshold > 32 ether) {
+        if (newThreshold >= 32 ether) {
             revert InvalidThreshold(newThreshold);
         }
 

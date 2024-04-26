@@ -306,9 +306,12 @@ contract PufferModuleManagerTest is TestHelper {
         IDelegationManager.Withdrawal[] memory withdrawals;
         IERC20[][] memory tokens;
         uint256[] memory middlewareTimesIndexes;
+        bool[] memory receiveAsTokens;
 
         emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
-        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, middlewareTimesIndexes);
+        pufferModuleManager.callCompleteQueuedWithdrawals(
+            moduleName, withdrawals, tokens, middlewareTimesIndexes, receiveAsTokens
+        );
     }
 
     function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {
