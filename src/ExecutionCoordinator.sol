@@ -31,7 +31,7 @@ contract ExecutionCoordinator is AccessManaged {
 
     PufferOracleV2 internal immutable _ORACLE;
 
-    uint256 public priceChangeToleranceBps; // 1% = 100
+    uint256 public priceChangeToleranceBps;
 
     constructor(PufferOracleV2 oracle, address accessManager, uint256 _priceChangeToleranceBps)
         AccessManaged(accessManager)
@@ -58,12 +58,12 @@ contract ExecutionCoordinator is AccessManaged {
      * @notice Updates the VT mint price on the PufferOracle
      * @dev Restricted to the Puffer Paymaster
      */
-    function setValidatorTicketMintPricePrice(uint256 newPrice) external restricted {
+    function setValidatorTicketMintPrice(uint256 newPrice) external restricted {
         if (newPrice == 0) {
             revert InvalidPrice();
         }
 
-        if (!_isWithinRange(newPrice)) {
+        if (!isWithinRange(newPrice)) {
             revert InvalidPrice();
         }
 
@@ -71,7 +71,7 @@ contract ExecutionCoordinator is AccessManaged {
     }
 
     // Helper function to determine if the new price is within 1% of the current price
-    function _isWithinRange(uint256 newPrice) private view returns (bool) {
+    function isWithinRange(uint256 newPrice) private view returns (bool) {
         uint256 oldPrice = _ORACLE.getValidatorTicketPrice();
         uint256 allowedDifference = (oldPrice * priceChangeToleranceBps) / _BPS_DECIMALS;
 
