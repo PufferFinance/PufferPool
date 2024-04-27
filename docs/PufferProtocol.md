@@ -1,135 +1,164 @@
 # PufferProtocol
+At its core, the Puffer protocol requires a generic ERC4626 vault paired with native restaking logic. However, our implementation is specifically designed with an opinionated approach to enhance decentralization. This includes multiple safeguards that support the operation of permissionless validators, ensuring that the system remains open yet secure.
 
-The `PufferProtocol` is the contract central to managing validator operations, including accounting and the custody of validator bonds and [VTs](./ValidatorTicket.md).
+The `PufferProtocol` serves as the central contract and fulfills three key functions:
+
+- **Validator State Management**: Including overseeing accounting processes, as well as handling the custody of validator bonds and Validator Tickets [VTs](./ValidatorTicket.md).
+ 
+- **Validator Interactions**: Including the registration of new validators and managing their exit from the protocol.
+
+- **Routing ETH**: The protocol directs ETH from the ER4626 vault to EigenPods to fund natively restaked Ethereum validators.
+
 
 ## Overview
 ![Validator Registration Flow](./images/restaked-validator-flow.png)
 
-## Registering a new validator
-To register a new validator, the Node operator has a few options:
-- Pay the bond and purchase Validator Tickets in ETH
-- Pay either the bond or the Validator Tickets in ETH and have the other transferred from the Node Operator's EOA
-- Have both the bond and Validator Tickets transferred from the Node Operator's EOA
+0. **Initial Deposit and Minting**: (Not pictured) Stakers deposit ETH into the `PufferVault` to mint pufETH. This ETH funds Ethereum staking and EigenLayer restaking. Similarly, Node Operators (NoOps) use pufETH for their bonds.
+1. **Validator Registration**: NoOps submit a transaction to register their validator, locking in their bond and VTs.
+2. **Verification by Guardians**: The Guardians perform an off-chain verification to confirm the registration's validity.
+3. **Requesting Funds**: The `PufferProtocol` contract requests 32 ETH from the `PufferVault`.
+4. **Transfer to PufferModule**: The requested 32 ETH is transferred to a `PufferModule`.
+5. **Initiating Validator Deposit**: The `PufferProtocol` proceeds to initiate a validator deposit.
+6. **Deposit Request to EigenLayer**: The `PufferModule` requests a validator deposit from EigenLayer.
+7. **EigenLayer Deposit Initiation**: EigenLayer initiates the deposit process.
+8. **Beacon Chain Interaction**: The 32 ETH along with the validator deposit message are sent to the Beacon chain deposit contract.
+9. **Completion and Restaking**: Once the Beacon chain recognizes the validator, a withdrawal credentials merkle proof is submitted back to EigenLayer to enable the restaking of the validator's ETH.
 
-![Pre-Registration](./images/node-operator-pre-register.png)
 
-No matter what option is chosen, the Node Operator will call the `registerValidator` function on the `PufferProtocol` contract.
 
-```javascript
-function registerValidatorKey(
-    ValidatorKeyData calldata data,
-    bytes32 moduleName,
-    Permit calldata pufETHPermit,
-    Permit calldata vtPermit
-)
-```
+## Registering a validator
+### 1. Prepare Bond and VTs 
+NoOps are required to deposit pufETH and Validator Tickets (VTs) to register a validator. The amount of pufETH depends on the use of an anti-slasher enclave:
 
-#### `ValidatorKeyData` struct
+- **With an enclave**: 1 ETH worth of pufETH is required.
+- **Without an enclave**: 2 ETH worth of pufETH is required.
 
-- **`bytes blsPubKey`**: This is [BLS public key](https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/keys/) for the validator that the Node Operator has generated. 
+<!-- ![Pre-Registration](./images/node-operator-pre-register.png) -->
 
-- **`bytes signature`**: This is the signature of the deposit data by the validator's BLS private key.
+The `PufferProtocol` contract mandates a minimum number of VTs at registration, set at `minimumVtAmount = 28`. This minimum commitment, equivalent to a 4-week operation, ensures efficient allocation of staker ETH. VTs can be minted from the [ValidatorTicket](./ValidatorTicket.md) contract or obtained from the secondary market as they are ERC20s.
 
-- **`bytes32 depositDataRoot`**: This is the root hash of the deposit data.
 
-- **`bytes[] blsEncryptedPrivKeyShares`**: This is an array of encrypted private key shares - [one share for each Guardian](https://docs.puffer.fi/protocol/guardians#what-are-their-duties).
+### 2. Prepare inputs
+> ```javascript
+> function registerValidatorKey(
+>     ValidatorKeyData calldata data,
+>     bytes32 moduleName,
+>     Permit calldata pufETHPermit,
+>     Permit calldata vtPermit
+> )
+> ```
 
-- **`bytes blsPubKeySet`**: This is the concatenated list of sharded public keys
+The NoOp must supply the following `ValidatorKeyData` struct created off-chain:
 
-- **`bytes raveEvidence`**: If the Node Operator is using an Enclave, they must provide a valid RAVE evidence. The guardians will check if the RAVE is valid, and if it is not, the validator will be skipped.
+- **`bytes blsPubKey`**: [BLS public key](https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/keys/) generated by the NoOp.
 
-#### `moduleName`
+- **`bytes signature`**: Signature of the deposit data by the validator's BLS private key.
 
-This is the name of the `PufferModule` that the validator is registering for. The `PufferModule` must be registered with the `PufferProtocol` contract (created via the [`PufferModuleManager`](./PufferModuleManager.md) factory).
+- **`bytes32 depositDataRoot`**: Root hash of the deposit data.
 
-#### `pufETHPermit`
+- **`bytes[] blsEncryptedPrivKeyShares`**: Array of encrypted private key shares [for each Guardian](https://docs.puffer.fi/protocol/guardians#what-are-their-duties).
 
-This is the Permit data for the `pufETH` token. If the Node Operator is purchasing their bond with ETH, they can submit an empty Permit struct.
-If the Node Operator is transferring their pufETH as the bond, they must provide a valid Permit struct or call `pufETH.approve(pufferProtocol, amount)` before the registration.
+- **`bytes blsPubKeySet`**: Used to reconstruct the BLS public key shares.
 
-#### vtPermit
+- **`bytes raveEvidence`**: Remote attestation evidence if using an enclave, checked for validity by the Guardians.
 
-This is the Permit data for the `ValidatorTicket` token. If the Node Operator is paying for VT's with ETH, they can submit an empty Permit struct.
+Additional details to supply:
+- **`bytes32 moduleName`**: Name of the `PufferModule` for which the validator is registering. The `PufferModule` must be registered with the `PufferProtocol` contract (created via the [`PufferModuleManager`](./PufferModuleManager.md) factory).
+- **`pufETHPermit` and `vtPermit`**: Permit data for pufETH and `ValidatorTicket` tokens. Direct ETH can be sent for minting or existing tokens can be approved for transfer.
 
-If the Node Operator is transferring their VTs, they must provide a valid Permit struct or call `validatorTicket.approve(pufferProtocol, amount)` before the registration.
+### 3. Call registerValidatorKey()
+This function allows flexibility in how pufETH and VTs are supplied. Options include:
+- Sending ETH directly for minting pufETH and VTs.
+- Transferring pufETH and VTs using Permit messages or prior approve transactions.
+- Combining both methods (e.g., minting pufETH and transferring VTs).
 
-To minimize the time that protocol's ETH is in the beacon chain entry and exit queues, a `minimumVtAmount = 28 VTs` is required upon registration.
 
 #### Registration side effects
-
-Upon successful registration, the Node Operator's validator will be added to the module's queue for provisioning. The Guardians will each check that the registration data is valid and that their enclave received keyshare custody. If if everything is correct, the Guardians will provision the validator with 32 ETH from the `PufferVault` to deploy their validator to the `PufferModule's` `EigenPod`.
-
-Being part of a `PufferModule` means the validator's beacon chain ETH will be restaked and delegated to a `RestakingOperator` decided by the DAO.
-
+Successful registration adds the validator to the `PufferModule` queue. Guardians verify the data and manage keyshare custody. Once verified, they provision the validator with 32 ETH from the `PufferVault` to deploy to the  `PufferModule's` `EigenPod`.
 
 ## Provisioning a validator
+Once a quorum of Guardians verifies the validity of a registration, the `provisionNode` function is called to provision the validator with 32 ETH. The provisioning process will proceed if the following conditions are met:
 
-Once a quorum of Guardians produce a valid signature, the  `provisionNode` function is called to provision the validator with 32 ETH.
+- The registration data, including withdrawal credentials and deposit message, is validated.
+- The `PufferVault` has sufficient liquidity (at least 32 ETH available).
+- The BLS public key has not been previously used.
+- The RAVE evidence is valid (for enclave validators).
+- The `PufferModule` has capacity to accommodate the new validator.
+- If any registration is invalid, Guardians can utilize the `skipProvisioning` function on the `PufferProtocol`. This action dequeues the validator's registration, refunds their bond, and burns `vtPenalty` VTs to deter attempts to grief the protocol.
 
-The validator will be provisioned if:
-- The registration data is valid, e.g., correct withdrawal credentials and valid deposit message and signature
-- There is enough liquidity for provisioning (≥ 32 ETH)
-- The BLS public key is not already in use/was not used before
-- The RAVE evidence is valid (if registering an enclave validator)
-- The `PufferModule` is not at capacity
+The `provisionNode` function executes several critical steps in one atomic transaction:
 
-If the guardians need to skip the validator to service the next queue, they can call the `skipProvisioning` function on the PufferProtocol. This dequeues the validator's registration, returns their bond, and burns `vtPenalty` VTs to prevent griefing. 
+- It orchestrates the transfer of 32 ETH from the `PufferVault` to the `PufferModule`, then to the `EigenPod`, and finally to the Beacon Chain Deposit contract.
+- It updates the `_numberOfActivePufferValidators` counter on the `PufferOracleV2` contract, reflecting the addition of a new validator on the beacon chain.
 
-`provisionNode` is one of the most important functions in the `PufferProtocol` contract with important side effects. In the same atomic transaction:
-- It transfers 32 ETH from the `PufferVault -> PufferModule -> EigenPod -> BeaconChain Deposit contract`
-- It increments the `_numberOfActivePufferValidators` on [`PufferOracleV2`](./PufferOracleV2.md) contract
+#### Impact on pufETH Conversion Rate
+- The provisioning of a validator involves transferring 32 ETH out of the PufferVault, which could negatively affect the pufETH:ETH conversion rate. To prevent this, the vault calculation includes the ETH amount locked as reported by `PUFFER_ORACLE.getLockedEthAmount()`. When provisioning occurs, the oracle contract’s reported locked ETH amount is increased by 32 ETH. This adjustment ensures that the vault's exchange rate remains unchanged, despite the outflow of funds. For a more detailed explanation, refer to the [`PufferOracleV2`](./PufferOracleV2.md) documentation.
 
-By performing these steps in the same atomic transaction, we ensure the `PufferVault's` exchange rate remains unchanged.
+## Restaking a validator
+Once a validator is onboarded into a `PufferModule` and their validator is observable from the Beacon chain, their Beacon chain ETH is restaked. This process involves delegating the validator's ETH to a [`RestakingOperator`](./RestakingOperator.md), as determined by the DAO. 
 
-Importantly, the `PufferVault` calculates the exchange rate based on the *totalAssets* that the vault owns, and takes into the account the `PUFFER_ORACLE.getLockedEthAmount()`. 
-
-Because 32 ETH is leaving the Vault, we must increment the `PUFFER_ORACLE.getLockedEthAmount()` by 32 ETH so that the exchange rate remains unchanged. See [`here`](./PufferOracleV2.md) for more details.
+Restaking requires the submission of a Merkle proof to EigenLayer. This proof verifies that the validator's withdrawal credentials are correctly aligned with their designated `EigenPod`. The responsibility of calculating and submitting these Merkle proofs lies with the Guardians.
 
 ## Exiting a validator
-Exiting a validator requires broadcasting a signed voluntary exit message on the beacon chain. 
+Exiting a validator from the Puffer protocol involves broadcasting a signed voluntary exit message on the Beacon chain.
 
 #### Node Operators
-Node Operators can exit at any time, but their VT balance will be penalized if they exit before `minimumVtAmount` days have elapsed.
+NoOps are free to initiate a voluntary exit at any point. However, if they choose to exit before the required `minimumVtAmount` days have elapsed, their VT balance will be subject to penalties.
 
 #### Guardians
-Guardians can use their enclaves to sign voluntary exit messages and will eject validators if:
-- their validator balance falls below the `_ejectionThreshold` ETH set in the [`GuardianModule`](./GuardianModule.md).
-- the Node Operator did not replenish VTs after their locked amount expired
+Guardians, utilizing their enclaves, are authorized to sign and broadcast voluntary exit messages for validators under specific circumstances:
+
+- If a validator's balance falls below the `_ejectionThreshold` ETH, as defined in the [GuardianModule](GuardianModule.md).
+- If the Node Operator fails to replenish their VTs after their locked amount has expired.
 
 #### After exiting 
-After the validator is exited from the beacon chain, its full withdrawal ETH will appear in the `PufferModule's` `EigenPod`. The `PufferModuleManager` facilitates the EigenLayer full withdrawal process, which results in the ETH being transferred to the `PufferModule`. 
+Post-exit, the exited validator’s ETH will be redirected to the `PufferModule's` `EigenPod`. The [`PufferModuleManager`](./PufferModuleManager.md) oversees the full withdrawal process on EigenLayer, which involves Merkle proofs and queueing, to transfer the ETH back to the `PufferModule`.
 
-The Guardians can then call `batchHandleWithdrawals` to return Node Operator bonds, burn VTs, and [do accounting](./PufferOracleV2.md). This process must handle three scenarios:
+The Guardians then execute `batchHandleWithdrawals()` on the `PufferProtocol`, which returns pufETH bonds to NoOps, burns their consumed VTs, and performs necessary [accounting](./PufferOracleV2.md). The process addresses three potential scenarios:
 
-Note: In all scenarios the `_numberOfActivePufferValidators` will be decremented on the `PufferOracleV2` contract decreasing the locked ETH amount by 32 ETH. 
+**Sufficient Withdrawal** (*withdrawalAmount* ≥ 32 ETH):
+- 32 ETH is transferred back to the `PufferVault`.
+- Any excess over 32 ETH remains in the `PufferModule` as rewards for the NoOp.
+- The NoOp is reimbursed their full bond amount.
 
-1. <span style="color:green"> withdrawalAmount ≥ 32 ETH</span>
+**Insufficient Withdrawal** (*withdrawalAmount* < 32 ETH):
+- The entire *withdrawalAmount* is transferred back to the `PufferVault`.
+- The missing ETH (32 ETH - *withdrawalAmount*) is burned from the NoOp’s bond.
+- The NoOp receives the remainder of their bond, assuming losses due to inactivity penalties do not exceed the bond itself.
 
-32 ETH is transferred to the PufferVault and `withdrawalAmount - 32 ETH` remains in the `PufferModule` to be collected as rewards by the Node Operator. The Node Operator receives their full bond amount back.
+**Validator Was Slashed**:
+- All withdrawn ETH is transferred to the `PufferVault`.
+- The entire bond is forfeited and burned, irrespective of the slashing amount.
 
-2. <span style="color:orange">withdrawalAmount < 32 ETH</span>
+In all scenarios, the `_numberOfActivePufferValidators` count on the `PufferOracleV2` contract is decremented atomically, reducing the locked ETH amount by 32 ETH per exited validator to maintain the pufETH conversion rate.
 
-`withdrawalAmount` ETH is transferred to the PufferVault and `32 ETH - withdrawalAmount` is burned from the Node Operator's bond. It is assumed that the Guardians will eject the validator far before inactivity penalties lead to `32 ETH - withdrawalAmount > bond`. The Node Operator receives part of their bond back.
+## Managing Validator Tickets (VT)
+#### Understanding VT Consumption
+Each validator operated by a NoOp consumes one VT per day. While the `getValidatorTicketsBalance()` function returns the total amount of VTs initially deposited by the NoOp, it does not reflect the real-time balance of VTs. This is due to the prohibitive gas costs associated with continually updating VT balances on-chain.
 
-3. <span style="color:red">Validator was slashed</span>
+#### Off-Chain Tracking and Visualizing VTs
+To efficiently manage VT consumption without incurring high on-chain costs, Guardians track VT usage off-chain. NoOps can access up-to-date VT consumption information through frontend interfaces, which provide a clear view of their current VT status.
 
-`withdrawalAmount` is transferred to the `PufferVault` and the **entire** bond will be burned regardless of the slashing amount. If there is a major slashing incident, the losses will be socialized across all pufETH holders.
+#### Periodic VT Top-Up
+Maintaining active validators requires more than just the initial deposit of a minimum of 28 VTs at registration. To ensure continuous operation and prevent ejection from the network, NoOp must periodically top up their VT balance. This is crucial as running out of VTs could lead to a validator being deactivated. 
 
-## Depositing Validator Tickets (VT)
+#### Depositing Additional VTs
+NoOps can replenish their VT supply by executing the `depositValidatorTickets(permit, nodeOperator)` function. This allows them to add VTs to their account, ensuring their validators can continue to operate without interruption. Note that the `PufferProtocol` tracks validators by wallet address, so only one function call is needed to top up VTs across all of your validators.
 
-A Node Operator may have multiple validators running, with each consuming 1 VT per day. `getValidatorTicketsBalance() returns(uint256)` returns the amount of VTs deposited by the Node Operator rather than the real-time VT balances due to the exhorbitant gas costs that it would require to constantly report.
+It's important for NoOps to monitor their VT consumption regularly and respond proactively to avoid disruptions in their validator operations.
 
-Instead, the Guardians are tracking VT consumption off-chain and Node Operators can visualize this via frontends. Periodically, the Node Operators will need to top up their VT balance to avoid being ejected which is accomplished by calling `depositValidatorTickets(permit, nodeOperator)`. 
+#### Withdrawing VTs
+Since VT consumption is tracked off-chain, withdrawing excess VTs, `withdrawValidatorTickets` can only be called when the NoOp has no active or pending validators. In future protocol upgrades, ZKPs will be used to allow VTs to be withdrawn while validators are still active.
 
-## Validator Tickets withdrawal
-Since VT consumption is tracked off-chain, withdrawing excess VTs, `withdrawValidatorTickets` can only be called when the Node Operator has no active or pending validators. In the future, VT withdrawals can be accomplished via ZKPs.
+## Validator Rewards in Puffer
+#### Overview of Rewards
+In the Puffer protocol, NoOps receive 100% of the consensus and execution rewards generated by their validators. This arrangement acknowledges the upfront commitment made by NoOps when purchasing VTs.
 
-## Validator Rewards
+#### Execution Rewards
+When NoOps employ tools like MEV-Boost, execution rewards are directly sent to their designated wallet addresses. This is specified through the `fee recipient` parameter. Unlike other protocols there is no need to share these rewards with the protocol.
 
-In Puffer, Node Operators earn 100% of the consensus and execution rewards their validators generate because they already purchased VTs. 
+#### Consensus Rewards
+Consensus rewards are directed to the validators’ withdrawal credentials, which are linked to `EigenPods`. These rewards accumulate and, following an upcoming EigenLayer upgrade that improves partial withdrawal gas-efficiency, will be accessible for claiming through the [PufferModules](./PufferModule.md#consensus-rewards). 
 
-If using software like MEV-Boost, the execution rewards are easily directed to the Node Operator's wallet address as the `fee recipient` value.
-
-Consensus rewards are always sent to validators' withdrawal credentials, which point to `EigenPods`. Once EigenLayer upgrades their partial withdrawal process, consensus rewards will be claimable from the [PufferModules](./PufferModule.md#consensus-rewards). 
-
-Puffer validators will also earn a percentage of the protocol's [restaking rewards](./PufferModule.md#restaking-rewards) which will also be claimable in future EigenLayer upgrades. 
+#### Restaking Rewards
+Beyond the direct rewards from consensus and execution, Puffer validators also benefit from a share of the protocol's restaking rewards. Similar to consensus rewards, these restaking rewards are set to become claimable in future updates to EigenLayer, enhancing the overall profitability and incentive for NoOps within the Puffer ecosystem.
