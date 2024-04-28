@@ -1,6 +1,4 @@
 # PufferProtocol
-At its core, the Puffer protocol requires a generic ERC4626 vault paired with native restaking logic. However, our implementation is specifically designed with an opinionated approach to enhance decentralization. This includes multiple safeguards that support the operation of permissionless validators, ensuring that the system remains open yet secure.
-
 The `PufferProtocol` serves as the central contract and fulfills three key functions:
 
 - **Validator State Management**: Including overseeing accounting processes, as well as handling the custody of validator bonds and Validator Tickets [VTs](./ValidatorTicket.md).
