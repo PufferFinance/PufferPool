@@ -70,11 +70,19 @@ contract OperationsCoordinator is AccessManaged {
         _ORACLE.setMintPrice(newPrice);
     }
 
+    /**
+     * @notice Returns the current price change tolerance in basis points
+     * @return the current price change tolerance
+     */
     function getPriceChangeToleranceBps() external view returns (uint256) {
         return _priceChangeToleranceBps;
     }
 
-    // Helper function to determine if the new price is within 1% of the current price
+    /**
+     * @notice Checks if the new price is within the allowed range
+     * @param newPrice The new price to set for minting VT
+     * @return true if the new price is within the allowed range
+     */
     function isWithinRange(uint256 newPrice) public view returns (bool) {
         uint256 oldPrice = _ORACLE.getValidatorTicketPrice();
         uint256 allowedDifference = (oldPrice * _priceChangeToleranceBps) / _BPS_DECIMALS;
