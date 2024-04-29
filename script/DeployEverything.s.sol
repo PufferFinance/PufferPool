@@ -65,7 +65,7 @@ contract DeployEverything is BaseScript {
             DAO = _broadcaster;
         }
 
-        new SetupAccess().run(pufferDeployment, DAO);
+        new SetupAccess().run(pufferDeployment, DAO, _broadcaster);
 
         _writeJson(pufferDeployment);
 
