@@ -32,7 +32,7 @@ This implementation is designed to foster decentralization by incorporating seve
 
 ## Node Operators (NoOps)
 ### Preliminary Decisions
-Before [registering](./PufferProtocol.md#1-prepare-bond-and-vts), a NoOp must make two imporant decisions:
+Before [registering](./PufferProtocol.md#1-prepare-bond-and-vts), a NoOp must make two important decisions:
 
 1. **Validator Tickets ([VTs](./ValidatorTicket.md))**: Determine the quantity of VTs to purchase or transfer from their own wallet for the new validator. This amount must exceed the minimum VT requirement for registration of 28 days.
 2. **Validator Setup**: Decide on the validator configuration. Using an SGX enclave requires a bond deposit of 1 ETH, while a NO-SGX setup requires 2 ETH. The former requires specific hardware while the latter is compatible with any existing validator setup.
@@ -51,7 +51,7 @@ All validators registered with a PufferModule have their consensus rewards direc
 Execution rewards, e.g., from MEV-Boost, are directly paid to the NoOp's specified wallet as the `fee recipient`. This setup ensures that NoOp has full MEV-autonomy and receive liquid rewards immediately upon proposing a block.
 
 #### Restaking Rewards
-NoOps are elligible to earn restaking rewards due to Puffer's integration with EigenLayer. These rewards will accumulated within PufferModules and become claimble by NoOps as EigenLayer introduces their payment features.
+NoOps are eligible to earn restaking rewards due to Puffer's integration with EigenLayer. These rewards will accumulated within PufferModules and become claimble by NoOps as EigenLayer introduces their payment features.
 
 ### Exiting the Validator
 To exit, a NoOp simply broadcasts a voluntary exit message to the Beacon Chain. Subsequently, the Guardians manage the full withdrawal process. If the validator did not incur losses, the bond is returned to the NoOp. Remaining VTs can only be withdrawn if the NoOp has no active or pending validators. This ensures a clean and straightforward exit from the system.
