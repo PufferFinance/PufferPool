@@ -34,7 +34,7 @@ The Guardians are expected to use their enclave for provisioning, skipping, and 
 - `_guardianEnclaves` is a mapping of guardian addresses to their enclave addresses.
 
 ## DAO Responsibilities
-- Sets the [MRENCLAVE and MRSIGNER)](https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-intel-sgx-sealing.html) measurements via `setGuardianEnclaveMeasurements`. 
+- Sets the [MRENCLAVE and MRSIGNER](https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-intel-sgx-sealing.html) measurements via `setGuardianEnclaveMeasurements`. 
 - Adds Guardians via `addGuardian` and removes them via `removeGuardian`
 - Sets the `_ejectionThreshold` via `setThreshold`
 
