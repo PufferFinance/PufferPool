@@ -75,7 +75,7 @@ contract OperationsCoordinator is AccessManaged {
     }
 
     // Helper function to determine if the new price is within 1% of the current price
-    function isWithinRange(uint256 newPrice) private view returns (bool) {
+    function isWithinRange(uint256 newPrice) public view returns (bool) {
         uint256 oldPrice = _ORACLE.getValidatorTicketPrice();
         uint256 allowedDifference = (oldPrice * _priceChangeToleranceBps) / _BPS_DECIMALS;
 
