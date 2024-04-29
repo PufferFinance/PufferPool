@@ -98,12 +98,12 @@ forge test --no-match-path './test/fork-tests/*'
 | PufferProtocol                | [0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14](https://holesky.etherscan.io/address/0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14) | [0xEFd2...8642](https://holesky.etherscan.io/address/0xEFd2C463CD787e1e9119873dc0cbFd0AE28D8642) |
 | EnclaveVerifier                 | - | [0x7920...Df24](https://holesky.etherscan.io/address/0x79200dE6299F27b7354Ca95A09a9C3978DBEDf24) |
 | GuardianModule                | - | [0xD349...b326](https://holesky.etherscan.io/address/0xD349FdCD0e4451381bfE7cba3ac28773E176b326) |
-| PufferModuleManager                   | [0xe4695ab93163F91665Ce5b96527408336f070a71](https://holesky.etherscan.io/address/0xe4695ab93163F91665Ce5b96527408336f070a71) | [todo]() |
+| PufferModuleManager                   | [0xe4695ab93163F91665Ce5b96527408336f070a71](https://holesky.etherscan.io/address/0xe4695ab93163F91665Ce5b96527408336f070a71) | [0x1145...234e](https://holesky.etherscan.io/address/0x11459c5d3e8502ce5afb745619cdb6900f1b234e) |
 | PufferOracle                          | - | [0xEf93...7b74](https://holesky.etherscan.io/address/0xEf93AA29F627465A7f58A1F25980c90116f27b74) |
 | PufferModuleBeacon                 | [0x5B81A4579f466fB17af4d8CC0ED51256b94c61D4](https://holesky.etherscan.io/address/0x5B81A4579f466fB17af4d8CC0ED51256b94c61D4) | - |
-| PufferModule                    | - | [todo]() |
+| PufferModule                    | - | [0x0F5B...3e6a](https://holesky.etherscan.io/address/0x0F5B5b94B9f91601EAB9bC2e74D70Aea8C203e6a) |
 | RestakingOperatorBeacon                 | [0xa7DC88c059F57ADcE41070cEfEFd31F74649a261](https://holesky.etherscan.io/address/0xa7DC88c059F57ADcE41070cEfEFd31F74649a261) | - |
-| RestakingOperator               | - | [todo]() |
+| RestakingOperator               | - | [0x89fE...0fA5](https://holesky.etherscan.io/address/0x89fE1Ab8A0f74494Bf3Fc0f238d40799BA360fA5) |
 | ValidatorTicket               | [0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b](https://holesky.etherscan.io/address/0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b) | [0x5C67...4325](https://holesky.etherscan.io/address/0x5C67fb4410797960C45e573e266A7B79d5Bb4325) |
 
 
