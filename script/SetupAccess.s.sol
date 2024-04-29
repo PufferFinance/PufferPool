@@ -284,7 +284,7 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](6);
+        bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = PufferProtocol.createPufferModule.selector;
         selectors[1] = PufferProtocol.setModuleWeights.selector;
         selectors[2] = PufferProtocol.setValidatorLimitPerModule.selector;
