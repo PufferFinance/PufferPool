@@ -314,6 +314,25 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
+    function callRegisterOperatorToAVSWithoutParams(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata pubkey,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external virtual restricted {
+        restakingOperator.registerOperatorToAVSWithoutParams({
+            avsRegistryCoordinator: avsRegistryCoordinator,
+            pubkey: pubkey,
+            operatorSignature: operatorSignature
+        });
+
+        emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, pubkey);
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callRegisterOperatorToAVSWithChurn(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,

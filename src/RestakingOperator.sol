@@ -152,6 +152,21 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
+    function registerOperatorToAVSWithoutParams(
+        address avsRegistryCoordinator,
+        bytes calldata pubkey,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external {
+        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator({
+            pubkey: pubkey,
+            operatorSignature: operatorSignature
+        });
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
     function registerOperatorToAVSWithChurn(
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers,

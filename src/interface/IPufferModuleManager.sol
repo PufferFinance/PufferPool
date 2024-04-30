@@ -139,6 +139,17 @@ interface IPufferModuleManager {
      * @notice Emitted when the Restaking Operator is registered to an AVS
      * @param restakingOperator is the address of the restaking operator
      * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param pubkey the pub key of the operator
+     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
+     */
+    event RestakingOperatorRegisteredToAVS(
+        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes pubkey
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
      * @param socket is the socket of the operator (typically an IP address)
      * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
@@ -349,6 +360,21 @@ interface IPufferModuleManager {
         string calldata socket,
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    ) external;
+
+    /**
+     * @notice Registers msg.sender as an operator without params.
+     * @param restakingOperator is the address of the restaking operator
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param pubkey the pubkey of the operator
+     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
+     * @dev Restricted to the DAO
+     */
+    function callRegisterOperatorToAVSWithoutParams(
+        IRestakingOperator restakingOperator,
+        address avsRegistryCoordinator,
+        bytes calldata pubkey,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
     ) external;
 
     /**

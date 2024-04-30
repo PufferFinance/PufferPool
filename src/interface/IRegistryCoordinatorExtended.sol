@@ -23,6 +23,17 @@ interface IRegistryCoordinatorExtended is IRegistryCoordinator {
     ) external;
 
     /**
+     * @notice Register an operator with the AVS. Forwards call to EigenLayer' AVSDirectory.
+     * @param pubkey            64 byte uncompressed secp256k1 public key (no 0x04 prefix)
+     *                          Pubkey must match operator's address (msg.sender)
+     * @param operatorSignature The signature, salt, and expiry of the operator's signature.
+     */
+    function registerOperator(
+        bytes calldata pubkey,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external;
+
+    /**
      * @notice Registers msg.sender as an operator for one or more quorums. If any quorum reaches its maximum operator
      * capacity, `operatorKickParams` is used to replace an old operator with the new one.
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for

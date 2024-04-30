@@ -71,6 +71,20 @@ interface IRestakingOperator {
     ) external;
 
     /**
+     * @notice Registers msg.sender as an operator without params
+     * @param avsRegistryCoordinator the avs registry coordinator address
+     * @param pubkey the pubkey of the operator
+     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
+     * @dev `params` is ignored if the caller has previously registered a public key
+     * @dev `operatorSignature` is ignored if the operator's status is already REGISTERED
+     */
+    function registerOperatorToAVSWithoutParams(
+        address avsRegistryCoordinator,
+        bytes calldata pubkey,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external;
+
+    /**
      * @notice Registers msg.sender as an operator for one or more quorums. If any quorum reaches its maximum operator
      * capacity, `operatorKickParams` is used to replace an old operator with the new one.
      * @param avsRegistryCoordinator the avs registry coordinator address
