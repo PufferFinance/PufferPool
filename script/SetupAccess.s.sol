@@ -211,14 +211,14 @@ contract SetupAccess is Script {
     function _setupPufferVaultMainnetAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory operationsSelectors = new bytes4[](1);
-        operationsSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
+        bytes4[] memory daoSelectors = new bytes4[](1);
+        daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
-            operationsSelectors,
-            ROLE_ID_OPERATIONS_MULTISIG
+            daoSelectors,
+            ROLE_ID_DAO
         );
 
         bytes4[] memory protocolSelectors = new bytes4[](1);
