@@ -357,7 +357,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             revert CustomCallFailed(address(restakingOperator), response);
         }
 
-        emit CustomCallSucceed(address(restakingOperator), target, customCalldata, response);
+        emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
     }
 
     /**

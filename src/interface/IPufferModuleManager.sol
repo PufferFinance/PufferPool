@@ -24,7 +24,7 @@ interface IPufferModuleManager {
      * @notice Emitted when the Custom Call from the restakingOperator is successful
      * @dev Signature "0x80b240e4b7a31d61bdee28b97592a7c0ad486cb27d11ee5c6b90530db4e949ff"
      */
-    event CustomCallSucceed(address indexed restakingOperator, address target, bytes customCalldata, bytes response);
+    event CustomCallSucceeded(address indexed restakingOperator, address target, bytes customCalldata, bytes response);
 
     /**
      * @notice Emitted when a Restaking Operator is opted into a slasher
