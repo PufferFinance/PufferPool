@@ -45,16 +45,18 @@ contract SetupAccess is BaseScript {
             coordinatorAccess: _setupCoordinatorAccess()
         });
 
+        console.logAddress(_broadcaster);
+
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-        // console.logBytes(multicallData);
-        (bool s,) = address(accessManager).call(multicallData);
-        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
+        console.logBytes(multicallData);
+        // (bool s,) = address(accessManager).call(multicallData);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
-        // console.logBytes(cd);
-        (s,) = address(accessManager).call(cd);
-        require(s, "failed setupAccess GenerateAccessManagerCallData");
+        console.logBytes(cd);
+        // (s,) = address(accessManager).call(cd);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
     function _generateAccessCalldata(
@@ -125,7 +127,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](11);
+        bytes4[] memory selectors = new bytes4[](12);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
@@ -134,9 +136,10 @@ contract SetupAccess is BaseScript {
         selectors[5] = PufferModuleManager.callDelegateTo.selector;
         selectors[6] = PufferModuleManager.updateAVSRegistrationSignatureProof.selector;
         selectors[7] = PufferModuleManager.callRegisterOperatorToAVS.selector;
-        selectors[8] = PufferModuleManager.callRegisterOperatorToAVSWithChurn.selector;
-        selectors[9] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
-        selectors[10] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
+        selectors[8] = PufferModuleManager.callRegisterOperatorToAVSWithoutParams.selector;
+        selectors[9] = PufferModuleManager.callRegisterOperatorToAVSWithChurn.selector;
+        selectors[10] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
+        selectors[11] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO
