@@ -46,15 +46,15 @@ contract SetupAccess is Script {
         });
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-        // console.logBytes(multicallData);
-        (bool s,) = address(accessManager).call(multicallData);
-        require(s, "failed setupAccess GenerateAccessManagerCallData 1");
+        console.logBytes(multicallData);
+        // (bool s,) = address(accessManager).call(multicallData);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
-        // console.logBytes(cd);
-        (s,) = address(accessManager).call(cd);
-        require(s, "failed setupAccess GenerateAccessManagerCallData");
+        console.logBytes(cd);
+        // (s,) = address(accessManager).call(cd);
+        // require(s, "failed setupAccess GenerateAccessManagerCallData");
     }
 
     function _generateAccessCalldata(
