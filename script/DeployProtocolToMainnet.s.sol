@@ -27,6 +27,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
+import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 
 /**
  * // Check that the simulation
@@ -50,6 +51,7 @@ contract DeployProtocolToMainnet is Script {
     PufferModule moduleImplementation;
     RestakingOperator restakingOperatorImplementation;
     PufferOracleV2 oracle;
+    OperationsCoordinator operationsCoordinator;
     PufferProtocol pufferProtocol;
 
     PufferVaultV2 pufferVaultV2Implementation;
@@ -88,6 +90,9 @@ contract DeployProtocolToMainnet is Script {
 
     uint256 THRESHOLD = 1;
     address GUARDIAN_1 = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
+    address PAYMASTER = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
+
+    uint256 BPS_VT_UPDATE_PRICE_TOLERANCE = 500; // 5%
 
     function run() public {
         accessManager = AccessManager(ACCESS_MANAGER);
@@ -106,6 +111,9 @@ contract DeployProtocolToMainnet is Script {
 
         // PufferOracle
         oracle = new PufferOracleV2(module, payable(PUFFER_VAULT), address(accessManager));
+
+        operationsCoordinator =
+            new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), BPS_VT_UPDATE_PRICE_TOLERANCE);
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -187,6 +195,7 @@ contract DeployProtocolToMainnet is Script {
             enclaveVerifier: address(verifier),
             validatorTicket: address(validatorTicketProxy),
             pufferOracle: address(oracle),
+            operationsCoordinator: address(operationsCoordinator),
             pufferDepositor: PUFFER_DEPOSITOR,
             pufferVault: PUFFER_VAULT,
             stETH: ST_ETH,
@@ -194,7 +203,7 @@ contract DeployProtocolToMainnet is Script {
             timelock: TIMELOCK
         });
 
-        new SetupAccess().run(deployment, DAO_MULTISIG);
+        new SetupAccess().run(deployment, DAO_MULTISIG, PAYMASTER);
     }
 
     function _writeJSON() internal {

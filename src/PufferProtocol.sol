@@ -125,9 +125,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
-        bytes32[] memory weights = new bytes32[](1);
-        weights[0] = _PUFFER_MODULE_0;
-        _setModuleWeights(weights);
         _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
         _setVTPenalty(10 ether); // 10 Validator Tickets
     }
@@ -257,9 +254,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external restricted {
-        // We only use depositRootHash in the no enclave case.
-        // For enclave case, we don't need to check the depositRootHash
-        if (depositRootHash != bytes32(0) && depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+        if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
             revert InvalidDepositRootHash();
         }
 
