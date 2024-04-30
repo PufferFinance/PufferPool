@@ -31,6 +31,7 @@ contract PufferProtocolTest is TestHelper {
 
     bytes32 constant EIGEN_DA = bytes32("EIGEN_DA");
     bytes32 constant CRAZY_GAINS = bytes32("CRAZY_GAINS");
+    bytes32 constant DEFAULT_DEPOSIT_ROOT = bytes32("depositRoot");
 
     Permit emptyPermit;
 
@@ -144,7 +145,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
         moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
         assertEq(moduleSelectionIndex, 1, "module idx changed");
     }
@@ -315,7 +316,7 @@ contract PufferProtocolTest is TestHelper {
             _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000");
 
         vm.expectRevert(); // panic
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     // If the deposit root is not bytes(0), it must match match the one returned from the beacon contract
@@ -329,7 +330,7 @@ contract PufferProtocolTest is TestHelper {
         pufferProtocol.provisionNode(guardianSignatures, validatorSignature, bytes32("badDepositRoot")); // "depositRoot" is hardcoded in the mock
 
         // now it works
-        pufferProtocol.provisionNode(guardianSignatures, validatorSignature, bytes32("depositRoot"));
+        pufferProtocol.provisionNode(guardianSignatures, validatorSignature, DEFAULT_DEPOSIT_ROOT);
     }
 
     function test_register_multiple_validators_and_skipProvisioning(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart)
@@ -371,14 +372,14 @@ contract PufferProtocolTest is TestHelper {
         // 1. provision zero key
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(bobSignatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(bobSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 1);
 
@@ -389,7 +390,7 @@ contract PufferProtocolTest is TestHelper {
         signatures = _getGuardianSignatures(zeroPubKey);
 
         emit SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Get validators
         Validator[] memory registeredValidators = pufferProtocol.getValidators(PUFFER_MODULE_0);
@@ -440,7 +441,7 @@ contract PufferProtocolTest is TestHelper {
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -452,7 +453,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -474,12 +475,12 @@ contract PufferProtocolTest is TestHelper {
         // Provisioning of rocky should fail, because jason is next in line
         signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
         vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         signatures = _getGuardianSignatures(_getPubKey(bytes32("jason")));
 
         // Provision Jason
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -488,7 +489,7 @@ contract PufferProtocolTest is TestHelper {
         // Rocky is now in line
         assertTrue(nextModule == CRAZY_GAINS, "module selection");
         assertTrue(nextId == 0, "module id");
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -503,7 +504,7 @@ contract PufferProtocolTest is TestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     function test_create_puffer_module() public {
@@ -765,7 +766,7 @@ contract PufferProtocolTest is TestHelper {
         bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
         // Register and provision Alice
         // Alice may be an active validator or it can be exited, doesn't matter
-        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Register another validator with using the same data
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
@@ -773,7 +774,7 @@ contract PufferProtocolTest is TestHelper {
         // Try to provision it with the original message (replay attack)
         // It should revert
         vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     function test_validator_limit_per_module() external {
@@ -823,7 +824,7 @@ contract PufferProtocolTest is TestHelper {
         vm.warp(startTimestamp);
 
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         // Didn't claim the bond yet
@@ -1474,7 +1475,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         // Give funds to modules
@@ -1528,7 +1529,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1580,7 +1581,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1640,7 +1641,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1692,7 +1693,7 @@ contract PufferProtocolTest is TestHelper {
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1735,7 +1736,7 @@ contract PufferProtocolTest is TestHelper {
         vm.stopPrank();
 
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         // Alice exited after 1 day
@@ -1765,7 +1766,7 @@ contract PufferProtocolTest is TestHelper {
         vm.stopPrank();
 
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), bytes32(0)
+            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         vm.startPrank(DAO);
@@ -2040,7 +2041,9 @@ contract PufferProtocolTest is TestHelper {
         _registerValidatorKey(pubKeyPart, moduleName);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(_getPubKey(pubKeyPart)), _validatorSignature(), bytes32(0));
+        pufferProtocol.provisionNode(
+            _getGuardianSignatures(_getPubKey(pubKeyPart)), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
+        );
     }
 
     /**

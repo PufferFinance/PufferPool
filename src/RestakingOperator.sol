@@ -175,6 +175,19 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
+    function customCalldataCall(address target, bytes calldata customCalldata)
+        external
+        virtual
+        onlyPufferModuleManager
+        returns (bool success, bytes memory response)
+    {
+        return target.call(customCalldata);
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to the PufferModuleManager
+     */
     function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
         external
         virtual

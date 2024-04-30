@@ -94,6 +94,15 @@ interface IRestakingOperator {
     ) external;
 
     /**
+     * @notice Does a custom call to `target` with `customCalldata`
+     * @return success
+     * @return response
+     */
+    function customCalldataCall(address target, bytes calldata customCalldata)
+        external
+        returns (bool success, bytes memory response);
+
+    /**
      * @notice Deregisters the caller from one or more quorums
      * @param avsRegistryCoordinator the avs registry coordinator address
      * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from

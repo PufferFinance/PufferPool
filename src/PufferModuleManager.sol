@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { Unauthorized } from "puffer/Errors.sol";
+import { Unauthorized, CustomCallFailed } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
@@ -341,6 +341,23 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             socket: socket,
             operatorKickParams: operatorKickParams
         });
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
+        external
+        virtual
+        restricted
+    {
+        (bool success, bytes memory response) = restakingOperator.customCalldataCall(target, customCalldata);
+        if (!success) {
+            revert CustomCallFailed(address(restakingOperator), response);
+        }
+
+        emit CustomCallSucceed(address(restakingOperator), target, customCalldata, response);
     }
 
     /**
