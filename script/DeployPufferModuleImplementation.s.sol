@@ -23,7 +23,6 @@ contract DeployPufferModuleImplementation is Script {
     address ACCESS_MANAGER = 0xA6c916f85DAfeb6f726E03a1Ce8d08cf835138fF;
     address PUFFER_MODULE_BEACON = 0x5B81A4579f466fB17af4d8CC0ED51256b94c61D4;
 
-
     function run() public {
         require(block.chainid == 17000, "This script is only for Puffer Holesky testnet");
 

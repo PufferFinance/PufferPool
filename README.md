@@ -59,6 +59,7 @@ forge test --no-match-path './test/fork-tests/*'
 
 ## Deployments
 
+
 ### Mainnet
 
 ###### Core
@@ -106,4 +107,11 @@ forge test --no-match-path './test/fork-tests/*'
 | RestakingOperator               | - | [0x89fE...0fA5](https://holesky.etherscan.io/address/0x89fE1Ab8A0f74494Bf3Fc0f238d40799BA360fA5) |
 | ValidatorTicket               | [0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b](https://holesky.etherscan.io/address/0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b) | [0x5C67...4325](https://holesky.etherscan.io/address/0x5C67fb4410797960C45e573e266A7B79d5Bb4325) |
 
+
+# Audits
+- Nethermind: [Audit Report](./docs/audits/Nethermind_PufferProtocol_NM0202_April2024.pdf)
+- Blocksec: [Audit Report](./docs/audits/Blocksec_audit_April2024.pdf)
+- Creed: [Audit Report](./docs/audits/Creed_Puffer_Finance_Audit_April2024.pdf)
+
+# See [/docs/README.md](./docs/README.md) for more documentation
 

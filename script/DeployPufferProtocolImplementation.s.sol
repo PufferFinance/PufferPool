@@ -22,7 +22,7 @@ contract DeployPufferProtocolImplementation is Script {
         require(block.chainid == 17000, "This script is only for Puffer Holesky testnet");
 
         vm.startBroadcast();
-        PufferProtocol impl = new PufferProtocol({
+        new PufferProtocol({
             pufferVault: PufferVaultV2(payable(0x98408eadD0C7cC9AebbFB2AD2787c7473Db7A1fa)),
             validatorTicket: ValidatorTicket(address(0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b)),
             guardianModule: GuardianModule(payable(0xD349FdCD0e4451381bfE7cba3ac28773E176b326)),
