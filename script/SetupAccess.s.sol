@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
+import { GenerateAccessManagerCalldata1 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata1.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
@@ -55,6 +56,11 @@ contract SetupAccess is BaseScript {
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
+
+        cd = new GenerateAccessManagerCalldata1().run(deployment.aVSContractsRegistry, DAO);
+        // console.logBytes(cd);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCalldata1");
     }
 
     function _generateAccessCalldata(

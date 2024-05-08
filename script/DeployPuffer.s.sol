@@ -24,6 +24,7 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 
 /**
  * @title DeployPuffer
@@ -51,6 +52,7 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon restakingOperatorBeacon;
     PufferModuleManager moduleManager;
     OperationsCoordinator operationsCoordinator;
+    AVSContractsRegistry aVSContractsRegistry;
 
     address eigenPodManager;
     address delayedWithdrawalRouter;
@@ -132,10 +134,13 @@ contract DeployPuffer is BaseScript {
             restakingOperatorBeacon =
                 new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
 
+            aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
+
             moduleManager = new PufferModuleManager({
                 pufferModuleBeacon: address(pufferModuleBeacon),
                 restakingOperatorBeacon: address(restakingOperatorBeacon),
-                pufferProtocol: address(proxy)
+                pufferProtocol: address(proxy),
+                avsContractsRegistry: aVSContractsRegistry
             });
 
             // Puffer Service implementation
@@ -183,6 +188,7 @@ contract DeployPuffer is BaseScript {
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
             operationsCoordinator: address(operationsCoordinator),
+            aVSContractsRegistry: address(aVSContractsRegistry),
             timelock: address(0), // overwritten in DeployEverything
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
