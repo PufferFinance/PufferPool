@@ -37,7 +37,7 @@ For all deployment, contract addresses, ABIs, and more, see the [Deployments and
 ## Audits
 - Trail of Bits: [Audit Report](https://github.com/trailofbits/publications/blob/master/reviews/2024-03-pufferfinance-securityreview.pdf)
 - Nethermind: [Audit Report](https://github.com/NethermindEth/PublicAuditReports/blob/main/NM0202-FINAL_PUFFER.pdf)
-- SlowMist
+- SlowMist [Audit Report](./docs/audits/SlowMist_PufferFinance_Phase2.pdf)
 - Blocksec: [Audit Report](./docs/audits/Blocksec_audit_April2024.pdf)
 - Creed: [Audit Report](./docs/audits/Creed_Puffer_Finance_Audit_April2024.pdf)
 
