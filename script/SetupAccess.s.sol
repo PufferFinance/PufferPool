@@ -109,7 +109,7 @@ contract SetupAccess is BaseScript {
         calldatas[25] = coordinatorAccess[1];
     }
 
-    function _labelRoles() internal view returns (bytes[] memory) {
+    function _labelRoles() internal pure returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](4);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_DAO, "Puffer DAO");

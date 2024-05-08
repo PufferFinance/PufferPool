@@ -20,7 +20,6 @@ The roles of the Guardians are:
 - Ejecting validators whose ETH balance has fallen too low or who have run out of [Validator Tickets](ValidatorTicket.md)
 - Validator tickets accounting for node operators
 - Handling of the full withdrawals requests
-- Reporting of the number of active Puffer validators
 - Reporting the total number of active Ethereum validators for enforcing the [BurstThreshold](https://docs.puffer.fi/protocol/burst-threshold)
 
 The Guardians are expected to use their enclave for provisioning, skipping, and ejecting validators. Their EOA wallet is used to sign off on the rest of their duties. A portion of the protocol's fees are awarded to the GuardianModule to subsidize the Guardians' operating costs (infrastructure/gas).
@@ -35,7 +34,7 @@ The Guardians are expected to use their enclave for provisioning, skipping, and 
 - `_guardianEnclaves` is a mapping of guardian addresses to their enclave addresses.
 
 ## DAO Responsibilities
-- Sets the [MRENCLAVE and MRSIGNER)](https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-intel-sgx-sealing.html) measurements via `setGuardianEnclaveMeasurements`. 
+- Sets the [MRENCLAVE and MRSIGNER](https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-intel-sgx-sealing.html) measurements via `setGuardianEnclaveMeasurements`. 
 - Adds Guardians via `addGuardian` and removes them via `removeGuardian`
 - Sets the `_ejectionThreshold` via `setThreshold`
 
