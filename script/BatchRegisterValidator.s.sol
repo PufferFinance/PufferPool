@@ -57,7 +57,7 @@ contract BatchRegisterValidator is Script {
         _validateBalances(registrationFiles.length, vtAmount);
 
         for (uint256 i = 0; i < registrationFiles.length; ++i) {
-            registrationJson = vm.readFile(registrationFiles[0].path);
+            registrationJson = vm.readFile(registrationFiles[i].path);
 
             bytes32 moduleName = stdJson.readBytes32(registrationJson, ".module_name");
             bytes memory withdrawalCredentials = stdJson.readBytes(registrationJson, ".withdrawal_credentials");
