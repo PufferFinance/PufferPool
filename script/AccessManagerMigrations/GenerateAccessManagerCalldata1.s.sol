@@ -6,7 +6,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
-import { ROLE_ID_AVS_COORDINATOR_WHITELISTER, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
+import { ROLE_ID_AVS_COORDINATOR_ALLOWLISTER, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
 
 /**
  * @title GenerateAccessManagerCalldata1
@@ -28,20 +28,20 @@ contract GenerateAccessManagerCalldata1 is Script {
             AccessManager.setTargetFunctionRole.selector,
             avsContractsRegistry,
             whitelisterSelectors,
-            ROLE_ID_AVS_COORDINATOR_WHITELISTER
+            ROLE_ID_AVS_COORDINATOR_ALLOWLISTER
         );
 
         // Whitelister has 1 day timelock to add new coordinators
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.grantRole.selector,
-            ROLE_ID_AVS_COORDINATOR_WHITELISTER,
+            ROLE_ID_AVS_COORDINATOR_ALLOWLISTER,
             whitelister,
             1 days // 1 day timelock
         );
 
         // The role guardian can cancel
         calldatas[2] = abi.encodeWithSelector(
-            AccessManager.setRoleGuardian.selector, ROLE_ID_AVS_COORDINATOR_WHITELISTER, ROLE_ID_DAO
+            AccessManager.setRoleGuardian.selector, ROLE_ID_AVS_COORDINATOR_ALLOWLISTER, ROLE_ID_DAO
         );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
