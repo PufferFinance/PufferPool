@@ -126,7 +126,9 @@ contract BatchRegisterValidator is Script {
         }
 
         console.log("Registered PubKeys:");
-        console.log("------------------------------------------------------------------------------------------------------------------------");
+        console.log(
+            "------------------------------------------------------------------------------------------------------------------------"
+        );
         for (uint256 i = 0; i < registeredPubKeys.length; ++i) {
             console.logBytes(registeredPubKeys[i]);
         }
