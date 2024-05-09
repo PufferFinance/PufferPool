@@ -15,7 +15,7 @@ import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
  *
  *  To run the simulation:
  *
- *  forge script script/BatchRegisterValidator.s.sol:BatchRegisterValidator --rpc-url=$HOLESKY_RPC_URL --account puffer -vvvv --sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+ *  forge script script/BatchRegisterValidator.s.sol:BatchRegisterValidator --rpc-url=$HOLESKY_RPC_URL --account puffer -vvv --sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
  *
  *  To broadcast the transaction, add `--broadcast` flag at the end of the command
  */
@@ -26,6 +26,9 @@ contract BatchRegisterValidator is Script {
     ValidatorTicket internal validatorTicket;
     address internal protocolAddress;
     string internal registrationJson;
+
+    mapping(bytes32 keyHash => bool registered) internal pubKeys;
+    bytes[] internal registeredPubKeys;
 
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -88,8 +91,6 @@ contract BatchRegisterValidator is Script {
             registrationJson = vm.readFile(registrationFiles[i].path);
 
             bytes32 moduleName = stdJson.readBytes32(registrationJson, ".module_name");
-            bytes memory withdrawalCredentials = stdJson.readBytes(registrationJson, ".withdrawal_credentials");
-
             bytes[] memory blsEncryptedPrivKeyShares = new bytes[](guardiansLength);
             blsEncryptedPrivKeyShares[0] = stdJson.readBytes(registrationJson, ".bls_enc_priv_key_shares[0]");
 
@@ -118,7 +119,16 @@ contract BatchRegisterValidator is Script {
                 domainSeparator: validatorTicket.DOMAIN_SEPARATOR()
             });
 
+            pubKeys[keccak256(validatorData.blsPubKey)] = true;
+            registeredPubKeys.push(validatorData.blsPubKey);
+
             IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, pufETHPermit, vtPermit);
+        }
+
+        console.log("Registered PubKeys:");
+        console.log("------------------------------------------------------------------------------------------------------------------------");
+        for (uint256 i = 0; i < registeredPubKeys.length; ++i) {
+            console.logBytes(registeredPubKeys[i]);
         }
     }
 
