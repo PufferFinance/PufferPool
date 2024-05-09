@@ -8,6 +8,7 @@ import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 /**
  *  Replace the `--sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0` with the address that will be used to sign the permits and register the validators
@@ -19,6 +20,8 @@ import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
  *  To broadcast the transaction, add `--broadcast` flag at the end of the command
  */
 contract BatchRegisterValidator is Script {
+    using stdJson for string;
+
     PufferVaultV2 internal pufETH;
     ValidatorTicket internal validatorTicket;
     address internal protocolAddress;
@@ -54,9 +57,34 @@ contract BatchRegisterValidator is Script {
         uint256 vtAmount = vm.promptUint("Enter the VT amount per validator (28 is minimum):");
         require(vtAmount >= 28, "VT amount must be at least 28");
 
-        _validateBalances(registrationFiles.length, vtAmount);
-
+        // Loop 1 to check the number of valid .json files in the directory
+        uint256 validFiles = 0;
         for (uint256 i = 0; i < registrationFiles.length; ++i) {
+            if (!this.isJsonFile(registrationFiles[i].path)) {
+                continue;
+            }
+
+            ++validFiles;
+        }
+
+        _validateBalances(validFiles, vtAmount);
+
+        require(
+            vm.promptUint(
+                string.concat(
+                    "The directory contains ", Strings.toString(validFiles), " registration files. Enter 1 to proceed"
+                )
+            ) == 1,
+            "User Aborted"
+        );
+
+        // Loop 2 to register the validators
+        for (uint256 i = 0; i < registrationFiles.length; ++i) {
+            if (!this.isJsonFile(registrationFiles[i].path)) {
+                console.log("Skipping file: ", registrationFiles[i].path);
+                continue;
+            }
+
             registrationJson = vm.readFile(registrationFiles[i].path);
 
             bytes32 moduleName = stdJson.readBytes32(registrationJson, ".module_name");
@@ -119,5 +147,16 @@ contract BatchRegisterValidator is Script {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(outerHash);
 
         return Permit({ deadline: deadline, amount: amount, v: v, r: r, s: s });
+    }
+
+    function isJsonFile(string calldata str) external pure returns (bool) {
+        uint256 length = bytes(str).length;
+        if (length < 5) {
+            return false;
+        }
+        uint256 start = length - 5;
+        string memory ext = str[start:];
+        // Return true if extension is .json (lowercase)
+        return keccak256(abi.encodePacked(ext)) == keccak256(abi.encodePacked(".json"));
     }
 }
