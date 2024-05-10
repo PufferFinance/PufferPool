@@ -6,26 +6,27 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { Permit } from "pufETH/structs/Permit.sol";
 import { ValidatorKeyData } from "puffer/struct/ValidatorKeyData.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
+import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
-import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 /**
- *  Replace the `--sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0` with the address that will be used to sign the permits and register the validators
+ *  Replace the `--sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0` with the address that will be used to sign the permits and register the validators ($PK)
  *
  *  To run the simulation:
  *
- *  forge script script/BatchRegisterValidator.s.sol:BatchRegisterValidator --rpc-url=$HOLESKY_RPC_URL --account puffer -vvv --sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+ *  forge script script/GenerateBLSKeysAndRegisterValidators.s.sol:GenerateBLSKeysAndRegisterValidators --rpc-url=$HOLESKY_RPC_URL --private-key=$PK -vvv --sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
  *
- *  To broadcast the transaction, add `--broadcast` flag at the end of the command
+ *  To broadcast the transaction, add `--broadcast --slow` flag at the end of the command
  */
-contract BatchRegisterValidator is Script {
-    using stdJson for string;
-
+contract GenerateBLSKeysAndRegisterValidators is Script {
     PufferVaultV2 internal pufETH;
     ValidatorTicket internal validatorTicket;
     address internal protocolAddress;
+    PufferProtocol internal pufferProtocol;
     string internal registrationJson;
+
+    string forkVersion;
 
     mapping(bytes32 keyHash => bool registered) internal pubKeys;
     bytes[] internal registeredPubKeys;
@@ -37,58 +38,41 @@ contract BatchRegisterValidator is Script {
         if (block.chainid == 17000) {
             // Holesky
             protocolAddress = 0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14;
+            pufferProtocol = PufferProtocol(protocolAddress);
+            forkVersion = "0x01017000";
         } else if (block.chainid == 1) {
             // Mainnet
             protocolAddress = 0xf7b6B32492c2e13799D921E84202450131bd238B;
-        } else {
-            revert("Unsupported chain ID");
+            pufferProtocol = PufferProtocol(protocolAddress);
+            forkVersion = "0x00000000";
         }
+
+        pufETH = pufferProtocol.PUFFER_VAULT();
+        validatorTicket = pufferProtocol.VALIDATOR_TICKET();
     }
 
     function run() public {
         vm.startBroadcast();
 
-        IPufferProtocol pufferProtocol = IPufferProtocol(protocolAddress);
-        pufETH = pufferProtocol.PUFFER_VAULT();
-        validatorTicket = pufferProtocol.VALIDATOR_TICKET();
-
         uint256 guardiansLength = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
 
-        VmSafe.DirEntry[] memory registrationFiles = vm.readDir("./registration-data");
-        require(registrationFiles.length > 0, "No registration files found");
+        uint256 numberOfValidators = vm.promptUint("How many validators would you like to register?");
+        require(numberOfValidators > 0, "Number of validators must be greater than 0");
 
         uint256 vtAmount = vm.promptUint("Enter the VT amount per validator (28 is minimum):");
         require(vtAmount >= 28, "VT amount must be at least 28");
 
-        // Loop 1 to check the number of valid .json files in the directory
-        uint256 validFiles = 0;
-        for (uint256 i = 0; i < registrationFiles.length; ++i) {
-            if (!this.isJsonFile(registrationFiles[i].path)) {
-                continue;
-            }
+        // Validate pufETH & VT balances
+        _validateBalances(numberOfValidators, vtAmount);
 
-            ++validFiles;
-        }
+        bytes32[] memory moduleWeights = pufferProtocol.getModuleWeights();
+        uint256 moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
 
-        _validateBalances(validFiles, vtAmount);
+        for (uint256 i = 0; i < numberOfValidators; ++i) {
+            _generateValidatorKey(i, moduleWeights[(moduleSelectionIndex + i) % moduleWeights.length]);
 
-        require(
-            vm.promptUint(
-                string.concat(
-                    "The directory contains ", Strings.toString(validFiles), " registration files. Enter 1 to proceed"
-                )
-            ) == 1,
-            "User Aborted"
-        );
-
-        // Loop 2 to register the validators
-        for (uint256 i = 0; i < registrationFiles.length; ++i) {
-            if (!this.isJsonFile(registrationFiles[i].path)) {
-                console.log("Skipping file: ", registrationFiles[i].path);
-                continue;
-            }
-
-            registrationJson = vm.readFile(registrationFiles[i].path);
+            // Read the registration JSON file
+            registrationJson = vm.readFile(string.concat("./registration-data/", vm.toString(i), ".json"));
 
             bytes32 moduleName = stdJson.readBytes32(registrationJson, ".module_name");
             bytes[] memory blsEncryptedPrivKeyShares = new bytes[](guardiansLength);
@@ -119,10 +103,9 @@ contract BatchRegisterValidator is Script {
                 domainSeparator: validatorTicket.DOMAIN_SEPARATOR()
             });
 
-            pubKeys[keccak256(validatorData.blsPubKey)] = true;
-            registeredPubKeys.push(validatorData.blsPubKey);
-
             IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, pufETHPermit, vtPermit);
+
+            registeredPubKeys.push(validatorData.blsPubKey);
         }
 
         console.log("Registered PubKeys:");
@@ -134,6 +117,7 @@ contract BatchRegisterValidator is Script {
         }
     }
 
+    // Validates the pufETH and VT balances for the msg.sender (node operator)
     function _validateBalances(uint256 numberOfValidators, uint256 vtBalancePerValidator) internal view {
         uint256 pufETHRequired = pufETH.convertToSharesUp(numberOfValidators * 2 ether);
 
@@ -148,6 +132,7 @@ contract BatchRegisterValidator is Script {
         }
     }
 
+    // Signs the Permit for VT & puETH
     function _signPermit(address to, uint256 amount, uint256 nonce, uint256 deadline, bytes32 domainSeparator)
         internal
         view
@@ -161,14 +146,32 @@ contract BatchRegisterValidator is Script {
         return Permit({ deadline: deadline, amount: amount, v: v, r: r, s: s });
     }
 
-    function isJsonFile(string calldata str) external pure returns (bool) {
-        uint256 length = bytes(str).length;
-        if (length < 5) {
-            return false;
-        }
-        uint256 start = length - 5;
-        string memory ext = str[start:];
-        // Return true if extension is .json (lowercase)
-        return keccak256(abi.encodePacked(ext)) == keccak256(abi.encodePacked(".json"));
+    // Generates a new validator key using coral https://github.com/PufferFinance/coral/tree/main
+    function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
+        uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
+        bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
+        address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
+        bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
+
+        string[] memory inputs = new string[](17);
+        inputs[0] = "coral-cli";
+        inputs[1] = "validator";
+        inputs[2] = "keygen";
+        inputs[3] = "--guardian-threshold";
+        inputs[4] = vm.toString(numberOfGuardians);
+        inputs[5] = "--module-name";
+        inputs[6] = vm.toString(moduleName);
+        inputs[7] = "--withdrawal-credentials";
+        inputs[8] = vm.toString(withdrawalCredentials);
+        inputs[9] = "--guardian-pubkeys";
+        inputs[10] = vm.toString(guardianPubKeys[0]); //@todo: Add support for multiple guardians
+        inputs[11] = "--fork-version";
+        inputs[12] = forkVersion;
+        inputs[13] = "--password-file";
+        inputs[14] = "validator-keystore-password.txt";
+        inputs[15] = "--output-file";
+        inputs[16] = string.concat("./registration-data/", vm.toString(idx), ".json");
+
+        vm.ffi(inputs);
     }
 }
