@@ -11,13 +11,14 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 
 /**
- *  Replace the `--sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0` with the address that will be used to sign the permits and register the validators ($PK)
+ *  Replace the `--sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0` with the address that will be used to sign the permits matches the keystore used by --account
+ * See the docs for more detailed information: https://docs.puffer.fi/nodes/registration#batch-registering-validators
  *
  *  To run the simulation:
  *
- *  forge script script/GenerateBLSKeysAndRegisterValidators.s.sol:GenerateBLSKeysAndRegisterValidators --rpc-url=$HOLESKY_RPC_URL --private-key=$PK -vvv --sender=0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+ * forge script script/GenerateBLSKeysAndRegisterValidators.s.sol:GenerateBLSKeysAndRegisterValidators --rpc-url=$RPC_URL --account $KEYSTORE_NAME -vvv --sender=$KEYSTORE_ADDRESS --ffi
  *
- *  To broadcast the transaction, add `--broadcast --slow` flag at the end of the command
+ *  To broadcast the transaction on-chain, add `--broadcast --slow` flag at the end of the command
  */
 contract GenerateBLSKeysAndRegisterValidators is Script {
     PufferVaultV2 internal pufETH;
@@ -59,7 +60,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
         uint256 numberOfValidators = vm.promptUint("How many validators would you like to register?");
         require(numberOfValidators > 0, "Number of validators must be greater than 0");
 
-        uint256 vtAmount = vm.promptUint("Enter the VT amount per validator (28 is minimum):");
+        uint256 vtAmount = vm.promptUint("Enter the VT amount per validator (28 is minimum)");
         require(vtAmount >= 28, "VT amount must be at least 28");
 
         // Validate pufETH & VT balances
