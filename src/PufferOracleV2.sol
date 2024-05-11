@@ -31,22 +31,22 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Number of active Puffer validators
      * Slot 0
      */
-    uint64 internal _numberOfActivePufferValidators;
+    uint256 internal _numberOfActivePufferValidators;
 
     /**
      * @dev Total number of Validators
-     * Slot 0
+     * Slot 1
      */
-    uint64 internal _totalNumberOfValidators;
+    uint256 internal _totalNumberOfValidators;
     /**
      * @dev Epoch number of the update
-     * Slot 0
+     * Slot 2
      */
-    uint64 internal _epochNumber;
+    uint256 internal _epochNumber;
 
     /**
      * @dev Price in wei to mint one Validator Ticket
-     * Slot 1
+     * Slot 3
      */
     uint256 internal _validatorTicketPrice;
 
@@ -58,6 +58,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _epochNumber = 268828; // Oracle will be updated with the correct value
         _setMintPrice(0.01 ether);
+        _numberOfActivePufferValidators = 174;
     }
 
     /**
@@ -135,6 +136,13 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     function getValidatorTicketPrice() external view returns (uint256) {
         return _validatorTicketPrice;
+    }
+
+    /**
+     * @inheritdoc IPufferOracleV2
+     */
+    function getNumberOfActiveValidators() external view returns (uint256) {
+        return _numberOfActivePufferValidators;
     }
 
     function _setMintPrice(uint256 newPrice) internal {

@@ -32,6 +32,11 @@ interface IPufferOracleV2 is IPufferOracle {
     function getTotalNumberOfValidators() external view returns (uint256);
 
     /**
+     * @notice Returns the number of active puffer validators on Ethereum
+     */
+    function getNumberOfActiveValidators() external view returns (uint256);
+
+    /**
      * @notice Exits `validatorNumber` validators, decreasing the `lockedETHAmount` by validatorNumber * 32 ETH.
      * It is called when when the validator exits the system in the `batchHandleWithdrawals` on the PufferProtocol.
      * In the same transaction, we are transferring full withdrawal ETH from the PufferModule to the Vault
