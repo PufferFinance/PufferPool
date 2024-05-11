@@ -21,11 +21,13 @@ import {
 contract GenerateOracleCalldata is BaseScript {
     AccessManager internal accessManager;
 
-    address pufferOracle = address(1234); //@todo <------------------------------------------------------------------------------------------------------------------------------
-    address operationsCoordinator = address(555); //@todo <------------------------------------------------------------------------------------------------------------------------------
-    address coordinatorAddress = address(666); //@todo <------------------------------------------------------------------------------------------------------------------------------
+    address pufferOracle;
+    address operationsCoordinator;
 
-    function run() external broadcast {
+    function run(address oracle, address coordinator) external broadcast {
+        pufferOracle = oracle;
+        operationsCoordinator = coordinator;
+
         accessManager = AccessManager(payable(0x8c1686069474410E6243425f4a10177a94EBEE11));
 
         bytes[] memory calldatas = _generateAccessCalldata({
@@ -35,6 +37,7 @@ contract GenerateOracleCalldata is BaseScript {
         });
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+
         console.logBytes(multicallData);
     }
 
@@ -61,20 +64,14 @@ contract GenerateOracleCalldata is BaseScript {
         protocolSelectors[1] = PufferOracleV2.exitValidators.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferOracle,
-            protocolSelectors,
-            ROLE_ID_PUFFER_PROTOCOL
+            AccessManager.setTargetFunctionRole.selector, pufferOracle, protocolSelectors, ROLE_ID_PUFFER_PROTOCOL
         );
 
         bytes4[] memory operationsSelectors = new bytes4[](1);
         operationsSelectors[0] = PufferOracleV2.setTotalNumberOfValidators.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferOracle,
-            operationsSelectors,
-            ROLE_ID_OPERATIONS_MULTISIG
+            AccessManager.setTargetFunctionRole.selector, pufferOracle, operationsSelectors, ROLE_ID_OPERATIONS_MULTISIG
         );
 
         bytes4[] memory coordinatorSelectors = new bytes4[](1);
@@ -120,10 +117,7 @@ contract GenerateOracleCalldata is BaseScript {
         bytes[] memory calldatas = new bytes[](1);
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector,
-            ROLE_ID_OPERATIONS_COORDINATOR,
-            coordinatorAddress,
-            0
+            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, operationsCoordinator, 0
         );
 
         return calldatas;
