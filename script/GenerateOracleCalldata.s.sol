@@ -23,13 +23,15 @@ contract GenerateOracleCalldata is BaseScript {
 
     address pufferOracle = address(1234); //@todo <------------------------------------------------------------------------------------------------------------------------------
     address operationsCoordinator = address(555); //@todo <------------------------------------------------------------------------------------------------------------------------------
+    address coordinatorAddress = address(666); //@todo <------------------------------------------------------------------------------------------------------------------------------
 
     function run() external broadcast {
         accessManager = AccessManager(payable(0x8c1686069474410E6243425f4a10177a94EBEE11));
 
         bytes[] memory calldatas = _generateAccessCalldata({
             pufferOracleAccess: _setupPufferOracleAccess(),
-            coordinatorAccess: _setupCoordinatorAccess()
+            coordinatorAccess: _setupCoordinatorAccess(),
+            coordinatorRole: _grantCoordinatorRole()
         });
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
@@ -38,16 +40,16 @@ contract GenerateOracleCalldata is BaseScript {
 
     function _generateAccessCalldata(
         bytes[] memory pufferOracleAccess,
-        bytes[] memory coordinatorAccess
+        bytes[] memory coordinatorAccess,
+        bytes[] memory coordinatorRole
     ) internal view returns (bytes[] memory calldatas) {
-
-
-        calldatas = new bytes[](5);
+        calldatas = new bytes[](6);
         calldatas[0] = pufferOracleAccess[0];
         calldatas[1] = pufferOracleAccess[1];
         calldatas[2] = pufferOracleAccess[2];
         calldatas[3] = coordinatorAccess[0];
         calldatas[4] = coordinatorAccess[1];
+        calldatas[5] = coordinatorRole[0];
     }
 
     function _setupPufferOracleAccess() internal view returns (bytes[] memory) {
@@ -109,6 +111,19 @@ contract GenerateOracleCalldata is BaseScript {
             operationsCoordinator,
             paymasterSelectors,
             ROLE_ID_OPERATIONS_PAYMASTER
+        );
+
+        return calldatas;
+    }
+
+    function _grantCoordinatorRole() internal returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](1);
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector,
+            ROLE_ID_OPERATIONS_COORDINATOR,
+            coordinatorAddress,
+            0
         );
 
         return calldatas;
