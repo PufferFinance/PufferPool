@@ -18,13 +18,13 @@ import {
     ROLE_ID_OPERATIONS_COORDINATOR
 } from "pufETHScript/Roles.sol";
 
-contract GenerateOracleCalldata is BaseScript {
+contract GenerateOracleCalldata is Script {
     AccessManager internal accessManager;
 
     address pufferOracle;
     address operationsCoordinator;
 
-    function run(address oracle, address coordinator) external broadcast {
+    function run(address oracle, address coordinator) external {
         pufferOracle = oracle;
         operationsCoordinator = coordinator;
 

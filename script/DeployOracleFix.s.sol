@@ -33,12 +33,12 @@ import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
  * // Check that the simulation
  * add --slow if deploying to a mainnet fork like tenderly (its buggy sometimes)
  *
- *       forge script script/DeployProtocolToMainnet.s.sol:DeployProtocolToMainnet --rpc-url=$RPC_URL --private-key $PK --vvvv
+ *       forge script script/DeployOracleFix.s.sol:DeployOracleFix --rpc-url=$RPC_URL --private-key $PK --vvvv
  *
  *       `forge cache clean`
- *       forge script script/DeployProtocolToMainnet.s.sol:DeployProtocolToMainnet --rpc-url=$RPC_URL --private-key $PK --broadcast
+ *       forge script script/DeployOracleFix.s.sol:DeployOracleFix --rpc-url=$RPC_URL --private-key $PK --broadcast
  */
-contract DeployProtocolToMainnet is Script {
+contract DeployOracleFix is Script {
     UpgradeableBeacon pufferModuleBeacon;
     UpgradeableBeacon restakingOperatorBeacon;
     EnclaveVerifier verifier;
@@ -56,7 +56,7 @@ contract DeployProtocolToMainnet is Script {
     PufferDepositor pufferDepositorV2Implementation;
 
     ValidatorTicket validatorTicketImplementation;
-    ERC1967Proxy validatorTicketProxy;
+    ERC1967Proxy validatorTicketProxy = ERC1967Proxy(payable(0x7D26AD6F6BA9D6bA1de0218Ae5e20CD3a273a55A));
 
     // Lido
     address ST_ETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -159,10 +159,7 @@ contract DeployProtocolToMainnet is Script {
     }
 
     function _sanityCheck() internal view {
-        ValidatorTicket vt = ValidatorTicket(address(validatorTicketProxy));
-
-        require(vt.TREASURY() == TREASURY, "treasury");
-        require(address(vt.PUFFER_ORACLE()) == address(oracle), "oracle");
-        require(vt.getProtocolFeeRate() == 200, "protocol fee rate 2%");
+        require(validatorTicketImplementation.TREASURY() == TREASURY, "treasury");
+        require(address(validatorTicketImplementation.PUFFER_ORACLE()) == address(oracle), "oracle");
     }
 }
