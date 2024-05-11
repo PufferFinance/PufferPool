@@ -87,8 +87,8 @@ contract DeployOracleFix is Script {
     uint256 BPS_GUARDIANS_FEE_RATE = 50; // 0.5%
 
     uint256 THRESHOLD = 1;
-    address GUARDIAN_1 = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
-    address PAYMASTER = 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76; // PufferDeployer
+    address GUARDIAN_1 = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // guardian1/paymaster
+    address PAYMASTER = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // Paymaster
 
     uint256 BPS_VT_UPDATE_PRICE_TOLERANCE = 500; // 5%
 
