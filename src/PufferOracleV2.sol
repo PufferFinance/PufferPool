@@ -66,7 +66,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Restricted to PufferProtocol contract
      */
     function exitValidators(uint256 numberOfExits) public restricted {
-        _numberOfActivePufferValidators -= uint64(numberOfExits);
+        _numberOfActivePufferValidators -= numberOfExits;
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }
 
@@ -106,8 +106,8 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         }
         GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
         emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
-        _totalNumberOfValidators = uint64(newTotalNumberOfValidators);
-        _epochNumber = uint64(epochNumber);
+        _totalNumberOfValidators = newTotalNumberOfValidators;
+        _epochNumber = epochNumber;
     }
 
     /**
