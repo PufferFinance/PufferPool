@@ -365,7 +365,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         restricted
     {
         // Custom external calls are only allowed to whitelisted registry coordinators
-        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target)) {
+        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target, customCalldata)) {
             revert Unauthorized();
         }
 
