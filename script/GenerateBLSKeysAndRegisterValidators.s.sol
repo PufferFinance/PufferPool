@@ -29,6 +29,8 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
 
     string forkVersion;
 
+    bytes32 moduleToRegisterTo;
+
     mapping(bytes32 keyHash => bool registered) internal pubKeys;
     bytes[] internal registeredPubKeys;
 
@@ -57,6 +59,15 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
 
         uint256 guardiansLength = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
 
+        uint256 specificModule = vm.promptUint("Do you want to register to a specific module? (0: No, 1: Yes)");
+        if (specificModule == 1) {
+            uint256 pufferModuleIdx = vm.promptUint(
+                "Please enter the module number to which you wish to register. Enter '0' to register to PUFFER_MODULE_0, Enter '1' to register to PUFFER_MODULE_1, ..."
+            );
+            moduleToRegisterTo =
+                bytes32(abi.encodePacked(string.concat("PUFFER_MODULE_", vm.toString(pufferModuleIdx))));
+        }
+
         uint256 numberOfValidators = vm.promptUint("How many validators would you like to register?");
         require(numberOfValidators > 0, "Number of validators must be greater than 0");
 
@@ -70,12 +81,20 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
         uint256 moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
 
         for (uint256 i = 0; i < numberOfValidators; ++i) {
-            _generateValidatorKey(i, moduleWeights[(moduleSelectionIndex + i) % moduleWeights.length]);
+            // Select the module to register to
+            bytes32 moduleName = moduleWeights[(moduleSelectionIndex + i) % moduleWeights.length];
+
+            // If the user specified a module to register to, use that instead
+            if (moduleToRegisterTo != bytes32(0)) {
+                require(pufferProtocol.getModuleAddress(moduleToRegisterTo) != address(0), "Invalid Puffer Module");
+                moduleName = moduleToRegisterTo;
+            }
+
+            _generateValidatorKey(i, moduleName);
 
             // Read the registration JSON file
             registrationJson = vm.readFile(string.concat("./registration-data/", vm.toString(i), ".json"));
 
-            bytes32 moduleName = stdJson.readBytes32(registrationJson, ".module_name");
             bytes[] memory blsEncryptedPrivKeyShares = new bytes[](guardiansLength);
             blsEncryptedPrivKeyShares[0] = stdJson.readBytes(registrationJson, ".bls_enc_priv_key_shares[0]");
 
