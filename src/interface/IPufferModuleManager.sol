@@ -21,6 +21,12 @@ interface IPufferModuleManager {
     error ForbiddenModuleName();
 
     /**
+     * @notice Emitted when the Custom Call from the restakingOperator is successful
+     * @dev Signature "0x80b240e4b7a31d61bdee28b97592a7c0ad486cb27d11ee5c6b90530db4e949ff"
+     */
+    event CustomCallSucceeded(address indexed restakingOperator, address target, bytes customCalldata, bytes response);
+
+    /**
      * @notice Emitted when a Restaking Operator is opted into a slasher
      * @param restakingOperator is the address of the restaking operator
      * @param slasher is the address of the slasher contract
@@ -401,4 +407,14 @@ interface IPufferModuleManager {
         address avsRegistryCoordinator,
         string memory socket
     ) external;
+
+    /**
+     * @notice Calls the `target` contract with `customCalldata` from the Restaking Operator contract
+     * @param restakingOperator is the Restaking Operator contract
+     * @param target is the address of the target contract that ReOp will call
+     * @param customCalldata is the calldata to be passed to the target contract
+     * @dev Restricted to the DAO
+     */
+    function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
+        external;
 }

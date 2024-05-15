@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
-import { Unauthorized } from "puffer/Errors.sol";
+import { Unauthorized, CustomCallFailed } from "puffer/Errors.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IPufferProtocol } from "puffer/interface/IPufferProtocol.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
@@ -18,6 +18,7 @@ import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 
 /**
  * @title PufferModuleManager
@@ -40,6 +41,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     address public immutable override PUFFER_PROTOCOL;
 
+    /**
+     * @dev AVS contracts registry
+     */
+    AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
+
     modifier onlyPufferProtocol() {
         if (msg.sender != PUFFER_PROTOCOL) {
             revert Unauthorized();
@@ -47,10 +53,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
+    constructor(
+        address pufferModuleBeacon,
+        address restakingOperatorBeacon,
+        address pufferProtocol,
+        AVSContractsRegistry avsContractsRegistry
+    ) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
+        AVS_CONTRACTS_REGISTRY = avsContractsRegistry;
         _disableInitializers();
     }
 
@@ -341,6 +353,28 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             socket: socket,
             operatorKickParams: operatorKickParams
         });
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
+    function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
+        external
+        virtual
+        restricted
+    {
+        // Custom external calls are only allowed to whitelisted registry coordinators
+        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target, customCalldata)) {
+            revert Unauthorized();
+        }
+
+        (bool success, bytes memory response) = restakingOperator.customCalldataCall(target, customCalldata);
+        if (!success) {
+            revert CustomCallFailed(address(restakingOperator), response);
+        }
+
+        emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
     }
 
     /**

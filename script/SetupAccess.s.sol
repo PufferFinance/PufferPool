@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
+import { GenerateAccessManagerCalldata1 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata1.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
@@ -55,6 +56,11 @@ contract SetupAccess is BaseScript {
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
+
+        cd = new GenerateAccessManagerCalldata1().run(deployment.moduleManager, deployment.aVSContractsRegistry, DAO);
+        // console.logBytes(cd);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCalldata1");
     }
 
     function _generateAccessCalldata(
@@ -125,7 +131,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](11);
+        bytes4[] memory selectors = new bytes4[](12);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
         selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
@@ -137,6 +143,7 @@ contract SetupAccess is BaseScript {
         selectors[8] = PufferModuleManager.callRegisterOperatorToAVSWithChurn.selector;
         selectors[9] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
         selectors[10] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
+        selectors[11] = PufferModuleManager.customExternalCall.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO

@@ -7,6 +7,7 @@ import { GuardianModule } from "puffer/GuardianModule.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
 import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 import { RaveEvidence } from "puffer/struct/RaveEvidence.sol";
 import { IGuardianModule } from "puffer/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
@@ -87,6 +88,7 @@ contract TestHelper is Test, BaseScript {
     AccessManager public accessManager;
     IEnclaveVerifier public verifier;
     OperationsCoordinator public operationsCoordinator;
+    AVSContractsRegistry public avsContractsRegistry;
 
     address public DAO = makeAddr("DAO");
     address public timelock;
@@ -164,6 +166,7 @@ contract TestHelper is Test, BaseScript {
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
+        avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
 
         // pufETH dependencies
         pufferVault = PufferVaultV2(payable(pufferDeployment.pufferVault));

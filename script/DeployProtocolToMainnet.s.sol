@@ -28,6 +28,7 @@ import { PufferDepositor } from "pufETH/PufferDepositor.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 
 /**
  * // Check that the simulation
@@ -59,6 +60,8 @@ contract DeployProtocolToMainnet is Script {
 
     ValidatorTicket validatorTicketImplementation;
     ERC1967Proxy validatorTicketProxy;
+
+    AVSContractsRegistry aVSContractsRegistry;
 
     // Lido
     address ST_ETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -153,10 +156,13 @@ contract DeployProtocolToMainnet is Script {
         restakingOperatorBeacon =
             new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
 
+        aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
+
         moduleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            pufferProtocol: address(pufferProtocolProxy)
+            pufferProtocol: address(pufferProtocolProxy),
+            avsContractsRegistry: aVSContractsRegistry
         });
 
         pufferProtocolImplementation = new PufferProtocol({
@@ -196,6 +202,7 @@ contract DeployProtocolToMainnet is Script {
             validatorTicket: address(validatorTicketProxy),
             pufferOracle: address(oracle),
             operationsCoordinator: address(operationsCoordinator),
+            aVSContractsRegistry: address(aVSContractsRegistry),
             pufferDepositor: PUFFER_DEPOSITOR,
             pufferVault: PUFFER_VAULT,
             stETH: ST_ETH,

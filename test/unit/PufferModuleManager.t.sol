@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { TestHelper } from "../helpers/TestHelper.sol";
 import { PufferModule } from "puffer/PufferModule.sol";
 import { PufferProtocol } from "puffer/PufferProtocol.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IPufferModule } from "puffer/interface/IPufferModule.sol";
 import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
@@ -372,6 +373,65 @@ contract PufferModuleManagerTest is TestHelper {
         vm.stopPrank();
     }
 
+    function test_customExternalCall() public {
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+
+        bytes memory customCalldata = abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ());
+
+        // Not allowlisted, revert
+        vm.expectRevert(Unauthorized.selector);
+        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
+
+        // Generate allowlist cd
+        bytes memory allowlistCalldata = abi.encodeWithSelector(
+            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
+            address(this),
+            PufferModuleManagerTest.getMagicNumber.selector,
+            true
+        );
+
+        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
+        accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
+
+        // Advance the timestamp
+        vm.warp(block.timestamp + 1 days + 1);
+        // execute the allowlist calldata
+        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
+
+        // Now it works
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.CustomCallSucceeded({
+            restakingOperator: address(operator),
+            target: address(this),
+            customCalldata: customCalldata,
+            response: abi.encode(85858585)
+        });
+        pufferModuleManager.customExternalCall(
+            operator, address(this), abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ())
+        );
+
+        // Generate allowlist cd to remove the selector from the allowlist
+        allowlistCalldata = abi.encodeWithSelector(
+            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
+            address(this),
+            PufferModuleManagerTest.getMagicNumber.selector,
+            false
+        );
+
+        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
+        accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
+
+        // Advance the timestamp
+        vm.warp(block.timestamp + 1 days + 1);
+        // execute the allowlist calldata
+        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
+
+        // Not allowlisted, revert
+        vm.expectRevert(Unauthorized.selector);
+        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
+    }
+
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         vm.startPrank(DAO);
@@ -408,6 +468,10 @@ contract PufferModuleManagerTest is TestHelper {
         assertEq(details.delegationApprover, address(0), "delegation approver");
         assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
         return operator;
+    }
+
+    function getMagicNumber() external view returns (uint256) {
+        return 85858585;
     }
 }
 

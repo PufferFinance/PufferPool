@@ -10,6 +10,7 @@ import { PufferModule } from "puffer/PufferModule.sol";
 import { IRestakingOperator } from "puffer/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "puffer/RestakingOperator.sol";
+import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
@@ -85,7 +86,8 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         PufferModuleManager moduleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: MODULE_BEACON_HOLESKY,
             restakingOperatorBeacon: RESTAKING_OPERATOR_BEACON,
-            pufferProtocol: PUFFER_PROTOCOL_HOLESKY
+            pufferProtocol: PUFFER_PROTOCOL_HOLESKY,
+            avsContractsRegistry: new AVSContractsRegistry(ACCESS_MANAGER_HOLESKY)
         });
 
         // Upgrade PufferModuleManager to a new implementation
