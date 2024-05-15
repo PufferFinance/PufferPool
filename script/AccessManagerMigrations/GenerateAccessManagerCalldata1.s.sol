@@ -7,6 +7,7 @@ import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { ROLE_ID_AVS_COORDINATOR_ALLOWLISTER, ROLE_ID_DAO } from "pufETHScript/Roles.sol";
+import { PufferModuleManager } from "puffer/PufferModuleManager.sol";
 
 /**
  * @title GenerateAccessManagerCalldata1
@@ -18,8 +19,12 @@ import { ROLE_ID_AVS_COORDINATOR_ALLOWLISTER, ROLE_ID_DAO } from "pufETHScript/R
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCalldata1 is Script {
-    function run(address avsContractsRegistry, address whitelister) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](3);
+    function run(address moduleManager, address avsContractsRegistry, address whitelister)
+        public
+        pure
+        returns (bytes memory)
+    {
+        bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory whitelisterSelectors = new bytes4[](1);
         whitelisterSelectors[0] = AVSContractsRegistry.setAvsRegistryCoordinator.selector;
@@ -42,6 +47,14 @@ contract GenerateAccessManagerCalldata1 is Script {
         // The role guardian can cancel
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setRoleGuardian.selector, ROLE_ID_AVS_COORDINATOR_ALLOWLISTER, ROLE_ID_DAO
+        );
+
+        bytes4[] memory pufferModuleManagerSelectors = new bytes4[](1);
+
+        pufferModuleManagerSelectors[0] = PufferModuleManager.customExternalCall.selector;
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, moduleManager, pufferModuleManagerSelectors, ROLE_ID_DAO
         );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));

@@ -48,7 +48,8 @@ contract UpgradeRestakingOperator is Script {
             moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY)
         });
 
-        bytes memory accessCd = new GenerateAccessManagerCalldata1().run(address(avsRegistry), DAO);
+        bytes memory accessCd =
+            new GenerateAccessManagerCalldata1().run(MODULE_MANAGER_PROXY, address(avsRegistry), DAO);
 
         bytes memory cd1 = abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(pufferModuleManagerImpl), ""));
         bytes memory cd2 = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(restakingOperatorImpl));

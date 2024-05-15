@@ -57,7 +57,7 @@ contract SetupAccess is BaseScript {
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
 
-        cd = new GenerateAccessManagerCalldata1().run(deployment.aVSContractsRegistry, DAO);
+        cd = new GenerateAccessManagerCalldata1().run(deployment.moduleManager, deployment.aVSContractsRegistry, DAO);
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCalldata1");
