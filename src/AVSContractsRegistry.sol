@@ -41,6 +41,6 @@ contract AVSContractsRegistry is AccessManaged {
         // Extract the function selector (first 4 bytes of customCalldata)
         bytes4 selector = bytes4(customCalldata[:4]);
 
-        return _avsRegistryCoordinators[avsRegistryCoordinator][selector] == true;
+        return _avsRegistryCoordinators[avsRegistryCoordinator][selector];
     }
 }
