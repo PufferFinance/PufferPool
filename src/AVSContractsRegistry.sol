@@ -9,6 +9,16 @@ import { AccessManaged } from "openzeppelin/access/manager/AccessManaged.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract AVSContractsRegistry is AccessManaged {
+    /**
+     * @notice Thrown if the function selector is already allowed on the AVS registry coordinator
+     * @dev Signature "0x888297c3"
+     */
+    error FunctionSelectorAlreadySet(address registryCoordinator, bytes4 selector);
+
+    /**
+     * @notice Emitted selector is allowed or not on the AVS registry coordinator
+     * @dev Signature "0x5d01bf15a69c8ac220c1e8ecb284db2650e5898d547e839d9278467f97119c27"
+     */
     event AvsRegistryCoordinatorSet(address indexed avsRegistryCoordinator, bytes4 selector, bool isAllowed);
 
     mapping(address avsRegistryCoordinator => mapping(bytes4 selector => bool allowed)) internal
@@ -26,6 +36,10 @@ contract AVSContractsRegistry is AccessManaged {
         external
         restricted
     {
+        if (_avsRegistryCoordinators[avsRegistryCoordinator][selector] == isAllowed) {
+            revert FunctionSelectorAlreadySet(avsRegistryCoordinator, selector);
+        }
+
         _avsRegistryCoordinators[avsRegistryCoordinator][selector] = isAllowed;
         emit AvsRegistryCoordinatorSet(avsRegistryCoordinator, selector, isAllowed);
     }
