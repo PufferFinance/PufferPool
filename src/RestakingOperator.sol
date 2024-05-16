@@ -10,6 +10,7 @@ import { Unauthorized, InvalidAddress } from "puffer/Errors.sol";
 import { IPufferModuleManager } from "puffer/interface/IPufferModuleManager.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IRegistryCoordinatorExtended } from "puffer/interface/IRegistryCoordinatorExtended.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
@@ -21,8 +22,10 @@ import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, AccessManagedUpgradeable {
+    using Address for address;
     // keccak256(abi.encode(uint256(keccak256("RestakingOperator.storage")) - 1)) & ~bytes32(uint256(0xff))
     // slither-disable-next-line unused-state
+
     bytes32 private constant _RESTAKING_OPERATOR_STORAGE =
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
 
@@ -179,9 +182,9 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         external
         virtual
         onlyPufferModuleManager
-        returns (bool success, bytes memory response)
+        returns (bytes memory response)
     {
-        return target.call(customCalldata);
+        return target.functionCall(customCalldata);
     }
 
     /**
