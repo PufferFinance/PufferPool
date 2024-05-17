@@ -12,9 +12,3 @@ error Unauthorized();
  * @dev Signature "0xe6c4247b"
  */
 error InvalidAddress();
-
-/**
- * @notice Thrown if the custom call failed
- * @dev Signature "0x5515e1c7"
- */
-error CustomCallFailed(address target, bytes returnData);
