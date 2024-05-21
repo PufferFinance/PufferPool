@@ -17,7 +17,7 @@ import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { GenerateAccessManagerCalldata1 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata1.s.sol";
 
 /**
- * forge script script/UpgradeRestakingOperator.s.sol:UpgradeRestakingOperator --rpc-url=$RPC_URL --private-key $PK
+ * forge script script/MainnetContractMigrations/UpgradeRestakingOperator.s.sol:UpgradeRestakingOperator --rpc-url=$RPC_URL --private-key $PK
  */
 contract UpgradeRestakingOperator is Script {
     address DELEGATION_MANAGER = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
