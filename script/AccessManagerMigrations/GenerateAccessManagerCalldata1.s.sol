@@ -36,12 +36,12 @@ contract GenerateAccessManagerCalldata1 is Script {
             ROLE_ID_AVS_COORDINATOR_ALLOWLISTER
         );
 
-        // Whitelister has 1 day timelock to add new coordinators
+        // Whitelister (DA0) has 0 day timelock to add new coordinators
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.grantRole.selector,
             ROLE_ID_AVS_COORDINATOR_ALLOWLISTER,
             whitelister,
-            1 days // 1 day timelock
+            0
         );
 
         // The role guardian can cancel
