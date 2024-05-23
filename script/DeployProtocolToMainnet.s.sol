@@ -29,6 +29,7 @@ import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import { AVSContractsRegistry } from "puffer/AVSContractsRegistry.sol";
+import { ValidatorTicketPricer } from "puffer/ValidatorTicketPricer.sol";
 
 /**
  * // Check that the simulation
@@ -62,6 +63,7 @@ contract DeployProtocolToMainnet is Script {
     ERC1967Proxy validatorTicketProxy;
 
     AVSContractsRegistry aVSContractsRegistry;
+    ValidatorTicketPricer validatorTicketPricer;
 
     // Lido
     address ST_ETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -117,6 +119,8 @@ contract DeployProtocolToMainnet is Script {
 
         operationsCoordinator =
             new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), BPS_VT_UPDATE_PRICE_TOLERANCE);
+
+        validatorTicketPricer = new ValidatorTicketPricer(PufferOracleV2(oracle), address(accessManager));
 
         // Implementation of ValidatorTicket
         validatorTicketImplementation = new ValidatorTicket({
@@ -200,6 +204,7 @@ contract DeployProtocolToMainnet is Script {
             moduleManager: address(moduleManagerProxy),
             enclaveVerifier: address(verifier),
             validatorTicket: address(validatorTicketProxy),
+            validatorTicketPricer: address(validatorTicketPricer),
             pufferOracle: address(oracle),
             operationsCoordinator: address(operationsCoordinator),
             aVSContractsRegistry: address(aVSContractsRegistry),

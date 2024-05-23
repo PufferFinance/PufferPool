@@ -16,6 +16,7 @@ import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
 import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
+import { ValidatorTicketPricer } from "puffer/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "pufETHScript/GenerateAccessManagerCallData.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -43,7 +44,8 @@ contract SetupAccess is BaseScript {
             pufferOracleAccess: _setupPufferOracleAccess(),
             moduleManagerAccess: _setupPufferModuleManagerAccess(),
             roleLabels: _labelRoles(),
-            coordinatorAccess: _setupCoordinatorAccess()
+            coordinatorAccess: _setupCoordinatorAccess(),
+            validatorTicketAccess: _setupValidatorTicketPricerAccess()
         });
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
@@ -71,9 +73,10 @@ contract SetupAccess is BaseScript {
         bytes[] memory pufferOracleAccess,
         bytes[] memory moduleManagerAccess,
         bytes[] memory roleLabels,
-        bytes[] memory coordinatorAccess
+        bytes[] memory coordinatorAccess,
+        bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](26);
+        calldatas = new bytes[](30);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -107,6 +110,11 @@ contract SetupAccess is BaseScript {
 
         calldatas[24] = coordinatorAccess[0];
         calldatas[25] = coordinatorAccess[1];
+
+        calldatas[26] = validatorTicketAccess[0];
+        calldatas[27] = validatorTicketAccess[1];
+        calldatas[28] = validatorTicketAccess[2];
+        calldatas[29] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -359,8 +367,57 @@ contract SetupAccess is BaseScript {
         return calldatas;
     }
 
+    function _setupValidatorTicketPricerAccess() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](4);
+
+        bytes4[] memory operationsSelectors = new bytes4[](2);
+        operationsSelectors[0] = ValidatorTicketPricer.setDailyMevPayoutsChangeToleranceBps.selector;
+        operationsSelectors[1] = ValidatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.validatorTicketPricer,
+            operationsSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
+        );
+
+        bytes4[] memory daoSelectors = new bytes4[](1);
+        daoSelectors[0] = ValidatorTicketPricer.setDiscountRate.selector;
+
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.validatorTicketPricer,
+            daoSelectors,
+            ROLE_ID_DAO
+        );
+
+        bytes4[] memory paymasterSelectors = new bytes4[](3);
+        paymasterSelectors[0] = ValidatorTicketPricer.setDailyMevPayouts.selector;
+        paymasterSelectors[1] = ValidatorTicketPricer.setDailyConsensusRewards.selector;
+        paymasterSelectors[2] = ValidatorTicketPricer.setDailyRewardsAndPostMintPrice.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.validatorTicketPricer,
+            paymasterSelectors,
+            ROLE_ID_OPERATIONS_PAYMASTER
+        );
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = ValidatorTicketPricer.postMintPrice.selector;
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.validatorTicketPricer,
+            publicSelectors,
+            accessManager.PUBLIC_ROLE()
+        );
+
+        return calldatas;
+    }
+
     function _grantRoles(address DAO, address paymaster) internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](5);
+        bytes[] memory calldatas = new bytes[](6);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, DAO, 0);
         calldatas[1] = abi.encodeWithSelector(
@@ -372,6 +429,10 @@ contract SetupAccess is BaseScript {
         calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, DAO, 0);
         calldatas[4] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, pufferDeployment.operationsCoordinator, 0
+        );
+
+        calldatas[5] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, pufferDeployment.validatorTicketPricer, 0
         );
 
         return calldatas;

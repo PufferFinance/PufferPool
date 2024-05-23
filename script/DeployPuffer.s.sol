@@ -21,6 +21,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { ValidatorTicketPricer } from "puffer/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import { PufferOracleV2 } from "puffer/PufferOracleV2.sol";
 import { IPufferOracleV2 } from "puffer/interface/IPufferOracleV2.sol";
@@ -52,6 +53,7 @@ contract DeployPuffer is BaseScript {
     UpgradeableBeacon restakingOperatorBeacon;
     PufferModuleManager moduleManager;
     OperationsCoordinator operationsCoordinator;
+    ValidatorTicketPricer validatorTicketPricer;
     AVSContractsRegistry aVSContractsRegistry;
 
     address eigenPodManager;
@@ -91,6 +93,7 @@ contract DeployPuffer is BaseScript {
         }
 
         operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
+        validatorTicketPricer = new ValidatorTicketPricer(PufferOracleV2(oracle), address(accessManager));
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
@@ -178,6 +181,7 @@ contract DeployPuffer is BaseScript {
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
             validatorTicket: address(validatorTicketProxy),
+            validatorTicketPricer: address(validatorTicketPricer),
             pufferProtocolImplementation: address(pufferProtocolImpl),
             pufferProtocol: address(proxy),
             guardianModule: guardiansDeployment.guardianModule,
