@@ -40,7 +40,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     function setUp() public {
         if (block.chainid == 17000) {
             // Holesky
-            protocolAddress = 0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14;
+            protocolAddress = 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x01017000";
         } else if (block.chainid == 1) {
