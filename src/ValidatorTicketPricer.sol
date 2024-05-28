@@ -147,7 +147,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      * @param toleranceBps The allowed tolerance in basis points
      * @return true if the new price is within the allowed range
      */
-    function isWithinRange(uint128 oldValue, uint128 newValue, uint16 toleranceBps) internal pure returns (bool) {
+    function _isWithinRange(uint128 oldValue, uint128 newValue, uint16 toleranceBps) internal pure returns (bool) {
         if (toleranceBps == 0) {
             return true;
         }
@@ -166,8 +166,9 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      * @dev Calculates the new price based on MEV payouts and consensus rewards, applies the discount rate, and updates the oracle
      */
     function _postMintPrice() internal {
+        // casting _dailyMevPayouts + _dailyConsensusRewards so that the whole expression is converted to uint256
         uint256 newPrice =
-            ((_BPS_DECIMALS - _discountRateBps) * (_dailyMevPayouts + _dailyConsensusRewards)) / _BPS_DECIMALS;
+            ((_BPS_DECIMALS - _discountRateBps) * uint256(_dailyMevPayouts + _dailyConsensusRewards)) / _BPS_DECIMALS;
         if (newPrice == 0) {
             revert InvalidValue();
         }
@@ -183,7 +184,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     function _setDailyConsensusRewards(uint128 newValue) internal {
         uint128 oldValue = _dailyConsensusRewards;
 
-        if (!isWithinRange(oldValue, newValue, _dailyConsensusRewardsChangeToleranceBps)) {
+        if (!_isWithinRange(oldValue, newValue, _dailyConsensusRewardsChangeToleranceBps)) {
             revert InvalidValue();
         }
 
@@ -200,7 +201,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     function _setDailyMevPayouts(uint128 newValue) internal {
         uint128 oldValue = _dailyMevPayouts;
 
-        if (!isWithinRange(oldValue, newValue, _dailyMevPayoutsChangeToleranceBps)) {
+        if (!_isWithinRange(oldValue, newValue, _dailyMevPayoutsChangeToleranceBps)) {
             revert InvalidValue();
         }
 
