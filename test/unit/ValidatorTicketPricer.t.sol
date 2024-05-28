@@ -27,6 +27,106 @@ contract ValidatorTicketPricerTest is TestHelper {
         accessManager.grantRole(ROLE_ID_VT_PRICER, address(this), 0);
     }
 
+    function testSetDailyMevPayoutsChangeToleranceBps() public {
+        uint16 newTolerance = 500; // 5%
+
+        vm.prank(OPERATIONS_MULTISIG);
+        validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newTolerance);
+        assertEq(validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps(), newTolerance);
+    }
+
+    function testSetDailyConsensusRewardsChangeToleranceBps() public {
+        uint16 newTolerance = 300; // 3%
+
+        vm.prank(OPERATIONS_MULTISIG);
+        validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newTolerance);
+        assertEq(validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps(), newTolerance);
+    }
+
+    function testSetDiscountRate() public {
+        uint16 newRate = 200; // 2%
+
+        vm.prank(DAO);
+        validatorTicketPricer.setDiscountRate(newRate);
+        assertEq(validatorTicketPricer.getDiscountRateBps(), newRate);
+    }
+
+    function testRevertSetDailyMevPayoutsChangeToleranceBps() public {
+        uint16 newTolerance = 15000; // invalid tolerance, greater than _BPS_DECIMALS
+
+        vm.prank(OPERATIONS_MULTISIG);
+        vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
+        validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newTolerance);
+    }
+
+    function testRevertSetDailyConsensusRewardsChangeToleranceBps() public {
+        uint16 newTolerance = 15000; // invalid tolerance, greater than _BPS_DECIMALS
+
+        vm.prank(OPERATIONS_MULTISIG);
+        vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
+        validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newTolerance);
+    }
+
+    function testRevertSetDiscountRate() public {
+        uint16 newRate = 15000; // invalid rate, greater than or equal to _BPS_DECIMALS
+
+        vm.prank(DAO);
+        vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
+        validatorTicketPricer.setDiscountRate(newRate);
+    }
+
+    function testSetDailyMevPayouts() public {
+        vm.prank(_broadcaster);
+        uint128 newPayouts = 1 ether; // example value
+
+        validatorTicketPricer.setDailyMevPayouts(newPayouts);
+        assertEq(validatorTicketPricer.getDailyMevPayouts(), newPayouts);
+
+        uint16 newTolerance = 500;
+        newPayouts = 0.5 ether;
+
+        vm.prank(OPERATIONS_MULTISIG);
+        validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newTolerance);
+
+        vm.prank(_broadcaster);
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
+        validatorTicketPricer.setDailyMevPayouts(newPayouts);
+    }
+
+    function testSetDailyConsensusRewards() public {
+        vm.prank(_broadcaster);
+
+        uint128 newRewards = 1 ether; // example value
+        validatorTicketPricer.setDailyConsensusRewards(newRewards);
+        assertEq(validatorTicketPricer.getDailyConsensusRewards(), newRewards);
+
+        uint16 newTolerance = 500;
+        newRewards = 0.5 ether;
+
+        vm.prank(OPERATIONS_MULTISIG);
+        validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newTolerance);
+
+        vm.prank(_broadcaster);
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
+        validatorTicketPricer.setDailyConsensusRewards(newRewards);
+    }
+
+    function testSetDailyRewardsAndPostMintPrice() public {
+        vm.prank(_broadcaster);
+
+        uint128 mevPayouts = 1 ether; // example value
+        uint128 consensusRewards = 1 ether; // example value
+        validatorTicketPricer.setDailyRewardsAndPostMintPrice(mevPayouts, consensusRewards);
+        uint16 _BPS_DECIMALS = 1e4;
+
+        uint256 expectedPrice = (
+            (_BPS_DECIMALS - validatorTicketPricer.getDiscountRateBps()) * (mevPayouts + consensusRewards)
+        ) / _BPS_DECIMALS;
+        assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
+    }
+
     function testFuzz_setDailyMevPayoutsChangeToleranceBps(uint16 newValue) public {
         vm.prank(OPERATIONS_MULTISIG);
 
@@ -69,6 +169,8 @@ contract ValidatorTicketPricerTest is TestHelper {
     function testFuzz_setDailyMevPayouts(uint128 newValue) public {
         vm.assume(newValue > 0 && newValue < 10000 ether);
 
+        vm.prank(_broadcaster);
+
         uint128 oldValue = validatorTicketPricer.getDailyMevPayouts();
         uint16 tolerance = validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps();
         if (
@@ -91,6 +193,8 @@ contract ValidatorTicketPricerTest is TestHelper {
 
     function testFuzz_setDailyConsensusRewards(uint128 newValue) public {
         vm.assume(newValue > 0 && newValue < 10000 ether);
+
+        vm.prank(_broadcaster);
         uint128 oldValue = validatorTicketPricer.getDailyConsensusRewards();
         uint16 tolerance = validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps();
         if (
@@ -115,6 +219,8 @@ contract ValidatorTicketPricerTest is TestHelper {
     function testFuzz_setDailyRewardsAndPostMintPrice(uint128 mevPayouts, uint128 consensusRewards) public {
         vm.assume(consensusRewards > 0 && consensusRewards < 10000 ether);
         vm.assume(mevPayouts > 0 && mevPayouts < 10000 ether);
+
+        vm.prank(_broadcaster);
 
         uint128 oldMevPayouts = validatorTicketPricer.getDailyMevPayouts();
         uint16 mevTolerance = validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps();
