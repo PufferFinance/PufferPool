@@ -77,7 +77,7 @@ contract ValidatorTicketPricerTest is TestHelper {
 
     function testSetDailyMevPayouts() public {
         vm.prank(_broadcaster);
-        uint128 newPayouts = 1 ether; // example value
+        uint104 newPayouts = 1 ether; // example value
 
         validatorTicketPricer.setDailyMevPayouts(newPayouts);
         assertEq(validatorTicketPricer.getDailyMevPayouts(), newPayouts);
@@ -97,7 +97,7 @@ contract ValidatorTicketPricerTest is TestHelper {
     function testSetDailyConsensusRewards() public {
         vm.prank(_broadcaster);
 
-        uint128 newRewards = 1 ether; // example value
+        uint104 newRewards = 1 ether; // example value
         validatorTicketPricer.setDailyConsensusRewards(newRewards);
         assertEq(validatorTicketPricer.getDailyConsensusRewards(), newRewards);
 
@@ -116,8 +116,8 @@ contract ValidatorTicketPricerTest is TestHelper {
     function testSetDailyRewardsAndPostMintPrice() public {
         vm.prank(_broadcaster);
 
-        uint128 mevPayouts = 1 ether; // example value
-        uint128 consensusRewards = 1 ether; // example value
+        uint104 mevPayouts = 1 ether; // example value
+        uint104 consensusRewards = 1 ether; // example value
         validatorTicketPricer.setDailyRewardsAndPostMintPrice(mevPayouts, consensusRewards);
         uint16 _BPS_DECIMALS = 1e4;
 
@@ -166,12 +166,12 @@ contract ValidatorTicketPricerTest is TestHelper {
         }
     }
 
-    function testFuzz_setDailyMevPayouts(uint128 newValue) public {
+    function testFuzz_setDailyMevPayouts(uint104 newValue) public {
         vm.assume(newValue > 0 && newValue < 10000 ether);
 
         vm.prank(_broadcaster);
 
-        uint128 oldValue = validatorTicketPricer.getDailyMevPayouts();
+        uint104 oldValue = validatorTicketPricer.getDailyMevPayouts();
         uint16 tolerance = validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps();
         if (
             tolerance == 0
@@ -186,16 +186,16 @@ contract ValidatorTicketPricerTest is TestHelper {
             assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
         } else {
             (bool success,) =
-                address(validatorTicketPricer).call(abi.encodeWithSignature("setDailyMevPayouts(uint128)", newValue));
+                address(validatorTicketPricer).call(abi.encodeWithSignature("setDailyMevPayouts(uint104)", newValue));
             assertTrue(!success);
         }
     }
 
-    function testFuzz_setDailyConsensusRewards(uint128 newValue) public {
+    function testFuzz_setDailyConsensusRewards(uint104 newValue) public {
         vm.assume(newValue > 0 && newValue < 10000 ether);
 
         vm.prank(_broadcaster);
-        uint128 oldValue = validatorTicketPricer.getDailyConsensusRewards();
+        uint104 oldValue = validatorTicketPricer.getDailyConsensusRewards();
         uint16 tolerance = validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps();
         if (
             tolerance == 0
@@ -210,21 +210,21 @@ contract ValidatorTicketPricerTest is TestHelper {
             assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
         } else {
             (bool success,) = address(validatorTicketPricer).call(
-                abi.encodeWithSignature("setDailyConsensusRewards(uint128)", newValue)
+                abi.encodeWithSignature("setDailyConsensusRewards(uint104)", newValue)
             );
             assertTrue(!success);
         }
     }
 
-    function testFuzz_setDailyRewardsAndPostMintPrice(uint128 mevPayouts, uint128 consensusRewards) public {
+    function testFuzz_setDailyRewardsAndPostMintPrice(uint104 mevPayouts, uint104 consensusRewards) public {
         vm.assume(consensusRewards > 0 && consensusRewards < 10000 ether);
         vm.assume(mevPayouts > 0 && mevPayouts < 10000 ether);
 
         vm.prank(_broadcaster);
 
-        uint128 oldMevPayouts = validatorTicketPricer.getDailyMevPayouts();
+        uint104 oldMevPayouts = validatorTicketPricer.getDailyMevPayouts();
         uint16 mevTolerance = validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps();
-        uint128 oldConsensusRewards = validatorTicketPricer.getDailyConsensusRewards();
+        uint104 oldConsensusRewards = validatorTicketPricer.getDailyConsensusRewards();
         uint16 consensusTolerance = validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps();
 
         bool mevValid = mevTolerance == 0
@@ -244,7 +244,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         } else {
             (bool success,) = address(validatorTicketPricer).call(
                 abi.encodeWithSignature(
-                    "setDailyRewardsAndPostMintPrice(uint128,uint128)", mevPayouts, consensusRewards
+                    "setDailyRewardsAndPostMintPrice(uint104,uint104)", mevPayouts, consensusRewards
                 )
             );
             assertTrue(!success);

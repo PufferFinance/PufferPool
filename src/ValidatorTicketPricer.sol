@@ -16,13 +16,12 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     PufferOracleV2 internal immutable _ORACLE;
 
     // slot 0
-    uint16 internal _dailyMevPayoutsChangeToleranceBps;
-    uint16 internal _dailyConsensusRewardsChangeToleranceBps;
+    uint16 internal _dailyMevPayoutsChangeToleranceBps; // max value 655%
+    uint16 internal _dailyConsensusRewardsChangeToleranceBps; // max value 655%
     uint16 internal _discountRateBps;
 
-    // slot 1
-    uint128 internal _dailyMevPayouts;
-    uint128 internal _dailyConsensusRewards;
+    uint104 internal _dailyMevPayouts; // max value is 20282409603651 ETH
+    uint104 internal _dailyConsensusRewards; // max value is 20282409603651 ETH
 
     /**
      * @notice Constructor sets the oracle and access manager
@@ -38,6 +37,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      */
     function setDailyMevPayoutsChangeToleranceBps(uint16 newValue) external restricted {
         if (newValue > _BPS_DECIMALS) {
+            // only <= 100% allowed
             revert InvalidValue();
         }
 
@@ -51,6 +51,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      */
     function setDailyConsensusRewardsChangeToleranceBps(uint16 newValue) external restricted {
         if (newValue > _BPS_DECIMALS) {
+            // only <= 100% allowed
             revert InvalidValue();
         }
 
@@ -64,6 +65,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      */
     function setDiscountRate(uint16 newValue) external restricted {
         if (newValue >= _BPS_DECIMALS) {
+            // only < 100% allowed
             revert InvalidValue();
         }
 
@@ -75,14 +77,14 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     /**
      * @inheritdoc IValidatorTicketPricer
      */
-    function setDailyMevPayouts(uint128 newValue) external restricted {
+    function setDailyMevPayouts(uint104 newValue) external restricted {
         _setDailyMevPayouts(newValue);
     }
 
     /**
      * @inheritdoc IValidatorTicketPricer
      */
-    function setDailyConsensusRewards(uint128 newValue) external restricted {
+    function setDailyConsensusRewards(uint104 newValue) external restricted {
         _setDailyConsensusRewards(newValue);
     }
 
@@ -96,7 +98,7 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     /**
      * @inheritdoc IValidatorTicketPricer
      */
-    function setDailyRewardsAndPostMintPrice(uint128 dailyMevPayouts, uint128 dailyConsensusRewards)
+    function setDailyRewardsAndPostMintPrice(uint104 dailyMevPayouts, uint104 dailyConsensusRewards)
         external
         restricted
     {
@@ -129,14 +131,14 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
     /**
      * @inheritdoc IValidatorTicketPricer
      */
-    function getDailyMevPayouts() external view returns (uint128) {
+    function getDailyMevPayouts() external view returns (uint104) {
         return _dailyMevPayouts;
     }
 
     /**
      * @inheritdoc IValidatorTicketPricer
      */
-    function getDailyConsensusRewards() external view returns (uint128) {
+    function getDailyConsensusRewards() external view returns (uint104) {
         return _dailyConsensusRewards;
     }
 
@@ -147,12 +149,12 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      * @param toleranceBps The allowed tolerance in basis points
      * @return true if the new price is within the allowed range
      */
-    function _isWithinRange(uint128 oldValue, uint128 newValue, uint16 toleranceBps) internal pure returns (bool) {
+    function _isWithinRange(uint104 oldValue, uint104 newValue, uint16 toleranceBps) internal pure returns (bool) {
         if (toleranceBps == 0) {
             return true;
         }
 
-        uint256 allowedDifference = (oldValue * toleranceBps) / _BPS_DECIMALS;
+        uint256 allowedDifference = (uint256(oldValue) * toleranceBps) / _BPS_DECIMALS;
 
         if (newValue > oldValue) {
             return newValue <= oldValue + allowedDifference;
@@ -167,8 +169,9 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      */
     function _postMintPrice() internal {
         // casting _dailyMevPayouts + _dailyConsensusRewards so that the whole expression is converted to uint256
-        uint256 newPrice =
-            ((_BPS_DECIMALS - _discountRateBps) * uint256(_dailyMevPayouts + _dailyConsensusRewards)) / _BPS_DECIMALS;
+        uint256 newPrice = (
+            (_BPS_DECIMALS - _discountRateBps) * (uint256(_dailyMevPayouts) + uint256(_dailyConsensusRewards))
+        ) / _BPS_DECIMALS;
         if (newPrice == 0) {
             revert InvalidValue();
         }
@@ -181,8 +184,8 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      * @param newValue The new daily consensus rewards value to set
      * @dev Checks if the new value is within the allowed range and emits an event
      */
-    function _setDailyConsensusRewards(uint128 newValue) internal {
-        uint128 oldValue = _dailyConsensusRewards;
+    function _setDailyConsensusRewards(uint104 newValue) internal {
+        uint104 oldValue = _dailyConsensusRewards;
 
         if (!_isWithinRange(oldValue, newValue, _dailyConsensusRewardsChangeToleranceBps)) {
             revert InvalidValue();
@@ -198,8 +201,8 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      * @param newValue The new daily MEV payouts value to set
      * @dev Checks if the new value is within the allowed range and emits an event
      */
-    function _setDailyMevPayouts(uint128 newValue) internal {
-        uint128 oldValue = _dailyMevPayouts;
+    function _setDailyMevPayouts(uint104 newValue) internal {
+        uint104 oldValue = _dailyMevPayouts;
 
         if (!_isWithinRange(oldValue, newValue, _dailyMevPayoutsChangeToleranceBps)) {
             revert InvalidValue();

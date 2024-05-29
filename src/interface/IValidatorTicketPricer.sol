@@ -16,14 +16,14 @@ interface IValidatorTicketPricer {
      * @param oldValue The old value of daily MEV payouts
      * @param newValue The new value of daily MEV payouts
      */
-    event DailyMevPayoutsUpdated(uint128 oldValue, uint128 newValue);
+    event DailyMevPayoutsUpdated(uint104 oldValue, uint104 newValue);
 
     /**
      * @notice Emitted when daily consensus rewards are updated
      * @param oldValue The old value of daily consensus rewards
      * @param newValue The new value of daily consensus rewards
      */
-    event DailyConsensusRewardsUpdated(uint128 oldValue, uint128 newValue);
+    event DailyConsensusRewardsUpdated(uint104 oldValue, uint104 newValue);
 
     /**
      * @notice Emitted when daily MEV payouts change tolerance is updated
@@ -68,13 +68,13 @@ interface IValidatorTicketPricer {
      * @notice Updates the daily MEV payouts
      * @param newValue The new daily MEV payouts value to set
      */
-    function setDailyMevPayouts(uint128 newValue) external;
+    function setDailyMevPayouts(uint104 newValue) external;
 
     /**
      * @notice Updates the daily consensus rewards
      * @param newValue The new daily consensus rewards value to set
      */
-    function setDailyConsensusRewards(uint128 newValue) external;
+    function setDailyConsensusRewards(uint104 newValue) external;
 
     /**
      * @notice Posts the mint price based on current MEV payouts and consensus rewards
@@ -86,7 +86,7 @@ interface IValidatorTicketPricer {
      * @param dailyMevPayouts The new daily MEV payouts value to set
      * @param dailyConsensusRewards The new daily consensus rewards value to set
      */
-    function setDailyRewardsAndPostMintPrice(uint128 dailyMevPayouts, uint128 dailyConsensusRewards) external;
+    function setDailyRewardsAndPostMintPrice(uint104 dailyMevPayouts, uint104 dailyConsensusRewards) external;
 
     /**
      * @notice Gets the daily MEV payouts change tolerance in basis points
@@ -110,11 +110,11 @@ interface IValidatorTicketPricer {
      * @notice Gets the daily MEV payouts
      * @return The current daily MEV payouts
      */
-    function getDailyMevPayouts() external view returns (uint128);
+    function getDailyMevPayouts() external view returns (uint104);
 
     /**
      * @notice Gets the daily consensus rewards
      * @return The current daily consensus rewards
      */
-    function getDailyConsensusRewards() external view returns (uint128);
+    function getDailyConsensusRewards() external view returns (uint104);
 }
