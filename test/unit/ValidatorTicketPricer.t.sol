@@ -27,7 +27,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         accessManager.grantRole(ROLE_ID_VT_PRICER, address(this), 0);
     }
 
-    function testSetDailyMevPayoutsChangeToleranceBps() public {
+    function test_SetDailyMevPayoutsChangeToleranceBps() public {
         uint16 newTolerance = 500; // 5%
 
         vm.prank(OPERATIONS_MULTISIG);
@@ -35,7 +35,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         assertEq(validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps(), newTolerance);
     }
 
-    function testSetDailyConsensusRewardsChangeToleranceBps() public {
+    function test_SetDailyConsensusRewardsChangeToleranceBps() public {
         uint16 newTolerance = 300; // 3%
 
         vm.prank(OPERATIONS_MULTISIG);
@@ -43,7 +43,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         assertEq(validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps(), newTolerance);
     }
 
-    function testSetDiscountRate() public {
+    function test_SetDiscountRate() public {
         uint16 newRate = 200; // 2%
 
         vm.prank(DAO);
@@ -51,7 +51,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         assertEq(validatorTicketPricer.getDiscountRateBps(), newRate);
     }
 
-    function testRevertSetDailyMevPayoutsChangeToleranceBps() public {
+    function test_RevertSetDailyMevPayoutsChangeToleranceBps() public {
         uint16 newTolerance = 15000; // invalid tolerance, greater than _BPS_DECIMALS
 
         vm.prank(OPERATIONS_MULTISIG);
@@ -59,7 +59,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newTolerance);
     }
 
-    function testRevertSetDailyConsensusRewardsChangeToleranceBps() public {
+    function test_RevertSetDailyConsensusRewardsChangeToleranceBps() public {
         uint16 newTolerance = 15000; // invalid tolerance, greater than _BPS_DECIMALS
 
         vm.prank(OPERATIONS_MULTISIG);
@@ -67,7 +67,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newTolerance);
     }
 
-    function testRevertSetDiscountRate() public {
+    function test_RevertSetDiscountRate() public {
         uint16 newRate = 15000; // invalid rate, greater than or equal to _BPS_DECIMALS
 
         vm.prank(DAO);
@@ -75,7 +75,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         validatorTicketPricer.setDiscountRate(newRate);
     }
 
-    function testSetDailyMevPayouts() public {
+    function test_SetDailyMevPayouts() public {
         vm.prank(_broadcaster);
         uint104 newPayouts = 1 ether; // example value
 
@@ -94,7 +94,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         validatorTicketPricer.setDailyMevPayouts(newPayouts);
     }
 
-    function testSetDailyConsensusRewards() public {
+    function test_SetDailyConsensusRewards() public {
         vm.prank(_broadcaster);
 
         uint104 newRewards = 1 ether; // example value
@@ -113,7 +113,7 @@ contract ValidatorTicketPricerTest is TestHelper {
         validatorTicketPricer.setDailyConsensusRewards(newRewards);
     }
 
-    function testSetDailyRewardsAndPostMintPrice() public {
+    function test_SetDailyRewardsAndPostMintPrice() public {
         vm.prank(_broadcaster);
 
         uint104 mevPayouts = 1 ether; // example value
