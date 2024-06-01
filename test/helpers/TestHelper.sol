@@ -23,6 +23,7 @@ import { PufferVaultV2 } from "pufETH/PufferVaultV2.sol";
 import { stETHMock } from "pufETHTest/mocks/stETHMock.sol";
 import { IWETH } from "pufETH/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "puffer/ValidatorTicket.sol";
+import { ValidatorTicketPricer } from "puffer/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "puffer/OperationsCoordinator.sol";
 import "forge-std/console.sol";
 
@@ -89,6 +90,7 @@ contract TestHelper is Test, BaseScript {
     IEnclaveVerifier public verifier;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
+    ValidatorTicketPricer public validatorTicketPricer;
 
     address public DAO = makeAddr("DAO");
     address public timelock;
@@ -166,6 +168,8 @@ contract TestHelper is Test, BaseScript {
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
+        validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
+
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
 
         // pufETH dependencies

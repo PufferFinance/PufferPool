@@ -23,6 +23,7 @@ struct PufferProtocolDeployment {
     address restakingOperatorBeacon; // Beacon for Restaking Operator
     address moduleManager;
     address validatorTicket;
+    address validatorTicketPricer;
     address pufferOracle;
     address operationsCoordinator;
     address aVSContractsRegistry;
