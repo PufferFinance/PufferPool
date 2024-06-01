@@ -430,6 +430,7 @@ contract PufferModuleManagerTest is TestHelper {
         // Not allowlisted, revert
         vm.expectRevert(Unauthorized.selector);
         pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
+        vm.stopPrank();
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
