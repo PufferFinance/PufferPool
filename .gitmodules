@@ -22,3 +22,6 @@
 [submodule "lib/eigenlayer-middleware"]
 	path = lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware.git
+[submodule "lib/connext/interfaces"]
+	path = lib/connext/interfaces
+	url = git@github.com:connext/interfaces.git
