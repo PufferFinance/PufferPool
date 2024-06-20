@@ -20,6 +20,9 @@ import { LibGuardianMessages } from "puffer/LibGuardianMessages.sol";
 import { Address } from "openzeppelin/utils/Address.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "puffer/struct/ModuleStorage.sol";
+import { ContextUpgradeable } from "openzeppelin-upgradeable/utils/ContextUpgradeable.sol";
+import { Context } from "openzeppelin/utils/Context.sol";
+import { BeaconProxyFirewallConsumer } from "ironblocks/firewall-consumer/contracts/proxies/BeaconProxyFirewallConsumer.sol";
 
 /**
  * @title PufferModule
@@ -27,7 +30,7 @@ import { ModuleStorage } from "puffer/struct/ModuleStorage.sol";
  * @notice PufferModule
  * @custom:security-contact security@puffer.fi
  */
-contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
+contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable, BeaconProxyFirewallConsumer {
     using Address for address;
     using Address for address payable;
 
@@ -80,11 +83,20 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _disableInitializers();
     }
 
-    function initialize(bytes32 moduleName, address initialAuthority) external initializer {
+    function initialize(bytes32 moduleName, address initialAuthority) external initializer firewallProtected {
         __AccessManaged_init(initialAuthority);
         ModuleStorage storage $ = _getPufferModuleStorage();
         $.moduleName = moduleName;
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
+
+        _setAddressBySlot(
+            bytes32(uint256(keccak256("eip1967.firewall")) - 1),
+            address(0)
+        );
+        _setAddressBySlot(
+            bytes32(uint256(keccak256("eip1967.firewall.admin")) - 1),
+            msg.sender
+        );
     }
 
     /**
@@ -118,6 +130,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         external
         payable
         onlyPufferProtocol
+        firewallProtected
     {
         // EigenPod is deployed in this call
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
@@ -131,6 +144,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         external
         virtual
         onlyPufferModuleManager
+        firewallProtected
         returns (bytes32[] memory)
     {
         IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
@@ -159,7 +173,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IERC20[][] calldata tokens,
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
-    ) external virtual whenNotPaused onlyPufferModuleManager {
+    ) external virtual whenNotPaused onlyPufferModuleManager firewallProtected {
         EIGEN_DELEGATION_MANAGER.completeQueuedWithdrawals({
             withdrawals: withdrawals,
             tokens: tokens,
@@ -179,7 +193,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields,
         bytes32[][] calldata withdrawalFields
-    ) external virtual whenNotPaused onlyPufferModuleManager {
+    ) external virtual whenNotPaused onlyPufferModuleManager firewallProtected {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyAndProcessWithdrawals({
@@ -202,7 +216,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint40[] calldata validatorIndices,
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields
-    ) external virtual onlyPufferModuleManager {
+    ) external virtual onlyPufferModuleManager firewallProtected {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyWithdrawalCredentials({
@@ -218,7 +232,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager {
+    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager firewallProtected {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.withdrawNonBeaconChainETHBalanceWei(address(this), amountToWithdraw);
@@ -230,6 +244,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     function call(address to, uint256 amount, bytes calldata data)
         external
         onlyPufferProtocol
+        firewallProtected
         returns (bool success, bytes memory)
     {
         // slither-disable-next-line arbitrary-send-eth
@@ -250,7 +265,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         uint256[] calldata blockNumbers,
         uint256[] calldata amounts,
         bytes32[][] calldata merkleProofs
-    ) external virtual whenNotPaused {
+    ) external virtual whenNotPaused firewallProtected {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         // Anybody can submit a valid proof and the ETH will be sent to the node operator
@@ -287,6 +302,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         external
         virtual
         whenNotPaused
+        firewallProtected
     {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
@@ -316,7 +332,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
-    ) external virtual onlyPufferModuleManager {
+    ) external virtual onlyPufferModuleManager firewallProtected {
         EIGEN_DELEGATION_MANAGER.delegateTo(operator, approverSignatureAndExpiry, approverSalt);
     }
 
@@ -324,7 +340,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate() external virtual onlyPufferModuleManager firewallProtected returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
@@ -366,5 +382,28 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         assembly {
             $.slot := _PUFFER_MODULE_BASE_STORAGE
         }
+    }
+
+    /**
+     * ironblocks: _msgSender() & _msgData() are inherited in ContextUpgradeable
+     * and in BeaconProxyFirewallConsumer, so we need to override them here to avoid the diamond inheritance problem.
+     */
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(ContextUpgradeable, Context)
+        returns (address)
+    {
+        return msg.sender;
+    }
+
+    function _msgData()
+        internal
+        pure
+        override(ContextUpgradeable, Context)
+        returns (bytes calldata)
+    {
+        return msg.data;
     }
 }

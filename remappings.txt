@@ -9,6 +9,7 @@ eigenlayer/=lib/eigenlayer-contracts/src/contracts
 eigenlayer-middleware/=lib/eigenlayer-middleware/src/
 eigenlayer-test/=lib/eigenlayer-contracts/src/test
 openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+ironblocks/=lib/ironblocks/onchain-firewall/packages/
 puffer/=src/
 script/=script/
 rave/=lib/rave/src/
