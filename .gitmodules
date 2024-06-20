@@ -22,3 +22,6 @@
 [submodule "lib/eigenlayer-middleware"]
 	path = lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware.git
+[submodule "lib/ironblocks/onchain-firewall"]
+	path = lib/ironblocks/onchain-firewall
+	url = https://github.com/ironblocks/onchain-firewall
